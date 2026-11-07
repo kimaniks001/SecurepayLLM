@@ -1,7 +1,6 @@
 import { Search, ShoppingBag, Store, Plus, MessageCircle, Package, Wrench, ChevronRight } from 'lucide-react';
 import type { StoreIdentity, StoreOffer } from '../types';
-import { ResultCard } from '../features/discovery/ui/ResultCard';
-import { resultFromStoreOffer } from '../features/discovery/result';
+import { ShopOfferCard } from './ShopOfferCard';
 import { Ks001SurfaceGuide } from '../features/experience/Ks001SurfaceGuide';
 import type { AppView } from '../types';
 
@@ -39,28 +38,27 @@ export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOff
   return (
     <div className="flex-1 overflow-y-auto scrollbar-thin">
       <div className={embedded ? 'mx-auto w-full max-w-3xl px-3 py-4 sm:px-5' : 'max-w-2xl mx-auto px-4 md:px-6 py-6'}>
-        <section aria-label="Digital Store entrance" className={embedded ? 'mb-4 rounded-2xl border border-cream-200 bg-white px-4 py-4' : 'sp-hero mb-4 px-5 py-5 md:px-7 md:py-6'}>
+        <section aria-label="Digital Store entrance" className={embedded ? 'mb-3 rounded-2xl border border-cream-200 bg-white px-4 py-3 sm:px-5' : 'sp-hero mb-3 px-5 py-4 md:px-7 md:py-5'}>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="sp-kicker">{contextLabel ? `Finding things for ${contextLabel}` : 'Digital Stores · Goods and services'}</span>
             <span className="rounded-full border border-forest-100 bg-forest-50 px-2.5 py-1 text-[0.65rem] font-semibold text-forest-700">Buy safe · Build smart</span>
           </div>
-          <h1 className={embedded ? 'sp-type-display mt-2 text-2xl leading-tight text-forest-900' : 'sp-display mt-2 text-3xl text-forest-900 md:text-4xl'}>
-            {contextLabel ? `Find what ${contextLabel} needs` : 'Find it. Sell it. Agree clearly.'}
+          <h1 className={embedded ? 'sp-type-display mt-1.5 text-2xl leading-tight text-forest-900' : 'sp-display mt-1.5 text-3xl text-forest-900 md:text-4xl'}>
+            {contextLabel ? `Find what ${contextLabel} needs` : 'Good things. Good people. Clear agreements.'}
           </h1>
-          <p className="mt-2 max-w-xl text-[0.82rem] leading-6 text-sand-600">
-            Browse things people sell and services they offer. Visit their Digital Stores, inspect an offer and make an enquiry.
-            You can also set up your own Store using the same KS Number.
+          <p className="mt-1 max-w-2xl text-[0.81rem] leading-5 text-sand-600">
+            Find something useful, meet the trader behind it, and ask before you agree. Your own Digital Store is just as welcome.
           </p>
-          <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3" aria-label="Choose what to do in Digital Stores">
-            <button type="button" onClick={()=>document.getElementById("store-search")?.scrollIntoView({behavior:"smooth",block:"start"})} className="flex min-h-20 flex-col justify-center rounded-xl border border-forest-300 bg-forest-50 px-3 py-3 text-left text-forest-800">
+          <div className="mt-3 grid grid-cols-3 gap-2" aria-label="Choose what to do in Digital Stores">
+            <button type="button" onClick={()=>document.getElementById("store-search")?.scrollIntoView({behavior:"smooth",block:"start"})} className="flex min-h-[65px] flex-col justify-center rounded-xl border border-forest-300 bg-forest-50 px-3 py-3 text-left text-forest-800">
               <span className="flex items-center gap-1.5 text-[0.84rem] font-semibold"><ShoppingBag size={15}/> Shop</span>
               <span className="mt-1 text-[0.7rem] text-sand-600">Find goods and services</span>
             </button>
-            <button type="button" onClick={onCreateOffer} className="min-h-20 rounded-xl border border-cream-200 bg-white px-3 py-3 text-left hover:border-forest-300">
+            <button type="button" onClick={onCreateOffer} className="min-h-[65px] rounded-xl border border-cream-200 bg-white px-3 py-2 text-left hover:border-forest-300">
               <span className="flex items-center gap-1.5 text-[0.84rem] font-semibold text-forest-800"><Plus size={15}/> Sell something</span>
               <span className="mt-1 block text-[0.7rem] text-sand-600">Make your first offer</span>
             </button>
-            <button type="button" onClick={onManageStore} className="min-h-20 rounded-xl border border-cream-200 bg-white px-3 py-3 text-left hover:border-forest-300">
+            <button type="button" onClick={onManageStore} className="min-h-[65px] rounded-xl border border-cream-200 bg-white px-3 py-2 text-left hover:border-forest-300">
               <span className="flex items-center gap-1.5 text-[0.84rem] font-semibold text-forest-800"><Store size={15}/> My Store</span>
               <span className="mt-1 block text-[0.7rem] text-sand-600">Manage offers and enquiries</span>
             </button>
@@ -69,10 +67,10 @@ export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOff
 
         {connectionsPanel && <div className="mb-4">{connectionsPanel}</div>}
 
-        <section id="store-search" aria-label="Shop for goods and services" className="mb-4 scroll-mt-8 rounded-2xl border border-cream-200 bg-white px-3 py-4 sm:px-4">
+        <section id="store-search" aria-label="Shop for goods and services" className="mb-3 scroll-mt-8 rounded-2xl border border-cream-200 bg-white px-3 py-3 sm:px-4">
           <div className="mb-3 flex items-center justify-between gap-3">
-            <h2 className="font-display text-base text-forest-900">What are you looking for?</h2>
-            <span className="text-[0.68rem] text-sand-500">Goods · Services · Capacity</span>
+            <h2 className="font-display text-base text-forest-900">What would you like to find today?</h2>
+            <span className="hidden text-[0.68rem] text-sand-500 sm:inline">Goods · Services · Capacity</span>
           </div>
           <label className="relative block">
             <span className="sr-only">Search Digital Stores</span>
@@ -81,12 +79,12 @@ export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOff
               type="search"
               value={query}
               onChange={event => onQueryChange(event.target.value)}
-              placeholder="Try cement, phone, cleaning or CCTV"
+              placeholder="Search goods, skills, services or a shop…"
               aria-label="Search Digital Stores"
               className="min-h-12 w-full rounded-xl border border-cream-300 bg-cream-50 pl-10 pr-4 text-sm text-forest-800 placeholder:text-sand-500 focus:border-forest-400 focus:outline-none"
             />
           </label>
-          <div className="mt-3 flex flex-wrap gap-2" aria-label="Quick searches">
+          <div className="mt-2 flex flex-wrap gap-1.5" aria-label="Quick searches">
             {[
               {label:'All offers',query:'',Icon:ShoppingBag},
               {label:'Phones',query:'phone',Icon:Package},
@@ -100,6 +98,36 @@ export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOff
             </button>)}
           </div>
         </section>
+
+        {/* Offers */}
+        <div className="mb-5">
+          <div className="mb-3 flex flex-wrap items-end justify-between gap-2"><div><h2 className="font-display text-xl font-semibold text-forest-900">Explore the shelves</h2><p className="mt-1 text-xs text-sand-600">Discover goods and services offered by traders.</p></div>{searchStatus==="ready" && <span role="status" className="text-xs text-sand-600">{offers.length} {offers.length===1?"offer":"offers"}</span>}</div>
+          {searchStatus === 'loading' ? (
+            <p role="status" className="text-[0.825rem] text-sand-500 text-center py-8">Searching…</p>
+          ) : searchStatus === 'error' ? (
+            <div className="rounded-2xl border border-ember-200 bg-ember-50 px-5 py-6 text-center">
+              <p className="text-[0.875rem] text-ember-700">{searchErrorText ?? 'SecurePay could not search the Store.'}</p>
+              <p className="mt-1 text-[0.76rem] text-sand-600">You can still tell KS001 what you need while Store search recovers.</p>
+              <button onClick={onStartConversation} className="mt-3 min-h-11 rounded-full border border-forest-200 bg-white px-4 text-[0.8rem] font-medium text-forest-700">
+                Tell KS001 what you need
+              </button>
+            </div>
+          ) : offers.length === 0 ? (
+            <div className="rounded-2xl border border-cream-200 bg-white px-5 py-8 text-center">
+              <p role="status" className="text-[0.9rem] leading-relaxed text-sand-700">{query.trim() ? `Nothing matching “${query.trim()}” is published on SecurePay yet.` : 'Nothing is published on SecurePay right now.'}</p>
+              {query.trim() && <p className="mt-1 text-[0.78rem] text-sand-500">Search looks for these words in an offer’s title or description, or in the seller’s place. One plain word works best.</p>}
+              <button onClick={onStartConversation} className="mt-2 text-[0.825rem] font-medium text-forest-600 hover:text-forest-700">
+                Tell SecurePay what you need
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3" aria-label="Published Store offers">
+              {offers.map((offer: StoreOffer) => (
+                <ShopOfferCard key={offer.id} offer={offer} onOpen={() => onOpenOffer(offer.id)} onOpenStore={() => onOpenStore(offer.storeId)} />
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Real published sellers; the backend searches offers, not all registered
             businesses. Do not fabricate a Store directory from demo fixtures. */}
@@ -138,36 +166,6 @@ export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOff
             </div>
           </div>
         )}
-
-        {/* Offers */}
-        <div className="mb-5">
-          <div className="text-[0.7rem] font-medium text-sand-600 uppercase tracking-wide mb-2">Browse offers</div>
-          {searchStatus === 'loading' ? (
-            <p role="status" className="text-[0.825rem] text-sand-500 text-center py-8">Searching…</p>
-          ) : searchStatus === 'error' ? (
-            <div className="rounded-2xl border border-ember-200 bg-ember-50 px-5 py-6 text-center">
-              <p className="text-[0.875rem] text-ember-700">{searchErrorText ?? 'SecurePay could not search the Store.'}</p>
-              <p className="mt-1 text-[0.76rem] text-sand-600">You can still tell KS001 what you need while Store search recovers.</p>
-              <button onClick={onStartConversation} className="mt-3 min-h-11 rounded-full border border-forest-200 bg-white px-4 text-[0.8rem] font-medium text-forest-700">
-                Tell KS001 what you need
-              </button>
-            </div>
-          ) : offers.length === 0 ? (
-            <div className="rounded-2xl border border-cream-200 bg-white px-5 py-8 text-center">
-              <p role="status" className="text-[0.9rem] leading-relaxed text-sand-700">{query.trim() ? `Nothing matching “${query.trim()}” is published on SecurePay yet.` : 'Nothing is published on SecurePay right now.'}</p>
-              {query.trim() && <p className="mt-1 text-[0.78rem] text-sand-500">Search looks for these words in an offer’s title or description, or in the seller’s place. One plain word works best.</p>}
-              <button onClick={onStartConversation} className="mt-2 text-[0.825rem] font-medium text-forest-600 hover:text-forest-700">
-                Tell SecurePay what you need
-              </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" aria-label="Published Store offers">
-              {offers.map((offer: StoreOffer) => (
-                <ResultCard key={offer.id} offer={resultFromStoreOffer(offer)} onOpen={() => onOpenOffer(offer.id)} />
-              ))}
-            </div>
-          )}
-        </div>
 
         <details className="mb-4 rounded-2xl border border-cream-200 bg-white/70">
           <summary className="min-h-11 cursor-pointer list-none px-4 py-3 text-sm font-medium text-forest-800">More ways to sell <ChevronRight size={14} className="ml-1 inline"/></summary>
