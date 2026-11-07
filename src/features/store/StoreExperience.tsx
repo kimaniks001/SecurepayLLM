@@ -37,7 +37,9 @@ type Gateway = Pick<StoreGateway, 'search' | 'store' | 'offer' | 'myProfile' | '
   | 'myCustomerEnquiries' | 'myStoreEnquiries' | 'businessStoreEnquiries'
   | 'respondStoreEnquiry' | 'respondBusinessStoreEnquiry' | 'savedWorkForEnquiry'
   | 'personalEnquiryDraft' | 'savePersonalEnquiryDraft'
-  | 'businessEnquiryDraft' | 'saveBusinessEnquiryDraft'>;
+  | 'businessEnquiryDraft' | 'saveBusinessEnquiryDraft'
+  | 'myCommunityProviderInterest' | 'saveMyCommunityProviderInterest'
+  | 'businessCommunityProviderInterest' | 'saveBusinessCommunityProviderInterest'>;
 
 function errorView(message: string): ErrorStateResponse {
   return { type: 'ERROR_STATE', title: 'SecurePay could not load this', text: message, primaryLabel: 'Try again', primaryValue: 'retry' };
