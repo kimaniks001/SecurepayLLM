@@ -104,6 +104,13 @@ test('explicit full item detail and quick preview allow add-to-collection withou
  assert.match(real,/onCollect=\{collect\}/);
 });
 
+test('a full offer returns to its origin shop, not always to the home shelf',()=>{
+ assert.match(real,/const offerOriginRef=useRef<'shelf'\|'seller'>\('shelf'\)/);
+ assert.match(real,/offerOriginRef\.current='seller';setShowFullOffer\(false\)/);
+ assert.match(real,/offerOriginRef\.current='shelf';setShowFullOffer\(false\)/);
+ assert.match(real,/offerOriginRef\.current==='seller' \? controller\.backToStore\(\) : controller\.backToHome\(\)/);
+});
+
 test('example shop, full item and live individual shops keep SAME basket and assistant access',()=>{
  assert.match(example,/data-store-store-basket-continuity/);
  assert.match(example,/data-store-offer-basket-continuity/);
