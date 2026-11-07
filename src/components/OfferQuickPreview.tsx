@@ -1,7 +1,8 @@
 import { ArrowLeft, MessageCircle, Store } from 'lucide-react';
 import type { StoreOffer } from '../types';
+import type { StoreDestination } from '../features/store/shopSelection.mjs';
 
-export function OfferQuickPreview({ offer, onBack, backLabel = 'Results', sourceLabel, onUseThis, onAskKs001, onOpenStore, onOpenFull }: {
+export function OfferQuickPreview({ offer, onBack, backLabel = 'Results', sourceLabel, onUseThis, onAskKs001, onOpenStore, onOpenFull, onCollect }: {
   offer: StoreOffer;
   onBack: () => void;
   backLabel?: string;
@@ -10,6 +11,7 @@ export function OfferQuickPreview({ offer, onBack, backLabel = 'Results', source
   onAskKs001: () => void;
   onOpenStore: () => void;
   onOpenFull: () => void;
+  onCollect?: (offer:StoreOffer,destination:StoreDestination)=>void;
 }) {
   const unavailable = offer.lifecycle === 'unavailable';
   return (
@@ -54,6 +56,12 @@ export function OfferQuickPreview({ offer, onBack, backLabel = 'Results', source
           ) : (
             <p className="mt-2 text-sm text-sand-600">Interested? Ask KS001 what matters, visit the trader's shop or work out the agreement details. Viewing an offer never reserves or pays for it.</p>
           )}
+          {onCollect && <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            <button type="button" onClick={()=>onCollect(offer,'vision')}
+              className="min-h-11 rounded-xl border border-forest-200 bg-forest-50 px-4 text-sm font-semibold text-forest-800">+ Add to Vision</button>
+            {!unavailable && <button type="button" onClick={()=>onCollect(offer,'agreement')}
+              className="min-h-11 rounded-xl bg-forest-800 px-4 text-sm font-semibold text-white">+ Add to shopping collection</button>}
+          </div>}
           <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             <button type="button" onClick={onAskKs001} className="sp-primary-action inline-flex min-h-11 items-center justify-center gap-2 px-5 text-sm font-semibold">
               <MessageCircle className="h-4 w-4" /> Ask KS001 about this
