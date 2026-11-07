@@ -116,7 +116,7 @@ export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange
           selection={selection}
           onCollect={collect}
           onQuickKs001={quickAsk}
-          selectionPanel={<StoreCollectionPanel
+          selectionPanel={shopFocused ? <StoreCollectionPanel
             items={selection}
             onQuantity={(key,value)=>{const next=updateSelectedQuantity(selectionRef.current,key,value);selectionRef.current=next;setSelection(next);onSelectionChange?.(next);setSelectionDraft('');}}
             onRemove={key=>{const next=removeSelected(selectionRef.current,key);selectionRef.current=next;setSelection(next);onSelectionChange?.(next);setSelectionDraft('');}}
@@ -124,7 +124,7 @@ export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange
             notice={collectionNotice}
             draftPreview={selectionDraft}
             example
-          />}
+          /> : undefined}
           searchStatus="ready"
           onOpenOffer={id=>{setOfferId(id);setNotice('');setPage('offer');}}
           onOpenStore={id=>{setStoreId(id);setNotice('');setPage('store');}}
