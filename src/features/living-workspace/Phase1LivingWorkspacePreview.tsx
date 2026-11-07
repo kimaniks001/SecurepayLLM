@@ -36,7 +36,7 @@ import { StoresTool } from './StoresTool';
 import { StoreExperience } from '../store/StoreExperience';
 import { StoreMasterpieceLayoutReview } from '../store/StoreMasterpieceLayoutReview';
 import type { SelectionItem } from '../store/shopSelection.mjs';
-import { collectionTotals, formatListedMoney } from '../store/shopSelection.mjs';
+import { collectionTotals, formatListedMoney, updateSelectedQuantity, removeSelected } from '../store/shopSelection.mjs';
 import type { OfferFact } from '../agent/controller';
 import type { LocalStoreBuyingPlan } from './StoreBuyingPlan';
 import { UnifiedMoneyTool } from './UnifiedMoneyTool';
@@ -47,7 +47,7 @@ import { WorkspaceWelcome } from './WorkspaceWelcome';
 import { WorkspacePurposeGuide } from './WorkspacePurposeGuide';
 import { useCallback, useEffect, useState, useSyncExternalStore, useRef } from 'react';
 import securepayWordmark from '../../assets/brand/securepay/securepay-wordmark-horizontal.png';
-import { ArrowLeft, CalendarDays, Camera, FileText, Lightbulb, MapPin, MessageCircle, Plus, Store, UserRoundPlus, Wallet, X, BedDouble, PanelLeftClose, PanelLeftOpen, Pin, PinOff, Maximize2, Minimize2 } from 'lucide-react';
+import { ArrowLeft, CalendarDays, Camera, FileText, Lightbulb, MapPin, MessageCircle, Plus, Store, UserRoundPlus, Wallet, X, BedDouble, PanelLeftClose, PanelLeftOpen, Pin, PinOff, Maximize2, Minimize2, Minus, Trash2 } from 'lucide-react';
 
 type Mode = 'work' | 'vision' | 'circle' | 'community';
 type Screen = 'chat' | 'result' | 'tools';
@@ -1161,8 +1161,8 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
         {storeHandoffError && <p role="alert" className="shrink-0 border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-900">{storeHandoffError}</p>}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden" data-store-feature-preservation>
           {storeReviewRoute && (!signedIn || !storeIntegration)
-            ? <StoreMasterpieceLayoutReview shopFocused={storeFocus} onSelectionChange={setStoreSelected} />
-            : storeIntegration && <StoreExperience {...storeIntegration} embedded session={session} shoppingWide={storeFocus} onSelectionChange={setStoreSelected}
+            ? <StoreMasterpieceLayoutReview shopFocused={storeFocus} onSelectionChange={setStoreSelected} workspaceSelection={storeSelected} />
+            : storeIntegration && <StoreExperience {...storeIntegration} embedded session={session} shoppingWide={storeFocus} onSelectionChange={setStoreSelected} workspaceSelection={storeSelected}
             initialOfferRoute={initialEmbeddedStoreOffer}
             onUseOffer={fact=>{void continueEmbeddedOffer(fact);}}
             onResumeSavedWork={conversationId=>{void resumeEmbeddedStoreWork(conversationId);}}
@@ -1201,7 +1201,34 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
             const group=storeSelectedTotals.byDestination[destination];
             return <div key={destination} className="border-t border-forest-100 pt-2">
               <p className="text-xs font-semibold text-forest-800">{destination==='vision'?'Ideas for Vision':'Considering for Agreement'}</p>
-              {entries.map(entry=><p key={entry.key} className="mt-1 text-xs leading-5 text-sand-700">{entry.quantity} × {entry.title} · {entry.sellerName}</p>)}
+              {entries.map(entry=><div key={entry.key} className="mt-2 rounded-xl border border-forest-100 bg-white p-2.5" data-store-summary-edit-row>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold leading-5 text-forest-900">{entry.title}</p>
+                    <p className="text-[0.68rem] text-sand-600">{entry.sellerName}</p>
+                  </div>
+                  <button type="button" aria-label={'Remove '+entry.title+' from '+destination}
+                    onClick={()=>setStoreSelected(items=>removeSelected(items,entry.key))}
+                    className="flex size-9 shrink-0 items-center justify-center rounded-lg text-sand-600 hover:bg-cream-50 hover:text-ember-700">
+                    <Trash2 size={15}/>
+                  </button>
+                </div>
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  <div className="inline-flex items-center rounded-lg border border-forest-100" aria-label={'Quantity for '+entry.title}>
+                    <button type="button" aria-label={'Decrease quantity of '+entry.title}
+                      disabled={entry.quantity<=1} onClick={()=>setStoreSelected(items=>updateSelectedQuantity(items,entry.key,entry.quantity-1))}
+                      className="flex size-9 items-center justify-center disabled:opacity-30"><Minus size={14}/></button>
+                    <span className="min-w-8 text-center text-sm font-semibold tabular-nums">{entry.quantity}</span>
+                    <button type="button" aria-label={'Increase quantity of '+entry.title}
+                      disabled={entry.quantity>=99} onClick={()=>setStoreSelected(items=>updateSelectedQuantity(items,entry.key,entry.quantity+1))}
+                      className="flex size-9 items-center justify-center text-lg font-semibold disabled:opacity-30">+</button>
+                  </div>
+                  <span className="text-right text-[0.71rem] text-forest-800">
+                    {entry.unitMinor===null?'Price to confirm':entry.priceLabel}
+                    <span className="block text-[0.62rem] text-sand-500">Seller-listed · locked</span>
+                  </span>
+                </div>
+              </div>)}
               {Object.entries(group.subtotal).map(([currency,minor])=>
                 <p key={currency} className="mt-2 text-sm font-semibold text-forest-800">Listed subtotal: {formatListedMoney(minor,currency)}</p>)}
               {group.unpriced>0 && <p className="mt-1 text-xs text-sand-600">{group.unpriced} item(s) need an established price</p>}
@@ -1213,7 +1240,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
           </p>
           {storeOpen && !storeFocus && <button type="button" onClick={()=>setStoreFocus(true)}
             className="min-h-10 rounded-lg border border-forest-200 bg-white px-3 text-xs font-semibold text-forest-800">
-            Edit selections in full shop
+            Continue browsing full shop
           </button>}
         </section>}
         {mode==='work' && signedIn && guestClaim && guestClaim.phase!=='dismissed' &&
