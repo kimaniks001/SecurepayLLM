@@ -1,4 +1,4 @@
-import { FormEvent, useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { MessageCircle, Send } from 'lucide-react';
 import type { SelectionItem } from '../store/shopSelection.mjs';
 
