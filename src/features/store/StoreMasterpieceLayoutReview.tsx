@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { ArrowLeft, CheckCircle2, MessageCircle, Package, Plus, ShoppingBag, Store, X } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, MessageCircle, Plus, Store, X } from 'lucide-react';
 import type { StoreOffer } from '../../types';
 import { StoreHome } from '../../components/StoreHome';
 import { demoOffers, demoStores, getOfferById, getOffersByStore, getStoreById, searchOffers } from '../../storeData';
