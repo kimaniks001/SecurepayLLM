@@ -36,6 +36,7 @@ function itemCheck(offer:StoreOffer) {
 
 export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange,workspaceSelection,onOpenKs001Preview}:{shopFocused?:boolean;onSelectionChange?:(items:SelectionItem[])=>void;workspaceSelection?:SelectionItem[];onOpenKs001Preview?:()=>void}) {
   const [page,setPage] = useState<Page>('shop');
+  const [quickShopOffer,setQuickShopOffer] = useState<string|null>(null);
   const [query,setQuery] = useState('');
   const [offerId,setOfferId] = useState<string | null>(null);
   const [storeId,setStoreId] = useState<string | null>(null);
@@ -136,8 +137,8 @@ export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange
           onOpenStore={id=>{setStoreId(id);setNotice('');setPage('store');}}
           onCreateOffer={()=>{setNotice('');setPage('create');}}
           onManageStore={()=>{setNotice('');setPage('manage');}}
-          onStartConversation={()=>{setQuestion('I need help finding a reliable seller or service for what I want. What is the most useful thing to check next?');setPage('ask');}}
-          onAskKs001={()=>{setQuestion('Can you help me compare offers and understand the agreement before I buy?');setPage('ask');}}
+          onStartConversation={()=>onOpenKs001Preview?.()}
+          onAskKs001={()=>onOpenKs001Preview?.()}
         />
       }
 
@@ -155,8 +156,14 @@ export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange
             <strong className="text-forest-900">Before you agree</strong>
             <ul className="mt-2 space-y-1.5">{itemCheck(selectedOffer).map(item=><li key={item}>• {item}</li>)}</ul>
           </div>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            <button type="button" onClick={()=>collect(selectedOffer,'vision')}
+              className="min-h-11 rounded-xl border border-forest-200 bg-white px-3 text-sm font-semibold text-forest-800">+ Add to Vision</button>
+            <button type="button" onClick={()=>collect(selectedOffer,'agreement')}
+              className="min-h-11 rounded-xl bg-forest-800 px-3 text-sm font-semibold text-white">+ Add to collection</button>
+          </div>
           <div className="mt-4 flex flex-wrap gap-2">
-            <button type="button" onClick={()=>startEnquiry(selectedOffer)}
+            <button type="button" onClick={()=>quickAsk(selectedOffer)}
               className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-forest-800 px-4 text-sm font-semibold text-white"><MessageCircle size={16}/> Ask KS001 about this</button>
             <button type="button" onClick={()=>{setStoreId(selectedOffer.storeId);setPage('store');}}
               className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-forest-200 px-4 text-sm font-semibold text-forest-800"><Store size={16}/> Visit sample shop</button>
@@ -180,7 +187,16 @@ export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange
           :<div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {shopOffers.map(offer=><ShopOfferCard key={offer.id} offer={offer}
               onOpen={()=>{setOfferId(offer.id);setPage('offer');}}
-              onOpenStore={()=>{setStoreId(offer.storeId);}} />)}
+              onOpenStore={()=>{setStoreId(offer.storeId);}}
+              onCollect={collect}
+              onQuickKs001={quickAsk}
+              quickOpen={quickShopOffer===offer.id}
+              onToggleQuick={()=>setQuickShopOffer(current=>current===offer.id?null:offer.id)}
+              onCloseQuick={()=>setQuickShopOffer(null)}
+              selectedCounts={{
+                vision:selection.find(item=>item.offerId===offer.id && item.sellerKsNumber===offer.storeId && item.destination==='vision')?.quantity||0,
+                agreement:selection.find(item=>item.offerId===offer.id && item.sellerKsNumber===offer.storeId && item.destination==='agreement')?.quantity||0,
+              }}/>)}
           </div>}
       </div>}
 
