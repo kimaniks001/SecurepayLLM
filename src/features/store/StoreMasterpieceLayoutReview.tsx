@@ -5,7 +5,7 @@ import { StoreHome } from '../../components/StoreHome';
 import { ShopOfferCard, ShopOfferCover } from '../../components/ShopOfferCard';
 import { StoreCollectionPanel } from '../../components/StoreCollectionPanel';
 import type { SelectionItem, StoreDestination } from './shopSelection.mjs';
-import { collectOffer, itemFromOffer, removeSelected, updateSelectedQuantity, selectionToKs001 } from './shopSelection.mjs';
+import { collectOffer, itemFromOffer, removeSelected, updateSelectedQuantity, updateSelectedBuyerNote, selectionToKs001 } from './shopSelection.mjs';
 import { demoStores, getOfferById, getOffersByStore, getStoreById, searchOffers } from '../../storeData';
 
 /**
@@ -125,6 +125,7 @@ export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange
             items={selection}
             onQuantity={(key,value)=>{const next=updateSelectedQuantity(selectionRef.current,key,value);selectionRef.current=next;setSelection(next);onSelectionChange?.(next);setSelectionDraft('');}}
             onRemove={key=>{const next=removeSelected(selectionRef.current,key);selectionRef.current=next;setSelection(next);onSelectionChange?.(next);setSelectionDraft('');}}
+            onNote={(key,note)=>{const next=updateSelectedBuyerNote(selectionRef.current,key,note);selectionRef.current=next;setSelection(next);onSelectionChange?.(next);setSelectionDraft('');}}
             onContinue={stage}
             notice={collectionNotice}
             draftPreview={selectionDraft}
