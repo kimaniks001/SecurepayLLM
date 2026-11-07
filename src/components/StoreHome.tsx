@@ -27,6 +27,7 @@ interface StoreHomeProps {
   connectionsPanel?: React.ReactNode;
   /** Optional quick collecting without changing Store route or KS001 controller. */
   onCollect?: (offer: StoreOffer, destination: StoreDestination) => void;
+  onQuickKs001?: (offer: StoreOffer) => void;
   selection?: SelectionItem[];
   selectionPanel?: React.ReactNode;
   shoppingWide?: boolean;
@@ -40,7 +41,7 @@ interface StoreHomeProps {
  * Spine E applied to AgreementDetail/moneyData.ts. There is no backend "list all stores" endpoint, so
  * real mode always passes `stores={[]}` and that section is hidden rather than fabricated.
  */
-export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOffer, onStartConversation, offers, stores, storeLinks = [], query, onQueryChange, searchStatus, searchErrorText, onAskKs001, contextLabel, connectionsPanel, onCollect, selection = [], selectionPanel, shoppingWide = false, embedded = false }: StoreHomeProps) {
+export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOffer, onStartConversation, offers, stores, storeLinks = [], query, onQueryChange, searchStatus, searchErrorText, onAskKs001, contextLabel, connectionsPanel, onCollect, onQuickKs001, selection = [], selectionPanel, shoppingWide = false, embedded = false }: StoreHomeProps) {
   return (
     <div className="flex-1 overflow-y-auto scrollbar-thin">
       <div className={shoppingWide && selectionPanel ? 'mx-auto w-full max-w-[1530px] px-3 py-4 sm:px-5' : embedded ? 'mx-auto w-full max-w-3xl px-3 py-4 sm:px-5' : 'max-w-2xl mx-auto px-4 md:px-6 py-6'}>
@@ -135,6 +136,7 @@ export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOff
                   onOpen={() => onOpenOffer(offer.id)}
                   onOpenStore={() => onOpenStore(offer.storeId)}
                   onCollect={onCollect}
+                  onQuickKs001={onQuickKs001}
                   selectedCounts={{
                     vision:selection.find(item=>item.offerId===offer.id&&item.sellerKsNumber===offer.storeId&&item.destination==='vision')?.quantity||0,
                     agreement:selection.find(item=>item.offerId===offer.id&&item.sellerKsNumber===offer.storeId&&item.destination==='agreement')?.quantity||0,
