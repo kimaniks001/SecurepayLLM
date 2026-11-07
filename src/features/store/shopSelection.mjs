@@ -80,18 +80,19 @@ export function collectionTotals(items) {
   for(const item of items){
     if(destinations[item.destination]) destinations[item.destination].push(item);
   }
-  const subtotal = {};
-  let unpriced=0;
+  const byDestination={vision:{subtotal:{},unpriced:0},agreement:{subtotal:{},unpriced:0}};
   for(const entry of items) {
+    const bucket=byDestination[entry.destination];
+    if(!bucket)continue;
     if(entry.unitMinor === null || entry.unitMinor === undefined ||
        !Number.isSafeInteger(entry.unitMinor) ||
-       !Number.isSafeInteger(entry.quantity) || entry.quantity<1) {unpriced++;continue;}
+       !Number.isSafeInteger(entry.quantity) || entry.quantity<1) {bucket.unpriced++;continue;}
     const code=entry.currency;
     const value=entry.unitMinor*entry.quantity;
-    if (!Number.isSafeInteger(value)) {unpriced++;continue;}
-    subtotal[code]=(subtotal[code]||0)+value;
+    if (!Number.isSafeInteger(value)) {bucket.unpriced++;continue;}
+    bucket.subtotal[code]=(bucket.subtotal[code]||0)+value;
   }
-  return {destinations, subtotal, unpriced, itemCount:items.length,
+  return {destinations, byDestination, itemCount:items.length,
     quantityCount:items.reduce((sum,item)=>sum+item.quantity,0)};
 }
 
