@@ -1,0 +1,13 @@
+export type StoreDestination='vision'|'agreement';
+export type SelectionItem={key:string;destination:StoreDestination;offerId:string;sellerKsNumber:string;sellerName:string;title:string;offerType:string;currency:string;priceLabel:string;unitLabel:string;unitMinor:number|null;quantity:number;demo:boolean};
+export const SHOP_COLLECTION_VERSION:'store-selection.v1';
+export const MAX_DISTINCT_ITEMS:12;
+export const MAX_QUANTITY:99;
+export function listedMinorPrice(offer:{priceType:string;currency:string;price:string}):number|null;
+export function itemFromOffer(offer:{id:string;storeId:string;storeName:string;title:string;offerType:string;priceType:string;price:string;currency:string;priceUnit?:string;lifecycle:string},destination:StoreDestination,demo?:boolean):SelectionItem;
+export function collectOffer(previous:SelectionItem[],offer:Parameters<typeof itemFromOffer>[0],destination:StoreDestination,demo?:boolean):SelectionItem[];
+export function updateSelectedQuantity(items:SelectionItem[],key:string,quantity:number):SelectionItem[];
+export function removeSelected(items:SelectionItem[],key:string):SelectionItem[];
+export function collectionTotals(items:SelectionItem[]):{destinations:{vision:SelectionItem[];agreement:SelectionItem[]};subtotal:Record<string,number>;unpriced:number;itemCount:number;quantityCount:number};
+export function formatListedMoney(minor:number,currency:string):string;
+export function selectionToKs001(items:SelectionItem[],destination:StoreDestination):string;
