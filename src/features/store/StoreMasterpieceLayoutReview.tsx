@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ArrowLeft, CheckCircle2, MessageCircle, Plus, Store, X } from 'lucide-react';
 import type { StoreOffer } from '../../types';
 import { StoreHome } from '../../components/StoreHome';
@@ -34,7 +34,7 @@ function itemCheck(offer:StoreOffer) {
   return ['What is the exact item, quantity and condition?','Is it currently available?','How will it be delivered or collected?'];
 }
 
-export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange}:{shopFocused?:boolean;onSelectionChange?:(items:SelectionItem[])=>void}) {
+export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange,workspaceSelection,onOpenKs001Preview}:{shopFocused?:boolean;onSelectionChange?:(items:SelectionItem[])=>void;workspaceSelection?:SelectionItem[];onOpenKs001Preview?:()=>void}) {
   const [page,setPage] = useState<Page>('shop');
   const [query,setQuery] = useState('');
   const [offerId,setOfferId] = useState<string | null>(null);
@@ -53,6 +53,9 @@ export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange
   const selectionRef=useRef<SelectionItem[]>([]);
   const [collectionNotice,setCollectionNotice] = useState('');
   const [selectionDraft,setSelectionDraft] = useState('');
+  useEffect(()=>{
+    if(workspaceSelection && workspaceSelection!==selectionRef.current){selectionRef.current=workspaceSelection;setSelection(workspaceSelection);setSelectionDraft('');}
+  },[workspaceSelection]);
   const collect=(offer:StoreOffer,destination:StoreDestination)=>{
     try{
       const next=collectOffer(selectionRef.current,offer,destination,true);
@@ -66,7 +69,8 @@ export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange
       const next=collectOffer(selectionRef.current,offer,'agreement',true);
       selectionRef.current=next;setSelection(next);onSelectionChange?.(next);
       setSelectionDraft(selectionToKs001([itemFromOffer(offer,'agreement',true)],'agreement'));
-      setCollectionNotice('Example KS001 question prepared on the right. No live message has been sent.');
+      setCollectionNotice('Your example KS001 discussion is open. No live message has been sent.');
+      onOpenKs001Preview?.();
     }catch(error){setCollectionNotice(error instanceof Error?error.message:'Could not prepare KS001 question.');}
   };
   const stage=(destination:StoreDestination)=>{
@@ -75,7 +79,8 @@ export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange
       setSelectionDraft(proposal);
       setCollectionNotice(destination==='vision'
         ? 'Example Vision draft prepared here for review only. Nothing has been saved to Vision.'
-        : 'Example agreement enquiry prepared here for review only. Nothing was sent to KS001.');
+        : 'Example agreement enquiry ready. You can discuss it in the guided KS001 preview.');
+      if(destination==='agreement')onOpenKs001Preview?.();
     }catch(error){setCollectionNotice(error instanceof Error?error.message:'Could not prepare that selection.');}
   };
   const visible = demoPublished(searchOffers(query));

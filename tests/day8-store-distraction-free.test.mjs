@@ -66,11 +66,16 @@ test('only one manually opened quick peek is allowed, even after repeated taps o
  assert.match(card,/aria-expanded=\{quickOpen\}/);
 });
 
-test('preview assistant understands chosen items while being explicitly labelled as a demo',()=>{
- assert.match(shell,/data-store-assistant-example/);
- assert.match(shell,/storeSelectedTotals\.quantityCount/);
- assert.match(shell,/Would you like to compare these offers/);
- assert.match(shell,/This is a guided preview/);
+test('preview assistant uses an interactive, clearly scripted conversation with chosen Store offers',()=>{
+ const guide=read('src/features/living-workspace/StoreKs001GuidedPreview.tsx');
+ assert.match(shell,/<StoreKs001GuidedPreview items=\{storeSelected\}/);
+ assert.match(shell,/onOpenKs001Preview=\{\(\)=>setStoreAssistantOpen\(true\)\}/);
+ assert.match(guide,/data-store-guided-conversation/);
+ assert.match(guide,/textarea aria-label="Your reply to KS001"/);
+ assert.match(guide,/onSubmit=\{\(event:FormEvent\)=>/);
+ assert.match(guide,/turns\.map\(turn=>/);
+ assert.match(guide,/the replies are scripted, not live AI/);
+ assert.match(review,/onOpenKs001Preview\?\.\(\)/);
  assert.match(review,/onSelectionChange\?\.\(next\)/);
  assert.match(shell,/onSelectionChange=\{setStoreSelected\}/);
  assert.doesNotMatch(shell,/autoSendStoreAssistant/);

@@ -60,7 +60,7 @@ function LoadingNotice({ text }: { text: string }) {
  * Agreement/Trade authority is created here — only `onUseOffer` (a local view switch plus, on explicit
  * proceed, a call into the caller's Agent controller) ever leaves this feature.
  */
-export function StoreExperience({ gateway, businessGateway, marketNetworkGateway, fulfilmentNeedsGateway, auth, session, initialOfferRoute, returnContext, trustedMediaOrigin, onUseOffer, onResumeSavedWork, onNavigate, onOpenBusinessVision, onAskKs001, onStageSelections, onSelectionChange, shoppingWide = false, embedded = false }: {
+export function StoreExperience({ gateway, businessGateway, marketNetworkGateway, fulfilmentNeedsGateway, auth, session, initialOfferRoute, returnContext, trustedMediaOrigin, onUseOffer, onResumeSavedWork, onNavigate, onOpenBusinessVision, onAskKs001, onStageSelections, onSelectionChange, workspaceSelection, shoppingWide = false, embedded = false }: {
   gateway: Gateway; businessGateway: Pick<BusinessGateway, 'mine' | 'representation'>; marketNetworkGateway: Pick<MarketNetworkGateway, 'plugAvailability' | 'updatePlugAvailability' | 'plugMissions'>; fulfilmentNeedsGateway?: Pick<FulfilmentNeedsGateway, 'matches' | 'routes' | 'miniAgreementReview'>; auth: AuthGateway; session: SessionStore;
   initialOfferRoute?: { canonicalKsNumber: string; offerId: string } | null;
   returnContext?: { label: string; onReturn: () => void } | null;
@@ -73,6 +73,8 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
   onAskKs001?: (message: string) => void;
   onStageSelections?: (message: string, destination: StoreDestination) => Promise<void>;
   onSelectionChange?: (items: SelectionItem[]) => void;
+  /** Parent editing in SecurePay Check updates the same live Store collection. */
+  workspaceSelection?: SelectionItem[];
   shoppingWide?: boolean;
   /** Signed-in Store is a CHILD of the approved Living Workspace; public routes remain standalone. */
   embedded?: boolean;
@@ -99,6 +101,12 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
   const [selection,setSelection]=useState<SelectionItem[]>([]);
   const selectionRef=useRef<SelectionItem[]>([]);
   const [collectionNotice,setCollectionNotice]=useState('');
+  useEffect(()=>{
+    if(workspaceSelection && workspaceSelection!==selectionRef.current){
+      selectionRef.current=workspaceSelection;setSelection(workspaceSelection);
+      setCollectionNotice('Selection updated in SecurePay Check. Listed prices are unchanged.');
+    }
+  },[workspaceSelection]);
   const [collectionBusy,setCollectionBusy]=useState(false);
   const [publicDigitalAddress, setPublicDigitalAddress] = useState<PublicDigitalStoreAddress | null>(null);
   const [customerDraft, setCustomerDraft] = useState<StoreCustomerDraft>(emptyStoreCustomerDraft);

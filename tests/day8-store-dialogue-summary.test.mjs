@@ -1,0 +1,72 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {collectOffer,collectionTotals,updateSelectedQuantity,removeSelected} from '../src/features/store/shopSelection.mjs';
+
+const read=(path)=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
+const workspace=read('src/features/living-workspace/Phase1LivingWorkspacePreview.tsx');
+const review=read('src/features/store/StoreMasterpieceLayoutReview.tsx');
+const real=read('src/features/store/StoreExperience.tsx');
+const chat=read('src/features/living-workspace/StoreKs001GuidedPreview.tsx');
+
+const offer={id:'cctv-4',storeId:'KS002',storeName:'Community Security',title:'Four CCTV cameras',
+  offerType:'package',priceType:'fixed',price:'KES 85,000',currency:'KES',priceUnit:'set',lifecycle:'published'};
+
+test('one select, quantity edits and deletion in SecurePay Check recalculate the correct subtotal',()=>{
+  let items=collectOffer([],offer,'agreement');
+  assert.equal(collectionTotals(items).byDestination.agreement.subtotal.KES,8500000);
+  items=updateSelectedQuantity(items,items[0].key,4);
+  assert.equal(items[0].unitMinor,8500000);
+  assert.equal(items[0].priceLabel,'KES 85,000');
+  assert.equal(collectionTotals(items).byDestination.agreement.subtotal.KES,34000000);
+  items=removeSelected(items,items[0].key);
+  assert.equal(collectionTotals(items).quantityCount,0);
+  assert.equal(Object.keys(collectionTotals(items).byDestination.agreement.subtotal).length,0);
+});
+
+test('right-hand panel contains a quantity stepper and remove control, but no editable seller price',()=>{
+  assert.match(workspace,/data-store-selection-parent-summary/);
+  assert.match(workspace,/data-store-summary-edit-row/);
+  assert.match(workspace,/updateSelectedQuantity\(items,entry.key,entry.quantity-1\)/);
+  assert.match(workspace,/updateSelectedQuantity\(items,entry.key,entry.quantity\+1\)/);
+  assert.match(workspace,/removeSelected\(items,entry.key\)/);
+  assert.match(workspace,/Seller-listed · locked/);
+  assert.match(workspace,/formatListedMoney\(minor,currency\)/);
+  assert.doesNotMatch(workspace,/setEntryPrice|onPriceChange|updateSelectedPrice/);
+  assert.match(workspace,/workspaceSelection=\{storeSelected\}/);
+});
+
+test('right-panel changes are reflected back in the same live and example Store selection',()=>{
+  assert.match(real,/workspaceSelection\?: SelectionItem\[\]/);
+  assert.match(real,/if\(workspaceSelection && workspaceSelection!==selectionRef.current\)/);
+  assert.match(real,/selectionRef.current=workspaceSelection;setSelection\(workspaceSelection\)/);
+  assert.match(review,/workspaceSelection\?:SelectionItem\[\]/);
+  assert.match(review,/selectionRef.current=workspaceSelection;setSelection\(workspaceSelection\)/);
+  assert.match(workspace,/onSelectionChange=\{setStoreSelected\}/);
+});
+
+test('the KS001 button on a product actually opens the chosen-item assistant drawer',()=>{
+  assert.match(review,/onOpenKs001Preview\?\.\(\)/);
+  assert.match(workspace,/onOpenKs001Preview=\{\(\)=>setStoreAssistantOpen\(true\)\}/);
+  assert.match(workspace,/<StoreKs001GuidedPreview items=\{storeSelected\}\/>/);
+  assert.match(chat,/items\.map\(item=>/);
+  assert.match(chat,/firstQuestion\(items\)/);
+});
+
+test('preview supports a typed back-and-forth, but never impersonates a connected model',()=>{
+  assert.match(chat,/onSubmit=\{\(event:FormEvent\)=>/);
+  assert.match(chat,/send\(draft\)/);
+  assert.match(chat,/setTurns\(current=>\[/);
+  assert.match(chat,/followUp\(items,next\)/);
+  assert.match(chat,/KS001 · Scripted preview/);
+  assert.match(chat,/not live AI/);
+  assert.match(chat,/no real AI, trader or Agreement is contacted/);
+  assert.doesNotMatch(chat,/fetch\(|\.sendMessage\(|\.createAgreement\(|window\.location/);
+});
+
+test('the authenticated real conversation is still the one already mounted by the workspace',()=>{
+  assert.match(workspace,/<LiveKs001Session controller=\{liveController!\}/);
+  assert.match(workspace,/prepareEmbeddedStoreQuestion\(message,true\)/);
+  assert.match(workspace,/\.then\(\(\)=>setStoreAssistantOpen\(true\)\)/);
+  assert.match(workspace,/if\(!remainInShop\)closeEmbeddedStore\('chat'\)/);
+});
