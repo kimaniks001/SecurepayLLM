@@ -51,7 +51,7 @@ export function ShopOfferCard({offer,onOpen,onOpenStore,onCollect,onQuickKs001,s
 }) {
   const [imageOpen,setImageOpen]=useState(false);
   const photo=offer.media.find(item=>item.url?.trim()&&!item.isExample)?.url;
-  const canUseForAgreement=offer.lifecycle==='published';
+  const canUseForAgreement=offer.lifecycle==='published' && !offer.isExternalReference;
   const quickEnabled=Boolean(onCollect||onQuickKs001);
   const add=(destination:StoreDestination)=>{
     onCollect?.(offer,destination);
