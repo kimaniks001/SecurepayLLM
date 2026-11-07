@@ -45,7 +45,7 @@ import { WorkspaceWelcome } from './WorkspaceWelcome';
 import { WorkspacePurposeGuide } from './WorkspacePurposeGuide';
 import { useCallback, useEffect, useState, useSyncExternalStore, useRef } from 'react';
 import securepayWordmark from '../../assets/brand/securepay/securepay-wordmark-horizontal.png';
-import { ArrowLeft, CalendarDays, Camera, FileText, Lightbulb, MapPin, MessageCircle, Plus, Store, UserRoundPlus, Wallet, X, BedDouble, PanelLeftClose, PanelLeftOpen, Pin, PinOff } from 'lucide-react';
+import { ArrowLeft, CalendarDays, Camera, FileText, Lightbulb, MapPin, MessageCircle, Plus, Store, UserRoundPlus, Wallet, X, BedDouble, PanelLeftClose, PanelLeftOpen, Pin, PinOff, Maximize2, Minimize2 } from 'lucide-react';
 
 type Mode = 'work' | 'vision' | 'circle' | 'community';
 type Screen = 'chat' | 'result' | 'tools';
@@ -344,13 +344,16 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
         /^#\/store\/enquiry\/[0-9a-f-]{36}\/(?:buyer|trader)$/.test(window.location.hash))
       && session.getSnapshot().status === 'signed-in');
   const [storeOpen, setStoreOpen] = useState(initialStoreOpen);
+  // Shop in focus by default; the original three-panel shell stays mounted underneath.
+  // The customer can switch to the compact workspace view without losing a draft.
+  const [storeFocus, setStoreFocus] = useState(true);
   const [storeEverOpened, setStoreEverOpened] = useState(initialStoreOpen);
   const [storeHandoffBusy, setStoreHandoffBusy] = useState(false);
   const [storeHandoffError, setStoreHandoffError] = useState<string | null>(null);
   const storeTransitionLock = useRef(false);
   const storeReturnScreen = useRef<Screen>('chat');
   const closeEmbeddedStore = (target?: Screen) => {
-    setStoreOpen(false);setStoreReviewRoute(false);setStoreHandoffError(null);
+    setStoreOpen(false);setStoreReviewRoute(false);setStoreHandoffError(null);setStoreFocus(true);
     setScreen(target ?? storeReturnScreen.current);
     // Close without unmounting the parent's KS001 controller or restoring a
     // stale Store URL on refresh (including the explicit visual-review route).
@@ -1058,11 +1061,15 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
         data-masterpiece-digital-store
         aria-label="Digital Stores inside Living Workspace"
         aria-hidden={!storeOpen}
-        className={`${storeOpen?'flex':'hidden'} fixed inset-0 z-[60] min-h-0 min-w-0 flex-col overflow-hidden bg-white md:static md:inset-auto md:z-auto md:w-[38%] md:shrink-0 xl:w-[42%] md:rounded-2xl md:border md:border-cream-200 md:shadow-sm`}>
+        className={`${storeOpen?'flex':'hidden'} min-h-0 min-w-0 flex-col overflow-hidden bg-white ${storeFocus ? 'fixed inset-0 z-[60] md:fixed md:inset-x-5 md:top-[96px] md:bottom-4 md:z-[75] md:w-auto md:max-w-none md:rounded-2xl md:border md:border-cream-200 md:shadow-2xl' : 'fixed inset-0 z-[60] md:static md:inset-auto md:z-auto md:w-[38%] md:shrink-0 xl:w-[42%] md:rounded-2xl md:border md:border-cream-200 md:shadow-sm'}`}>
         <header className="flex shrink-0 items-center justify-between gap-2 border-b border-cream-200 bg-white px-3 py-2 sm:px-4">
           <div className="min-w-0"><p className="text-[0.65rem] font-semibold uppercase tracking-widest text-sand-500">Digital Store · Shop & Sell</p>
             <strong className="sp-type-display text-base text-forest-900">Digital Stores</strong></div>
           <div className="flex flex-wrap items-center gap-1.5">
+            <button type="button" data-store-shopping-focus-toggle onClick={()=>setStoreFocus(value=>!value)}
+              className="hidden min-h-11 items-center gap-1.5 rounded-xl border border-forest-200 bg-forest-50 px-3 text-xs font-semibold text-forest-800 md:inline-flex">
+              {storeFocus ? <><Minimize2 size={14}/> Workspace view</> : <><Maximize2 size={14}/> Full shop</>}
+            </button>
             <button type="button" onClick={()=>closeEmbeddedStore('chat')}
               disabled={storeHandoffBusy}
               className="min-h-11 rounded-xl border border-cream-200 bg-white px-3 text-xs text-forest-800 disabled:opacity-50">
