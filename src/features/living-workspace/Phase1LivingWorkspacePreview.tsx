@@ -1134,12 +1134,17 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
             initialOfferRoute={initialEmbeddedStoreOffer}
             onUseOffer={fact=>{void continueEmbeddedOffer(fact);}}
             onResumeSavedWork={conversationId=>{void resumeEmbeddedStoreWork(conversationId);}}
-            onAskKs001={message=>{void prepareEmbeddedStoreQuestion(message).catch(error=>{
-              setStoreHandoffError(error instanceof Error?error.message:'KS001 could not prepare that question.');
-            });}}
+            onAskKs001={message=>{void prepareEmbeddedStoreQuestion(message,true)
+              .then(()=>setStoreAssistantOpen(true))
+              .catch(error=>{
+                setStoreHandoffError(error instanceof Error?error.message:'KS001 could not prepare that question.');
+              });}}
             onStageSelections={async (text,destination)=>{
               if(destination==='vision')await stageStoreVision(text);
-              else await prepareEmbeddedStoreQuestion(text,true);
+              else {
+                await prepareEmbeddedStoreQuestion(text,true);
+                setStoreAssistantOpen(true);
+              }
             }}
             onNavigate={view=>{void leaveEmbeddedStoreFor(view);}}
             onOpenBusinessVision={async businessKsNumber=>{
