@@ -3,7 +3,7 @@ import { NavBar } from '../../components/NavBar';
 import { StoreHome } from '../../components/StoreHome';
 import { StoreCollectionPanel } from '../../components/StoreCollectionPanel';
 import type { SelectionItem, StoreDestination } from './shopSelection.mjs';
-import { collectOffer, itemFromOffer, removeSelected, updateSelectedQuantity, selectionToKs001 } from './shopSelection.mjs';
+import { collectOffer, removeSelected, updateSelectedQuantity, updateSelectedBuyerNote, selectionToKs001 } from './shopSelection.mjs';
 import { storeOfferAssistTurn } from './offerAssistTurn.mjs';
 import { StoreProfileView } from '../../components/StoreProfileView';
 import { OfferDetail } from '../../components/OfferDetail';
@@ -108,6 +108,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
     }
   },[workspaceSelection]);
   const [collectionBusy,setCollectionBusy]=useState(false);
+  const offerOriginRef=useRef<'shelf'|'seller'>('shelf');
   const [publicDigitalAddress, setPublicDigitalAddress] = useState<PublicDigitalStoreAddress | null>(null);
   const [customerDraft, setCustomerDraft] = useState<StoreCustomerDraft>(emptyStoreCustomerDraft);
   const [focusedEnquiry, setFocusedEnquiry] = useState(() =>
@@ -136,9 +137,11 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
     if(collectionBusy)return;
     setCollectionBusy(true);setCollectionNotice('');
     try{
-      const next=collectOffer(selectionRef.current,offer,'agreement',false);
+      // Asking about an already selected item must not silently add another unit.
+      const existing=selectionRef.current.find(item=>item.offerId===offer.id && item.sellerKsNumber===offer.storeId && item.destination==='agreement');
+      const next=existing ? selectionRef.current : collectOffer(selectionRef.current,offer,'agreement',false);
       selectionRef.current=next;setSelection(next);onSelectionChange?.(next);
-      const question=selectionToKs001([itemFromOffer(offer,'agreement',false)],'agreement');
+      const question=selectionToKs001(next,'agreement');
       if(onStageSelections)await onStageSelections(question,'agreement');
       else if(onAskKs001)onAskKs001(question);
       else throw new Error('Sign in to the full SecurePay KS001 workspace to continue. Your item remains selected.');
@@ -481,6 +484,17 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
     );
   }
 
+  // One selected-offer collection follows the shopper across catalogue,
+  // merchant profile, full offer, and the optional trade-review path.
+  const basketPane=<StoreCollectionPanel
+    items={selection}
+    onQuantity={(key,value)=>{const next=updateSelectedQuantity(selectionRef.current,key,value);selectionRef.current=next;setSelection(next);onSelectionChange?.(next);}}
+    onRemove={key=>{const next=removeSelected(selectionRef.current,key);selectionRef.current=next;setSelection(next);onSelectionChange?.(next);}}
+    onNote={(key,note)=>{const next=updateSelectedBuyerNote(selectionRef.current,key,note);selectionRef.current=next;setSelection(next);onSelectionChange?.(next);}}
+    onContinue={destination=>{void stageCollection(destination);}}
+    notice={collectionNotice}
+    busy={collectionBusy}
+  />;
   let body: React.ReactNode;
 
   if (state.view === 'home') {
@@ -491,15 +505,8 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
         selection={selection}
         onCollect={collect}
         onQuickKs001={offer=>{void quickAsk(offer);}}
-        selectionPanel={shoppingWide || !embedded ? <StoreCollectionPanel
-          items={selection}
-          onQuantity={(key,value)=>{const next=updateSelectedQuantity(selectionRef.current,key,value);selectionRef.current=next;setSelection(next);onSelectionChange?.(next);}}
-          onRemove={key=>{const next=removeSelected(selectionRef.current,key);selectionRef.current=next;setSelection(next);onSelectionChange?.(next);}}
-          onContinue={destination=>{void stageCollection(destination);}}
-          notice={collectionNotice}
-          busy={collectionBusy}
-        /> : undefined}
-        onOpenOffer={id => { if (state.search.status === 'ready') { const found = state.search.data.find(r => r.offer.id === id); if (found) { setShowFullOffer(false); void controller.openOffer(found.canonicalKsNumber, id); } } }}
+        selectionPanel={shoppingWide || !embedded ? basketPane : undefined}
+        onOpenOffer={id => { if (state.search.status === 'ready') { const found = state.search.data.find(r => r.offer.id === id); if (found) { offerOriginRef.current='shelf';setShowFullOffer(false); void controller.openOffer(found.canonicalKsNumber, id); } } }}
         onOpenStore={id => { void controller.openStore(id); }}
         onManageStore={() => requireAuth('manage')}
         onCreateOffer={() => requireAuth('create')}
@@ -524,7 +531,9 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
   } else if (state.view === 'profile') {
     if (state.selectedStore.status === 'error') body = <div className="p-6"><ErrorStateCard data={errorView(errorText(state.selectedStore.error))} onChoice={() => controller.backToHome()} /></div>;
     else if (state.selectedStore.status !== 'ready') body = <LoadingNotice text="Loading this Store…" />;
-    else body = <StoreProfileView store={state.selectedStore.data.store} offers={state.selectedStore.data.offers} onBack={() => controller.backToHome()} onOpenOffer={id => { setShowFullOffer(false); void controller.openOffer(state.selectedStore.status === 'ready' ? state.selectedStore.data.store.id : '', id); }}
+    else body = <StoreProfileView store={state.selectedStore.data.store} offers={state.selectedStore.data.offers}
+      onCollect={collect} onQuickKs001={offer=>{void quickAsk(offer);}} selection={selection}
+      onBack={() => controller.backToHome()} onOpenOffer={id => { offerOriginRef.current='seller';setShowFullOffer(false); void controller.openOffer(state.selectedStore.status === 'ready' ? state.selectedStore.data.store.id : '', id); }}
       digitalAddress={publicDigitalAddress?.canonicalKsNumber === state.selectedStore.data.store.id ? publicDigitalAddress : null}
       connectionPanel={publicDigitalAddress?.canonicalKsNumber === state.selectedStore.data.store.id
         ? <StoreCustomerConnections key={state.selectedStore.data.store.id}
@@ -570,6 +579,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
             onBack={() => setShowFullOffer(false)}
             onInterested={() => onNavigate('signed-in')}
             onUseThis={() => controller.useThis()}
+            onCollect={collect}
             onAskSecurePay={() => {
               if(state.selectedOffer.status !== 'ready') return;
               if(onAskKs001) onAskKs001(storeOfferAssistTurn(state.selectedOffer.data.offer));
@@ -585,10 +595,11 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
       body = (
         <OfferQuickPreview
           offer={state.selectedOffer.data.offer}
-          onBack={() => returnContext ? returnContext.onReturn() : controller.backToHome()}
+          onBack={() => returnContext ? returnContext.onReturn() : offerOriginRef.current==='seller' ? controller.backToStore() : controller.backToHome()}
           backLabel={returnContext ? `Back to ${returnContext.label}` : 'Results'}
           sourceLabel={returnContext ? `From ${returnContext.label}` : null}
           onUseThis={() => controller.useThis()}
+          onCollect={collect}
           onAskKs001={() => {
               if(state.selectedOffer.status !== 'ready') return;
               if(onAskKs001) onAskKs001(storeOfferAssistTurn(state.selectedOffer.data.offer));
@@ -711,19 +722,30 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
     );
   }
 
+  // The same visible basket stays alongside merchant and offer pages.
+  // No separate shop cart is created when following links from one trader to another.
+  const inShoppingJourney=['profile','offer','toAgreement'].includes(state.view);
+  const withSideCollection=inShoppingJourney && selection.length>0 && (shoppingWide || !embedded);
+  const presentedBody=withSideCollection
+    ? <div data-store-cross-shop-continuity className="flex h-full min-h-0 min-w-0 flex-col lg:flex-row">
+        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">{body}</div>
+        <div className="min-h-0 w-full shrink-0 overflow-y-auto px-3 pb-3 lg:w-[320px] lg:pb-0">{basketPane}</div>
+      </div>
+    : body;
+
   // Only the public/direct-link experience owns the standalone header.
   // An authenticated Living Workspace supplies the ONE Tool Shelf, ONE KS001
   // conversation and ONE authoritative Agreement/SecurePay Check instead.
   if (embedded) {
     return <section data-store-embedded-body aria-label="Digital Store workspace"
       className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-cream-50">
-      {body}
+      {presentedBody}
     </section>;
   }
   return (
     <div className={`min-h-dvh flex flex-col bg-cream-100 ${navPadding}`}>
       <NavBar view={navBarView} onNavigate={handleNavigate} />
-      <div className="flex-1 flex flex-col overflow-hidden">{body}</div>
+      <div className="flex-1 flex flex-col overflow-hidden">{presentedBody}</div>
     </div>
   );
 }

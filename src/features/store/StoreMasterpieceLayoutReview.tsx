@@ -5,7 +5,7 @@ import { StoreHome } from '../../components/StoreHome';
 import { ShopOfferCard, ShopOfferCover } from '../../components/ShopOfferCard';
 import { StoreCollectionPanel } from '../../components/StoreCollectionPanel';
 import type { SelectionItem, StoreDestination } from './shopSelection.mjs';
-import { collectOffer, itemFromOffer, removeSelected, updateSelectedQuantity, selectionToKs001 } from './shopSelection.mjs';
+import { collectOffer, removeSelected, updateSelectedQuantity, updateSelectedBuyerNote, selectionToKs001 } from './shopSelection.mjs';
 import { demoStores, getOfferById, getOffersByStore, getStoreById, searchOffers } from '../../storeData';
 
 /**
@@ -36,6 +36,7 @@ function itemCheck(offer:StoreOffer) {
 
 export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange,workspaceSelection,onOpenKs001Preview}:{shopFocused?:boolean;onSelectionChange?:(items:SelectionItem[])=>void;workspaceSelection?:SelectionItem[];onOpenKs001Preview?:()=>void}) {
   const [page,setPage] = useState<Page>('shop');
+  const [quickShopOffer,setQuickShopOffer] = useState<string|null>(null);
   const [query,setQuery] = useState('');
   const [offerId,setOfferId] = useState<string | null>(null);
   const [storeId,setStoreId] = useState<string | null>(null);
@@ -66,9 +67,11 @@ export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange
   };
   const quickAsk=(offer:StoreOffer)=>{
     try{
-      const next=collectOffer(selectionRef.current,offer,'agreement',true);
+      // Asking about an already selected item must not silently add another unit.
+      const existing=selectionRef.current.find(item=>item.offerId===offer.id && item.sellerKsNumber===offer.storeId && item.destination==='agreement');
+      const next=existing ? selectionRef.current : collectOffer(selectionRef.current,offer,'agreement',true);
       selectionRef.current=next;setSelection(next);onSelectionChange?.(next);
-      setSelectionDraft(selectionToKs001([itemFromOffer(offer,'agreement',true)],'agreement'));
+      setSelectionDraft(selectionToKs001(next,'agreement'));
       setCollectionNotice('Your example KS001 discussion is open. No live message has been sent.');
       onOpenKs001Preview?.();
     }catch(error){setCollectionNotice(error instanceof Error?error.message:'Could not prepare KS001 question.');}
@@ -92,7 +95,7 @@ export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange
     setQuestion('I am interested in '+offer.title+' from '+offer.storeName+
       '. Help me clarify what is included, confirm availability and terms, and prepare a fair-trade enquiry.');
     setNextQuestion(nextHelpfulQuestion(offer));setAnswer('');setPrepared(false);
-    setPage('ask');
+    quickAsk(offer);
     setNotice('');
   };
   const startDraft = (event:FormEvent<HTMLFormElement>) => {
@@ -104,6 +107,16 @@ export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange
     setPage('manage');
     setOfferTitle('');setPrice('');
   };
+  const basketPane=<StoreCollectionPanel
+    items={selection}
+    onQuantity={(key,value)=>{const next=updateSelectedQuantity(selectionRef.current,key,value);selectionRef.current=next;setSelection(next);onSelectionChange?.(next);setSelectionDraft('');}}
+    onRemove={key=>{const next=removeSelected(selectionRef.current,key);selectionRef.current=next;setSelection(next);onSelectionChange?.(next);setSelectionDraft('');}}
+    onNote={(key,note)=>{const next=updateSelectedBuyerNote(selectionRef.current,key,note);selectionRef.current=next;setSelection(next);onSelectionChange?.(next);setSelectionDraft('');}}
+    onContinue={stage}
+    notice={collectionNotice}
+    draftPreview={selectionDraft}
+    example
+  />;
   return (
     <div data-store-shopfront-review data-p0-layout-review-only className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-cream-50">
       <div role="status" className="shrink-0 flex flex-wrap items-center justify-between gap-2 border-b border-cream-200 bg-white px-4 py-2 text-[0.72rem] text-sand-700">
@@ -121,26 +134,19 @@ export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange
           selection={selection}
           onCollect={collect}
           onQuickKs001={quickAsk}
-          selectionPanel={shopFocused ? <StoreCollectionPanel
-            items={selection}
-            onQuantity={(key,value)=>{const next=updateSelectedQuantity(selectionRef.current,key,value);selectionRef.current=next;setSelection(next);onSelectionChange?.(next);setSelectionDraft('');}}
-            onRemove={key=>{const next=removeSelected(selectionRef.current,key);selectionRef.current=next;setSelection(next);onSelectionChange?.(next);setSelectionDraft('');}}
-            onContinue={stage}
-            notice={collectionNotice}
-            draftPreview={selectionDraft}
-            example
-          /> : undefined}
+          selectionPanel={shopFocused ? basketPane : undefined}
           searchStatus="ready"
           onOpenOffer={id=>{setOfferId(id);setNotice('');setPage('offer');}}
           onOpenStore={id=>{setStoreId(id);setNotice('');setPage('store');}}
           onCreateOffer={()=>{setNotice('');setPage('create');}}
           onManageStore={()=>{setNotice('');setPage('manage');}}
-          onStartConversation={()=>{setQuestion('I need help finding a reliable seller or service for what I want. What is the most useful thing to check next?');setPage('ask');}}
-          onAskKs001={()=>{setQuestion('Can you help me compare offers and understand the agreement before I buy?');setPage('ask');}}
+          onStartConversation={()=>onOpenKs001Preview?.()}
+          onAskKs001={()=>onOpenKs001Preview?.()}
         />
       }
 
-      {page==='offer'&&selectedOffer&&<div className="flex-1 overflow-y-auto p-4 sm:p-5" aria-label="Sample offer details">
+      {page==='offer'&&selectedOffer&&<div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row" data-store-offer-basket-continuity>
+        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto p-4 sm:p-5" aria-label="Sample offer details">
         <article className="rounded-2xl border border-cream-200 bg-white p-4 sm:p-5">
           <div className="overflow-hidden rounded-xl"><ShopOfferCover offer={selectedOffer} large/></div>
           <p className="mt-2 text-xs text-sand-600">Example presentation, not a verified seller photo or live offer.</p>
@@ -154,6 +160,12 @@ export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange
             <strong className="text-forest-900">Before you agree</strong>
             <ul className="mt-2 space-y-1.5">{itemCheck(selectedOffer).map(item=><li key={item}>• {item}</li>)}</ul>
           </div>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            <button type="button" onClick={()=>collect(selectedOffer,'vision')}
+              className="min-h-11 rounded-xl border border-forest-200 bg-white px-3 text-sm font-semibold text-forest-800">+ Add to Vision</button>
+            <button type="button" onClick={()=>collect(selectedOffer,'agreement')}
+              className="min-h-11 rounded-xl bg-forest-800 px-3 text-sm font-semibold text-white">+ Add to collection</button>
+          </div>
           <div className="mt-4 flex flex-wrap gap-2">
             <button type="button" onClick={()=>startEnquiry(selectedOffer)}
               className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-forest-800 px-4 text-sm font-semibold text-white"><MessageCircle size={16}/> Ask KS001 about this</button>
@@ -162,9 +174,12 @@ export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange
           </div>
           <p className="mt-3 text-xs text-sand-500">Demo actions don't contact sellers, place orders, create Agreements or move money.</p>
         </article>
+        </div>
+        {shopFocused && <div className="min-h-0 w-full shrink-0 overflow-y-auto px-3 pb-3 lg:w-[320px]">{basketPane}</div>}
       </div>}
 
-      {page==='store'&&selectedShop&&<div className="flex-1 overflow-y-auto p-4 sm:p-5" aria-label="Example trader shop">
+      {page==='store'&&selectedShop&&<div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row" data-store-store-basket-continuity>
+        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto p-4 sm:p-5" aria-label="Example trader shop">
         <section className="rounded-2xl border border-cream-200 bg-white p-5">
           <div className="flex items-start justify-between gap-2">
             <div><p className="sp-kicker">Digital Store · Example shop</p><h2 className="sp-type-display mt-1 text-2xl text-forest-900">{selectedShop.name}</h2></div>
@@ -179,8 +194,19 @@ export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange
           :<div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {shopOffers.map(offer=><ShopOfferCard key={offer.id} offer={offer}
               onOpen={()=>{setOfferId(offer.id);setPage('offer');}}
-              onOpenStore={()=>{setStoreId(offer.storeId);}} />)}
+              onOpenStore={()=>{setStoreId(offer.storeId);}}
+              onCollect={collect}
+              onQuickKs001={quickAsk}
+              quickOpen={quickShopOffer===offer.id}
+              onToggleQuick={()=>setQuickShopOffer(current=>current===offer.id?null:offer.id)}
+              onCloseQuick={()=>setQuickShopOffer(null)}
+              selectedCounts={{
+                vision:selection.find(item=>item.offerId===offer.id && item.sellerKsNumber===offer.storeId && item.destination==='vision')?.quantity||0,
+                agreement:selection.find(item=>item.offerId===offer.id && item.sellerKsNumber===offer.storeId && item.destination==='agreement')?.quantity||0,
+              }}/>)}
           </div>}
+        </div>
+        {shopFocused && <div className="min-h-0 w-full shrink-0 overflow-y-auto px-3 pb-3 lg:w-[320px]">{basketPane}</div>}
       </div>}
 
       {page==='create'&&<div className="flex-1 overflow-y-auto p-4 sm:p-5" aria-label="Create sample offer">

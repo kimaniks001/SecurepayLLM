@@ -1,5 +1,6 @@
 import { ArrowLeft, MapPin, Clock, Check, X, Link2, MessageCircle, FileText, ShieldCheck, AlertTriangle, Store, Edit3 } from 'lucide-react';
 import type { StoreOffer } from '../types';
+import type { StoreDestination } from '../features/store/shopSelection.mjs';
 
 interface OfferDetailProps {
   offer: StoreOffer;
@@ -9,9 +10,10 @@ interface OfferDetailProps {
   onAskSecurePay: () => void;
   onShare: () => void;
   onViewStore: (storeId: string) => void;
+  onCollect?: (offer:StoreOffer,destination:StoreDestination)=>void;
 }
 
-export function OfferDetail({ offer, onBack, onInterested, onUseThis, onAskSecurePay, onShare, onViewStore }: OfferDetailProps) {
+export function OfferDetail({ offer, onBack, onInterested, onUseThis, onAskSecurePay, onShare, onViewStore, onCollect }: OfferDetailProps) {
   const isUnavailable = offer.lifecycle === 'unavailable';
 
   return (
@@ -86,6 +88,13 @@ export function OfferDetail({ offer, onBack, onInterested, onUseThis, onAskSecur
             </div>
           )}
         </div>
+
+        {onCollect && <section className="grid gap-2 sm:grid-cols-2">
+          <button type="button" onClick={()=>onCollect(offer,'vision')}
+            className="min-h-11 rounded-xl border border-forest-200 bg-white px-4 text-sm font-semibold text-forest-800">+ Add to Vision</button>
+          {!isUnavailable && <button type="button" onClick={()=>onCollect(offer,'agreement')}
+            className="min-h-11 rounded-xl bg-forest-800 px-4 text-sm font-semibold text-white">+ Add to shopping collection</button>}
+        </section>}
 
         {/* Description */}
         <div className="rounded-2xl border border-cream-200 bg-white px-5 py-4 animate-quiet-in">

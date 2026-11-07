@@ -37,7 +37,7 @@ import { StoreExperience } from '../store/StoreExperience';
 import { StoreMasterpieceLayoutReview } from '../store/StoreMasterpieceLayoutReview';
 import { StoreKs001GuidedPreview } from './StoreKs001GuidedPreview';
 import type { SelectionItem } from '../store/shopSelection.mjs';
-import { collectionTotals, formatListedMoney, updateSelectedQuantity, removeSelected } from '../store/shopSelection.mjs';
+import { collectionTotals, formatListedMoney, updateSelectedQuantity, updateSelectedBuyerNote, removeSelected } from '../store/shopSelection.mjs';
 import type { OfferFact } from '../agent/controller';
 import type { LocalStoreBuyingPlan } from './StoreBuyingPlan';
 import { UnifiedMoneyTool } from './UnifiedMoneyTool';
@@ -1184,6 +1184,13 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
                     <Trash2 size={15}/>
                   </button>
                 </div>
+                <label className="mt-2 block text-[0.68rem] font-semibold text-forest-800">
+                  {entry.offerType==='product'?'Size, colour, specifications or delivery':'Project scope, location or preferred date'}
+                  <input type="text" value={entry.buyerNote} maxLength={240}
+                    onChange={event=>setStoreSelected(items=>updateSelectedBuyerNote(items,entry.key,event.target.value))}
+                    className="mt-1 min-h-9 w-full rounded-lg border border-forest-100 px-2 text-xs font-normal text-forest-900"
+                    placeholder={entry.offerType==='product'?'Your preferences…':'What do you need done?'}/>
+                </label>
                 <div className="mt-2 flex items-center justify-between gap-2">
                   <div className="inline-flex items-center rounded-lg border border-forest-100" aria-label={'Quantity for '+entry.title}>
                     <button type="button" aria-label={'Decrease quantity of '+entry.title}
