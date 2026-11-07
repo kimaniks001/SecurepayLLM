@@ -1,16 +1,17 @@
 import { ArrowUpRight, Check, Minus, Plus, Sparkles, Trash2 } from 'lucide-react';
 import type { SelectionItem, StoreDestination } from '../features/store/shopSelection.mjs';
-import { collectionTotals, formatListedMoney } from '../features/store/shopSelection.mjs';
+import { collectionTotals, formatListedMoney, groupSelectionBySeller } from '../features/store/shopSelection.mjs';
 
 /**
  * Right-hand shopping companion: editable, persistent while the Store remains
  * mounted, and entirely provisional. No stock reservation, signed Agreement,
  * saved Dream, provider approval or Money execution follows a local selection.
  */
-export function StoreCollectionPanel({items,onQuantity,onRemove,onContinue,notice,draftPreview,busy=false,example=false}:{
+export function StoreCollectionPanel({items,onQuantity,onRemove,onNote,onContinue,notice,draftPreview,busy=false,example=false}:{
   items:SelectionItem[];
   onQuantity:(key:string,quantity:number)=>void;
   onRemove:(key:string)=>void;
+  onNote?:(key:string,note:string)=>void;
   onContinue:(destination:StoreDestination)=>void;
   notice?:string|null;
   draftPreview?:string|null;
@@ -19,6 +20,7 @@ export function StoreCollectionPanel({items,onQuantity,onRemove,onContinue,notic
 }) {
   const totals=collectionTotals(items);
   const count=totals.quantityCount;
+  const sellerGroups=groupSelectionBySeller(totals.destinations.agreement);
 
   return <aside data-store-selection-summary aria-label="Your shopping selections" className="min-w-0 rounded-2xl border border-cream-200 bg-white p-4 shadow-sm lg:sticky lg:top-3">
     <div className="flex items-start gap-2">
@@ -26,6 +28,7 @@ export function StoreCollectionPanel({items,onQuantity,onRemove,onContinue,notic
       <div>
         <p className="text-[0.65rem] font-semibold uppercase tracking-widest text-sand-600">Your shopping collection</p>
         <h2 className="mt-1 font-display text-lg font-semibold text-forest-900">{count ? count+' selected' : 'Make it yours'}</h2>
+        {sellerGroups.length>1 && <p className="mt-1 text-xs text-forest-700">One collection · {sellerGroups.length} different shops</p>}
       </div>
     </div>
     {!items.length && <div className="mt-4 rounded-xl bg-cream-50 p-3 text-xs leading-5 text-sand-600">
@@ -49,6 +52,16 @@ export function StoreCollectionPanel({items,onQuantity,onRemove,onContinue,notic
                 <button type="button" aria-label={'Remove '+item.title+' from '+destination} onClick={()=>onRemove(item.key)}
                   className="flex size-8 shrink-0 items-center justify-center rounded-lg text-sand-500 hover:bg-white hover:text-ember-600"><Trash2 size={15}/></button>
               </div>
+              {onNote && <label className="mt-2 block text-[0.7rem] font-semibold text-forest-800">
+                {/(shoe|sneaker|footwear|boot)/i.test(item.title)
+                  ? 'Your size, colour and collection preference'
+                  : item.offerType==='product' ? 'Your specifications or delivery details'
+                  : 'Your project location, scope or preferred date'}
+                <input type="text" maxLength={240} value={item.buyerNote} onChange={event=>onNote(item.key,event.target.value)}
+                  placeholder={item.offerType==='product'?'e.g. Size 42, black, collect in Ruiru':'e.g. Site in Ruiru, inspect next Friday'}
+                  className="mt-1 min-h-10 w-full rounded-lg border border-cream-300 bg-white px-2 text-xs font-normal text-forest-900"
+                  aria-label={'Your requirements for '+item.title}/>
+              </label>}
               <div className="mt-2 flex items-center justify-between gap-2">
                 <div className="inline-flex items-center rounded-lg border border-cream-200 bg-white">
                   <button type="button" aria-label={'Reduce quantity of '+item.title} disabled={item.quantity<=1} onClick={()=>onQuantity(item.key,item.quantity-1)}
@@ -84,8 +97,8 @@ export function StoreCollectionPanel({items,onQuantity,onRemove,onContinue,notic
       })}
 
       <p className="mt-2 text-[0.7rem] leading-5 text-sand-700">
-        Indicative listed amounts only. Not a checkout total, provider quote, delivery fee or confirmed availability.
-        Offers from different sellers may need separate agreements.
+        One collection, not one checkout. Amounts are seller-listed and provisional; delivery or service costs may change.
+        Each different trader may need a separate agreement after KS001 verifies them.
       </p>
     </section>}
     {notice&&<p role="status" className="mt-3 rounded-lg bg-cream-50 p-3 text-xs leading-5 text-forest-800"><Check size={14} className="mr-1 inline"/>{notice}</p>}
