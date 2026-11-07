@@ -1060,7 +1060,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
         aria-hidden={!storeOpen}
         className={`${storeOpen?'flex':'hidden'} fixed inset-0 z-[60] min-h-0 min-w-0 flex-col overflow-hidden bg-white md:static md:inset-auto md:z-auto md:w-[38%] md:shrink-0 xl:w-[42%] md:rounded-2xl md:border md:border-cream-200 md:shadow-sm`}>
         <header className="flex shrink-0 items-center justify-between gap-2 border-b border-cream-200 bg-white px-3 py-2 sm:px-4">
-          <div className="min-w-0"><p className="text-[0.65rem] font-semibold uppercase tracking-widest text-sand-500">My Work · Tool</p>
+          <div className="min-w-0"><p className="text-[0.65rem] font-semibold uppercase tracking-widest text-sand-500">Digital Store · Shop & Sell</p>
             <strong className="sp-type-display text-base text-forest-900">Digital Stores</strong></div>
           <div className="flex flex-wrap items-center gap-1.5">
             <button type="button" onClick={()=>closeEmbeddedStore('chat')}
