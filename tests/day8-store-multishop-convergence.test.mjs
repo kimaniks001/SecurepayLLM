@@ -133,5 +133,5 @@ test('public Store text search is backed by server title/description OR match, w
 test('no silent agreement, multi-seller settlement or payment is triggered by selecting items',()=>{
  assert.doesNotMatch(real,/onCollect\s*=\s*\{.*?(executePayment|confirmMoney|commitAgreement)/s);
  const basket=collectOffer([],service,'agreement');
- assert.match(selectionToKs001(basket,'agreement'),/No checkout, booking, Dream, payment or Agreement is authorised/);
+ assert.match(selectionToKs001(basket,'agreement'),/no booking, agreement, payment or funding is authorised/);
 });
