@@ -7,12 +7,13 @@ import { collectionTotals, formatListedMoney } from '../features/store/shopSelec
  * mounted, and entirely provisional. No stock reservation, signed Agreement,
  * saved Dream, provider approval or Money execution follows a local selection.
  */
-export function StoreCollectionPanel({items,onQuantity,onRemove,onContinue,notice,busy=false,example=false}:{
+export function StoreCollectionPanel({items,onQuantity,onRemove,onContinue,notice,draftPreview,busy=false,example=false}:{
   items:SelectionItem[];
   onQuantity:(key:string,quantity:number)=>void;
   onRemove:(key:string)=>void;
   onContinue:(destination:StoreDestination)=>void;
   notice?:string|null;
+  draftPreview?:string|null;
   busy?:boolean;
   example?:boolean;
 }) {
@@ -80,6 +81,7 @@ export function StoreCollectionPanel({items,onQuantity,onRemove,onContinue,notic
       </p>
     </section>}
     {notice&&<p role="status" className="mt-3 rounded-lg bg-cream-50 p-3 text-xs leading-5 text-forest-800"><Check size={14} className="mr-1 inline"/>{notice}</p>}
+    {draftPreview&&<details open className="mt-3 rounded-xl border border-forest-100 bg-cream-50 p-3"><summary className="cursor-pointer text-xs font-semibold text-forest-800">Review the selected-items draft</summary><p className="mt-2 whitespace-pre-wrap text-xs leading-5 text-sand-700">{draftPreview}</p></details>}
     {example&&<p className="mt-3 text-[0.7rem] leading-5 text-sand-500">Sample selection only. Nothing is saved to an account, sent to a trader, or created as an Agreement or Vision Dream.</p>}
   </aside>;
 }
