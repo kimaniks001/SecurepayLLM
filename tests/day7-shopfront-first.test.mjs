@@ -23,7 +23,7 @@ test('the real Store starts with a visible buy, sell, manage choice and search (
 
 test('store shopfront preview shows the existing StoreHome with genuinely visible sample offers and shops',()=>{
   assert.match(preview,/import \{ StoreHome \}/);
-  assert.match(preview,/import \{ demoOffers, demoStores, getOfferById, getOffersByStore, getStoreById, searchOffers \}/);
+  assert.match(preview,/import \{ demoStores, getOfferById, getOffersByStore, getStoreById, searchOffers \}/);
   assert.match(preview,/offers=\{visible\}/);
   assert.match(preview,/stores=\{demoStores\.map/);
   assert.match(preview,/searchStatus="ready"/);
