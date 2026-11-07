@@ -104,7 +104,7 @@ test('P0: Store uses its existing full-feature controllers but no duplicate NavB
   assert.match(store, /<StoreProfileView/);
   assert.match(store, /<OfferToTradeHandoff/);
   assert.match(home, /embedded = false/);
-  assert.match(home, /Find it\. Sell it\. Agree clearly/);
+  assert.match(home, /Good things\. Good people\. Clear agreements/);
 });
 
 test('P0: canonical Store-to-KS001 source, new work and Agreement remain authoritative', () => {
