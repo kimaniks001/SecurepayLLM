@@ -136,7 +136,9 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
     if(collectionBusy)return;
     setCollectionBusy(true);setCollectionNotice('');
     try{
-      const next=collectOffer(selectionRef.current,offer,'agreement',false);
+      // Asking about an already selected item must not silently add another unit.
+      const existing=selectionRef.current.find(item=>item.offerId===offer.id && item.sellerKsNumber===offer.storeId && item.destination==='agreement');
+      const next=existing ? selectionRef.current : collectOffer(selectionRef.current,offer,'agreement',false);
       selectionRef.current=next;setSelection(next);onSelectionChange?.(next);
       const question=selectionToKs001(next,'agreement');
       if(onStageSelections)await onStageSelections(question,'agreement');
