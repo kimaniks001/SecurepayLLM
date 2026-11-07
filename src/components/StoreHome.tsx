@@ -52,10 +52,10 @@ export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOff
             You can also set up your own Store using the same KS Number.
           </p>
           <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3" aria-label="Choose what to do in Digital Stores">
-            <a href="#store-search" className="flex min-h-20 flex-col justify-center rounded-xl border border-forest-300 bg-forest-50 px-3 py-3 text-left text-forest-800">
+            <button type="button" onClick={()=>document.getElementById("store-search")?.scrollIntoView({behavior:"smooth",block:"start"})} className="flex min-h-20 flex-col justify-center rounded-xl border border-forest-300 bg-forest-50 px-3 py-3 text-left text-forest-800">
               <span className="flex items-center gap-1.5 text-[0.84rem] font-semibold"><ShoppingBag size={15}/> Shop</span>
               <span className="mt-1 text-[0.7rem] text-sand-600">Find goods and services</span>
-            </a>
+            </button>
             <button type="button" onClick={onCreateOffer} className="min-h-20 rounded-xl border border-cream-200 bg-white px-3 py-3 text-left hover:border-forest-300">
               <span className="flex items-center gap-1.5 text-[0.84rem] font-semibold text-forest-800"><Plus size={15}/> Sell something</span>
               <span className="mt-1 block text-[0.7rem] text-sand-600">Make your first offer</span>
