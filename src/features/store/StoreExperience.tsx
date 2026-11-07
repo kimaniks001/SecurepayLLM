@@ -479,7 +479,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
     body = (
       <StoreHome
         embedded={embedded}
-        shoppingWide={shoppingWide}
+        shoppingWide={shoppingWide || !embedded}
         selection={selection}
         onCollect={collect}
         onQuickKs001={offer=>{void quickAsk(offer);}}
