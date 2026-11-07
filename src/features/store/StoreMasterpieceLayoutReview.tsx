@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { ArrowLeft, CheckCircle2, MessageCircle, Plus, Store, X } from 'lucide-react';
 import type { StoreOffer } from '../../types';
 import { StoreHome } from '../../components/StoreHome';
-import { demoOffers, demoStores, getOfferById, getOffersByStore, getStoreById, searchOffers } from '../../storeData';
+import { demoStores, getOfferById, getOffersByStore, getStoreById, searchOffers } from '../../storeData';
 
 /**
  * An actual, interactive SHOPFRONT review of the SAME StoreHome component used
