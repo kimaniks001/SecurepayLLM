@@ -93,7 +93,7 @@ export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange
     setQuestion('I am interested in '+offer.title+' from '+offer.storeName+
       '. Help me clarify what is included, confirm availability and terms, and prepare a fair-trade enquiry.');
     setNextQuestion(nextHelpfulQuestion(offer));setAnswer('');setPrepared(false);
-    setPage('ask');
+    quickAsk(offer);
     setNotice('');
   };
   const startDraft = (event:FormEvent<HTMLFormElement>) => {
@@ -105,6 +105,16 @@ export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange
     setPage('manage');
     setOfferTitle('');setPrice('');
   };
+  const basketPane=<StoreCollectionPanel
+    items={selection}
+    onQuantity={(key,value)=>{const next=updateSelectedQuantity(selectionRef.current,key,value);selectionRef.current=next;setSelection(next);onSelectionChange?.(next);setSelectionDraft('');}}
+    onRemove={key=>{const next=removeSelected(selectionRef.current,key);selectionRef.current=next;setSelection(next);onSelectionChange?.(next);setSelectionDraft('');}}
+    onNote={(key,note)=>{const next=updateSelectedBuyerNote(selectionRef.current,key,note);selectionRef.current=next;setSelection(next);onSelectionChange?.(next);setSelectionDraft('');}}
+    onContinue={stage}
+    notice={collectionNotice}
+    draftPreview={selectionDraft}
+    example
+  />;
   return (
     <div data-store-shopfront-review data-p0-layout-review-only className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-cream-50">
       <div role="status" className="shrink-0 flex flex-wrap items-center justify-between gap-2 border-b border-cream-200 bg-white px-4 py-2 text-[0.72rem] text-sand-700">
@@ -122,16 +132,7 @@ export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange
           selection={selection}
           onCollect={collect}
           onQuickKs001={quickAsk}
-          selectionPanel={shopFocused ? <StoreCollectionPanel
-            items={selection}
-            onQuantity={(key,value)=>{const next=updateSelectedQuantity(selectionRef.current,key,value);selectionRef.current=next;setSelection(next);onSelectionChange?.(next);setSelectionDraft('');}}
-            onRemove={key=>{const next=removeSelected(selectionRef.current,key);selectionRef.current=next;setSelection(next);onSelectionChange?.(next);setSelectionDraft('');}}
-            onNote={(key,note)=>{const next=updateSelectedBuyerNote(selectionRef.current,key,note);selectionRef.current=next;setSelection(next);onSelectionChange?.(next);setSelectionDraft('');}}
-            onContinue={stage}
-            notice={collectionNotice}
-            draftPreview={selectionDraft}
-            example
-          /> : undefined}
+          selectionPanel={shopFocused ? basketPane : undefined}
           searchStatus="ready"
           onOpenOffer={id=>{setOfferId(id);setNotice('');setPage('offer');}}
           onOpenStore={id=>{setStoreId(id);setNotice('');setPage('store');}}
@@ -142,7 +143,8 @@ export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange
         />
       }
 
-      {page==='offer'&&selectedOffer&&<div className="flex-1 overflow-y-auto p-4 sm:p-5" aria-label="Sample offer details">
+      {page==='offer'&&selectedOffer&&<div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row" data-store-offer-basket-continuity>
+        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto p-4 sm:p-5" aria-label="Sample offer details">
         <article className="rounded-2xl border border-cream-200 bg-white p-4 sm:p-5">
           <div className="overflow-hidden rounded-xl"><ShopOfferCover offer={selectedOffer} large/></div>
           <p className="mt-2 text-xs text-sand-600">Example presentation, not a verified seller photo or live offer.</p>
@@ -163,16 +165,19 @@ export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange
               className="min-h-11 rounded-xl bg-forest-800 px-3 text-sm font-semibold text-white">+ Add to collection</button>
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
-            <button type="button" onClick={()=>quickAsk(selectedOffer)}
+            <button type="button" onClick={()=>startEnquiry(selectedOffer)}
               className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-forest-800 px-4 text-sm font-semibold text-white"><MessageCircle size={16}/> Ask KS001 about this</button>
             <button type="button" onClick={()=>{setStoreId(selectedOffer.storeId);setPage('store');}}
               className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-forest-200 px-4 text-sm font-semibold text-forest-800"><Store size={16}/> Visit sample shop</button>
           </div>
           <p className="mt-3 text-xs text-sand-500">Demo actions don't contact sellers, place orders, create Agreements or move money.</p>
         </article>
+        </div>
+        {shopFocused && <div className="min-h-0 w-full shrink-0 overflow-y-auto px-3 pb-3 lg:w-[320px]">{basketPane}</div>}
       </div>}
 
-      {page==='store'&&selectedShop&&<div className="flex-1 overflow-y-auto p-4 sm:p-5" aria-label="Example trader shop">
+      {page==='store'&&selectedShop&&<div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row" data-store-store-basket-continuity>
+        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto p-4 sm:p-5" aria-label="Example trader shop">
         <section className="rounded-2xl border border-cream-200 bg-white p-5">
           <div className="flex items-start justify-between gap-2">
             <div><p className="sp-kicker">Digital Store · Example shop</p><h2 className="sp-type-display mt-1 text-2xl text-forest-900">{selectedShop.name}</h2></div>
@@ -198,6 +203,8 @@ export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange
                 agreement:selection.find(item=>item.offerId===offer.id && item.sellerKsNumber===offer.storeId && item.destination==='agreement')?.quantity||0,
               }}/>)}
           </div>}
+        </div>
+        {shopFocused && <div className="min-h-0 w-full shrink-0 overflow-y-auto px-3 pb-3 lg:w-[320px]">{basketPane}</div>}
       </div>}
 
       {page==='create'&&<div className="flex-1 overflow-y-auto p-4 sm:p-5" aria-label="Create sample offer">
