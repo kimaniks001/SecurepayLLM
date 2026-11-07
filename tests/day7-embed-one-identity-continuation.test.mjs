@@ -8,6 +8,7 @@ const sdk=read('public/embed/securepay-embed.js');
 const guest=read('public/embed/securepay-guest-agent.js');
 const claim=read('src/api/securepay/embed/transfer.ts');
 const signup=read('src/features/join/JoinExperience.tsx');
+const workspace=read('src/features/living-workspace/Phase1LivingWorkspacePreview.tsx');
 
 test('new and returning people get two plain choices at the same SecurePay-origin receiver',()=>{
  assert.match(receiver,/Do you already have a KS Number/);
@@ -67,4 +68,10 @@ test('website-specific verification and identity are NOT replaced by a cross-sit
  assert.match(receiver,/one-identity-entry/);
  assert.doesNotMatch(receiver,/new SessionStore|createSignupController\(|signUpNewIdentity/);
  assert.match(guest,/siteId/);
+});
+
+test('post-claim workspace tells people to use the still-open source tab, never fabricates a deep-link',()=>{
+ assert.match(workspace,/original task should still be open in the other browser tab/);
+ assert.match(workspace,/Open \{new URL\(embedOriginHint.returnOrigin\).hostname\} home/);
+ assert.doesNotMatch(workspace,/Return to Estate.ke/);
 });
