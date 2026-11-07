@@ -9,7 +9,7 @@ const workspace=src('src/features/living-workspace/Phase1LivingWorkspacePreview.
 const live=src('src/features/store/StoreExperience.tsx');
 
 test('the real Store starts with a visible buy, sell, manage choice and search (not tool jargon)',()=>{
-  assert.match(landing,/Find it\. Sell it\. Agree clearly\./);
+  assert.match(landing,/Good things\. Good people\. Clear agreements\./);
   assert.match(landing,/Shop<\/span>/);
   assert.match(landing,/Sell something<\/span>/);
   assert.match(landing,/My Store<\/span>/);
@@ -40,7 +40,7 @@ test('example shop and offer details, sample offer drafting, and KS001 guidance 
   assert.match(preview,/page==='ask'/);
   assert.match(preview,/onClick=\{\(\)=>startEnquiry\(selectedOffer\)\}/);
   assert.match(preview,/setDrafts\(current=>\[draft,\.\.\.current\]\)/);
-  assert.match(preview,/Nothing was sent to KS001/);
+  assert.match(preview,/no message is sent/);
   assert.match(preview,/not published/i);
 });
 
