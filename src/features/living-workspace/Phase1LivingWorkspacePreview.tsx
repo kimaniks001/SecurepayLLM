@@ -629,7 +629,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
     }
   };
   /** A Store question is placed into the SAME composer, never auto-sent. */
-  const prepareEmbeddedStoreQuestion=async(text:string)=>{
+  const prepareEmbeddedStoreQuestion=async(text:string,remainInShop=false)=>{
     if(!signedIn || !gateway || !liveController)
       throw new Error('Sign in and open My Work to ask KS001 about a Store.');
     if(liveBusy || livePending || workActionLock.current)
@@ -649,7 +649,18 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
     writeDraft(id,text);
     setDraftRevision(n=>n+1);setLiveStarted(true);setLiveWork(true);
     if(mode!=='work')chooseMode('work');
-    closeEmbeddedStore('chat');
+    if(!remainInShop)closeEmbeddedStore('chat');
+  };
+  /** Vision is a distinct Dream authority. A Store pick may only become an
+      unsent Vision thought; it is never silently saved into a Dream or an Agreement. */
+  const stageStoreVision=async(text:string)=>{
+    if(!signedIn || mockSignedIn || !visionNorth.real)
+      throw new Error('Sign in to SecurePay before preparing a private Vision.');
+    if(visionNorth.busy || visionNorth.agentState?.busy || visionNorth.agentState?.pending)
+      throw new Error('Finish your current Vision action before adding Store ideas.');
+    if(visionNorth.draft.trim() && visionNorth.draft.trim()!==text.trim())
+      throw new Error('Your Vision composer already has unsent thoughts. Review them before replacing anything.');
+    visionNorth.setDraft(text);
   };
   /** The original Day 4 save/resume path protects work during Store switching. */
   const resumeEmbeddedStoreWork=async(conversationId:string)=>{
@@ -1075,6 +1086,11 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
               className="min-h-11 rounded-xl border border-cream-200 bg-white px-3 text-xs text-forest-800 disabled:opacity-50">
               Chat · KS001
             </button>
+            <button type="button" onClick={()=>{chooseMode('vision');closeEmbeddedStore('chat');}}
+              disabled={storeHandoffBusy}
+              className="min-h-11 rounded-xl border border-cream-200 bg-white px-3 text-xs text-forest-800 disabled:opacity-50">
+              Vision
+            </button>
             <button type="button" onClick={()=>closeEmbeddedStore('result')}
               disabled={storeHandoffBusy}
               className="min-h-11 rounded-xl border border-cream-200 bg-white px-3 text-xs text-forest-800 disabled:opacity-50">
@@ -1091,14 +1107,18 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
         {storeHandoffError && <p role="alert" className="shrink-0 border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-900">{storeHandoffError}</p>}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden" data-store-feature-preservation>
           {storeReviewRoute && (!signedIn || !storeIntegration)
-            ? <StoreMasterpieceLayoutReview />
-            : storeIntegration && <StoreExperience {...storeIntegration} embedded session={session}
+            ? <StoreMasterpieceLayoutReview shopFocused={storeFocus} />
+            : storeIntegration && <StoreExperience {...storeIntegration} embedded session={session} shoppingWide={storeFocus}
             initialOfferRoute={initialEmbeddedStoreOffer}
             onUseOffer={fact=>{void continueEmbeddedOffer(fact);}}
             onResumeSavedWork={conversationId=>{void resumeEmbeddedStoreWork(conversationId);}}
             onAskKs001={message=>{void prepareEmbeddedStoreQuestion(message).catch(error=>{
               setStoreHandoffError(error instanceof Error?error.message:'KS001 could not prepare that question.');
             });}}
+            onStageSelections={async (text,destination)=>{
+              if(destination==='vision')await stageStoreVision(text);
+              else await prepareEmbeddedStoreQuestion(text,true);
+            }}
             onNavigate={view=>{void leaveEmbeddedStoreFor(view);}}
             onOpenBusinessVision={async businessKsNumber=>{
               // Existing authenticated Vision remains a workspace area. Do not
