@@ -3,7 +3,7 @@ import { NavBar } from '../../components/NavBar';
 import { StoreHome } from '../../components/StoreHome';
 import { StoreCollectionPanel } from '../../components/StoreCollectionPanel';
 import type { SelectionItem, StoreDestination } from './shopSelection.mjs';
-import { collectOffer, itemFromOffer, removeSelected, updateSelectedQuantity, updateSelectedBuyerNote, selectionToKs001 } from './shopSelection.mjs';
+import { collectOffer, removeSelected, updateSelectedQuantity, updateSelectedBuyerNote, selectionToKs001 } from './shopSelection.mjs';
 import { storeOfferAssistTurn } from './offerAssistTurn.mjs';
 import { StoreProfileView } from '../../components/StoreProfileView';
 import { OfferDetail } from '../../components/OfferDetail';
