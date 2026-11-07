@@ -3,6 +3,9 @@ import { ArrowLeft, CheckCircle2, MessageCircle, Plus, Store, X } from 'lucide-r
 import type { StoreOffer } from '../../types';
 import { StoreHome } from '../../components/StoreHome';
 import { ShopOfferCard, ShopOfferCover } from '../../components/ShopOfferCard';
+import { StoreCollectionPanel } from '../../components/StoreCollectionPanel';
+import type { SelectionItem, StoreDestination } from './shopSelection.mjs';
+import { collectOffer, removeSelected, updateSelectedQuantity, selectionToKs001 } from './shopSelection.mjs';
 import { demoStores, getOfferById, getOffersByStore, getStoreById, searchOffers } from '../../storeData';
 
 /**
@@ -31,7 +34,7 @@ function itemCheck(offer:StoreOffer) {
   return ['What is the exact item, quantity and condition?','Is it currently available?','How will it be delivered or collected?'];
 }
 
-export function StoreMasterpieceLayoutReview() {
+export function StoreMasterpieceLayoutReview({shopFocused=true}:{shopFocused?:boolean}) {
   const [page,setPage] = useState<Page>('shop');
   const [query,setQuery] = useState('');
   const [offerId,setOfferId] = useState<string | null>(null);
@@ -46,6 +49,25 @@ export function StoreMasterpieceLayoutReview() {
   const [nextQuestion,setNextQuestion] = useState('');
   const [answer,setAnswer] = useState('');
   const [prepared,setPrepared] = useState(false);
+  const [selection,setSelection] = useState<SelectionItem[]>([]);
+  const [collectionNotice,setCollectionNotice] = useState('');
+  const [selectionDraft,setSelectionDraft] = useState('');
+  const collect=(offer:StoreOffer,destination:StoreDestination)=>{
+    try{
+      setSelection(previous=>collectOffer(previous,offer,destination,true));
+      setCollectionNotice((destination==='vision'?'Vision':'Agreement')+': added '+offer.title+'. Keep browsing.');
+      setSelectionDraft('');
+    }catch(error){setCollectionNotice(error instanceof Error?error.message:'Could not add that offer.');}
+  };
+  const stage=(destination:StoreDestination)=>{
+    try{
+      const proposal=selectionToKs001(selection,destination);
+      setSelectionDraft(proposal);
+      setCollectionNotice(destination==='vision'
+        ? 'Example Vision draft prepared here for review only. Nothing has been saved to Vision.'
+        : 'Example agreement enquiry prepared here for review only. Nothing was sent to KS001.');
+    }catch(error){setCollectionNotice(error instanceof Error?error.message:'Could not prepare that selection.');}
+  };
   const visible = demoPublished(searchOffers(query));
   const selectedOffer = offerId ? getOfferById(offerId) : null;
   const selectedShop = storeId ? getStoreById(storeId) : null;
@@ -80,6 +102,18 @@ export function StoreMasterpieceLayoutReview() {
           query={query} onQueryChange={setQuery}
           offers={visible}
           stores={demoStores.map(store=>({...store,verified:false}))}
+          shoppingWide={shopFocused}
+          selection={selection}
+          onCollect={collect}
+          selectionPanel={<StoreCollectionPanel
+            items={selection}
+            onQuantity={(key,value)=>{setSelection(current=>updateSelectedQuantity(current,key,value));setSelectionDraft('');}}
+            onRemove={key=>{setSelection(current=>removeSelected(current,key));setSelectionDraft('');}}
+            onContinue={stage}
+            notice={collectionNotice}
+            draftPreview={selectionDraft}
+            example
+          />}
           searchStatus="ready"
           onOpenOffer={id=>{setOfferId(id);setNotice('');setPage('offer');}}
           onOpenStore={id=>{setStoreId(id);setNotice('');setPage('store');}}
