@@ -19,7 +19,7 @@ export function StoreCollectionPanel({items,onQuantity,onRemove,onContinue,notic
 }) {
   const totals=collectionTotals(items);
   const count=totals.quantityCount;
-  const priceLines=Object.entries(totals.subtotal).filter(([,minor])=>minor>0);
+
   return <aside data-store-selection-summary aria-label="Your shopping selections" className="min-w-0 rounded-2xl border border-cream-200 bg-white p-4 shadow-sm lg:sticky lg:top-3">
     <div className="flex items-start gap-2">
       <span className="rounded-xl bg-forest-50 p-2 text-forest-700"><Sparkles size={17}/></span>
@@ -69,12 +69,20 @@ export function StoreCollectionPanel({items,onQuantity,onRemove,onContinue,notic
     })}
     {items.length>0 && <section className="mt-4 rounded-xl border border-forest-100 bg-forest-50 p-3" aria-label="Listed price summary">
       <p className="text-[0.68rem] font-semibold uppercase tracking-widest text-forest-700">Listed-price summary</p>
-      {priceLines.length===0?<p className="mt-2 text-sm text-forest-800">Prices need confirming</p>:
-        priceLines.map(([currency,minor])=><div key={currency} className="mt-2 flex justify-between gap-2 text-sm font-semibold text-forest-900">
-          <span>{currency==='KES'?'Kenya shillings':currency}</span>
-          <span className="tabular-nums">{formatListedMoney(minor,currency)}</span>
-        </div>)}
-      {totals.unpriced>0 && <p className="mt-2 text-xs text-sand-700">{totals.unpriced} selection{totals.unpriced===1?'':'s'} without a fixed price or valid listed amount.</p>}
+      {(['vision','agreement'] as const).map(destination=> {
+        const group=totals.byDestination[destination];
+        const priceLines=Object.entries(group.subtotal).filter(([,minor])=>minor>0);
+        if(!totals.destinations[destination].length)return null;
+        return <div key={destination} className="mt-2 border-t border-forest-100 pt-2">
+          <p className="text-xs font-semibold text-forest-800">{destination==='vision'?'Vision ideas':'Agreement candidates'}</p>
+          {priceLines.length===0?<p className="mt-1 text-xs text-sand-700">Prices to confirm</p>:
+            priceLines.map(([currency,minor])=><div key={currency} className="mt-1 flex justify-between gap-2 text-sm font-semibold text-forest-900">
+              <span>{currency}</span><span className="tabular-nums">{formatListedMoney(minor,currency)}</span>
+            </div>)}
+          {group.unpriced>0 && <p className="mt-1 text-xs text-sand-700">{group.unpriced} not priced yet</p>}
+        </div>;
+      })}
+
       <p className="mt-2 text-[0.7rem] leading-5 text-sand-700">
         Indicative listed amounts only. Not a checkout total, provider quote, delivery fee or confirmed availability.
         Offers from different sellers may need separate agreements.
