@@ -63,8 +63,8 @@ test('owner preview uses the original composer with clearly labelled example Sto
  const tool=read('src/features/living-workspace/CompactStoreBrowser.tsx');
  assert.match(tool,/Example catalogue only/);
  assert.match(shell,/<PreviewWorkComposer/);
- assert.match(shell,/onOpenKs001Preview=\{message=>/);
- assert.match(review,/onOpenKs001Preview\?\.\(question\)/);
+ assert.match(shell,/onOpenKs001Preview=\{\(message,storeContext\)=>/);
+ assert.match(review,/onOpenKs001Preview\?\.\(question,\{kind:'offer'/);
  assert.match(review,/onSelectionChange\?\.\(next\)/);
  assert.match(shell,/onSelectionChange=\{setStoreSelected\}/);
  assert.doesNotMatch(shell,/autoSendStoreAssistant/);
