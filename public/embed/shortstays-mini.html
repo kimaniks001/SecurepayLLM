@@ -42,7 +42,12 @@
   // This frame alone does NOT authenticate a person or grant money authority.
   var hostname=location.hostname.toLowerCase();
   var staging=/^(?:staging|sandbox|qa|test)(?:[-.][a-z0-9-]+)*\.securepay\.ke$/.test(hostname);
-  var apiBaseUrl=staging?location.origin:'';
+  // SecurePayAPI currently requires an exact browser Origin header even for
+  // GET manifest. A separate staging API origin makes CORS/Origin verifiable.
+  // Operator must provision BOTH hosts and register the FRAME origin, not the
+  // parent ShortStays origin, in this narrow isolated test.
+  var separateApi='https://sandbox.securepay.ke';
+  var apiBaseUrl=staging && location.origin!==separateApi?separateApi:'';
   var sdk=window.SecurePayEmbed;
   if(!sdk||!window.SecurePayGuestAgent){
     status.textContent='SecurePay assistant scripts are not available.';return;
