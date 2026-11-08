@@ -37,6 +37,7 @@ import { StoreExperience } from '../store/StoreExperience';
 import { StoreMasterpieceLayoutReview } from '../store/StoreMasterpieceLayoutReview';
 import { CompactStoreBrowser, initialStoreBrowserState, type StoreBrowserState, type StoreBrowserTarget } from './CompactStoreBrowser';
 import { StoreVisionSavePanel } from './StoreVisionSavePanel';
+import { StoreCartCockpit } from './StoreCartCockpit';
 import { storeOfferAssistTurn } from '../store/offerAssistTurn.mjs';
 import type { StoreOffer } from '../../types';
 import type { SelectionItem } from '../store/shopSelection.mjs';
@@ -402,6 +403,10 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
     return () => window.removeEventListener('hashchange',onHash);
   }, [signedIn]);
   const [toolSelected, setToolSelected] = useState(isStoreLayoutReviewRoute);
+  // The right panel leads with the Store cockpit only during Store work;
+  // existing real Agreement, Circle, Vision and Community boards remain independent.
+  const shoppingContext = mode==='work' && !openedAgreementId && !showAgreementHub && !showSavedWork
+    && (storeOpen || (activeTool==='Stores' && toolSelected) || storeSelected.some(item=>item.destination==='agreement'));
   const persona = KS001_WORKSPACE_PERSONAS[mode];
   const [quickAssistCollection, setQuickAssistCollection] = useState<QuickAssistId[]>(['stays', 'ride']);
   const [quickAssistSeed, setQuickAssistSeed] = useState('');
@@ -742,6 +747,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
       }else{
         await prepareEmbeddedStoreQuestion(message);
       }
+      if(storeOpen)closeEmbeddedStore('chat');
       closeTool();
       setScreen('chat');
     }catch(error){
@@ -1214,67 +1220,20 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
           <p className="text-xs font-semibold text-forest-900">Vision · Preview sources</p>
           {previewVisionSources.map((saved,index)=><p key={index} className="mt-1 text-xs text-sand-700">{saved.vision}: {saved.title} from {saved.storeName} · Example only, not saved to SecurePay.</p>)}
         </section>}
-        {storeSelected.length>0 && (mode==='work'||mode==='vision') && <section
-          data-store-selection-parent-summary
-          aria-label="Selected Digital Store items for review"
-          className="mb-4 space-y-3 rounded-2xl border border-forest-200 bg-forest-50 p-4">
-          <p className="text-[0.66rem] font-semibold uppercase tracking-widest text-forest-700">Digital Store · Your draft selections</p>
-          <h3 className="font-display text-lg font-semibold text-forest-900">{storeSelectedTotals.quantityCount} selected</h3>
-          {(['vision','agreement'] as const).map(destination=>{
-            const entries=storeSelectedTotals.destinations[destination];
-            if(!entries.length)return null;
-            const group=storeSelectedTotals.byDestination[destination];
-            return <div key={destination} className="border-t border-forest-100 pt-2">
-              <p className="text-xs font-semibold text-forest-800">{destination==='vision'?'Ideas for Vision':'Considering for Agreement'}</p>
-              {entries.map(entry=><div key={entry.key} className="mt-2 rounded-xl border border-forest-100 bg-white p-2.5" data-store-summary-edit-row>
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold leading-5 text-forest-900">{entry.title}</p>
-                    <p className="text-[0.68rem] text-sand-600">{entry.sellerName}</p>
-                  </div>
-                  <button type="button" aria-label={'Remove '+entry.title+' from '+destination}
-                    onClick={()=>setStoreSelected(items=>removeSelected(items,entry.key))}
-                    className="flex size-9 shrink-0 items-center justify-center rounded-lg text-sand-600 hover:bg-cream-50 hover:text-ember-700">
-                    <Trash2 size={15}/>
-                  </button>
-                </div>
-                <label className="mt-2 block text-[0.68rem] font-semibold text-forest-800">
-                  {entry.offerType==='product'?'Size, colour, specifications or delivery':'Project scope, location or preferred date'}
-                  <input type="text" value={entry.buyerNote} maxLength={240}
-                    onChange={event=>setStoreSelected(items=>updateSelectedBuyerNote(items,entry.key,event.target.value))}
-                    className="mt-1 min-h-9 w-full rounded-lg border border-forest-100 px-2 text-xs font-normal text-forest-900"
-                    placeholder={entry.offerType==='product'?'Your preferences…':'What do you need done?'}/>
-                </label>
-                <div className="mt-2 flex items-center justify-between gap-2">
-                  <div className="inline-flex items-center rounded-lg border border-forest-100" aria-label={'Quantity for '+entry.title}>
-                    <button type="button" aria-label={'Decrease quantity of '+entry.title}
-                      disabled={entry.quantity<=1} onClick={()=>setStoreSelected(items=>updateSelectedQuantity(items,entry.key,entry.quantity-1))}
-                      className="flex size-9 items-center justify-center disabled:opacity-30"><Minus size={14}/></button>
-                    <span className="min-w-8 text-center text-sm font-semibold tabular-nums">{entry.quantity}</span>
-                    <button type="button" aria-label={'Increase quantity of '+entry.title}
-                      disabled={entry.quantity>=99} onClick={()=>setStoreSelected(items=>updateSelectedQuantity(items,entry.key,entry.quantity+1))}
-                      className="flex size-9 items-center justify-center text-lg font-semibold disabled:opacity-30">+</button>
-                  </div>
-                  <span className="text-right text-[0.71rem] text-forest-800">
-                    {entry.unitMinor===null?'Price to confirm':entry.priceLabel}
-                    <span className="block text-[0.62rem] text-sand-500">Seller-listed · locked</span>
-                  </span>
-                </div>
-              </div>)}
-              {Object.entries(group.subtotal).map(([currency,minor])=>
-                <p key={currency} className="mt-2 text-sm font-semibold text-forest-800">Listed subtotal: {formatListedMoney(minor,currency)}</p>)}
-              {group.unpriced>0 && <p className="mt-1 text-xs text-sand-600">{group.unpriced} item(s) need an established price</p>}
-            </div>;
-          })}
-          <p className="text-[0.7rem] leading-5 text-sand-700">
-            Provisional listed amounts, not a provider quote, saved Vision Dream, binding Agreement or payment.
-            KS001 must verify each chosen offer and seller before an Agreement can be reviewed.
-          </p>
-          {storeOpen && !storeFocus && <button type="button" onClick={()=>setStoreFocus(true)}
-            className="min-h-10 rounded-lg border border-forest-200 bg-white px-3 text-xs font-semibold text-forest-800">
-            Edit selections in full shop
-          </button>}
-        </section>}
+        {shoppingContext && <StoreCartCockpit selections={storeSelected}
+          onSelectionChange={setStoreSelected}
+          onDiscussCart={discussCompactStoreCart}
+          onBrowse={()=>openTool('Stores')}
+          onViewItem={(storeKs,offerId)=>expandCompactStore({kind:'item',storeKs,offerId})}/>}
+        {mode==='vision' && storeSelectedTotals.destinations.vision.length>0 && <details
+          data-store-vision-context-preserved className="mb-3 rounded-xl border border-cream-200 bg-white p-3">
+          <summary className="min-h-10 cursor-pointer text-xs font-semibold text-forest-800">
+            Store ideas · {storeSelectedTotals.destinations.vision.length} for Vision
+          </summary>
+          <div className="space-y-1 pt-1 text-xs text-sand-700">
+            {storeSelectedTotals.destinations.vision.map(item=><p key={item.key}>{item.title} · {item.sellerName}</p>)}
+          </div>
+        </details>}
         {mode==='work' && signedIn && guestClaim && guestClaim.phase!=='dismissed' &&
           <section data-gate-d-authorised-anonymous-conversation-claim
             aria-label="Keep your KS001 conversation after signup"
@@ -1306,12 +1265,22 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
               className="mt-2 min-h-11 rounded-lg border border-forest-200 px-3 text-xs font-semibold text-forest-800">Prepare in KS001 (review before sending)</button>
           </div>)}
         </section>}
-        {mode==='work' && workspaceGateways && <AgreementDiscovery gateways={workspaceGateways} session={session}
+        {mode==='work' && workspaceGateways && (shoppingContext
+          ? <details data-store-agreements-progress className="mb-3 rounded-xl border border-cream-200 bg-white px-3 py-1">
+              <summary className="min-h-10 cursor-pointer text-xs font-medium text-forest-700">Existing agreements & progress</summary>
+              <AgreementDiscovery gateways={workspaceGateways} session={session}
           mediaStagingReady={identityStagingReady && import.meta.env.VITE_SECUREPAY_MEDIA_EVIDENCE_STAGING_ENABLED === 'true'}
           openAgreementId={createdAgreementId} onAgreementClosed={()=>setCreatedAgreementId(null)}
           onOpenInWorkspace={id=>{setOpenedAgreementId(id);setCreatedAgreementId(null);setDraftReviewOpen(false);setScreen('chat');}}
           onConnectMoney={()=>openTool('Money')}
-          onSignIn={()=>openIdentity('signin')}/>}
+          onSignIn={()=>openIdentity('signin')}/>
+            </details>
+          : <AgreementDiscovery gateways={workspaceGateways} session={session}
+          mediaStagingReady={identityStagingReady && import.meta.env.VITE_SECUREPAY_MEDIA_EVIDENCE_STAGING_ENABLED === 'true'}
+          openAgreementId={createdAgreementId} onAgreementClosed={()=>setCreatedAgreementId(null)}
+          onOpenInWorkspace={id=>{setOpenedAgreementId(id);setCreatedAgreementId(null);setDraftReviewOpen(false);setScreen('chat');}}
+          onConnectMoney={()=>openTool('Money')}
+          onSignIn={()=>openIdentity('signin')}/>)}
         {mode==='community' && <CommunityCheckPanel
           gateways={workspaceGateways} session={session} signedIn={signedIn}
           previewOnly={!signedIn} onSignIn={()=>setSignInOpen(true)}
@@ -1349,7 +1318,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
           ? <WorkspaceContinuityPanel area={mode as WorkspaceArea} gateways={workspaceGateways}
               session={session} onSignIn={()=>setSignInOpen(true)} onResume={continueSavedConversation}
               onEditDream={id=>{setEditingDreamId(id);setScreen('chat');}} onOpenCircleBoard={setWorkingCircleId}/>
-          : mode==='work' && uiOnlyPreview ? <PreviewWorkBoard notes={activePreviewNotes} exampleId={phase2ExampleId} onFocusComposer={focusPreviewComposer}
+          : mode==='work' && uiOnlyPreview && !shoppingContext ? <PreviewWorkBoard notes={activePreviewNotes} exampleId={phase2ExampleId} onFocusComposer={focusPreviewComposer}
               onEditStorePlan={()=>openTool('Stores')}
               onUpdate={(id,text)=>setPreviewNotes(notes=>notes.map(n=>n.id===id?{...n,text}:n))}
               onRemove={id=>{if(previewNotes.some(note=>note.id===id&&note.storePlan))setSampleBuyingPlan(null);
