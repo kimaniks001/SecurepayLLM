@@ -2,6 +2,7 @@ import { isOwnerTestingOrigin, isOwnerTestingWorkspaceEntry } from './features/e
 import { createPreviewWorkspaceGateways } from './features/living-workspace/previewWorkspaceGateways';
 import { createPreviewAgentGateway } from './features/living-workspace/previewAgentGateway';
 import { Phase1LivingWorkspacePreview } from './features/living-workspace/Phase1LivingWorkspacePreview';
+import { HumanJourneysExperience } from './features/living-workspace/HumanJourneysExperience';
 import { lazy, Suspense, useEffect, useState, useSyncExternalStore } from 'react';
 import { storeAgreementEntry, storeEntryView, storeKs001EntryMessage, hasWorkspaceMoneyReturn, clearWorkspaceMoneyReturn } from './features/experience/entryIntent';
 import { AgentExperience } from './features/agent/AgentExperience';
@@ -360,7 +361,7 @@ export default function RuntimeApp() {
   const ownerTestingReady = typeof window !== 'undefined' && !!api &&
     isOwnerTestingOrigin(api.baseUrl, window.location.origin, import.meta.env.VITE_SECUREPAY_OWNER_TESTING_ORIGIN);
   const matchingWorkspace = () => typeof window !== 'undefined' &&
-    (/^#\/?preview\/living-workspace(?:\/(?:work|vision|circle|community|store))?\/?$/.test(window.location.hash) ||
+    (/^#\/?preview\/living-workspace(?:\/(?:work|vision|circle|community|store|human-journeys))?\/?$/.test(window.location.hash) ||
       isCandidateWorkspaceEntry(window.location.hash,window.location.hostname) ||
       (ownerTestingReady && isOwnerTestingWorkspaceEntry(window.location.hash)) ||
       isAuthenticatedStoreWorkspaceEntry(window.location.hash,session.getSnapshot().status));
@@ -406,6 +407,12 @@ export default function RuntimeApp() {
         community: communityGateway, agreements: agreementGateway, stores: storeGateway,
         financialPartners: financialPartnerGateway, moneySnapshot: moneySnapshotGateway, media: null }
     : undefined;
+  // Sample-only Gate 3 UX study. Never intercept production or token-bearing routes.
+  // The real Living Workspace and its API authorities remain unchanged.
+  if (phase1Preview && typeof window !== 'undefined' &&
+      window.location.hostname.endsWith('.vercel.app') &&
+      /^#\/preview\/living-workspace\/human-journeys\/?$/.test(window.location.hash))
+    return <HumanJourneysExperience />;
   if (phase1Preview) return <Phase1LivingWorkspacePreview
     gateway={onPreviewHost ? previewAgentGateway : agentGateway}
     workspaceGateways={onPreviewHost ? previewWorkspaceGateways : liveWorkspaceGateways}
