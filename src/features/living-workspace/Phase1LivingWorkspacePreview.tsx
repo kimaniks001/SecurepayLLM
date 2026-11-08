@@ -1326,6 +1326,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
           : mode==='work' && !showSavedWork && !showAgreementHub && !openedAgreementId && liveWork?<LiveWorkResultPanel
           state={formationState} conversationId={liveConversationId} busy={liveBusy || livePending || workActionBusy}
           examination={examination}
+          compactInStore={shoppingContext}
           selectedSource={liveState?.source??null}
           enquiryContext={liveState?.enquiryContext??null}
           onPrepareFairTradeDraft={message=>{
