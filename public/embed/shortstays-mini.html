@@ -49,11 +49,16 @@
   }
   var root=document.getElementById('sdk-root');
   var assistant;
+  var approvedPublicListingRef=null;
   try {
     assistant=sdk.mount({
       container:root,title:'ShortStays',siteId:SITE_ID,apiBaseUrl:apiBaseUrl,
       embeddedFrame:true,tools:['ask','contract','securelink'],
-      getReturnContext:function(){return {purpose:'UNSPECIFIED'};},
+      getReturnContext:function(){
+        // This is a source listing only, NEVER a booking ID or user identity.
+        return {purpose:'UNSPECIFIED',returnReference:approvedPublicListingRef
+          ? 'SS_'+approvedPublicListingRef : null};
+      },
     });
     assistant.open();
   }catch(_){
@@ -64,10 +69,17 @@
   window.addEventListener('message',function(event){
     if(event.source!==window.parent||event.origin!==parentOrigin)return;
     var data=event.data;
-    if(!data||typeof data!=='object'||data.type!=='shortstays.ks001.prefill.v1'||
-       data.product!==PROTOCOL||data.siteId!==SITE_ID)return;
+    if(!data||typeof data!=='object'||data.siteId!==SITE_ID)return;
+    if(data.type==='shortstays.ks001.hello.v1'){
+      window.parent.postMessage({type:'securepay.embed.mini.ready.v1',siteId:SITE_ID},parentOrigin);
+      return;
+    }
+    if(data.type!=='shortstays.ks001.prefill.v1'||data.product!==PROTOCOL)return;
     var value=data.text;
     if(typeof value!=='string'||!value.trim()||value.length>1200)return;
+    var ref=data.publicListingRef;
+    approvedPublicListingRef=typeof ref==='string'&&
+      /^[a-z0-9](?:[a-z0-9-]{1,62})[a-z0-9]$/.test(ref)?ref:null;
     // Visible prefill ONLY. The person must press SEND inside SecurePay.
     assistant.prefill(value);
   });
