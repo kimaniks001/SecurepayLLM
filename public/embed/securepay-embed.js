@@ -53,6 +53,11 @@
       '.subsection{font:700 12px Arial;margin:13px 0 6px}',
       '.alert{background:#fff4e3;border-radius:8px;padding:10px;font-size:12px;color:#745123;margin:8px 0}'
     ].join('');
+    if(options.embeddedFrame===true) {
+      // The SecurePay-origin iframe owns the session; the host site receives
+      // only a visible panel, never guest tokens, history or local storage.
+      style.textContent += '.launcher{display:none!important}.panel{position:fixed!important;inset:0!important;width:100%!important;height:100dvh!important;max-height:none!important;border:0!important;border-radius:0!important;padding:12px!important;box-shadow:none!important}.x{display:none!important}.chat{max-height:130px;overflow:auto}';
+    }
     shadow.appendChild(style);
     var launch = element('button', 'launcher', '✦  KS001 · Ask for help');
     launch.type = 'button';
@@ -455,6 +460,11 @@
     close.addEventListener('click',function(){openPanel(false);});
     render();
     var api={version:VERSION,open:function(){openPanel(true);},close:function(){openPanel(false);},
+      // Only sets a VISIBLE, user-editable draft. Never sends an Agent turn.
+      prefill:function(text){
+        if(typeof text!=='string'||!text.trim()||text.trim().length>1200||chatBusy)return false;
+        chatDraft=text.trim();current='ask';render();openPanel(true);return true;
+      },
       destroy:function(){root.remove();instances.delete(host);}};
     instances.set(host,api);
     return api;
