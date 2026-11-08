@@ -1,0 +1,440 @@
+{
+  "schema": "securepay-gate2-four-family-execution-v1",
+  "recordedAt": "2026-11-08",
+  "environment": "NOT_PROVISIONED_OR_ATTESTED",
+  "productionChanged": false,
+  "financialExecutionAttempted": false,
+  "uiCandidateSha": "6001f86e2e869627c93ee41af67739398a5bec3c",
+  "apiCandidateSha": "f77b961940acd0e7f9e9565d316912de5ea4076c",
+  "pairCompatibility": "NOT_VERIFIED",
+  "productionReleaseSha": "UNKNOWN",
+  "decision": "NO_GO_FOR_REAL_TEST_EXECUTION",
+  "staticPreflight": {
+    "status": "PERFORMED",
+    "method": "READ_ONLY_GITHUB_SOURCE_INSPECTION",
+    "apiFiles": 6,
+    "uiFiles": 3,
+    "results": [
+      {
+        "id": "PF-01",
+        "finding": "SECURE_LINK + KEY_CONTRACT product classification source present",
+        "status": "SOURCE_PRESENT"
+      },
+      {
+        "id": "PF-02",
+        "finding": "GroupSecureLink draft, activation and governance source present",
+        "status": "SOURCE_PRESENT"
+      },
+      {
+        "id": "PF-03",
+        "finding": "SecureFlow and GroupSecureFlow enum + allocation versioning source present",
+        "status": "SOURCE_PRESENT"
+      },
+      {
+        "id": "PF-04",
+        "finding": "Explicit milestone dependency readiness logic present",
+        "status": "SOURCE_PRESENT"
+      },
+      {
+        "id": "PF-05",
+        "finding": "Twelve-principle partial Fair Trade examination with NOT_ASSESSED state present",
+        "status": "SOURCE_PRESENT"
+      },
+      {
+        "id": "PF-06",
+        "finding": "ActiveAgreementWorkspace milestone list shows title and status, but not responsibility/evidence/deadline in that list",
+        "status": "STATIC_RISK"
+      },
+      {
+        "id": "PF-07",
+        "finding": "UniversalSourceTray live upload call does not pass optional photo/document caption",
+        "status": "STATIC_RISK"
+      },
+      {
+        "id": "PF-08",
+        "finding": "UniversalSourceTray live Place source omits selected purpose and entrance from sent text",
+        "status": "STATIC_RISK"
+      },
+      {
+        "id": "PF-09",
+        "finding": "Store selection is component state without demonstrated conversation-keyed restoration/isolation",
+        "status": "STATIC_RISK"
+      }
+    ]
+  },
+  "ciEvidence": {
+    "api": {
+      "runUrl": "https://github.com/kimaniks001/SecurePayAPI/actions/runs/42394186947",
+      "headSha": "917ce2f7e8d30f6f868fb33f197f21f733155e89",
+      "conclusion": "startup_failure",
+      "jobs": 0,
+      "qualifier": "NOT_SAME_AS_API_CANDIDATE; NO_JAVA_JOBS_EXECUTED; startup_failure had no jobs, no test diagnostics."
+    },
+    "ui": {
+      "runUrl": "https://github.com/kimaniks001/SecurepayLLM/actions/runs/42460443111",
+      "headSha": "6001f86e2e869627c93ee41af67739398a5bec3c",
+      "conclusion": "failure",
+      "jobs": 2,
+      "executedStepsOnFailedJob": 0,
+      "qualifier": "Matching frontend SHA but no reported executed test steps; job log download returned missing blob; not application pass or fail.",
+      "logFetch": "NO_LOG_BLOB_FOUND",
+      "steps": []
+    }
+  },
+  "blockers": [
+    "NO_ATTESTED_DISPOSABLE_BACKEND_AND_DATABASE",
+    "NO_CONFIRMED_MATCHED_UI_API_INTEGRATION",
+    "NO_TEST_IDENTITIES_OR_REAL_PROVIDER_STAGING_EVIDENCE",
+    "PRODUCTION_RELEASE_MANIFEST_UNVERIFIED",
+    "GITHUB_ACTIONS_DID_NOT_RUN_USABLE_APPLICATION_TEST_STEPS",
+    "NO_DEPLOYED_KS001_VERCEL_STAGING_PROJECT",
+    "CURRENT_SESSION_HAS_NO_LOCAL_SECUREPAY_CORE_OR_DATABASE"
+  ],
+  "cases": [
+    {
+      "id": "SL-01",
+      "family": "SecureLink",
+      "status": "NOT_RUN",
+      "execution": "NONE",
+      "observation": null,
+      "evidenceRef": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "SL-02",
+      "family": "SecureLink",
+      "status": "NOT_RUN",
+      "execution": "NONE",
+      "observation": null,
+      "evidenceRef": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "SL-03",
+      "family": "SecureLink",
+      "status": "NOT_RUN",
+      "execution": "NONE",
+      "observation": null,
+      "evidenceRef": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "GSL-01",
+      "family": "GroupSecureLink",
+      "status": "NOT_RUN",
+      "execution": "NONE",
+      "observation": null,
+      "evidenceRef": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "GSL-02",
+      "family": "GroupSecureLink",
+      "status": "NOT_RUN",
+      "execution": "NONE",
+      "observation": null,
+      "evidenceRef": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "GSL-03",
+      "family": "GroupSecureLink",
+      "status": "NOT_RUN",
+      "execution": "NONE",
+      "observation": null,
+      "evidenceRef": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "SF-01",
+      "family": "SecureFlow",
+      "status": "NOT_RUN",
+      "execution": "NONE",
+      "observation": null,
+      "evidenceRef": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "SF-02",
+      "family": "SecureFlow",
+      "status": "NOT_RUN",
+      "execution": "NONE",
+      "observation": null,
+      "evidenceRef": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "SF-03",
+      "family": "SecureFlow",
+      "status": "NOT_RUN",
+      "execution": "NONE",
+      "observation": null,
+      "evidenceRef": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "GSF-01",
+      "family": "GroupSecureFlow",
+      "status": "NOT_RUN",
+      "execution": "NONE",
+      "observation": null,
+      "evidenceRef": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "GSF-02",
+      "family": "GroupSecureFlow",
+      "status": "NOT_RUN",
+      "execution": "NONE",
+      "observation": null,
+      "evidenceRef": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "GSF-03",
+      "family": "GroupSecureFlow",
+      "status": "NOT_RUN",
+      "execution": "NONE",
+      "observation": null,
+      "evidenceRef": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "X-01",
+      "family": "CROSS_FAMILY",
+      "status": "NOT_RUN",
+      "execution": "NONE",
+      "observation": null,
+      "evidenceRef": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "X-02",
+      "family": "CROSS_FAMILY",
+      "status": "NOT_RUN",
+      "execution": "NONE",
+      "observation": null,
+      "evidenceRef": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "X-03",
+      "family": "CROSS_FAMILY",
+      "status": "NOT_RUN",
+      "execution": "NONE",
+      "observation": null,
+      "evidenceRef": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "X-04",
+      "family": "CROSS_FAMILY",
+      "status": "NOT_RUN",
+      "execution": "NONE",
+      "observation": null,
+      "evidenceRef": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "X-05",
+      "family": "CROSS_FAMILY",
+      "status": "NOT_RUN",
+      "execution": "NONE",
+      "observation": null,
+      "evidenceRef": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "X-06",
+      "family": "CROSS_FAMILY",
+      "status": "NOT_RUN",
+      "execution": "NONE",
+      "observation": null,
+      "evidenceRef": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "X-07",
+      "family": "CROSS_FAMILY",
+      "status": "NOT_RUN",
+      "execution": "NONE",
+      "observation": null,
+      "evidenceRef": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "X-08",
+      "family": "CROSS_FAMILY",
+      "status": "NOT_RUN",
+      "execution": "NONE",
+      "observation": null,
+      "evidenceRef": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "X-09",
+      "family": "CROSS_FAMILY",
+      "status": "NOT_RUN",
+      "execution": "NONE",
+      "observation": null,
+      "evidenceRef": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "X-10",
+      "family": "CROSS_FAMILY",
+      "status": "NOT_RUN",
+      "execution": "NONE",
+      "observation": null,
+      "evidenceRef": null,
+      "reviewedBy": null
+    }
+  ],
+  "ownerInvestigation": {
+    "investigator": "ChatGPT using connected GitHub and Vercel",
+    "executedDate": "2026-11-08",
+    "scope": "Read-only source-contract comparison and connected deployment/CI inspection",
+    "delegatedToPaul": false
+  },
+  "staticContractAudit": {
+    "testType": "EXACT_SHA_CLIENT_SERVER_SOURCE_ROUTE_CROSS_CHECK",
+    "backendRef": "f77b961940acd0e7f9e9565d316912de5ea4076c",
+    "frontendRef": "6001f86e2e869627c93ee41af67739398a5bec3c",
+    "checked": 13,
+    "sourceMatched": 13,
+    "names": [
+      "create conversation",
+      "submit KS001 turn",
+      "read Trade Context",
+      "read formation",
+      "read twelve Fair Trade lenses",
+      "save work",
+      "list saved work",
+      "create place source",
+      "upload media source",
+      "read uploaded sources",
+      "select commercial source",
+      "upload optional label supported",
+      "twelve-principle response DTO coverage"
+    ],
+    "result": "STATIC_ROUTE_SHAPE_MATCH_ONLY",
+    "limitation": "Method/path markers coexist at exact source SHAs. Does NOT prove successful compilation, authorization, migrations, provider integration, E2E user journey, or compatibility of full deployed code."
+  },
+  "confirmedSourceFindings": [
+    {
+      "id": "SC-01",
+      "title": "Uploaded photo/document caption omitted from live gateway invocation",
+      "state": "SOURCE_VERIFIED_CLIENT_OMISSION",
+      "evidence": "UniversalSourceTray.tsx: uploadToKs001 uses gateway.uploadSource(conversationId,kind,file) while agent/index.ts exposes optional label fourth argument and AgentSourceController.java accepts multipart label.",
+      "nextCheck": "Actual caption and source lineage after isolated real upload."
+    },
+    {
+      "id": "SC-02",
+      "title": "Place purpose and entrance not passed on live place source",
+      "state": "SOURCE_VERIFIED_CLIENT_OMISSION",
+      "evidence": "UniversalSourceTray.tsx: local preview includes placePurpose and entrance, live createPlaceSource sends only value + caption. API CreatePlaceSourceRequest supports declared text.",
+      "nextCheck": "Read resulting Trade Context and confirm delivery instructions/entrance; avoid invention."
+    },
+    {
+      "id": "SC-03",
+      "title": "Store cart selection lives at workspace level, not per active conversation",
+      "state": "SOURCE_VERIFIED_SCOPE_RISK",
+      "evidence": "Phase1LivingWorkspacePreview.tsx: storeSelected single useState, reset at sign-out; startNewWork/continueSavedConversation do not set it; discussCompactStoreCart feeds global selectionToKs001. No conversation-keyed cart map observed.",
+      "nextCheck": "Switch CCTV to road works and back with different cart selections; verify no wrong-work attachment."
+    },
+    {
+      "id": "SC-04",
+      "title": "Milestone projection compact list does not give per-milestone duties or evidence",
+      "state": "SOURCE_VERIFIED_PRESENTATION_LIMITATION",
+      "evidence": "ActiveAgreementWorkspace.tsx: detail.milestones.map(m => m.title+' · '+m.status).join(' | ')",
+      "nextCheck": "Uncoached users should explain milestone owner, deadline, proof, confirmer and consequence."
+    }
+  ],
+  "deploymentInspection": {
+    "previewDeploymentId": "dpl_8iw7FQCoTdFeMhy9DCMu3zgLQuco",
+    "previewState": "READY",
+    "previewPageHttp": "200 HTML shell received via connected Vercel fetch",
+    "backendIntegration": "NOT_PROVEN",
+    "productionDomain": "securepay.ke not found as domain on inspected Vercel project; production host source remains unknown",
+    "note": "A Vercel page response and successful build do not constitute an authenticated user journey."
+  },
+  "environmentAudit20261108": {
+    "investigator": "ChatGPT",
+    "source": "Connected Vercel project/deployment metadata, logs, GitHub exact-source file inspection, and isolated current-session runtime",
+    "vercelStaging": {
+      "projectId": "prj_bnd17Uacp36N38RuE12wluwtHLlV",
+      "project": "securepay-ks001-staging",
+      "deployments": 0,
+      "backendAvailable": false,
+      "note": "An empty Vercel frontend project cannot establish a real SecurePayAPI backend."
+    },
+    "reviewPreview": {
+      "deploymentId": "dpl_8iw7FQCoTdFeMhy9DCMu3zgLQuco",
+      "state": "READY",
+      "backendAttachedEvidence": false,
+      "note": "Owner-reviewed mock preview explicitly states KS001 is not responding live; no agreement is saved."
+    },
+    "certificationBuild": {
+      "deploymentId": "dpl_2h7mSWPfVYHAYcTsUmwcuEAweXft",
+      "state": "ERROR",
+      "actualTestOutcome": "6 PASS; 1 FAIL in quick-assist-first-use.test.mjs",
+      "matchedHead": "1ca240b522cb75d39e99c74992a5fac5a176a7ca",
+      "failingTest": "Quick Assist uses the Store service discovery gateway, not another marketplace",
+      "failure": "A source-string regex expects showSamples initialised with Boolean(onLocalProposal)||!initialServiceQuery; StoresTool.tsx currently initialises Boolean(onLocalProposal).",
+      "classification": "ONE_STALE_OR_DIFFERENT_UI_SOURCE_ASSERTION; ROOT_CAUSE_PENDING_BEHAVIOR_INTENT",
+      "evidence": "Vercel build event, code tests/quick-assist-first-use.test.mjs line 39 and src/features/living-workspace/StoresTool.tsx line 70",
+      "nextAction": "Determine whether the behaviour changed intentionally; replace brittle source assertion with behavioural test only if supported by the desired default. Do not conflate with backend blocker.",
+      "testsActuallyRun": {
+        "executed": 7,
+        "passed": 6,
+        "failed": 1
+      }
+    },
+    "localBackend": {
+      "java21Installed": true,
+      "dockerInstalled": false,
+      "postgresInstalled": false,
+      "gradleInstalled": false,
+      "apiHealth8080": "HTTP_404_NOT_SECUREPAY",
+      "managementHealth8081": "CONNECTION_REFUSED",
+      "repositoryCheckoutAvailable": false,
+      "internetGitHostResolution": false,
+      "validDisposableApi": false
+    },
+    "production": "Not attested; no access to release manifest or host-backed securepay-core in connected services",
+    "safeConclusion": "NO_REAL_BACKEND_ACCESS_IN_CURRENT_SESSION",
+    "previewVerification": {
+      "deploymentId": "dpl_8iw7FQCoTdFeMhy9DCMu3zgLQuco",
+      "sourceSha": "6001f86e2e869627c93ee41af67739398a5bec3c",
+      "focusNodeTests": {
+        "executed": 69,
+        "passed": 69,
+        "failed": 0
+      },
+      "typescript": "PASS_IN_BUILD_LOG",
+      "viteProductionBuild": "PASS_IN_BUILD_LOG",
+      "qualification": "UI_BUILD_AND_FOCUSED_TESTS_ONLY",
+      "limitation": "Tests do not authenticate separate participants, prove a real provider-backed conversation, validate an actual Agreement or authorize any Money movement."
+    }
+  },
+  "resultSummary": {
+    "focusedUiVerification": "69/69 PASS (owner review Vercel build)",
+    "focusedCertificationWorkflow": "6/7 PASS, one Quick Assist source pattern mismatch",
+    "technicalFamilyRealJourneys": "0/12",
+    "crossFamilyRealJourneys": "0/10",
+    "humanParticipants": "0",
+    "gate2Certification": "NO_GO"
+  },
+  "sourceReaderInvestigation20261108": {
+    "historicEvidenceDate": "2026-10-27",
+    "historicEvidenceSource": "SecurePay-Investigation.md (prior owner investigation, not verified current release)",
+    "oldRuntimeResult": "Real OpenAI conversational six-turn test persisted successfully, but sample PDF and JPEG source reading failed because Anthropic source credentials were absent/circuit breaker short-circuited.",
+    "currentBackendSourceSha": "f77b961940acd0e7f9e9565d316912de5ea4076c",
+    "currentSourceAdapterPresent": "services/agreement/src/main/java/ke/securepay/agreement/agent/source/understanding/openai/OpenAiSourceUnderstandingAdapter.java",
+    "currentConfig": "services/securepay-core/src/main/resources/application.yml",
+    "sourceReaderDefault": "SECUREPAY_AGENT_SOURCE_UNDERSTANDING_PROVIDER defaults to anthropic",
+    "sourceReaderOptional": "OpenAI source adapter can be selected through SECUREPAY_AGENT_SOURCE_UNDERSTANDING_PROVIDER=openai with approved non-production credentials",
+    "runtimeStatus": "NOT_VERIFIED; no inference that adapter currently works or is selected on live/staging",
+    "nextSafeDiagnostic": "On disposable isolated backend, confirm selected source reader and valid sandbox key without revealing secret; then use a disposable real JPEG/PDF and assert READY/PARTIAL plus grounded facts, not just HTTP 201. Recheck circuit-breaker reset."
+  }
+}
