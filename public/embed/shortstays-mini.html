@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="strict-origin">
+<title>SecurePay mini KS001 · ShortStays test</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font:13px/1.5 Arial,sans-serif;color:#17432d;background:#fffdf6}
+  #status{padding:18px;color:#665f42}
+  #sdk-root{position:relative;width:100%;height:100dvh;overflow:hidden}
+</style>
+</head>
+<body>
+<div id="status" role="status">Checking approved ShortStays test installation…</div>
+<div id="sdk-root" hidden></div>
+<!-- Only the SecurePay-origin parent/SDK ever owns the visitor's session. -->
+<script src="/embed/securepay-guest-agent.js" defer></script>
+<script src="/embed/securepay-embed.js" defer></script>
+<script>
+(function(){
+  'use strict';
+  // ONLY the owner-approved ShortStays TEST hosts; no wildcard, not production.
+  // Must ALSO be enforced by server Content-Security-Policy frame-ancestors.
+  var APPROVED_PARENTS=Object.freeze([
+    'https://shortstays-ke-preview-james-8078.vercel.app',
+    'https://shortstays-ke-preview-4l4ash77m-james-8078.vercel.app'
+  ]);
+  var SITE_ID='shortstays-ke-preview';
+  var PROTOCOL='shortstays.ks001.mini.v1';
+  var status=document.getElementById('status');
+  var source=document.referrer;
+  var parentOrigin='';
+  try {parentOrigin=new URL(source).origin;}catch(_){}
+  if(!APPROVED_PARENTS.includes(parentOrigin)||window.parent===window||
+    new URLSearchParams(location.search).get('siteId')!==SITE_ID){
+    status.textContent='This KS001 embed is not authorised for the requesting website.';
+    return;
+  }
+  // Site installation must still be registered by the owner in SecurePayAPI.
+  // This frame alone does NOT authenticate a person or grant money authority.
+  var hostname=location.hostname.toLowerCase();
+  var staging=/^(?:staging|sandbox|qa|test)(?:[-.][a-z0-9-]+)*\.securepay\.ke$/.test(hostname);
+  var apiBaseUrl=staging?location.origin:'';
+  var sdk=window.SecurePayEmbed;
+  if(!sdk||!window.SecurePayGuestAgent){
+    status.textContent='SecurePay assistant scripts are not available.';return;
+  }
+  var root=document.getElementById('sdk-root');
+  var assistant;
+  try {
+    assistant=sdk.mount({
+      container:root,title:'ShortStays',siteId:SITE_ID,apiBaseUrl:apiBaseUrl,
+      embeddedFrame:true,tools:['ask','contract','securelink'],
+      getReturnContext:function(){return {purpose:'UNSPECIFIED'};},
+    });
+    assistant.open();
+  }catch(_){
+    status.textContent='SecurePay assistant could not be opened safely.';return;
+  }
+  root.hidden=false;
+  status.hidden=true;
+  window.addEventListener('message',function(event){
+    if(event.source!==window.parent||event.origin!==parentOrigin)return;
+    var data=event.data;
+    if(!data||typeof data!=='object'||data.type!=='shortstays.ks001.prefill.v1'||
+       data.product!==PROTOCOL||data.siteId!==SITE_ID)return;
+    var value=data.text;
+    if(typeof value!=='string'||!value.trim()||value.length>1200)return;
+    // Visible prefill ONLY. The person must press SEND inside SecurePay.
+    assistant.prefill(value);
+  });
+  // This is a frame bootstrap receipt, not confirmation of a real AI connection.
+  window.parent.postMessage({type:'securepay.embed.mini.ready.v1',siteId:SITE_ID},parentOrigin);
+})();
+</script>
+</body>
+</html>
