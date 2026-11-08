@@ -1,4 +1,4 @@
-import { ArrowUpRight, Box, Camera, Eye, MapPin, Paintbrush, Plus, Ruler, Smartphone, Store, Wrench, X } from 'lucide-react';
+import { ArrowUpRight, Box, Camera, Eye, MapPin, MessageCircle, Paintbrush, Plus, Ruler, ShoppingBag, Smartphone, Store, Wrench, X } from 'lucide-react';
 import { useState } from 'react';
 import type { StoreDestination } from '../features/store/shopSelection.mjs';
 import type { StoreOffer } from '../types';
@@ -53,6 +53,7 @@ export function ShopOfferCard({offer,onOpen,onOpenStore,onCollect,onQuickKs001,s
   const photo=offer.media.find(item=>item.url?.trim()&&!item.isExample)?.url;
   const canUseForAgreement=offer.lifecycle==='published' && !offer.isExternalReference;
   const quickEnabled=Boolean(onCollect||onQuickKs001);
+  const cartQuantity=selectedCounts?.agreement||0;
   const add=(destination:StoreDestination)=>{
     onCollect?.(offer,destination);
     onCloseQuick?.();
@@ -63,22 +64,7 @@ export function ShopOfferCard({offer,onOpen,onOpenStore,onCollect,onQuickKs001,s
         className="block w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-forest-500">
         <ShopOfferCover offer={offer}/>
       </button>
-      {quickEnabled && <div data-shop-hover-preview
-        className={'absolute inset-x-2 bottom-2 z-10 rounded-xl border border-white/80 bg-white/95 p-2 shadow-md backdrop-blur-sm '+(quickOpen?'block':'hidden sm:group-hover/visual:block sm:group-focus-within/visual:block')}
-        aria-label={'Quick actions for '+offer.title}>
-        <div className="flex items-start justify-between gap-2">
-          <p className="line-clamp-2 min-w-0 flex-1 text-[0.7rem] leading-4 text-forest-800">{offer.description}</p>
-          <button type="button" onClick={onOpen} className="shrink-0 text-[0.7rem] font-semibold text-forest-700 underline">Details</button>
-        </div>
-        <div className="mt-2 grid grid-cols-3 gap-1.5">
-          <button type="button" onClick={()=>add('vision')} disabled={!onCollect}
-            className="flex min-h-9 items-center justify-center gap-0.5 rounded-lg border border-forest-200 bg-white px-1 text-[0.7rem] font-semibold text-forest-800 disabled:opacity-40"><Plus size={12}/> Vision</button>
-          <button type="button" onClick={()=>add('agreement')} disabled={!onCollect||!canUseForAgreement}
-            className="flex min-h-9 items-center justify-center gap-0.5 rounded-lg bg-forest-800 px-1 text-[0.7rem] font-semibold text-white disabled:opacity-40"><Plus size={12}/> Agreement</button>
-          <button type="button" onClick={()=>{onQuickKs001?.(offer);onCloseQuick?.();}} disabled={!onQuickKs001||!canUseForAgreement}
-            className="flex min-h-9 items-center justify-center rounded-lg border border-forest-200 bg-forest-50 px-1 text-[0.7rem] font-semibold text-forest-800 disabled:opacity-40">KS001</button>
-        </div>
-      </div>}
+
 
     </div>
     <div className="px-4 pt-3">
@@ -89,20 +75,22 @@ export function ShopOfferCard({offer,onOpen,onOpenStore,onCollect,onQuickKs001,s
       </div>
       {offer.serviceArea && <p className="mt-1 flex items-center gap-1.5 text-xs text-sand-600"><MapPin size={12}/><span className="line-clamp-1">{offer.serviceArea}</span></p>}
       <p className="mt-2 line-clamp-2 min-h-10 text-xs leading-5 text-sand-600">{offer.description}</p>
-      {/* Shopping actions stay visible in BOTH the compact and expanded Store.
-          Quick Look is optional; no hover, touch gesture or panel change is required. */}
+      {/* The SAME cart and KS001 callbacks work in compact and middle Store.
+          Two quiet, always-visible touch actions; no hover or overlay required. */}
       {quickEnabled && <div data-store-item-primary-actions className="mt-3 grid grid-cols-2 gap-2">
         <button type="button" onClick={()=>add('agreement')} disabled={!onCollect||!canUseForAgreement}
-          className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-forest-800 px-2 text-xs font-semibold text-white disabled:opacity-40"
+          className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-forest-800 px-2 text-[0.77rem] font-semibold tracking-tight text-white shadow-[0_2px_7px_rgba(21,58,40,0.12)] transition-all duration-150 hover:bg-forest-900 active:translate-y-px focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest-500 disabled:cursor-not-allowed disabled:opacity-40"
           aria-label={'Add '+offer.title+' to KS Cart'}>
-          <Plus size={14}/> Add to Cart
+          <ShoppingBag size={15} strokeWidth={1.8}/> {cartQuantity?'Add another':'Add to Cart'}
         </button>
         <button type="button" onClick={()=>{onQuickKs001?.(offer);onCloseQuick?.();}}
           disabled={!onQuickKs001}
-          className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-forest-200 bg-forest-50 px-2 text-xs font-semibold text-forest-800 disabled:opacity-40"
-          aria-label={'Ask KS001 about '+offer.title}>Ask KS001</button>
+          className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-forest-200/90 bg-white px-2 text-[0.77rem] font-semibold tracking-tight text-forest-800 transition-colors duration-150 hover:border-forest-400 hover:bg-forest-50 active:bg-forest-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest-500 disabled:opacity-40"
+          aria-label={'Ask KS001 about '+offer.title}><MessageCircle size={15} strokeWidth={1.8}/> Ask KS001</button>
       </div>}
-      {(selectedCounts?.vision||selectedCounts?.agreement) ? <p role="status" className="mt-2 text-[0.7rem] font-semibold text-forest-700">{(selectedCounts?.vision||0)>0?'Vision ×'+selectedCounts?.vision+'  ':''}{(selectedCounts?.agreement||0)>0?'In KS Cart ×'+selectedCounts?.agreement:''}</p> : null}
+      {(selectedCounts?.vision||cartQuantity) ? <p role="status" className="mt-2 text-[0.7rem] font-medium text-forest-700">
+        {cartQuantity>0?'In Cart · '+cartQuantity:''}{(selectedCounts?.vision||0)>0?(cartQuantity>0?' · ':'')+'Vision · '+selectedCounts?.vision:''}
+      </p> : null}
     </div>
     <div className="mx-4 mt-2 flex items-center justify-between gap-2 border-t border-cream-200 py-3">
       <button type="button" onClick={onOpenStore} className="inline-flex min-w-0 items-center gap-1.5 text-xs font-semibold text-forest-800 underline-offset-2 hover:underline" aria-label={'Visit '+offer.storeName+' shop'}>
@@ -110,9 +98,20 @@ export function ShopOfferCard({offer,onOpen,onOpenStore,onCollect,onQuickKs001,s
       </button>
       {quickEnabled ?
         <button type="button" aria-expanded={quickOpen} aria-label={'Quick look at '+offer.title} onClick={onToggleQuick}
-          className="inline-flex min-h-9 shrink-0 items-center gap-1 rounded-full border border-forest-200 bg-forest-50 px-3 text-xs font-semibold text-forest-800"><Eye size={14}/>{quickOpen?'Hide peek':'Quick look'}</button>
+          className="inline-flex min-h-10 shrink-0 items-center gap-1 rounded-xl px-2.5 text-xs font-medium text-forest-700 transition-colors hover:bg-cream-50 focus-visible:outline-2 focus-visible:outline-forest-500"><Eye size={14}/>{quickOpen?'Less':'More'}</button>
       : <button type="button" onClick={onOpen} className="inline-flex min-h-9 shrink-0 items-center gap-1 text-xs font-semibold text-forest-700"><ArrowUpRight size={14}/> Details</button>}
     </div>
+    {quickEnabled && quickOpen && <div data-shop-hover-preview className="mx-4 mb-3 rounded-xl border border-cream-200 bg-cream-50/70 p-3" aria-label={'More about '+offer.title}>
+      <p className="text-xs leading-5 text-sand-700">{offer.description}</p>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <button type="button" onClick={()=>add('vision')} disabled={!onCollect}
+          className="inline-flex min-h-10 items-center gap-1 rounded-lg border border-forest-200 bg-white px-3 text-xs font-medium text-forest-800 disabled:opacity-40">
+          <Plus size={14}/> Save to Vision
+        </button>
+        <button type="button" onClick={onOpen}
+          className="inline-flex min-h-10 items-center rounded-lg px-3 text-xs font-medium text-forest-700 hover:bg-white">Details</button>
+      </div>
+    </div>}
     {imageOpen&&photo&&<div role="dialog" aria-modal="true" aria-label={'Image for '+offer.title}
       className="fixed inset-0 z-[100] flex items-center justify-center bg-forest-950/85 p-4" onClick={()=>setImageOpen(false)}>
       <div className="relative max-h-full max-w-5xl" onClick={event=>event.stopPropagation()}>
