@@ -81,13 +81,11 @@ export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange
   };
   const quickAsk=(offer:StoreOffer)=>{
     try{
-      // Asking about an already selected item must not silently add another unit.
-      const existing=selectionRef.current.find(item=>item.offerId===offer.id && item.sellerKsNumber===offer.storeId && item.destination==='agreement');
-      const next=existing ? selectionRef.current : collectOffer(selectionRef.current,offer,'agreement',true);
-      selectionRef.current=next;setSelection(next);onSelectionChange?.(next);
-      setSelectionDraft(selectionToKs001(next,'agreement'));
-      setCollectionNotice('Your example KS001 discussion is open. No live message has been sent.');
-      onOpenKs001Preview?.(selectionToKs001(next,'agreement'));
+      // Asking KS001 about an item never adds it to the customer's Cart.
+      const question=storeOfferAssistTurn(offer);
+      setSelectionDraft(question);
+      setCollectionNotice('Example Store item prepared for KS001. Cart unchanged; no live message sent.');
+      onOpenKs001Preview?.(question);
     }catch(error){setCollectionNotice(error instanceof Error?error.message:'Could not prepare KS001 question.');}
   };
   const stage=(destination:StoreDestination)=>{
