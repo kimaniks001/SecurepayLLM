@@ -156,3 +156,12 @@ These findings remain **unfixed by design**. The owner's agreed programme requir
 **The next genuine test remains the EXISTING safe \`testing/master-convergence-gate2-ks001-live.mjs\` runner** against a verified disposable localhost-only backend with real conversational and source-reading providers. We will reuse that and then perform SL-01; do not create a second parallel Agreement engine or count the 69 UI checks as a substitute.
 
 **Updated outcome:** 69/69 focused owner-preview UI tests PASS; separate certification job 6/7 with one source expectation mismatch; 22/22 new four-family/cross-family REAL journeys remain NOT_RUN; Gate 3 human sessions remain 0. Gate 2 blocked on isolated backend access and exact runtime pairing.
+
+
+## 11. Historical runtime evidence reconciled with current source (not current production proof)
+
+A prior owner's *SecurePay-Investigation.md* dated 27 October 2026 contains a **real** authenticated-isolated test history: actual conversational OpenAI calls and PostgreSQL persistence worked, while disposable PDF/JPEG uploads returned HTTP 201 followed by **failed source understanding**, first from unavailable Anthropic source-reader credentials and then an open breaker. That report used an isolated DB and recorded the exact then-deployed artifacts. **Those were the 27 October releases, not today's Day 9 code; their results must not be copied into today's PASS/FAIL slots.**
+
+Direct inspection of the **current proposed API candidate** \`f77b961940acd0e7f9e9565d316912de5ea4076c\` confirms that \`OpenAiSourceUnderstandingAdapter.java\` now exists, and \`application.yml\` exposes \`SECUREPAY_AGENT_SOURCE_UNDERSTANDING_PROVIDER=openai\` as a staging-selectable option; however its default remains \`anthropic\`. No proof exists that the current staging/production environment selects or successfully authenticates this adapter.
+
+**The very first real Gate 2 source smoke must therefore verify:** (1) actual runtime source provider and credentials are available without revealing them; (2) disposable bill image upload returns a source receipt, then a genuine READY/PARTIAL understanding state; (3) expected seller/items/amount are grounded in that source; (4) a missing provider does not masquerade as an interpreted bill; and (5) circuit-breaker failures do not contaminate unrelated journeys. The existing guarded localhost-only runner is suitable for this test. **Do not assume upload HTTP 201 means KS001 read the content.**
