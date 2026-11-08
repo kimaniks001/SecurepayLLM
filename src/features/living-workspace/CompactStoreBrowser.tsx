@@ -180,7 +180,7 @@ export function CompactStoreBrowser({
     {browser.selectedStoreKs&&<div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-forest-50 p-2" data-compact-store-selected>
       <button type="button" onClick={()=>change({selectedStoreKs:null})} className="flex min-h-10 items-center gap-1 text-xs font-semibold"><ArrowLeft size={15}/> Results</button>
       <span className="max-w-full truncate text-xs font-semibold">{storeName}</span>
-      <button type="button" onClick={()=>onExpand({kind:'store',storeKs:browser.selectedStoreKs})}
+      <button type="button" onClick={()=>onExpand({kind:'store',storeKs:browser.selectedStoreKs||undefined})}
         className="min-h-10 rounded-lg border border-forest-200 bg-white px-2 text-xs font-semibold">View Store <ChevronRight size={13} className="inline"/></button>
     </div>}
     {status==='loading'&&<p role="status" className="rounded-lg bg-cream-50 p-3 text-xs">Finding published Stores…</p>}
