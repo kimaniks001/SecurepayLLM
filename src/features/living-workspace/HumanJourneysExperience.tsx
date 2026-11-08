@@ -187,7 +187,6 @@ export function HumanJourneysExperience() {
   const [browser,setBrowser]=useState<StoreBrowserState>(initialStoreBrowserState);
   const [storeNavigation,setStoreNavigation]=useState<StoreBrowserTarget|null>(null);
   const [notice,setNotice]=useState('');
-  const [showPrinciples,setShowPrinciples]=useState(false);
   const current=works[workId];
   const scenario=SCENARIOS.find(s=>s.id===workId)!;
   const next=nextQuestion(current,scenario);
@@ -393,77 +392,141 @@ export function HumanJourneysExperience() {
             </div>
           </>}
         </section>
-        <aside aria-label="SecurePay Check" data-gate3-summary
+        <aside aria-label="SecurePay Check" data-gate3-summary data-gate3-glance-first
           className={(mobilePanel==='summary'?'block':'hidden')+' min-h-[66dvh] w-full shrink-0 overflow-y-auto rounded-2xl border border-cream-200 bg-white p-3 shadow-sm lg:block lg:min-h-0 lg:w-[318px]'}>
-          <div className="mb-3 flex items-center justify-between">
-            <div><p className="text-[0.65rem] font-semibold uppercase tracking-widest text-sand-500">SecurePay Check</p><h2 className="sp-type-display text-lg text-forest-900">Your running summary</h2></div>
-            <button type="button" onClick={()=>setMobilePanel('chat')} className="min-h-10 px-2 text-xs lg:hidden">Back to KS001</button>
+          <div className="mb-3 flex items-start justify-between gap-2">
+            <div>
+              <p className="text-[0.65rem] font-semibold uppercase tracking-widest text-sand-500">SecurePay Check</p>
+              <h2 className="sp-type-display text-lg text-forest-900">At a glance</h2>
+            </div>
+            <button type="button" onClick={()=>setMobilePanel('chat')}
+              className="min-h-10 rounded-lg px-2 text-xs lg:hidden">KS001</button>
           </div>
-          <p className="mb-3 rounded-xl bg-cream-50 p-3 text-xs leading-5 text-sand-700">Working on <strong>{current.title}</strong>. Everything below is proposed and kept separately for this example.</p>
-          <div className="space-y-4 text-sm">
-            <section><h3 className="text-xs font-semibold uppercase tracking-wide text-sand-600">What's being planned</h3>
-              <p className="mt-1.5 text-sm leading-6">{current.introduction}</p>
-              {mentioned.map(([key,value])=><div key={key} className="mt-2 rounded-lg bg-cream-50 p-2">
-                <p className="text-[0.68rem] font-semibold text-sand-600">{labels(key as Field)}</p>
-                <p className="break-words text-xs leading-5">{value}</p>
-              </div>)}
-              {next&&<p className="mt-2 text-xs text-sand-600"><strong>Still needed:</strong> {next.question}</p>}
-              {current.deferred.length>0&&<div className="mt-2 rounded-xl bg-cream-50 p-2 text-xs text-sand-600">
-                <strong>To clarify later:</strong> {current.deferred.map(labels).join(', ')}. These are not agreed facts.
-                <button type="button" onClick={()=>update(workId,w=>({...w,deferred:w.deferred.slice(1)}))}
-                  className="mt-1 block min-h-10 rounded-lg border border-cream-200 bg-white px-3 font-semibold text-forest-800">Revisit an open question</button>
-              </div>}
+          <section aria-label="Current work" className="rounded-xl bg-[#f0f5ed] px-3 py-3">
+            <div className="flex items-start justify-between gap-2">
+              <p className="min-w-0 text-sm font-semibold leading-5 text-forest-900">{current.title}</p>
+              <span className="shrink-0 rounded-full border border-forest-200 bg-white px-2 py-0.5 text-[0.65rem] font-medium text-forest-700">Draft</span>
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              <span className="rounded-full bg-white/80 px-2 py-1 text-[0.67rem] text-forest-800">{mentioned.length} details</span>
+              <span className="rounded-full bg-white/80 px-2 py-1 text-[0.67rem] text-forest-800">{current.milestones.length} steps</span>
+              {current.deferred.length>0&&<span className="rounded-full bg-white/80 px-2 py-1 text-[0.67rem] text-forest-800">{current.deferred.length} open</span>}
+            </div>
+          </section>
+
+          <div className="divide-y divide-cream-200 text-sm">
+            <section className="py-3" aria-label="Proposed work details">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <h3 className="text-xs font-semibold text-forest-900">Details</h3>
+                <span className="text-[0.68rem] text-sand-600">{mentioned.length} proposed</span>
+              </div>
+              {mentioned.length===0
+                ?<p className="text-xs text-sand-500">Your conversation will fill this in.</p>
+                :<div className="space-y-1.5">
+                  {mentioned.slice(0,2).map(([key,value])=><div key={key} className="flex items-start gap-2 text-xs leading-5">
+                    <span className="w-[68px] shrink-0 text-sand-500">{labels(key as Field)}</span>
+                    <span className="min-w-0 flex-1 line-clamp-2 font-medium text-forest-900">{value}</span>
+                  </div>)}
+                </div>}
+              {next&&<p className="mt-2 text-[0.72rem] text-sand-600"><span className="font-semibold text-forest-800">Next:</span> {next.label}</p>}
+              {(mentioned.length>2||current.deferred.length>0)&&
+                <details className="mt-2" data-gate3-more-details>
+                  <summary className="min-h-10 cursor-pointer py-2 text-xs font-semibold text-forest-800">All details <span className="font-normal text-sand-500">({mentioned.length})</span></summary>
+                  <div className="space-y-2 rounded-lg bg-cream-50 p-2.5 text-xs">
+                    {mentioned.map(([key,value])=><div key={key}><p className="text-[0.69rem] text-sand-600">{labels(key as Field)}</p><p className="mt-0.5 break-words leading-5 text-forest-900">{value}</p></div>)}
+                    {current.deferred.length>0&&<div className="border-t border-cream-200 pt-2">
+                      <p className="text-sand-600">To clarify: {current.deferred.map(labels).join(', ')}</p>
+                      <button type="button" onClick={()=>update(workId,w=>({...w,deferred:w.deferred.slice(1)}))}
+                        className="mt-2 min-h-10 rounded-lg border border-cream-200 bg-white px-3 text-xs font-semibold text-forest-800">Revisit open question</button>
+                    </div>}
+                  </div>
+                </details>}
             </section>
-            <section className="border-t border-cream-200 pt-3">
-              <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-sand-600"><ClipboardList size={15}/> Milestones · proposed</h3>
-              <div className="mt-2 space-y-2">
-                {current.milestones.map(m=><details key={m.id} className="rounded-xl border border-cream-200 p-2.5">
-                  <summary className="cursor-pointer text-xs font-semibold leading-5">{m.title}<span className="mt-1 block text-[0.68rem] font-normal text-sand-600">Who: {m.owner} · {m.date}</span></summary>
-                  <div className="mt-3 space-y-2 text-xs">
-                    {([['owner','Responsible'],['date','When'],['proof','Proof required']] as const).map(([field,label])=>
+
+            <section className="py-3" aria-label="Proposed milestones">
+              <div className="mb-1 flex items-center justify-between">
+                <h3 className="flex items-center gap-1.5 text-xs font-semibold text-forest-900"><ClipboardList size={15}/> Milestones</h3>
+                <span className="text-[0.68rem] text-sand-600">{current.milestones.length} proposed</span>
+              </div>
+              <div className="divide-y divide-cream-100">
+                {current.milestones.map((m,i)=><details key={m.id} className="group" data-gate3-milestone-row>
+                  <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 py-2 text-xs leading-5 [&::-webkit-details-marker]:hidden">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-cream-100 text-[0.66rem] font-semibold text-forest-700">{i+1}</span>
+                    <span className="min-w-0 flex-1 font-medium text-forest-900">{m.title}</span>
+                    <ChevronDown size={14} className="shrink-0 text-sand-500 group-open:rotate-180" aria-hidden="true"/>
+                  </summary>
+                  <div className="mb-2 space-y-2 rounded-xl bg-cream-50 p-3 text-xs">
+                    {([['owner','Responsible'],['date','When'],['proof','Evidence']] as const).map(([field,label])=>
                       <label key={field} className="block"><span className="mb-1 block text-sand-600">{label}</span>
                         <input value={m[field]} maxLength={140} onChange={e=>editMilestone(m.id,field,e.target.value)}
-                          className="min-h-10 w-full rounded-lg border border-cream-200 bg-cream-50 px-2.5 text-xs"/></label>)}
-                    <p className="text-[0.69rem] text-sand-600">Editing here changes only this local proposal. No milestone can be completed or approved in this preview.</p>
+                          className="min-h-10 w-full rounded-lg border border-cream-200 bg-white px-2.5 text-xs"/></label>)}
+                    <p className="text-[0.7rem] leading-5 text-sand-600">No milestone can be completed or approved in this preview.</p>
                   </div>
                 </details>)}
               </div>
             </section>
-            <section className="border-t border-cream-200 pt-3">
-              <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-sand-600"><ShoppingBag size={15}/> Store choices · {count} items</h3>
-              {current.cart.filter(x=>x.destination==='agreement').length>0
-                ?<div className="mt-2 space-y-2">
-                  {current.cart.filter(x=>x.destination==='agreement').map(item=><div key={item.key} className="rounded-lg border border-cream-200 p-2">
-                    <p className="text-xs font-semibold">{item.title}</p><p className="text-[0.7rem] text-sand-600">{item.sellerName} · {item.priceLabel||'Price to ask'}</p>
-                    <div className="mt-1 flex items-center justify-end gap-2">
-                      <button type="button" aria-label={'Remove one '+item.title} onClick={()=>setCart(updateSelectedQuantity(current.cart,item.key,item.quantity-1))}
-                        className="min-h-10 min-w-10 rounded-lg border border-cream-200"><Minus size={14} className="mx-auto"/></button>
-                      <span className="min-w-5 text-center text-xs">{item.quantity}</span>
-                      <button type="button" aria-label={'Add one '+item.title} onClick={()=>setCart(updateSelectedQuantity(current.cart,item.key,item.quantity+1))}
-                        className="min-h-10 min-w-10 rounded-lg border border-cream-200"><Plus size={14} className="mx-auto"/></button>
-                      <button type="button" aria-label={'Remove '+item.title} onClick={()=>setCart(removeSelected(current.cart,item.key))}
-                        className="min-h-10 min-w-10 text-sand-600"><Trash2 size={15} className="mx-auto"/></button>
-                    </div>
-                  </div>)}
-                  <button type="button" onClick={discussCart} className="min-h-11 w-full rounded-xl border border-forest-300 bg-forest-50 px-3 text-xs font-semibold">Discuss these items with KS001</button>
+
+            <section className="py-2" aria-label="Store choices">
+              <details data-gate3-compact-cart>
+                <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 text-xs [&::-webkit-details-marker]:hidden">
+                  <ShoppingBag size={15} className="text-forest-700"/>
+                  <span className="flex-1 font-semibold text-forest-900">Store items</span>
+                  <span className="text-sand-600">{count}</span>
+                  <ChevronDown size={14} className="text-sand-500" aria-hidden="true"/>
+                </summary>
+                <div className="mb-2 space-y-2">
+                  {current.cart.filter(x=>x.destination==='agreement').length>0
+                    ?<>
+                      {current.cart.filter(x=>x.destination==='agreement').map(item=><div key={item.key} className="rounded-lg border border-cream-200 p-2">
+                        <p className="text-xs font-semibold">{item.title}</p>
+                        <p className="text-[0.7rem] text-sand-600">{item.sellerName} · {item.priceLabel||'Price to ask'}</p>
+                        <div className="mt-1 flex items-center justify-end gap-2">
+                          <button type="button" aria-label={'Remove one '+item.title} onClick={()=>setCart(updateSelectedQuantity(current.cart,item.key,item.quantity-1))}
+                            className="min-h-10 min-w-10 rounded-lg border border-cream-200"><Minus size={14} className="mx-auto"/></button>
+                          <span className="min-w-5 text-center text-xs">{item.quantity}</span>
+                          <button type="button" aria-label={'Add one '+item.title} onClick={()=>setCart(updateSelectedQuantity(current.cart,item.key,item.quantity+1))}
+                            className="min-h-10 min-w-10 rounded-lg border border-cream-200"><Plus size={14} className="mx-auto"/></button>
+                          <button type="button" aria-label={'Remove '+item.title} onClick={()=>setCart(removeSelected(current.cart,item.key))}
+                            className="min-h-10 min-w-10 text-sand-600"><Trash2 size={15} className="mx-auto"/></button>
+                        </div>
+                      </div>)}
+                      <button type="button" onClick={discussCart} className="min-h-11 w-full rounded-xl border border-forest-300 bg-forest-50 px-3 text-xs font-semibold">Discuss with KS001</button>
+                    </>
+                    :<p className="rounded-lg bg-cream-50 p-2.5 text-xs text-sand-600">Nothing selected yet. Explore the Store tool.</p>}
                 </div>
-                :<p className="mt-2 text-xs text-sand-600">No items for this work. Open Stores in the left tool to compare sample offers.</p>}
+              </details>
             </section>
-            <section className="border-t border-cream-200 pt-3">
-              <button type="button" onClick={()=>setShowPrinciples(x=>!x)} aria-expanded={showPrinciples}
-                className="flex min-h-11 w-full items-center justify-between text-left text-xs font-semibold uppercase tracking-wide text-sand-600">
-                <span className="flex items-center gap-1.5"><ShieldCheck size={15}/> Fair Trade · 12 principles</span><ChevronDown size={15}/>
-              </button>
-              <p className="text-xs leading-5 text-sand-600">Not examined. Real findings must come from the canonical, evidence-bound SecurePay API.</p>
-              {showPrinciples&&<p className="mt-2 rounded-xl bg-cream-50 p-3 text-xs leading-5 text-sand-700">
-                We should check what each person is promising, whether the amounts and completion conditions are clear, how disputes will be handled, and which facts still need confirming. A scripted answer cannot certify fairness or lawfulness.
-              </p>}
+
+            <section className="py-2" aria-label="Fair Trade status">
+              <details data-gate3-compact-fair-trade>
+                <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 text-xs [&::-webkit-details-marker]:hidden">
+                  <ShieldCheck size={15} className="text-forest-700"/>
+                  <span className="flex-1 font-semibold text-forest-900">Fair Trade</span>
+                  <span className="text-sand-600">Not checked</span>
+                  <ChevronDown size={14} className="text-sand-500" aria-hidden="true"/>
+                </summary>
+                <div className="mb-2 rounded-lg bg-cream-50 p-2.5 text-xs leading-5 text-sand-700">
+                  Real findings must come from the canonical, evidence-bound SecurePay API. All 12 principles are not examined here.
+                  A scripted answer cannot certify fairness or lawfulness.
+                </div>
+              </details>
             </section>
-            <section className="border-t border-cream-200 pt-3">
-              <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-sand-600"><Wallet size={15}/> Money follows the Agreement</h3>
-              <p className="mt-2 rounded-xl bg-cream-50 p-2.5 text-xs leading-5 text-sand-700"><strong>Not funded.</strong> No bank, M-Pesa, escrow, quote, release, invitation or approval is connected. The backend will establish separate Money authority later.</p>
+
+            <section className="py-2" aria-label="Money status">
+              <details data-gate3-compact-money>
+                <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 text-xs [&::-webkit-details-marker]:hidden">
+                  <Wallet size={15} className="text-forest-700"/>
+                  <span className="flex-1 font-semibold text-forest-900">Money</span>
+                  <span className="text-sand-600">Not funded</span>
+                  <ChevronDown size={14} className="text-sand-500" aria-hidden="true"/>
+                </summary>
+                <p className="mb-2 rounded-lg bg-cream-50 p-2.5 text-xs leading-5 text-sand-700">
+                  No bank, M-Pesa, escrow, quote, release, invitation or approval is connected. Money follows a reviewed Agreement and separate backend authority.
+                </p>
+              </details>
             </section>
           </div>
+          <p className="mt-2 border-t border-cream-100 pt-3 text-[0.68rem] text-sand-500">Example only · No Agreement saved</p>
         </aside>
       </div>
       <nav aria-label="Mobile workspace panels" className="sticky bottom-0 mt-2 flex shrink-0 justify-around gap-1 rounded-2xl border border-cream-200 bg-white p-1 shadow-sm lg:hidden">
