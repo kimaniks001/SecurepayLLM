@@ -85,3 +85,21 @@ test('owner review is explicitly mock-only; real supplier identity and payment c
  assert.match(layout,/onPreviewSaved=/);
  assert.match(layout,/onSelectionChange=\{setStoreSelected\}/);
 });
+
+test('expanded Store cards expose direct Add to Cart and Ask KS001, using the same parent selection',()=>{
+ const cards=read('src/components/ShopOfferCard.tsx');
+ const quick=read('src/components/OfferQuickPreview.tsx');
+ const detail=read('src/components/OfferDetail.tsx');
+ assert.match(cards,/data-store-item-primary-actions/);
+ assert.match(cards,/Add to Cart/);
+ assert.match(cards,/Ask KS001/);
+ assert.match(cards,/onCollect\?\.\(offer,destination\)/);
+ assert.match(cards,/onQuickKs001\?\.\(offer\)/);
+ assert.match(quick,/Add to KS Cart/);
+ assert.match(detail,/Add to KS Cart/);
+ assert.match(real,/onSelectionChange\?\.\(next\)/);
+ assert.match(real,/onStageSelections\)await onStageSelections\(question,'agreement'\)/);
+ assert.match(demo,/onOpenKs001Preview\?\.\(question\)/);
+ assert.match(layout,/workspaceSelection=\{storeSelected\}/);
+ assert.match(layout,/onSelectionChange=\{setStoreSelected\}/);
+});
