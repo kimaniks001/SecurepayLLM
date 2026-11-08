@@ -59,15 +59,17 @@ test('one real KS001 composer gets a type-aware user-selected offer, without boo
  assert.match(parent,/prepareEmbeddedStoreQuestion/);
  assert.match(parent,/writeDraft\(id,text\)/);
  const painter=storeOfferAssistTurn({title:'House painting',storeName:'Painter',offerType:'service'});
- assert.match(painter,/where the work is needed/i);
+ assert.match(painter,/House painting/);
+ assert.match(painter,/job should include/i);
  const phone=storeOfferAssistTurn({title:'A phone',storeName:'Tech',offerType:'product'});
- assert.match(phone,/delivery or collection/i);
+ assert.match(phone,/delivery options/i);
  const survey=storeOfferAssistTurn({title:'Land survey',storeName:'Surveyor',offerType:'service'});
  assert.match(survey,/what kind of survey/i);
  for(const result of [painter,phone,survey]){
-   assert.match(result,/just ONE useful next question/);
-   assert.match(result,/unverified Store listing/);
-   assert.match(result,/Do not invent seller verification/);
+   assert.match(result,/^I’m interested in /);
+   assert.ok(result.length<240,'Store request must fit a human chat bubble');
+   assert.doesNotMatch(result,/Please acknowledge|Do not invent|unverified Store listing|ONE useful next question|Store reference/i);
+   assert.equal((result.match(/\?/g)||[]).length,1);
  }
  assert.throws(()=>storeOfferAssistTurn({title:'',storeName:'nobody'}));
 });

@@ -113,11 +113,11 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
   const [phase2ExampleId,setPhase2ExampleId]=useState<Phase2ExampleId|null>(null);
   const [sampleBuyingPlan,setSampleBuyingPlan]=useState<LocalStoreBuyingPlan|null>(null);
   const previewNoteId=useRef(0);
-  const addPreviewNote=(text:string)=>{
+  const addPreviewNote=(text:string, origin?:'store')=>{
     if(!text.trim())return;
     previewNoteId.current+=1;
     const id=previewNoteId.current;
-    setPreviewNotes(notes=>[...notes,{id,text:text.trim(),exampleId:phase2ExampleId}]);
+    setPreviewNotes(notes=>[...notes,{id,text:text.trim(),exampleId:phase2ExampleId,origin}]);
   };
   // Each local demonstration keeps its own draft notes. Switching examples never discards them.
   const addPreviewSource=(proposal:LocalSourceProposal)=>{
@@ -729,7 +729,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
     const message=storeOfferAssistTurn(offer);
     try{
       if(uiOnlyPreview || !signedIn){
-        addPreviewNote(message);
+        addPreviewNote(message,'store');
       }else{
         await prepareEmbeddedStoreQuestion(message);
       }
@@ -743,7 +743,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
     const message=selectionToKs001(storeSelected,'agreement');
     try{
       if(uiOnlyPreview || !signedIn){
-        addPreviewNote(message);
+        addPreviewNote(message,'store');
       }else{
         await prepareEmbeddedStoreQuestion(message);
       }
@@ -1184,8 +1184,8 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
           {storeReviewRoute && (!signedIn || !storeIntegration)
             ? <StoreMasterpieceLayoutReview shopFocused={false} externalNavigation={storeNavigation} onSelectionChange={setStoreSelected} workspaceSelection={storeSelected}
                 onOpenKs001Preview={message=>{
-                  if(message)addPreviewNote(message);
-                  else addPreviewNote('Help me understand this Store choice before I proceed.');
+                  if(message)addPreviewNote(message,'store');
+                  else addPreviewNote('I would like to talk about this Store choice.','store');
                   closeEmbeddedStore('chat');
                 }} />
             : storeIntegration && <StoreExperience {...storeIntegration} embedded session={session} shoppingWide={false} externalNavigation={storeNavigation} onSelectionChange={setStoreSelected} workspaceSelection={storeSelected}

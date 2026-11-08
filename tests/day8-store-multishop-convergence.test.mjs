@@ -46,23 +46,23 @@ test('one collection groups unrelated goods and a complex service from TWO real 
  assert.equal(collectionTotals(basket).byDestination.agreement.subtotal.KES,7500000);
 });
 
-test('KS001 sees ALL sellers, goods details, service scope, requirements and one next question',()=>{
+test('a human cart message names each seller and item while authoritative seller IDs and scope remain in the cart',()=>{
  const goods=updateSelectedBuyerNote(collectOffer([],product,'agreement'),'KS-PRODUCT::item-123::agreement','Size EU42');
  const basket=updateSelectedBuyerNote(collectOffer(goods,service,'agreement'),'KS-SERVICE::service-456::agreement','Ruiru home; Thursday');
  const prompt=selectionToKs001(basket,'agreement');
- assert.match(prompt,/Trader 1:.*Example Goods Trader/);
- assert.match(prompt,/Trader 2:.*Example Service Trader/);
- assert.match(prompt,/KS-PRODUCT/);
- assert.match(prompt,/KS-SERVICE/);
- assert.match(prompt,/quantity 1/);
+ assert.match(prompt,/Example Goods Trader/);
+ assert.match(prompt,/Example Service Trader/);
+ assert.match(prompt,/1 ×/);
  assert.match(prompt,/Size EU42/);
  assert.match(prompt,/Ruiru home; Thursday/);
- assert.match(prompt,/Listed inclusions: Surface preparation; Two coats/);
- assert.match(prompt,/Listed exclusions: Paint materials; Repair cracks/);
- assert.match(prompt,/4 days after site inspection/);
- assert.match(prompt,/ONE next question/);
- assert.match(prompt,/separate sellers may require separate consent and agreements/);
- assert.doesNotMatch(prompt,/one payment|all suppliers accepted|combined contract signed/i);
+ assert.match(prompt,/Can we look at what I need from each Store\?/);
+ assert.doesNotMatch(prompt,/Trader 1:|Store reference|Listed inclusions|Please acknowledge|Reverify every offer/);
+ assert.equal(basket[0].sellerKsNumber,'KS-PRODUCT');
+ assert.equal(basket[1].sellerKsNumber,'KS-SERVICE');
+ assert.equal(basket[1].offerId,'service-456');
+ assert.deepEqual(basket[1].included,['Surface preparation','Two coats']);
+ assert.deepEqual(basket[1].excluded,['Paint materials','Repair cracks']);
+ assert.equal(basket[1].timing,'4 days after site inspection');
 });
 
 test('external supplier listing can inspire Vision but cannot impersonate actual seller in an Agreement',()=>{
@@ -143,5 +143,5 @@ test('public Store text search is backed by server title/description OR match, w
 test('no silent agreement, multi-seller settlement or payment is triggered by selecting items',()=>{
  assert.doesNotMatch(real,/onCollect\s*=\s*\{.*?(executePayment|confirmMoney|commitAgreement)/s);
  const basket=collectOffer([],service,'agreement');
- assert.match(selectionToKs001(basket,'agreement'),/no booking, agreement, payment or funding is authorised/);
+ assert.doesNotMatch(selectionToKs001(basket,'agreement'),/accepted|paid|booked|reserved|signed/i);
 });

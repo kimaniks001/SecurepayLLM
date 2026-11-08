@@ -80,17 +80,18 @@ test('an unpublished offer cannot be staged for Agreement, even when it inspires
  assert.throws(()=>itemFromOffer({id:'missing'},'vision'));
 });
 
-test('selection-to-KS001 is a reviewable, bounded, non-binding human request',()=>{
+test('selection-to-KS001 is a brief human request; source references stay in the cart',()=>{
  const items=collectOffer([],offer(),'agreement');
  const prompt=selectionToKs001(items,'agreement');
  assert.match(prompt,/Mary’s Paint Shop/);
- assert.match(prompt,/offer-painting/);
- assert.match(prompt,/quantity 1/);
- assert.match(prompt,/Reverify every offer/);
- assert.match(prompt,/separate sellers/);
- assert.match(prompt,/no booking, agreement, payment or funding is authorised/);
- assert.ok(prompt.length<=1200);
- assert.match(selectionToKs001(collectOffer([],offer(),'vision'),'vision'),/not a saved Dream/);
+ assert.match(prompt,/1 ×/);
+ assert.match(prompt,/KES 75,000 listed/);
+ assert.match(prompt,/Can we work out what I need\?/);
+ assert.doesNotMatch(prompt,/offer-painting|Reverify every offer|ONE next question|Store reference|no booking/i);
+ assert.ok(prompt.length<350);
+ assert.equal(items[0].offerId,'offer-painting');
+ assert.equal(items[0].sellerKsNumber,'KS001');
+ assert.match(selectionToKs001(collectOffer([],offer(),'vision'),'vision'),/for my Vision/);
  assert.throws(()=>selectionToKs001([],'agreement'));
  assert.equal(MAX_DISTINCT_ITEMS,12);
 });
