@@ -872,7 +872,27 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
                       if(liveController.getSnapshot().error||liveController.getSnapshot().pending)throw new Error('Unconfirmed turn');
                       closeTool();
                     }}/>
-                : activeTool==='Stores'?<StoresTool
+                : activeTool==='Stores'?<>
+                  <CompactStoreBrowser
+                    browser={storeBrowser} onBrowserChange={setStoreBrowser}
+                    gateway={storeIntegration?.gateway || workspaceGateways?.stores}
+                    trustedMediaOrigin={storeIntegration?.trustedMediaOrigin || null}
+                    example={uiOnlyPreview || !signedIn}
+                    selection={storeSelected}
+                    onAddCart={offer=>{
+                      const next=collectOffer(storeSelected,offer,'agreement',uiOnlyPreview||!signedIn);
+                      setStoreSelected(next);
+                    }}
+                    onSaveVision={setVisionStoreOffer}
+                    onDiscuss={offer=>{void discussCompactStoreOffer(offer);}}
+                    onDiscussCart={discussCompactStoreCart}
+                    onExpand={expandCompactStore}
+                    onPhotoSearch={()=>openTool('Photos')}
+                    onManage={()=>expandCompactStore({kind:'manage'})}
+                  />
+                  <details className="mt-4 rounded-lg border border-cream-200 p-2" data-existing-store-tools-preserved>
+                    <summary className="min-h-10 cursor-pointer text-xs font-medium text-forest-700">More Store operations · Sell, enquiries and community</summary>
+                    <div className="mt-2"><StoresTool
                     key={phase4Journey || storeServiceQuery || 'general-store'} initialServiceQuery={storeServiceQuery || undefined} initialQuickAssistNeed={storeQuickAssistNeed || undefined}
                     initialAssistance={phase4Journey==='plug'||phase4Journey==='master'?phase4Journey:null}
                     onLocalProposal={uiOnlyPreview&&mode==='work'?text=>{addPreviewNote(text);closeTool();}:undefined}
@@ -889,7 +909,9 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
                       await liveController.send(message);
                       if(liveController.getSnapshot().error||liveController.getSnapshot().pending)throw new Error('Unconfirmed turn');
                       closeTool();
-                    }}/>
+                    }}/></div>
+                  </details>
+                </>
                 : activeTool==='Money'?<UnifiedMoneyTool
                     gateways={workspaceGateways} signedIn={signedIn&&!mockSignedIn} context={mode==='vision'?'vision':'work'}
                     onOpenMoney={()=>{storeWorkspaceMoneyReturn(liveConversationId);closeTool();window.location.hash='#/money';}}
