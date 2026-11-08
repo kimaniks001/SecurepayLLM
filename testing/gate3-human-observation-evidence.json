@@ -1,0 +1,663 @@
+{
+  "schema": "securepay-gate3-uncoached-human-evidence-v1",
+  "preparedDate": "2026-11-08",
+  "authority": "Human participant observations, not synthetic or preview assertions",
+  "status": "NO_GO_NOT_EXECUTED",
+  "entryGate": {
+    "gate2RealEndToEndReviewed": false,
+    "exactCompatibleFrontendBackendAttested": false,
+    "isolatedDisposableBackendAttested": false,
+    "realMoneyExecutionDisabledVerified": false,
+    "allowedToClaimHumanCertification": false
+  },
+  "proposedSourceCandidates": {
+    "uiSha": "6001f86e2e869627c93ee41af67739398a5bec3c",
+    "apiSha": "f77b961940acd0e7f9e9565d316912de5ea4076c",
+    "pairCompatibility": "NOT_VERIFIED"
+  },
+  "trialsExecuted": 0,
+  "actualParticipants": 0,
+  "productionChanged": false,
+  "realMoneyExecuted": false,
+  "caveat": "Fixture scenarios are scripts for future independent adult testing; none are observed results. Never insert PII, private media or credentials. A preview or source review cannot satisfy human acceptance.",
+  "criticalFailTriggers": [
+    "WRONG_WORK_OR_SOURCE",
+    "UNAUTHORISED_ROLE_OR_ACCEPTANCE",
+    "MISUNDERSTOOD_MONEY_STATUS",
+    "MILESTONE_APPROVAL_MISREPRESENTED",
+    "PRIVATE_DATA_LEAKED",
+    "UNSENT_WORK_LOST",
+    "PARTIAL_FAIR_TRADE_MISREPRESENTED_AS_CERTIFIED"
+  ],
+  "cases": [
+    {
+      "id": "H01",
+      "family": "SecureLink",
+      "scenario": "CCTV package, one payer and one supplier",
+      "dependsOnGate2Case": "SL-01",
+      "status": "NOT_RUN",
+      "testEnvironment": null,
+      "exactUiSha": null,
+      "exactApiSha": null,
+      "participantCodes": [],
+      "rolesIndependentlyAuthenticated": false,
+      "deviceAndNetwork": null,
+      "tasks": [
+        {
+          "id": "START_NATURALLY",
+          "status": "NOT_RUN",
+          "observedBehaviour": null,
+          "hints": 0,
+          "criticalMisunderstanding": false,
+          "evidenceRefs": []
+        },
+        {
+          "id": "BRING_EXISTING_SOURCE",
+          "status": "NOT_RUN",
+          "observedBehaviour": null,
+          "hints": 0,
+          "criticalMisunderstanding": false,
+          "evidenceRefs": []
+        },
+        {
+          "id": "IDENTIFY_ROLES",
+          "status": "NOT_RUN",
+          "observedBehaviour": null,
+          "hints": 0,
+          "criticalMisunderstanding": false,
+          "evidenceRefs": []
+        },
+        {
+          "id": "EXPLAIN_MILESTONES",
+          "status": "NOT_RUN",
+          "observedBehaviour": null,
+          "hints": 0,
+          "criticalMisunderstanding": false,
+          "evidenceRefs": []
+        },
+        {
+          "id": "EXPLAIN_MONEY",
+          "status": "NOT_RUN",
+          "observedBehaviour": null,
+          "hints": 0,
+          "criticalMisunderstanding": false,
+          "evidenceRefs": []
+        },
+        {
+          "id": "CORRECT_TERMS",
+          "status": "NOT_RUN",
+          "observedBehaviour": null,
+          "hints": 0,
+          "criticalMisunderstanding": false,
+          "evidenceRefs": []
+        },
+        {
+          "id": "RECOVER_OR_SWITCH",
+          "status": "NOT_RUN",
+          "observedBehaviour": null,
+          "hints": 0,
+          "criticalMisunderstanding": false,
+          "evidenceRefs": []
+        },
+        {
+          "id": "CHOOSE_SAFE_NEXT_ACTION",
+          "status": "NOT_RUN",
+          "observedBehaviour": null,
+          "hints": 0,
+          "criticalMisunderstanding": false,
+          "evidenceRefs": []
+        }
+      ],
+      "fairTrade": {
+        "canonicalLensCount": null,
+        "principleVersion": null,
+        "hasMaterialConcern": null,
+        "unknownsExplained": null,
+        "observerNotes": null
+      },
+      "money": {
+        "authoritativeSnapshotRef": null,
+        "participantExplanation": null,
+        "noRealExecutionConfirmed": null
+      },
+      "reviewer": null,
+      "reviewNotes": null,
+      "decision": "NOT_ASSESSED"
+    },
+    {
+      "id": "H02",
+      "family": "GroupSecureLink",
+      "scenario": "Neighbours contribute to one security-light supplier",
+      "dependsOnGate2Case": "GSL-01",
+      "status": "NOT_RUN",
+      "testEnvironment": null,
+      "exactUiSha": null,
+      "exactApiSha": null,
+      "participantCodes": [],
+      "rolesIndependentlyAuthenticated": false,
+      "deviceAndNetwork": null,
+      "tasks": [
+        {
+          "id": "START_NATURALLY",
+          "status": "NOT_RUN",
+          "observedBehaviour": null,
+          "hints": 0,
+          "criticalMisunderstanding": false,
+          "evidenceRefs": []
+        },
+        {
+          "id": "BRING_EXISTING_SOURCE",
+          "status": "NOT_RUN",
+          "observedBehaviour": null,
+          "hints": 0,
+          "criticalMisunderstanding": false,
+          "evidenceRefs": []
+        },
+        {
+          "id": "IDENTIFY_ROLES",
+          "status": "NOT_RUN",
+          "observedBehaviour": null,
+          "hints": 0,
+          "criticalMisunderstanding": false,
+          "evidenceRefs": []
+        },
+        {
+          "id": "EXPLAIN_MILESTONES",
+          "status": "NOT_RUN",
+          "observedBehaviour": null,
+          "hints": 0,
+          "criticalMisunderstanding": false,
+          "evidenceRefs": []
+        },
+        {
+          "id": "EXPLAIN_MONEY",
+          "status": "NOT_RUN",
+          "observedBehaviour": null,
+          "hints": 0,
+          "criticalMisunderstanding": false,
+          "evidenceRefs": []
+        },
+        {
+          "id": "CORRECT_TERMS",
+          "status": "NOT_RUN",
+          "observedBehaviour": null,
+          "hints": 0,
+          "criticalMisunderstanding": false,
+          "evidenceRefs": []
+        },
+        {
+          "id": "RECOVER_OR_SWITCH",
+          "status": "NOT_RUN",
+          "observedBehaviour": null,
+          "hints": 0,
+          "criticalMisunderstanding": false,
+          "evidenceRefs": []
+        },
+        {
+          "id": "CHOOSE_SAFE_NEXT_ACTION",
+          "status": "NOT_RUN",
+          "observedBehaviour": null,
+          "hints": 0,
+          "criticalMisunderstanding": false,
+          "evidenceRefs": []
+        }
+      ],
+      "fairTrade": {
+        "canonicalLensCount": null,
+        "principleVersion": null,
+        "hasMaterialConcern": null,
+        "unknownsExplained": null,
+        "observerNotes": null
+      },
+      "money": {
+        "authoritativeSnapshotRef": null,
+        "participantExplanation": null,
+        "noRealExecutionConfirmed": null
+      },
+      "reviewer": null,
+      "reviewNotes": null,
+      "decision": "NOT_ASSESSED"
+    },
+    {
+      "id": "H03",
+      "family": "SecureFlow",
+      "scenario": "One budget across gate repair and drainage",
+      "dependsOnGate2Case": "SF-01",
+      "status": "NOT_RUN",
+      "testEnvironment": null,
+      "exactUiSha": null,
+      "exactApiSha": null,
+      "participantCodes": [],
+      "rolesIndependentlyAuthenticated": false,
+      "deviceAndNetwork": null,
+      "tasks": [
+        {
+          "id": "START_NATURALLY",
+          "status": "NOT_RUN",
+          "observedBehaviour": null,
+          "hints": 0,
+          "criticalMisunderstanding": false,
+          "evidenceRefs": []
+        },
+        {
+          "id": "BRING_EXISTING_SOURCE",
+          "status": "NOT_RUN",
+          "observedBehaviour": null,
+          "hints": 0,
+          "criticalMisunderstanding": false,
+          "evidenceRefs": []
+        },
+        {
+          "id": "IDENTIFY_ROLES",
+          "status": "NOT_RUN",
+          "observedBehaviour": null,
+          "hints": 0,
+          "criticalMisunderstanding": false,
+          "evidenceRefs": []
+        },
+        {
+          "id": "EXPLAIN_MILESTONES",
+          "status": "NOT_RUN",
+          "observedBehaviour": null,
+          "hints": 0,
+          "criticalMisunderstanding": false,
+          "evidenceRefs": []
+        },
+        {
+          "id": "EXPLAIN_MONEY",
+          "status": "NOT_RUN",
+          "observedBehaviour": null,
+          "hints": 0,
+          "criticalMisunderstanding": false,
+          "evidenceRefs": []
+        },
+        {
+          "id": "CORRECT_TERMS",
+          "status": "NOT_RUN",
+          "observedBehaviour": null,
+          "hints": 0,
+          "criticalMisunderstanding": false,
+          "evidenceRefs": []
+        },
+        {
+          "id": "RECOVER_OR_SWITCH",
+          "status": "NOT_RUN",
+          "observedBehaviour": null,
+          "hints": 0,
+          "criticalMisunderstanding": false,
+          "evidenceRefs": []
+        },
+        {
+          "id": "CHOOSE_SAFE_NEXT_ACTION",
+          "status": "NOT_RUN",
+          "observedBehaviour": null,
+          "hints": 0,
+          "criticalMisunderstanding": false,
+          "evidenceRefs": []
+        }
+      ],
+      "fairTrade": {
+        "canonicalLensCount": null,
+        "principleVersion": null,
+        "hasMaterialConcern": null,
+        "unknownsExplained": null,
+        "observerNotes": null
+      },
+      "money": {
+        "authoritativeSnapshotRef": null,
+        "participantExplanation": null,
+        "noRealExecutionConfirmed": null
+      },
+      "reviewer": null,
+      "reviewNotes": null,
+      "decision": "NOT_ASSESSED"
+    },
+    {
+      "id": "H04",
+      "family": "GroupSecureFlow",
+      "scenario": "Residents fund CCTV equipment, installation, maintenance",
+      "dependsOnGate2Case": "GSF-01",
+      "status": "NOT_RUN",
+      "testEnvironment": null,
+      "exactUiSha": null,
+      "exactApiSha": null,
+      "participantCodes": [],
+      "rolesIndependentlyAuthenticated": false,
+      "deviceAndNetwork": null,
+      "tasks": [
+        {
+          "id": "START_NATURALLY",
+          "status": "NOT_RUN",
+          "observedBehaviour": null,
+          "hints": 0,
+          "criticalMisunderstanding": false,
+          "evidenceRefs": []
+        },
+        {
+          "id": "BRING_EXISTING_SOURCE",
+          "status": "NOT_RUN",
+          "observedBehaviour": null,
+          "hints": 0,
+          "criticalMisunderstanding": false,
+          "evidenceRefs": []
+        },
+        {
+          "id": "IDENTIFY_ROLES",
+          "status": "NOT_RUN",
+          "observedBehaviour": null,
+          "hints": 0,
+          "criticalMisunderstanding": false,
+          "evidenceRefs": []
+        },
+        {
+          "id": "EXPLAIN_MILESTONES",
+          "status": "NOT_RUN",
+          "observedBehaviour": null,
+          "hints": 0,
+          "criticalMisunderstanding": false,
+          "evidenceRefs": []
+        },
+        {
+          "id": "EXPLAIN_MONEY",
+          "status": "NOT_RUN",
+          "observedBehaviour": null,
+          "hints": 0,
+          "criticalMisunderstanding": false,
+          "evidenceRefs": []
+        },
+        {
+          "id": "CORRECT_TERMS",
+          "status": "NOT_RUN",
+          "observedBehaviour": null,
+          "hints": 0,
+          "criticalMisunderstanding": false,
+          "evidenceRefs": []
+        },
+        {
+          "id": "RECOVER_OR_SWITCH",
+          "status": "NOT_RUN",
+          "observedBehaviour": null,
+          "hints": 0,
+          "criticalMisunderstanding": false,
+          "evidenceRefs": []
+        },
+        {
+          "id": "CHOOSE_SAFE_NEXT_ACTION",
+          "status": "NOT_RUN",
+          "observedBehaviour": null,
+          "hints": 0,
+          "criticalMisunderstanding": false,
+          "evidenceRefs": []
+        }
+      ],
+      "fairTrade": {
+        "canonicalLensCount": null,
+        "principleVersion": null,
+        "hasMaterialConcern": null,
+        "unknownsExplained": null,
+        "observerNotes": null
+      },
+      "money": {
+        "authoritativeSnapshotRef": null,
+        "participantExplanation": null,
+        "noRealExecutionConfirmed": null
+      },
+      "reviewer": null,
+      "reviewNotes": null,
+      "decision": "NOT_ASSESSED"
+    },
+    {
+      "id": "H05",
+      "family": "CROSS_FAMILY",
+      "scenario": "Three simultaneous work items, Store cart, reload and interruption",
+      "dependsOnGate2Case": "X-03",
+      "status": "NOT_RUN",
+      "testEnvironment": null,
+      "exactUiSha": null,
+      "exactApiSha": null,
+      "participantCodes": [],
+      "rolesIndependentlyAuthenticated": false,
+      "deviceAndNetwork": null,
+      "tasks": [
+        {
+          "id": "START_NATURALLY",
+          "status": "NOT_RUN",
+          "observedBehaviour": null,
+          "hints": 0,
+          "criticalMisunderstanding": false,
+          "evidenceRefs": []
+        },
+        {
+          "id": "BRING_EXISTING_SOURCE",
+          "status": "NOT_RUN",
+          "observedBehaviour": null,
+          "hints": 0,
+          "criticalMisunderstanding": false,
+          "evidenceRefs": []
+        },
+        {
+          "id": "IDENTIFY_ROLES",
+          "status": "NOT_RUN",
+          "observedBehaviour": null,
+          "hints": 0,
+          "criticalMisunderstanding": false,
+          "evidenceRefs": []
+        },
+        {
+          "id": "EXPLAIN_MILESTONES",
+          "status": "NOT_RUN",
+          "observedBehaviour": null,
+          "hints": 0,
+          "criticalMisunderstanding": false,
+          "evidenceRefs": []
+        },
+        {
+          "id": "EXPLAIN_MONEY",
+          "status": "NOT_RUN",
+          "observedBehaviour": null,
+          "hints": 0,
+          "criticalMisunderstanding": false,
+          "evidenceRefs": []
+        },
+        {
+          "id": "CORRECT_TERMS",
+          "status": "NOT_RUN",
+          "observedBehaviour": null,
+          "hints": 0,
+          "criticalMisunderstanding": false,
+          "evidenceRefs": []
+        },
+        {
+          "id": "RECOVER_OR_SWITCH",
+          "status": "NOT_RUN",
+          "observedBehaviour": null,
+          "hints": 0,
+          "criticalMisunderstanding": false,
+          "evidenceRefs": []
+        },
+        {
+          "id": "CHOOSE_SAFE_NEXT_ACTION",
+          "status": "NOT_RUN",
+          "observedBehaviour": null,
+          "hints": 0,
+          "criticalMisunderstanding": false,
+          "evidenceRefs": []
+        }
+      ],
+      "fairTrade": {
+        "canonicalLensCount": null,
+        "principleVersion": null,
+        "hasMaterialConcern": null,
+        "unknownsExplained": null,
+        "observerNotes": null
+      },
+      "money": {
+        "authoritativeSnapshotRef": null,
+        "participantExplanation": null,
+        "noRealExecutionConfirmed": null
+      },
+      "reviewer": null,
+      "reviewNotes": null,
+      "decision": "NOT_ASSESSED"
+    }
+  ],
+  "ownerLedStaticUxReview": {
+    "date": "2026-11-08",
+    "status": "SOURCE_REVIEW_ONLY_NOT_PARTICIPANT_EVIDENCE",
+    "approvedPreviewSha": "930194dbd04fbb6d8756d5628e60f173f5f6fcc9",
+    "deploymentId": "dpl_Fb21QGAD49ub9kKCcqKPMYh1bk87",
+    "deploymentReadyState": "READY",
+    "sourceFindings": [
+      {
+        "id": "G3-S01",
+        "classification": "PRESERVE",
+        "topic": "Universal Documents handles mixed types and separates receipt/read/authority"
+      },
+      {
+        "id": "G3-S02",
+        "classification": "SAMPLE_UX_PROBE",
+        "topic": "Sample reply assigned to next prompt without meaning check"
+      },
+      {
+        "id": "G3-S03",
+        "classification": "PREVIEW_LIMITATION",
+        "topic": "Document picker preserves only filename; cannot verify real source interpretation"
+      },
+      {
+        "id": "G3-S04",
+        "classification": "TECHNICAL_RISK_REQUIRES_ISOLATED_API_TEST",
+        "topic": "Live Store cart scope does not demonstrate conversation-keyed isolation"
+      },
+      {
+        "id": "G3-S05",
+        "classification": "PRESERVE",
+        "topic": "Fair Trade unexamined and Money not funded do not overclaim readiness"
+      }
+    ],
+    "changesToFrontendOrApi": false,
+    "resultsNotCountedAsHumanTrials": true
+  },
+  "gate3SourceReviewCloseout": {
+    "date": "2026-11-08",
+    "sourceReviewStatus": "COMPLETE",
+    "formalUncoachedHumanAcceptance": "NO_GO_NOT_EXECUTED",
+    "reviewedUiSha": "930194dbd04fbb6d8756d5628e60f173f5f6fcc9",
+    "reviewedDeployment": "dpl_Fb21QGAD49ub9kKCcqKPMYh1bk87",
+    "deploymentStatus": "READY",
+    "focusedSourceAndUiChecks": {
+      "passed": 76,
+      "failed": 0,
+      "humanBehaviourConfirmed": false
+    },
+    "approvedThreePanelLayoutFrozen": true,
+    "unapprovedMinutesToolAbsent": true,
+    "ownerFeedback": "Owner likes compact right-hand Check, approves proceeding with Gate 3 investigation, requests no further building until the full picture emerges; not a blind usability outcome.",
+    "familySourceReviews": [
+      {
+        "id": "H01",
+        "family": "SecureLink",
+        "reviewStatus": "SOURCE_REVIEWED",
+        "humanOutcome": "NOT_RUN",
+        "known": "Six natural prompts, source filename preview, three milestone proposals, Store handoff",
+        "missing": "Counterpart consent, real source understanding, fair-trade and money authority"
+      },
+      {
+        "id": "H02",
+        "family": "GroupSecureLink",
+        "reviewStatus": "SOURCE_REVIEWED",
+        "humanOutcome": "NOT_RUN",
+        "known": "Contribution prompts and milestone proposals",
+        "missing": "Independent contributors, fund status, shared governance"
+      },
+      {
+        "id": "H03",
+        "family": "SecureFlow",
+        "reviewStatus": "SOURCE_REVIEWED",
+        "humanOutcome": "NOT_RUN",
+        "known": "Gate and drainage milestone outline",
+        "missing": "Independent contractor acceptance, allocation/challenge/release"
+      },
+      {
+        "id": "H04",
+        "family": "GroupSecureFlow",
+        "reviewStatus": "SOURCE_REVIEWED",
+        "humanOutcome": "NOT_RUN",
+        "known": "Three allocation themes and four milestone outline",
+        "missing": "Many-to-many authority, approvals and distribution"
+      },
+      {
+        "id": "H05",
+        "family": "CROSS_FAMILY",
+        "reviewStatus": "SOURCE_REVIEWED",
+        "humanOutcome": "NOT_RUN",
+        "known": "Preview per-work draft/cart/source/summary in same-tab session",
+        "missing": "Real API identity isolation, media switch safety, tab conflict resolution"
+      }
+    ],
+    "findings": [
+      {
+        "id": "G3-F01",
+        "class": "CONFIRMED_SAMPLE_BEHAVIOUR",
+        "topic": "Unrelated or correction chat sent into next prompt fact",
+        "humanObserved": false
+      },
+      {
+        "id": "G3-F02",
+        "class": "SOURCE_RISK_SAMPLE",
+        "topic": "Unkeyed tool sourceText can remain after work switch",
+        "humanObserved": false
+      },
+      {
+        "id": "G3-F03",
+        "class": "SOURCE_RISK_LIVE",
+        "topic": "Workspace-scoped Store cart not rekeyed to live conversation",
+        "humanObserved": false
+      },
+      {
+        "id": "G3-F04",
+        "class": "SOURCE_RISK_LIVE",
+        "topic": "Pending selected file may remain when conversation ID changes while tray stays open",
+        "humanObserved": false
+      },
+      {
+        "id": "G3-F05",
+        "class": "CONFIRMED_SAMPLE_BEHAVIOUR",
+        "topic": "1,100-character cart-to-KS001 sample composer truncation",
+        "humanObserved": false
+      },
+      {
+        "id": "G3-F06",
+        "class": "PRESERVE_EXISTING_CAPABILITY",
+        "topic": "Universal Documents supports contextual actions and read-status honesty",
+        "humanObserved": false
+      },
+      {
+        "id": "G3-F07",
+        "class": "GATE2_SHARED_SOURCE_GAP",
+        "topic": "Caption and place purpose/entrance metadata not forwarded in live source submission",
+        "humanObserved": false
+      },
+      {
+        "id": "G3-F08",
+        "class": "PRESERVE_EXISTING_SAFEGUARD",
+        "topic": "Version-bound Fair Trade advisory and Not funded sample status",
+        "humanObserved": false
+      },
+      {
+        "id": "G3-F09",
+        "class": "PARTIAL_EVIDENCE",
+        "topic": "Milestone readability verified from code, real execution/challenge not tested",
+        "humanObserved": false
+      },
+      {
+        "id": "G3-F10",
+        "class": "PARTIAL_EVIDENCE",
+        "topic": "Mobile panel controls exist; ergonomic human success not measured",
+        "humanObserved": false
+      }
+    ],
+    "noProductionOrUiCodeChanged": true,
+    "allowedNext": "Gate 4 provisional gap/root-cause analysis, without repair, merge, provider claim or final certification",
+    "notAllowed": "Marking five families as tested, inventing participant feedback, claiming all twelve Fair Trade lenses passed"
+  }
+}
