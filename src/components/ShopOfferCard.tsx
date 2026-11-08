@@ -89,7 +89,20 @@ export function ShopOfferCard({offer,onOpen,onOpenStore,onCollect,onQuickKs001,s
       </div>
       {offer.serviceArea && <p className="mt-1 flex items-center gap-1.5 text-xs text-sand-600"><MapPin size={12}/><span className="line-clamp-1">{offer.serviceArea}</span></p>}
       <p className="mt-2 line-clamp-2 min-h-10 text-xs leading-5 text-sand-600">{offer.description}</p>
-      {(selectedCounts?.vision||selectedCounts?.agreement) ? <p role="status" className="mt-1 text-[0.7rem] font-semibold text-forest-700">{(selectedCounts?.vision||0)>0?'Vision ×'+selectedCounts?.vision+'  ':''}{(selectedCounts?.agreement||0)>0?'Agreement ×'+selectedCounts?.agreement:''}</p> : null}
+      {/* Shopping actions stay visible in BOTH the compact and expanded Store.
+          Quick Look is optional; no hover, touch gesture or panel change is required. */}
+      {quickEnabled && <div data-store-item-primary-actions className="mt-3 grid grid-cols-2 gap-2">
+        <button type="button" onClick={()=>add('agreement')} disabled={!onCollect||!canUseForAgreement}
+          className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-forest-800 px-2 text-xs font-semibold text-white disabled:opacity-40"
+          aria-label={'Add '+offer.title+' to KS Cart'}>
+          <Plus size={14}/> Add to Cart
+        </button>
+        <button type="button" onClick={()=>{onQuickKs001?.(offer);onCloseQuick?.();}}
+          disabled={!onQuickKs001}
+          className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-forest-200 bg-forest-50 px-2 text-xs font-semibold text-forest-800 disabled:opacity-40"
+          aria-label={'Ask KS001 about '+offer.title}>Ask KS001</button>
+      </div>}
+      {(selectedCounts?.vision||selectedCounts?.agreement) ? <p role="status" className="mt-2 text-[0.7rem] font-semibold text-forest-700">{(selectedCounts?.vision||0)>0?'Vision ×'+selectedCounts?.vision+'  ':''}{(selectedCounts?.agreement||0)>0?'In KS Cart ×'+selectedCounts?.agreement:''}</p> : null}
     </div>
     <div className="mx-4 mt-2 flex items-center justify-between gap-2 border-t border-cream-200 py-3">
       <button type="button" onClick={onOpenStore} className="inline-flex min-w-0 items-center gap-1.5 text-xs font-semibold text-forest-800 underline-offset-2 hover:underline" aria-label={'Visit '+offer.storeName+' shop'}>
