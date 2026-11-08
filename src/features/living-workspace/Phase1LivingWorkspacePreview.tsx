@@ -36,8 +36,12 @@ import { StoresTool } from './StoresTool';
 import { StoreExperience } from '../store/StoreExperience';
 import { StoreMasterpieceLayoutReview } from '../store/StoreMasterpieceLayoutReview';
 import { StoreKs001GuidedPreview } from './StoreKs001GuidedPreview';
+import { CompactStoreBrowser, initialStoreBrowserState, type StoreBrowserState, type StoreBrowserTarget } from './CompactStoreBrowser';
+import { StoreVisionSavePanel } from './StoreVisionSavePanel';
+import { storeOfferAssistTurn } from '../store/offerAssistTurn.mjs';
+import type { StoreOffer } from '../../types';
 import type { SelectionItem } from '../store/shopSelection.mjs';
-import { collectionTotals, formatListedMoney, updateSelectedQuantity, updateSelectedBuyerNote, removeSelected } from '../store/shopSelection.mjs';
+import { collectOffer, collectionTotals, formatListedMoney, updateSelectedQuantity, updateSelectedBuyerNote, removeSelected, selectionToKs001 } from '../store/shopSelection.mjs';
 import type { OfferFact } from '../agent/controller';
 import type { LocalStoreBuyingPlan } from './StoreBuyingPlan';
 import { UnifiedMoneyTool } from './UnifiedMoneyTool';
@@ -318,9 +322,9 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
   // Shelf presentation is remembered while this workspace stays mounted; no browser
   // storage is used for private preferences, tokens, identity or Agreement work.
   const [shelfPinned,setShelfPinned] = useState(false);
-  const [toolsOpen, setToolsOpen] = useState(shelfPinned);
+  const [toolsOpen, setToolsOpen] = useState(shelfPinned || (typeof window!=='undefined' && window.location.hostname.endsWith('.vercel.app') && /^#\/preview\/living-workspace\/store\/?$/.test(window.location.hash)));
   const contextTools = tools.filter(tool => mode==='work' || (mode==='vision'
-    ? ['Photos','Documents','Places'].includes(tool.name)
+    ? ['Photos','Documents','Places','Stores'].includes(tool.name)
     : mode==='circle' ? ['Photos','Documents','Places'].includes(tool.name)
     : ['Photos','Documents','Places','Stores'].includes(tool.name)));
   const contextHint: Record<Mode,string> = {
@@ -330,7 +334,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
     community:'Explore ways to contribute.',
   };
   const previousScreen = useRef<Screen>('chat');
-  const [activeTool, setActiveTool] = useState<(typeof tools)[number]['name']>('Photos');
+  const [activeTool, setActiveTool] = useState<(typeof tools)[number]['name']>(isStoreLayoutReviewRoute()?'Stores':'Photos');
   // This panel is a CHILD of the approved Living Workspace. Keep it mounted
   // when closed so a trader does not lose an unfinished offer draft by talking
   // to KS001. Signing out unmounts it and clears private Store state.
@@ -341,13 +345,18 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
     && window.location.hostname.endsWith('.vercel.app')
     && /^#\/preview\/living-workspace\/store\/?$/.test(window.location.hash);
   const [storeReviewRoute, setStoreReviewRoute] = useState(isStoreLayoutReviewRoute);
-  const initialStoreOpen = () => isStoreLayoutReviewRoute() ||
+  const initialStoreOpen = () =>
     (typeof window !== 'undefined'
       && (/^#\/store\/?$/.test(window.location.hash) ||
         /^#\/store\/enquiry\/[0-9a-f-]{36}\/(?:buyer|trader)$/.test(window.location.hash))
       && session.getSnapshot().status === 'signed-in');
   const [storeOpen, setStoreOpen] = useState(initialStoreOpen);
   const [storeSelected,setStoreSelected]=useState<SelectionItem[]>([]);
+  const [storeBrowser,setStoreBrowser]=useState<StoreBrowserState>(initialStoreBrowserState);
+  const [storeNavigation,setStoreNavigation]=useState<StoreBrowserTarget|null>(null);
+  const storeNavigationSequence=useRef(0);
+  const [visionStoreOffer,setVisionStoreOffer]=useState<StoreOffer|null>(null);
+  const [previewVisionSources,setPreviewVisionSources]=useState<Array<{vision:string;offerId:string;title:string;storeName:string}>>([]);
   const storeSelectedTotals=collectionTotals(storeSelected);
   const previousStoreOwnerSignedIn=useRef(signedIn);
   useEffect(()=>{
@@ -356,11 +365,11 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
   },[signedIn]);
   // Shop in focus by default; the original three-panel shell stays mounted underneath.
   // The customer can switch to the compact workspace view without losing a draft.
-  const [storeFocus, setStoreFocus] = useState(true);
+  const [storeFocus, setStoreFocus] = useState(false);
   // During shopping KS001 stays mounted but is visually tucked away until asked for.
   // This is a view choice only, never a second conversation or identity.
   const [storeAssistantOpen, setStoreAssistantOpen] = useState(false);
-  const [storeEverOpened, setStoreEverOpened] = useState(initialStoreOpen);
+  const [storeEverOpened, setStoreEverOpened] = useState(initialStoreOpen() || isStoreLayoutReviewRoute());
   const [storeHandoffBusy, setStoreHandoffBusy] = useState(false);
   const [storeHandoffError, setStoreHandoffError] = useState<string | null>(null);
   const storeTransitionLock = useRef(false);
@@ -378,8 +387,11 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
     const onHash = () => {
       const reviewing = isStoreLayoutReviewRoute();
       setStoreReviewRoute(reviewing);
-      if (reviewing || (signedIn && (/^#\/store\/?$/.test(window.location.hash) ||
-          /^#\/store\/enquiry\/[0-9a-f-]{36}\/(?:buyer|trader)$/.test(window.location.hash)))) {
+      if (reviewing) {
+        setStoreOpen(false);setStoreEverOpened(true);setToolsOpen(true);setActiveTool('Stores');setToolSelected(true);return;
+      }
+      if (signedIn && (/^#\/store\/?$/.test(window.location.hash) ||
+          /^#\/store\/enquiry\/[0-9a-f-]{36}\/(?:buyer|trader)$/.test(window.location.hash))) {
         setStoreOpen(true);setStoreEverOpened(true);return;
       }
       if (!signedIn) {
@@ -390,7 +402,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
     window.addEventListener('hashchange',onHash);
     return () => window.removeEventListener('hashchange',onHash);
   }, [signedIn]);
-  const [toolSelected, setToolSelected] = useState(false);
+  const [toolSelected, setToolSelected] = useState(isStoreLayoutReviewRoute);
   const persona = KS001_WORKSPACE_PERSONAS[mode];
   const [quickAssistCollection, setQuickAssistCollection] = useState<QuickAssistId[]>(['stays', 'ride']);
   const [quickAssistSeed, setQuickAssistSeed] = useState('');
@@ -406,23 +418,9 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
     // P0 masterpiece convergence: the REAL Store is an in-workspace tool.
     // Merely opening it never switches or replaces the KS001 controller and
     // never discards unsent chat, attachments or the right Agreement panel.
-    if (name === 'Stores' && !request && !signedIn &&
-        typeof window !== 'undefined' && window.location.hostname.endsWith('.vercel.app')) {
-      // Show the ACTUAL parent layout with the reused StoreHome inside it.
-      // No private account, fake publication or production-backed writes.
-      storeReturnScreen.current = screen;
-      setStoreReviewRoute(true);setStoreEverOpened(true);setStoreOpen(true);
-      setStoreHandoffError(null);setToolsOpen(false);setToolSelected(false);
-      window.location.hash = '#/preview/living-workspace/store';
-      return;
-    }
-    if (name === 'Stores' && !request && signedIn && storeIntegration) {
-      if (!mayLeaveDream()) return;
-      storeReturnScreen.current = screen;
-      setStoreEverOpened(true);setStoreOpen(true);setStoreHandoffError(null);
-      setToolsOpen(false);setToolSelected(false);
-      return;
-    }
+    // The Store is a genuine left tool. Opening it must NEVER expand over
+    // the middle KS001 chat or automatically change the existing work.
+    // View Store / View Item explicitly controls the middle display.
     setPhase4Journey(null);
     if (name === 'Quick Assist') setQuickAssistSeed(request);
     if (name === 'Stores') { setStoreServiceQuery('');setStoreQuickAssistNeed(''); }
