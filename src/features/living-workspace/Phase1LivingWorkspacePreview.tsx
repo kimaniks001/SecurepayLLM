@@ -41,7 +41,7 @@ import { StoreCartCockpit } from './StoreCartCockpit';
 import { storeOfferAssistTurn } from '../store/offerAssistTurn.mjs';
 import type { StoreOffer } from '../../types';
 import type { SelectionItem } from '../store/shopSelection.mjs';
-import { collectOffer, collectionTotals, formatListedMoney, updateSelectedQuantity, updateSelectedBuyerNote, removeSelected, selectionToKs001 } from '../store/shopSelection.mjs';
+import { collectOffer, collectionTotals, selectionToKs001 } from '../store/shopSelection.mjs';
 import type { OfferFact } from '../agent/controller';
 import type { LocalStoreBuyingPlan } from './StoreBuyingPlan';
 import { UnifiedMoneyTool } from './UnifiedMoneyTool';
@@ -52,7 +52,7 @@ import { WorkspaceWelcome } from './WorkspaceWelcome';
 import { WorkspacePurposeGuide } from './WorkspacePurposeGuide';
 import { useCallback, useEffect, useState, useSyncExternalStore, useRef } from 'react';
 import securepayWordmark from '../../assets/brand/securepay/securepay-wordmark-horizontal.png';
-import { ArrowLeft, CalendarDays, Camera, FileText, Lightbulb, MapPin, MessageCircle, Plus, Store, UserRoundPlus, Wallet, X, BedDouble, PanelLeftClose, PanelLeftOpen, Pin, PinOff, Maximize2, Minimize2, Minus, Trash2 } from 'lucide-react';
+import { ArrowLeft, CalendarDays, Camera, FileText, Lightbulb, MapPin, MessageCircle, Plus, Store, UserRoundPlus, Wallet, X, BedDouble, PanelLeftClose, PanelLeftOpen, Pin, PinOff, Maximize2, Minimize2 } from 'lucide-react';
 
 type Mode = 'work' | 'vision' | 'circle' | 'community';
 type Screen = 'chat' | 'result' | 'tools';
