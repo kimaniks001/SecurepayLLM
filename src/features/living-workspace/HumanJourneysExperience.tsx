@@ -29,6 +29,7 @@ type Work = {
   title: string;
   introduction: string;
   draft: string;
+  draftFromStore: boolean;
   facts: Partial<Record<Field, string>>;
   deferred: Field[];
   turns: Turn[];
@@ -136,7 +137,7 @@ const STORAGE_KEY = 'securepay-gate3-human-journeys-preview-v1';
 const labels = (field: Field) => QUESTION_LABELS[field];
 function initialWork(s: Scenario): Work {
   return {
-    title:s.title, introduction:s.initial, draft:'', facts:{}, deferred:[], cart:[], sources:[],
+    title:s.title, introduction:s.initial, draft:'', draftFromStore:false, facts:{}, deferred:[], cart:[], sources:[],
     turns: [
       {id:1,by:'person',text:s.initial},
       {id:2,by:'example',text:'I can help you organise this as a clear proposal. ' + s.questions[0].question},
@@ -150,7 +151,7 @@ function initialWorks(): Record<WorkId, Work> {
 function validWork(value: unknown): value is Work {
   if (!value || typeof value !== 'object') return false;
   const w=value as Partial<Work>;
-  return typeof w.title==='string' && typeof w.draft==='string'
+  return typeof w.title==='string' && typeof w.draft==='string' && typeof w.draftFromStore==='boolean'
     && !!w.facts && Array.isArray(w.deferred) && Array.isArray(w.turns) && Array.isArray(w.sources)
     && Array.isArray(w.milestones) && Array.isArray(w.cart);
 }
@@ -211,7 +212,7 @@ export function HumanJourneysExperience() {
     const prompt=next;
     update(workId,w=>{
       const facts=fromStore||!prompt?w.facts:{...w.facts,[prompt.field]:clean};
-      const updated={...w,facts,draft:''};
+      const updated={...w,facts,draft:'',draftFromStore:false};
       const q=nextQuestion(updated,scenario);
       const answer=fromStore
         ?'I have added that Store request as a proposal, not an order. ' + (q?.question??'Would you like to review the proposed terms?')
@@ -235,7 +236,7 @@ export function HumanJourneysExperience() {
   const onSend=(e:FormEvent)=>{
     e.preventDefault();
     if(!current.draft.trim())return;
-    appendConversation(current.draft);
+    appendConversation(current.draft,current.draftFromStore);
   };
   const switchWork=(id:WorkId)=>{
     setWorkId(id);setMiddle('chat');setActiveTool('overview');setMobilePanel('chat');
@@ -249,8 +250,17 @@ export function HumanJourneysExperience() {
     }catch(err){setNotice(err instanceof Error?err.message:'This offer cannot be added.');}
   };
   const setCart=(items:SelectionItem[])=>update(workId,w=>({...w,cart:items}));
-  const discussOffer=(offer:StoreOffer)=>appendConversation(storeOfferAssistTurn(offer),true);
-  const discussCart=()=>{if(count>0)appendConversation(selectionToKs001(current.cart,'agreement'),true);};
+  const prepareStoreMessage=(message:string)=>{
+    if(current.draft.trim()){
+      setNotice('You have an unsent message in this work. Send or clear it before preparing a Store request.');
+      setMiddle('chat');setMobilePanel('chat');return;
+    }
+    update(workId,w=>({...w,draft:message.slice(0,1100),draftFromStore:true}));
+    setMiddle('chat');setMobilePanel('chat');
+    setNotice('Store request prepared in this work. Read it and press Send yourself. No offer was purchased.');
+  };
+  const discussOffer=(offer:StoreOffer)=>prepareStoreMessage(storeOfferAssistTurn(offer));
+  const discussCart=()=>{if(count>0)prepareStoreMessage(selectionToKs001(current.cart,'agreement'));};
   const expandStore=(target:Omit<StoreBrowserTarget,'requestId'>)=>{
     setStoreNavigation({...target,requestId:Date.now()});
     setMiddle('store');setMobilePanel('chat');
@@ -348,7 +358,7 @@ export function HumanJourneysExperience() {
           {middle==='store'?<div className="min-h-0 flex-1 overflow-y-auto" data-store-expanded-middle>
             <StoreMasterpieceLayoutReview key={workId} shopFocused={false} externalNavigation={storeNavigation}
               workspaceSelection={current.cart} onSelectionChange={setCart}
-              onOpenKs001Preview={(message)=>{if(message)appendConversation(message,true);else setMiddle('chat');}}/>
+              onOpenKs001Preview={(message)=>{if(message)prepareStoreMessage(message);else setMiddle('chat');}}/>
           </div>:<>
             <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-3 py-4 sm:px-5" data-gate3-transcript>
               {current.turns.map(turn=><div key={turn.id} className={turn.by==='person'?'flex justify-end':'flex justify-start'}>
@@ -398,7 +408,11 @@ export function HumanJourneysExperience() {
                 <p className="break-words text-xs leading-5">{value}</p>
               </div>)}
               {next&&<p className="mt-2 text-xs text-sand-600"><strong>Still needed:</strong> {next.question}</p>}
-              {current.deferred.length>0&&<p className="mt-2 text-xs text-sand-600"><strong>To clarify later:</strong> {current.deferred.map(labels).join(', ')}. These are not agreed facts.</p>}
+              {current.deferred.length>0&&<div className="mt-2 rounded-xl bg-cream-50 p-2 text-xs text-sand-600">
+                <strong>To clarify later:</strong> {current.deferred.map(labels).join(', ')}. These are not agreed facts.
+                <button type="button" onClick={()=>update(workId,w=>({...w,deferred:w.deferred.slice(1)}))}
+                  className="mt-1 block min-h-10 rounded-lg border border-cream-200 bg-white px-3 font-semibold text-forest-800">Revisit an open question</button>
+              </div>}
             </section>
             <section className="border-t border-cream-200 pt-3">
               <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-sand-600"><ClipboardList size={15}/> Milestones · proposed</h3>
