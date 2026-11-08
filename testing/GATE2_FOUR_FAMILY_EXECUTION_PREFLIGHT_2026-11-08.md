@@ -98,3 +98,39 @@ New evidence goes into the structured register first. For every FAIL: exact repr
 **Real cases: 0/22 executed. Four-family certification: NOT STARTED. Gate 2 decision: BLOCKED / NO_GO, not FAIL.** This is a valid investigation result because the exact test pair and isolated execution environment are not yet verified.
 
 **Next operational action:** obtain the minimal environment/pair attestation and execute the first disposable KS001 plus real-source smoke. Only then progress to case SL-01 and the other family journeys. This is not a prompt to rewrite SecurePay.
+
+
+## 9. Owner-led follow-up: direct GitHub/Vercel investigation (8 November 2026)
+
+**Responsibility:** ChatGPT is the investigator and test designer. The owner rightly rejected passing our investigation to the deployment operator. No delegation to Paul was required to verify the findings below; the available connected GitHub and Vercel services were used directly.
+
+### 9.1 Same-candidate client/API source-contract check — EXECUTED
+
+At UI SHA `6001f86e2e869627c93ee41af67739398a5bec3c` and API SHA `f77b961940acd0e7f9e9565d316912de5ea4076c`, **13 of 13 inspected source interface markers align**:
+
+- Create KS001 conversation; submit turn; read Trade Context.
+- Read Agreement Formation and twelve-lens Fair Trade examination.
+- Save current build and list saved builds.
+- Create place source, upload multipart media source and read per-conversation source.
+- Select commercial Store source.
+- Optional upload caption supported by frontend gateway + backend upload controller.
+- UI Fair Trade DTO anticipates backend's canonical twelve-principle coverage.
+
+**Interpretation:** inspected routes/methods/fields are present at both exact SHAs, reducing the risk of a simple route mismatch in this subset. This is **not** a live compatibility proof: runtime authentication, migrations, provider calls, UI actions and multi-user decisions are still untested.
+
+### 9.2 Confirmed source-level omissions and work-isolation concern
+
+1. **SC-01 Live media caption not forwarded.** `UniversalSourceTray.uploadToKs001` invokes `gateway.uploadSource(id,kind,file)` without the optional `label`. `agent/index.ts` sends `label` when supplied, and `AgentSourceController.upload` receives and persists that field. The preview's local note *does* contain the human caption. The live route omits it at invocation. Isolated source-lineage regression remains necessary.
+2. **SC-02 Live place purpose/entrance not forwarded.** The local preview composes purpose, selected place, entrance and instructions, while live `gateway.createPlaceSource` sends `[value,caption.trim()].join(' — ')`. Purpose and entrance selected by the user are absent from that request. Backend receives the submitted text; human impact and downstream intention processing still require real testing.
+3. **SC-03 Cart state not scoped to work ID.** `storeSelected` is one component-level state array. Sign-out clears it, but `startNewWork` and `continueSavedConversation` do not clear/rekey it. `discussCompactStoreCart` uses this shared array when preparing KS001 input. This is a **verified code-level cross-work scope risk**, not yet a demonstrated unauthorized server-side attachment. Reproduce with two unrelated saved works in the isolated user journey.
+4. **SC-04 Milestone display lacks enough context to assess human comprehension.** `ActiveAgreementWorkspace` renders each milestone as title + status in one joined line. The domain's dependency and evidence features may exist, but the user-visible milestone surface's clarity must be tested rather than assumed.
+
+These findings remain **unfixed by design**. The owner's agreed programme requires actual evidence and root-cause clustering before implementation prompts.
+
+### 9.3 Vercel / CI evidence directly checked
+
+- Connected Vercel confirms deployment `dpl_8iw7FQCoTdFeMhy9DCMu3zgLQuco` READY at exact UI SHA; fetching its page returned HTTP 200 and a static app shell. Neither verifies backend session handling or KS001 source reading.
+- `securepay.ke` is not attached as a domain to the inspected `securepay-llm` Vercel project. This does **not** prove where production is hosted; authoritative production release artifacts are not exposed through this project's records.
+- Inspected UI GitHub Actions job **128668385450** returned no reported steps and its log fetch returned `BlobNotFound`. Backend inspected startup-failure run reported zero jobs. No useful program execution evidence can be derived from either failure.
+
+**Current verdict:** source contract checks **13/13 matched**, confirmed code-level omissions/scope risk **4**, real E2E journeys **0/22**, integrated Gate 2 **BLOCKED**. Further read-only investigation remains ours; live testing requires an accessible isolated runtime. Do not portray that limitation as delegated investigative responsibility.
