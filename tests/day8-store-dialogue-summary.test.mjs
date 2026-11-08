@@ -46,7 +46,7 @@ test('right-panel changes are reflected back in the same live and example Store 
 });
 
 test('an item can be explicitly brought into the ORIGINAL KS001 composer without opening a drawer',()=>{
- assert.match(review,/onOpenKs001Preview\?\.\(selectionToKs001\(next,'agreement'\)\)/);
+ assert.match(review,/onOpenKs001Preview\?\.\(question\)/);
  assert.match(workspace,/onOpenKs001Preview=\{message=>/);
  assert.match(workspace,/addPreviewNote\(message\)/);
  assert.match(workspace,/closeEmbeddedStore\('chat'\)/);
