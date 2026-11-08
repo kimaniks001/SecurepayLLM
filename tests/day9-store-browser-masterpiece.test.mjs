@@ -105,3 +105,52 @@ test('expanded Store cards expose direct Add to Cart and Ask KS001, using the sa
  assert.match(layout,/workspaceSelection=\{storeSelected\}/);
  assert.match(layout,/onSelectionChange=\{setStoreSelected\}/);
 });
+
+test('glance summary owns the work context, while sensitive explanation is optional',()=>{
+ assert.match(layout,/const shoppingContext = mode==='work'/);
+ assert.match(layout,/uiOnlyPreview && !shoppingContext \? <PreviewWorkBoard/);
+ assert.match(layout,/<StoreCartCockpit selections=\{storeSelected\}/);
+ assert.match(layout,/onDiscussCart=\{discussCompactStoreCart\}/);
+ assert.match(layout,/onSelectionChange=\{setStoreSelected\}/);
+ assert.match(layout,/onViewItem=\{\(storeKs,offerId\)=>expandCompactStore/);
+ assert.match(cockpit,/data-store-cart-cockpit/);
+ assert.match(cockpit,/data-store-cart-rows/);
+ assert.match(cockpit,/data-store-cart-totals/);
+ assert.match(cockpit,/data-store-cart-explanation/);
+ assert.match(cockpit,/<details className="mt-2 border-t/);
+ assert.match(cockpit,/Discuss Cart with KS001/);
+ assert.match(cockpit,/No agreement yet/);
+ assert.doesNotMatch(cockpit,/executePayment|confirmAgreement|acceptAgreement/);
+});
+
+test('multi-currency and unpriced Store selections never pretend to be one grand total',()=>{
+ const foreign={...good,id:'usd',storeId:'KS-USD',storeName:'Foreign seller',price:'USD 12.50',currency:'USD'};
+ const unknown={...good,id:'unknown',storeId:'KS-UNKNOWN',storeName:'Unknown price seller',priceType:'unlisted',price:'Ask seller'};
+ let chosen=collectOffer([],good,'agreement',true);
+ chosen=collectOffer(chosen,foreign,'agreement',true);
+ chosen=collectOffer(chosen,unknown,'agreement',true);
+ const totals=collectionTotals(chosen).byDestination.agreement;
+ assert.equal(totals.subtotal.KES,200000);
+ assert.equal(totals.subtotal.USD,1250);
+ assert.equal(totals.unpriced,1);
+ assert.match(cockpit,/Object.entries\(totals.byDestination.agreement.subtotal\)/);
+ assert.match(cockpit,/listed.length === 1 && unpriced === 0/);
+ assert.match(cockpit,/listed.map\(\(\[currency,minor\]\)=>/);
+ assert.match(cockpit,/Price to confirm/);
+ assert.match(cockpit,/onSelectionChange\(fn\)/);
+});
+
+test('buttons are lightweight and shopping operations are reachable without hover',()=>{
+ const card=read('src/components/ShopOfferCard.tsx');
+ const tool=read('src/features/living-workspace/CompactStoreBrowser.tsx');
+ assert.match(card,/data-store-item-primary-actions/);
+ assert.match(card,/cartQuantity\?'Add another':'Add to Cart'/);
+ assert.match(card,/In Cart ·/);
+ assert.match(card,/Ask KS001/);
+ assert.match(card,/quickEnabled && quickOpen/);
+ assert.doesNotMatch(card,/group-hover\/visual:block/);
+ assert.match(tool,/data-compact-store-actions/);
+ assert.match(tool,/In Cart · \{inCart.quantity\}/);
+ assert.match(tool,/onAddCart\(offer\)/);
+ assert.match(tool,/onDiscuss\(offer\)/);
+});
