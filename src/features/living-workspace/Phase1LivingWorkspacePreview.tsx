@@ -1057,13 +1057,9 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
         </aside>
       </>}
       {returnError&&<p role="alert" className="mx-4 mt-2 rounded-xl bg-amber-50 p-3 text-sm">{returnError}</p>}
-      <section aria-label="KS001 conversation" aria-hidden={storeOpen&&!storeAssistantOpen}
-        data-store-ks001-compact-assist={storeOpen ? (storeAssistantOpen?'open':'closed') : undefined}
-        className={`${storeOpen
-          ? (storeAssistantOpen
-              ? 'fixed inset-x-3 bottom-3 top-3 z-[90] flex shadow-2xl sm:inset-x-auto sm:left-5 sm:w-[390px] md:bottom-4 md:left-24 md:top-[100px]'
-              : 'hidden')
-          : (screen==='chat'||toolsOpen?'flex md:flex':'hidden md:flex')} sp-brand-conversation min-w-0 ${storeOpen?'min-h-0':'min-h-[70dvh] flex-1 md:min-h-0'} flex-col overflow-hidden rounded-2xl border border-cream-200 bg-white`}>
+      <section aria-label="KS001 conversation" aria-hidden={storeOpen}
+        data-store-ks001-original-conversation
+        className={`${storeOpen?'hidden':(screen==='chat'||toolsOpen?'flex md:flex':'hidden md:flex')} sp-brand-conversation min-w-0 min-h-[70dvh] flex-1 flex-col overflow-hidden rounded-2xl border border-cream-200 bg-white md:min-h-0`}>
 
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cream-100 p-4"><div><p className="text-xs text-sand-600">{storeOpen?'Your shopping assistant':areaLabels[mode]+' · '+persona.label}</p><strong className="sp-type-display text-xl">KS001</strong></div><div className="flex flex-wrap gap-2">
           {storeOpen && <button type="button" onClick={()=>setStoreAssistantOpen(false)}
@@ -1122,10 +1118,8 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
             <button type="button" onClick={()=>{setCreatedAgreementId(null);setDraftReviewOpen(false);setScreen('result');}}
               className="min-h-11 rounded-xl border border-forest-300 px-4 text-sm font-semibold text-forest-800">Open My Agreements</button>
           </section>}
-        {uiOnlyPreview && mode==='work' && (storeOpen && storeReviewRoute
-          ? <StoreKs001GuidedPreview items={storeSelected}/>
-          : <PreviewWorkComposer notes={activePreviewNotes} exampleId={phase2ExampleId} onAdd={addPreviewNote} onOpenTools={openToolPicker}
-              onSelectExample={id=>setPhase2ExampleId(id)}/>)}
+        {uiOnlyPreview && mode==='work' && <PreviewWorkComposer notes={activePreviewNotes} exampleId={phase2ExampleId} onAdd={addPreviewNote} onOpenTools={openToolPicker}
+              onSelectExample={id=>setPhase2ExampleId(id)}/>} 
         {mode==='community' && (!signedIn || workspaceGateways) && <div data-phase6-community-main
           className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5">
           <InlineCommunityHub gateways={workspaceGateways} session={session}
@@ -1163,29 +1157,14 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
         data-masterpiece-digital-store
         aria-label="Digital Stores inside Living Workspace"
         aria-hidden={!storeOpen}
-        className={`${storeOpen?'flex':'hidden'} min-h-0 min-w-0 flex-col overflow-hidden bg-white ${storeFocus ? 'fixed inset-0 z-[60] md:fixed md:inset-x-5 md:top-[96px] md:bottom-4 md:z-[75] md:w-auto md:max-w-none md:rounded-2xl md:border md:border-cream-200 md:shadow-2xl' : 'fixed inset-0 z-[60] md:static md:inset-auto md:z-auto md:flex-1 md:rounded-2xl md:border md:border-cream-200 md:shadow-sm'}`}>
+        className={`${storeOpen?'flex':'hidden'} sp-brand-conversation min-h-[70dvh] min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-cream-200 bg-white shadow-sm md:min-h-0`}>
         <header className="flex shrink-0 items-center justify-between gap-2 border-b border-cream-200 bg-white px-3 py-2 sm:px-4">
           <div className="min-w-0"><p className="text-[0.65rem] font-semibold uppercase tracking-widest text-sand-500">Digital Store · Shop & Sell</p>
             <strong className="sp-type-display text-base text-forest-900">Digital Stores</strong></div>
           <div className="flex flex-wrap items-center gap-1.5">
-            <button type="button" data-store-shopping-focus-toggle onClick={()=>setStoreFocus(value=>!value)}
-              className="hidden min-h-11 items-center gap-1.5 rounded-xl border border-forest-200 bg-forest-50 px-3 text-xs font-semibold text-forest-800 md:inline-flex">
-              {storeFocus ? <><Minimize2 size={14}/> Workspace view</> : <><Maximize2 size={14}/> Full shop</>}
-            </button>
-            <button type="button" onClick={()=>setStoreAssistantOpen(open=>!open)}
-              disabled={storeHandoffBusy} aria-expanded={storeAssistantOpen} data-store-ks001-trigger
-              className="min-h-11 rounded-xl border border-forest-200 bg-white px-3 text-xs font-semibold text-forest-800 disabled:opacity-50">
-              {storeAssistantOpen?'Hide KS001':'Ask KS001'}
-            </button>
-            <button type="button" onClick={()=>{chooseMode('vision');closeEmbeddedStore('chat');}}
-              disabled={storeHandoffBusy}
-              className="min-h-11 rounded-xl border border-cream-200 bg-white px-3 text-xs text-forest-800 disabled:opacity-50">
-              Vision
-            </button>
-            <button type="button" onClick={()=>closeEmbeddedStore('result')}
-              disabled={storeHandoffBusy}
-              className="min-h-11 rounded-xl border border-cream-200 bg-white px-3 text-xs text-forest-800 disabled:opacity-50">
-              Agreement
+            <button type="button" onClick={()=>closeEmbeddedStore('chat')}
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-forest-200 bg-forest-50 px-3 text-xs font-semibold text-forest-800">
+              <ArrowLeft size={15}/> Back to KS001
             </button>
             <button type="button" aria-label="Close Digital Stores and return to my work"
               disabled={storeHandoffBusy} onClick={()=>closeEmbeddedStore()}
@@ -1196,23 +1175,28 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
         </header>
         {storeHandoffBusy && <p role="status" className="shrink-0 bg-cream-50 px-4 py-2 text-xs text-forest-800">Verifying your Store source with KS001. No Agreement has been accepted.</p>}
         {storeHandoffError && <p role="alert" className="shrink-0 border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-900">{storeHandoffError}</p>}
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden" data-store-feature-preservation>
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden" data-store-feature-preservation data-store-expanded-middle>
           {storeReviewRoute && (!signedIn || !storeIntegration)
-            ? <StoreMasterpieceLayoutReview shopFocused={storeFocus} onSelectionChange={setStoreSelected} workspaceSelection={storeSelected} onOpenKs001Preview={()=>setStoreAssistantOpen(true)} />
-            : storeIntegration && <StoreExperience {...storeIntegration} embedded session={session} shoppingWide={storeFocus} onSelectionChange={setStoreSelected} workspaceSelection={storeSelected}
+            ? <StoreMasterpieceLayoutReview shopFocused={false} externalNavigation={storeNavigation} onSelectionChange={setStoreSelected} workspaceSelection={storeSelected}
+                onOpenKs001Preview={message=>{
+                  if(message)addPreviewNote(message);
+                  else addPreviewNote('Help me understand this Store choice before I proceed.');
+                  closeEmbeddedStore('chat');
+                }} />
+            : storeIntegration && <StoreExperience {...storeIntegration} embedded session={session} shoppingWide={false} externalNavigation={storeNavigation} onSelectionChange={setStoreSelected} workspaceSelection={storeSelected}
             initialOfferRoute={initialEmbeddedStoreOffer}
             onUseOffer={fact=>{void continueEmbeddedOffer(fact);}}
             onResumeSavedWork={conversationId=>{void resumeEmbeddedStoreWork(conversationId);}}
-            onAskKs001={message=>{void prepareEmbeddedStoreQuestion(message,true)
-              .then(()=>setStoreAssistantOpen(true))
+            onAskKs001={message=>{void prepareEmbeddedStoreQuestion(message)
+              .then(()=>closeEmbeddedStore('chat'))
               .catch(error=>{
                 setStoreHandoffError(error instanceof Error?error.message:'KS001 could not prepare that question.');
               });}}
             onStageSelections={async (text,destination)=>{
               if(destination==='vision')await stageStoreVision(text);
               else {
-                await prepareEmbeddedStoreQuestion(text,true);
-                setStoreAssistantOpen(true);
+                await prepareEmbeddedStoreQuestion(text);
+                closeEmbeddedStore('chat');
               }
             }}
             onNavigate={view=>{void leaveEmbeddedStoreFor(view);}}
