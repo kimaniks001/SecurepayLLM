@@ -35,7 +35,6 @@ import { PeopleInvitationsTool } from './PeopleInvitationsTool';
 import { StoresTool } from './StoresTool';
 import { StoreExperience } from '../store/StoreExperience';
 import { StoreMasterpieceLayoutReview } from '../store/StoreMasterpieceLayoutReview';
-import { StoreKs001GuidedPreview } from './StoreKs001GuidedPreview';
 import { CompactStoreBrowser, initialStoreBrowserState, type StoreBrowserState, type StoreBrowserTarget } from './CompactStoreBrowser';
 import { StoreVisionSavePanel } from './StoreVisionSavePanel';
 import { storeOfferAssistTurn } from '../store/offerAssistTurn.mjs';
@@ -1210,6 +1209,11 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
       </section>}
       <aside aria-label="Living result" className={`${screen==='result'?'flex':'hidden'} sp-brand-result w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-cream-200 bg-white md:flex ${storeOpen?'md:w-[32%] lg:max-w-[440px]':'md:w-[35%] lg:max-w-[460px]'}`}>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5">
+        {previewVisionSources.length>0 && uiOnlyPreview && (mode==='work'||mode==='vision') && <section
+          data-store-preview-vision-sources className="mb-3 rounded-xl border border-forest-100 bg-cream-50 p-3">
+          <p className="text-xs font-semibold text-forest-900">Vision · Preview sources</p>
+          {previewVisionSources.map((saved,index)=><p key={index} className="mt-1 text-xs text-sand-700">{saved.vision}: {saved.title} from {saved.storeName} · Example only, not saved to SecurePay.</p>)}
+        </section>}
         {storeSelected.length>0 && (mode==='work'||mode==='vision') && <section
           data-store-selection-parent-summary
           aria-label="Selected Digital Store items for review"
@@ -1401,6 +1405,14 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
     </div>}
     {!workingCircleId && <nav aria-label="Mobile workspace panels" className="sticky bottom-0 flex justify-around gap-2 border-t border-cream-200 bg-white p-2 md:hidden">{([['chat','Chat',MessageCircle],['result',mode==='work'?'Agreement':mode==='community'?'Community Check':'About '+areaLabels[mode],Lightbulb],['tools','Tools',Plus]] as const).map(([id,label,Icon])=><button key={id} onClick={()=>id==='tools'?openToolPicker():(id==='result'&&setShowSavedWork(false),setScreen(id))} className={`flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-2 text-xs ${screen===id?'bg-forest-800 text-white':'bg-cream-100'}`}><Icon size={16}/>{label}</button>)}</nav>}
     {!uiOnlyPreview && <p className="px-5 pb-4 text-center text-xs text-sand-600">Agreements, invitations and Money require your review and authorisation.</p>}
+    {visionStoreOffer && <StoreVisionSavePanel
+      key={visionStoreOffer.storeId+':'+visionStoreOffer.id}
+      offer={visionStoreOffer} example={uiOnlyPreview || !signedIn}
+      api={signedIn && workspaceGateways ? {dreams:workspaceGateways.dreams,agent:workspaceGateways.agent} : undefined}
+      onClose={()=>setVisionStoreOffer(null)}
+      onPreviewSaved={(vision,offer)=>setPreviewVisionSources(current=>[
+        ...current,{vision,offerId:offer.id,title:offer.title,storeName:offer.storeName}
+      ])}/>}
     {signInOpen && !workspaceGateways && <div role="dialog" aria-modal="true"
       aria-label="SecurePay identity unavailable" data-gate-d-identity-not-connected
       className="fixed inset-0 z-[100] flex items-center justify-center bg-forest-950/50 p-3">
