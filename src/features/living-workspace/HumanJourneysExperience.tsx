@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import {
-  ArrowLeft, ArrowRight, CalendarDays, Check, ChevronDown, ClipboardList,
-  FileText, ImagePlus, MapPin, MessageCircle, Minus, Plus, Send, ShieldCheck,
+  ArrowLeft, CalendarDays, ChevronDown, ClipboardList,
+  FileText, ImagePlus, MapPin, Minus, Plus, Send, ShieldCheck,
   ShoppingBag, Store, Trash2, Users, Wallet, X,
 } from 'lucide-react';
 import type { StoreOffer } from '../../types';
@@ -30,6 +30,7 @@ type Work = {
   introduction: string;
   draft: string;
   facts: Partial<Record<Field, string>>;
+  deferred: Field[];
   turns: Turn[];
   sources: Source[];
   milestones: Milestone[];
@@ -135,7 +136,7 @@ const STORAGE_KEY = 'securepay-gate3-human-journeys-preview-v1';
 const labels = (field: Field) => QUESTION_LABELS[field];
 function initialWork(s: Scenario): Work {
   return {
-    title:s.title, introduction:s.initial, draft:'', facts:{}, cart:[], sources:[],
+    title:s.title, introduction:s.initial, draft:'', facts:{}, deferred:[], cart:[], sources:[],
     turns: [
       {id:1,by:'person',text:s.initial},
       {id:2,by:'example',text:'I can help you organise this as a clear proposal. ' + s.questions[0].question},
@@ -150,7 +151,7 @@ function validWork(value: unknown): value is Work {
   if (!value || typeof value !== 'object') return false;
   const w=value as Partial<Work>;
   return typeof w.title==='string' && typeof w.draft==='string'
-    && !!w.facts && Array.isArray(w.turns) && Array.isArray(w.sources)
+    && !!w.facts && Array.isArray(w.deferred) && Array.isArray(w.turns) && Array.isArray(w.sources)
     && Array.isArray(w.milestones) && Array.isArray(w.cart);
 }
 function restoredWorks():Record<WorkId,Work> {
@@ -164,7 +165,7 @@ function restoredWorks():Record<WorkId,Work> {
   return defaults;
 }
 function nextQuestion(work:Work,scenario:Scenario) {
-  return scenario.questions.find(q=>!work.facts[q.field]);
+  return scenario.questions.find(q=>!work.facts[q.field] && !work.deferred.includes(q.field));
 }
 const srcNames:Record<SourceKind,string>={photo:'Photo',document:'Document',place:'Place',person:'Person',date:'Date / time'};
 const TOOL_ACTIONS: {id: SourceKind; title:string; icon:typeof MapPin}[] = [
@@ -220,6 +221,16 @@ export function HumanJourneysExperience() {
       return {...updated,turns:[...w.turns,{id:n+1,by:'person',text:clean},{id:n+2,by:'example',text:answer}]};
     });
     setMiddle('chat');setMobilePanel('chat');
+  };
+  const deferCurrentQuestion=()=>{
+    if(!next)return;
+    update(workId,w=>{
+      const updated={...w,deferred:[...w.deferred,next.field]};
+      const following=nextQuestion(updated,scenario);
+      const answer='No problem. That stays open for later. '+(following?.question??'You can review what is proposed, then return to the questions still open.');
+      const n=w.turns.length;
+      return {...updated,turns:[...w.turns,{id:n+1,by:'person',text:'I am not sure yet.'},{id:n+2,by:'example',text:answer}]};
+    });
   };
   const onSend=(e:FormEvent)=>{
     e.preventDefault();
@@ -352,13 +363,13 @@ export function HumanJourneysExperience() {
                 <p className="mt-2 text-sand-600">Local notes only. No source reading has taken place.</p>
               </div>}
               {!next&&<div role="status" className="rounded-xl bg-[#edf2e9] p-3 text-sm text-forest-900">
-                <strong>Ready to review the proposal.</strong> The live API must still verify facts, parties, the twelve Fair Trade principles and every approval. This is not a signed Agreement.
+                <strong>{current.deferred.length>0?'Some questions remain open.':'Ready to review the proposal.'}</strong> The live API must still verify facts, parties, the twelve Fair Trade principles and every approval. This is not a signed Agreement.
               </div>}
             </div>
             <div className="shrink-0 border-t border-cream-200 bg-white p-3 sm:p-4">
               {next&&<div className="mb-2 flex flex-wrap items-center gap-2 text-xs text-sand-700">
                 <span className="font-semibold">Next useful question:</span><span>{next.question}</span>
-                <button type="button" onClick={()=>appendConversation('I am not sure yet')} className="ml-auto min-h-9 rounded-full border border-cream-200 px-2.5">Not sure yet</button>
+                <button type="button" onClick={deferCurrentQuestion} className="ml-auto min-h-9 rounded-full border border-cream-200 px-2.5">Not sure yet</button>
               </div>}
               <form onSubmit={onSend} className="flex items-end gap-2">
                 <label htmlFor="gate3-work-draft" className="sr-only">Your message to the sample KS001 conversation</label>
@@ -387,6 +398,7 @@ export function HumanJourneysExperience() {
                 <p className="break-words text-xs leading-5">{value}</p>
               </div>)}
               {next&&<p className="mt-2 text-xs text-sand-600"><strong>Still needed:</strong> {next.question}</p>}
+              {current.deferred.length>0&&<p className="mt-2 text-xs text-sand-600"><strong>To clarify later:</strong> {current.deferred.map(labels).join(', ')}. These are not agreed facts.</p>}
             </section>
             <section className="border-t border-cream-200 pt-3">
               <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-sand-600"><ClipboardList size={15}/> Milestones · proposed</h3>
