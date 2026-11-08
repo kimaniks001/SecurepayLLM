@@ -429,7 +429,7 @@ export function HumanJourneysExperience() {
                   </div>)}
                 </div>}
               {next&&<p className="mt-2 text-[0.72rem] text-sand-600"><span className="font-semibold text-forest-800">Next:</span> {next.label}</p>}
-              {(mentioned.length>2||current.deferred.length>0)&&
+              {(mentioned.length>2||current.deferred.length>0||mentioned.some(([,value])=>value.length>85))&&
                 <details className="mt-2" data-gate3-more-details>
                   <summary className="min-h-10 cursor-pointer py-2 text-xs font-semibold text-forest-800">All details <span className="font-normal text-sand-500">({mentioned.length})</span></summary>
                   <div className="space-y-2 rounded-lg bg-cream-50 p-2.5 text-xs">
