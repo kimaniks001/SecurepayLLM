@@ -69,7 +69,7 @@ test('one real KS001 composer gets a type-aware user-selected offer, without boo
    assert.match(result,/^I’m interested in /);
    assert.ok(result.length<240,'Store request must fit a human chat bubble');
    assert.doesNotMatch(result,/Please acknowledge|Do not invent|unverified Store listing|ONE useful next question|Store reference/i);
-   assert.equal((result.match(/\\?/g)||[]).length,1);
+   assert.equal((result.match(/\?/g)||[]).length,1);
  }
  assert.throws(()=>storeOfferAssistTurn({title:'',storeName:'nobody'}));
 });
