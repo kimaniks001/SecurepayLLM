@@ -134,3 +134,25 @@ These findings remain **unfixed by design**. The owner's agreed programme requir
 - Inspected UI GitHub Actions job **128668385450** returned no reported steps and its log fetch returned `BlobNotFound`. Backend inspected startup-failure run reported zero jobs. No useful program execution evidence can be derived from either failure.
 
 **Current verdict:** source contract checks **13/13 matched**, confirmed code-level omissions/scope risk **4**, real E2E journeys **0/22**, integrated Gate 2 **BLOCKED**. Further read-only investigation remains ours; live testing requires an accessible isolated runtime. Do not portray that limitation as delegated investigative responsibility.
+
+
+## 10. Extended direct runtime-access investigation — 8 November 2026
+
+**Who ran this:** ChatGPT independently using the connected Vercel and GitHub accounts, and the isolated current-session runtime. No task was delegated to Paul.
+
+**Available Vercel projects (relevant):**
+- \`securepay-ks001-staging\` (\`prj_bnd17Uacp36N38RuE12wluwtHLlV\`) currently has **zero recorded deployments** and no project domains; it cannot serve as evidence of a running SecurePayAPI backend.
+- \`ks001-day7-real-store-review\`: deployment \`dpl_8iw7FQCoTdFeMhy9DCMu3zgLQuco\`, exact UI \`6001f86e2e869627c93ee41af67739398a5bec3c\`, **READY**. Fetching the page returned a static HTML shell. A user-provided current review screenshot explicitly says *"Design preview · Example guidance only. KS001 is not responding live; no Agreement is saved."* This is a truthful preview, not a failed API test.
+- \`ks001-day7-certification\`: an audit-branch deployment \`dpl_2h7mSWPfVYHAYcTsUmwcuEAweXft\` ended **ERROR**, and build logs specify exactly **7 focused checks, 6 pass, 1 fail**. The only failure is \`Quick Assist uses the Store service discovery gateway, not another marketplace\`, where \`tests/quick-assist-first-use.test.mjs:39\` asserts the previous source string \`useState(Boolean(onLocalProposal)||!initialServiceQuery)\` but \`StoresTool.tsx:70\` currently uses \`useState(Boolean(onLocalProposal))\`. **Interpretation:** a test/source-expectation mismatch, not an executed SecureLink or backend failure. Examine expected real-vs-sample Store behaviour before changing the code or the test.
+- The **READY** owner-reviewed Vercel build logs do contain an actual focused UI run: **69 tests passed, 0 failed**, followed by TypeScript and Vite production build successes. These are authentic targeted frontend build/test results, **not** real provider/database/Agreement/user acceptance.
+
+**Local isolated test runtime inspection:**
+- Java 21 and Node 22 are available.
+- The current session has no container Docker, PostgreSQL binaries or Gradle, and cannot resolve GitHub to clone the complete API repository from the runtime.
+- Probes of \`127.0.0.1:8080/health/live\` returned HTTP 404 (some unrelated listener exists), and \`127.0.0.1:8081/actuator/health\` refused the connection. **No valid SecurePayAPI runtime** is present here.
+- The backend branch's \`docker-compose.yml\` describes PostgreSQL 16, Redis 7 and SecurePay Core, but a source-defined Compose file is not an active test deployment.
+- We did not use, mutate or probe production financial endpoints.
+
+**The next genuine test remains the EXISTING safe \`testing/master-convergence-gate2-ks001-live.mjs\` runner** against a verified disposable localhost-only backend with real conversational and source-reading providers. We will reuse that and then perform SL-01; do not create a second parallel Agreement engine or count the 69 UI checks as a substitute.
+
+**Updated outcome:** 69/69 focused owner-preview UI tests PASS; separate certification job 6/7 with one source expectation mismatch; 22/22 new four-family/cross-family REAL journeys remain NOT_RUN; Gate 3 human sessions remain 0. Gate 2 blocked on isolated backend access and exact runtime pairing.
