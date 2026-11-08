@@ -131,14 +131,15 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
     setConfirmation(null);setSelectedTask('');setQrValue(null);setQrState(null);
     setUploadState('idle');setUploadMessage('');setServerSource(null);
     setVisionChooser(false);setVisionPhase('idle');setDetailsOpen(false);
-    setLocalSnippet(null);setEntrance('');setPlaceBusy(false);setTaskBusy(false);
+    setLocalSnippet(null);setEntrance('');setPlacePurpose('Destination');
+    setPlaceMethod('type');setMapText('');setPlaceBusy(false);setTaskBusy(false);
   },[area,tool,isDemo,conversationId]);
 
   function receive(file:File|undefined) {
     if(!file)return;
     // A newer selection supersedes any pending FileReader or older network result.
     seq.current++;
-    setError(null);setConfirmation(null);setPending(null);setSelectedTask('');pendingFile.current=null;setServerSource(null);setUploadState('idle');setUploadMessage('');setQrValue(null);setQrState(null);setVisionChooser(false);setVisionPhase('idle');setDetailsOpen(false);setLocalSnippet(null);
+    setError(null);setConfirmation(null);setPending(null);setSelectedTask('');setCaption('');pendingFile.current=null;setServerSource(null);setUploadState('idle');setUploadMessage('');setQrValue(null);setQrState(null);setVisionChooser(false);setVisionPhase('idle');setDetailsOpen(false);setLocalSnippet(null);
     file=canonicalUploadFile(file);
     const photo=tool==='Photos';
     const allowed=photo ? PHOTO_MIME_TYPES.some(type=>type===file.type) : (
