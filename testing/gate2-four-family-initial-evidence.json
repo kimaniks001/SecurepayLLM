@@ -68,7 +68,7 @@
       "headSha": "917ce2f7e8d30f6f868fb33f197f21f733155e89",
       "conclusion": "startup_failure",
       "jobs": 0,
-      "qualifier": "NOT_SAME_AS_API_CANDIDATE; NO_JAVA_JOBS_EXECUTED"
+      "qualifier": "NOT_SAME_AS_API_CANDIDATE; NO_JAVA_JOBS_EXECUTED; startup_failure had no jobs, no test diagnostics."
     },
     "ui": {
       "runUrl": "https://github.com/kimaniks001/SecurepayLLM/actions/runs/42460443111",
@@ -76,7 +76,9 @@
       "conclusion": "failure",
       "jobs": 2,
       "executedStepsOnFailedJob": 0,
-      "qualifier": "NO_TEST_STEP_EVIDENCE; NOT_PROOF_OF_APPLICATION_TEST_FAILURE"
+      "qualifier": "Matching frontend SHA but no reported executed test steps; job log download returned missing blob; not application pass or fail.",
+      "logFetch": "NO_LOG_BLOB_FOUND",
+      "steps": []
     }
   },
   "blockers": [
@@ -285,5 +287,73 @@
       "evidenceRef": null,
       "reviewedBy": null
     }
-  ]
+  ],
+  "ownerInvestigation": {
+    "investigator": "ChatGPT using connected GitHub and Vercel",
+    "executedDate": "2026-11-08",
+    "scope": "Read-only source-contract comparison and connected deployment/CI inspection",
+    "delegatedToPaul": false
+  },
+  "staticContractAudit": {
+    "testType": "EXACT_SHA_CLIENT_SERVER_SOURCE_ROUTE_CROSS_CHECK",
+    "backendRef": "f77b961940acd0e7f9e9565d316912de5ea4076c",
+    "frontendRef": "6001f86e2e869627c93ee41af67739398a5bec3c",
+    "checked": 13,
+    "sourceMatched": 13,
+    "names": [
+      "create conversation",
+      "submit KS001 turn",
+      "read Trade Context",
+      "read formation",
+      "read twelve Fair Trade lenses",
+      "save work",
+      "list saved work",
+      "create place source",
+      "upload media source",
+      "read uploaded sources",
+      "select commercial source",
+      "upload optional label supported",
+      "twelve-principle response DTO coverage"
+    ],
+    "result": "STATIC_ROUTE_SHAPE_MATCH_ONLY",
+    "limitation": "Method/path markers coexist at exact source SHAs. Does NOT prove successful compilation, authorization, migrations, provider integration, E2E user journey, or compatibility of full deployed code."
+  },
+  "confirmedSourceFindings": [
+    {
+      "id": "SC-01",
+      "title": "Uploaded photo/document caption omitted from live gateway invocation",
+      "state": "SOURCE_VERIFIED_CLIENT_OMISSION",
+      "evidence": "UniversalSourceTray.tsx: uploadToKs001 uses gateway.uploadSource(conversationId,kind,file) while agent/index.ts exposes optional label fourth argument and AgentSourceController.java accepts multipart label.",
+      "nextCheck": "Actual caption and source lineage after isolated real upload."
+    },
+    {
+      "id": "SC-02",
+      "title": "Place purpose and entrance not passed on live place source",
+      "state": "SOURCE_VERIFIED_CLIENT_OMISSION",
+      "evidence": "UniversalSourceTray.tsx: local preview includes placePurpose and entrance, live createPlaceSource sends only value + caption. API CreatePlaceSourceRequest supports declared text.",
+      "nextCheck": "Read resulting Trade Context and confirm delivery instructions/entrance; avoid invention."
+    },
+    {
+      "id": "SC-03",
+      "title": "Store cart selection lives at workspace level, not per active conversation",
+      "state": "SOURCE_VERIFIED_SCOPE_RISK",
+      "evidence": "Phase1LivingWorkspacePreview.tsx: storeSelected single useState, reset at sign-out; startNewWork/continueSavedConversation do not set it; discussCompactStoreCart feeds global selectionToKs001. No conversation-keyed cart map observed.",
+      "nextCheck": "Switch CCTV to road works and back with different cart selections; verify no wrong-work attachment."
+    },
+    {
+      "id": "SC-04",
+      "title": "Milestone projection compact list does not give per-milestone duties or evidence",
+      "state": "SOURCE_VERIFIED_PRESENTATION_LIMITATION",
+      "evidence": "ActiveAgreementWorkspace.tsx: detail.milestones.map(m => m.title+' · '+m.status).join(' | ')",
+      "nextCheck": "Uncoached users should explain milestone owner, deadline, proof, confirmer and consequence."
+    }
+  ],
+  "deploymentInspection": {
+    "previewDeploymentId": "dpl_8iw7FQCoTdFeMhy9DCMu3zgLQuco",
+    "previewState": "READY",
+    "previewPageHttp": "200 HTML shell received via connected Vercel fetch",
+    "backendIntegration": "NOT_PROVEN",
+    "productionDomain": "securepay.ke not found as domain on inspected Vercel project; production host source remains unknown",
+    "note": "A Vercel page response and successful build do not constitute an authenticated user journey."
+  }
 }
