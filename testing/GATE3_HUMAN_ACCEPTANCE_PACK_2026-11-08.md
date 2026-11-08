@@ -154,3 +154,46 @@ The blank register `testing/gate3-human-observation-evidence.json` must remain `
 3. **Multiple jobs:** Add a disposable Store item to CCTV; switch to gate-and-drainage, add different details, return to CCTV and check the right summary, unsent draft and Store cart. Then refresh the same tab and repeat. The real product must ultimately repeat this with server-owned saved builds.
 
 **Current Gate 3 status:** expert source review performed; **0 independent human participants**, **0 actual uncoached trials**, **0 certified family passes**. No UI/production code changes approved or made. Next decision follows real owner feedback and the blocked Gate 2 integrated environment, not a speculative rebuild.
+
+## 10. Gate 3 five-journey source UX closeout — 8 November 2026
+
+**Verdict: UX_DISCOVERY_REVIEW_COMPLETE; FORMAL_UNCOACHED_ACCEPTANCE_NOT_EXECUTED.** This closes a source- and evidence-led investigation across all five defined journeys; it does not claim real people finished tasks. The owner approved the simpler three-panel layout and rejected a separate Minutes tool. Production and application code remain frozen.
+
+**Reviewed preview:** SHA 930194dbd04fbb6d8756d5628e60f173f5f6fcc9, Vercel deployment dpl_Fb21QGAD49ub9kKCcqKPMYh1bk87 READY, 76/76 focused frontend structural tests passed. Git compare against the compact-panel baseline b6ff0be0142d1051746992af8302ac34c4acb009 returned zero changed files.
+
+### Five scenario assessments
+
+| Case | Existing UI evidence | Limits to proof | Decision |
+|---|---|---|---|
+| H01: SecureLink CCTV | Conversation, six questions, three proposed steps, Store-to-KS001 draft, concise summary | No buyer/seller separately authorised, real source-reading, consent or payment verification | SOURCE_REVIEWED / HUMAN_NOT_RUN |
+| H02: GroupSecureLink security light | Contribution, target, disagreement questions and proposed inspections | No three independent contributors, shared approvals, pledge-versus-funded proof | SOURCE_REVIEWED / HUMAN_NOT_RUN |
+| H03: SecureFlow gate and drainage | Two contractor tasks and independent proposed milestone rows | No independent contractor acceptance, funded allocations or challenge/settlement evidence | SOURCE_REVIEWED / HUMAN_NOT_RUN |
+| H04: GroupSecureFlow CCTV project | Equipment, installation, maintenance and allocation prompts, four milestones | No many-to-many authority, versioned group consent, independent release verification | SOURCE_REVIEWED / HUMAN_NOT_RUN |
+| H05: multiple simultaneous jobs | Per-work sample draft, cart, sources, turns and milestones; same-tab browser restoration | No server-side identity isolation, two-tab conflict result or real media switching proof | SOURCE_REVIEWED / HUMAN_NOT_RUN |
+
+### Source-confirmed behaviour and risks (not human outcomes)
+
+- **G3-F01 — Demo answers can be misfiled.** HumanJourneysExperience.tsx:208–221 places any ordinary reply into the next open question field without interpreting intent. An objection could appear under People/Timing/etc. This proves the sample rule, not a real KS001 model failure.
+- **G3-F02 — Sample tool note scope.** HumanJourneysExperience.tsx:186,240–243,330–345 keeps sourceText at entire preview level but does not clear it on work switch. A note typed for work A could remain in the editor for work B. Source-level risk; runtime user action not observed.
+- **G3-F03 — Actual Store cart scope.** Phase1LivingWorkspacePreview.tsx:354–365,495–516,742–753 keeps storeSelected at workspace level, not conversation level. The saved-work navigation does not reset it. Potential cross-work cart attachment; no actual leakage proven.
+- **G3-F04 — Actual pending document scope.** UniversalSourceTray.tsx:118–151,193–204 resets local pending media on changes of area/tool/demo, not conversationId. Phase1LivingWorkspacePreview.tsx:495–516,843–856 passes the currently selected conversation to the same tray. A file selected for work A may remain while switching to B and then be sent to B. Requires an isolated authenticated reproduction before assigning severity.
+- **G3-F05 — Large Store message may be shortened.** HumanJourneysExperience.tsx:252–262 slices proposed cart text to 1,100 characters without warning. Scripted preview only; check real handoff before interpreting production impact.
+- **G3-F06 — Preserve universal Documents.** UniversalSourceTray.tsx:48–54,125–150,392–399 supports contextual actions for meeting minutes, contracts, bills and quotations through ONE Documents tool, with PDF/DOCX/XLSX/TXT/CSV intake up to 15 MB; local text-only preview is not backend interpretation. Actual extraction state distinguishes RECEIVED, PROCESSING, READY, PARTIAL and FAILED (193–256,439–480). Do not introduce a Minutes-only tool.
+- **G3-F07 — Source metadata risk shared with Gate 2.** UniversalSourceTray.tsx:193–201 does not pass the optional caption to live upload. Its live place source invocation at 329–340 omits separately selected place purpose/entrance. These are Gate 2 SC-01/SC-02, not invented human failures.
+- **G3-F08 — Honest Fair Trade/Money status.** Sample Check says Not checked/Not funded (HumanJourneysExperience.tsx:500–525). Real Fair Trade display is guarded by conversation and Trade Context version and only accepts PARTIAL_ADVISORY as the valid state (Phase1LivingWorkspacePreview.tsx:283–304). Preserve the non-certification.
+- **G3-F09 — Milestones are clear proposals, not executions.** Owner, date and proof are available inside compact expandable milestone rows (HumanJourneysExperience.tsx:446–467). No separate sign-off, evidence challenge, or release has been exercised.
+- **G3-F10 — Mobile layout is not yet human-proven.** Tools, KS001 and Summary have bottom navigation (HumanJourneysExperience.tsx:532–536). No independent mobile or low-bandwidth session was observed.
+
+### WWWWWH, Fair Trade and preservation
+
+The scripted questions cover Who, What, Where, When, Why and How, but completed text fields are not proof of consent, fairness, legal compliance or verified facts. Keep the twelve canonical principles tied to the actual API and exact Trade Context version. Source-derived claims must remain distinguishable from user corrections, counterpart approvals, completion evidence and Money authority.
+
+Preserve the locked three-panel masterpiece, universal Documents, Store tool-to-middle behaviour, compact right Check, separate living conversations and independent regulated Money. Do not fix or redesign during this investigation.
+
+### Gate 4 handoff and unresolved acceptance
+
+Gate 4 may **start a provisional diagnosis** using G3-F01–F10, classifying source-confirmed behaviour, preview limitations, potential safety risks, and genuinely unexecuted human/API tests. Avoid assigning definitive P0/P1 to an unproven runtime leak.
+
+**Actual uncoached human trials:** 0. **Independent participants:** 0. **Gate 2 real four-family/cross-family journeys:** 0/22. Formal Gate 3 human acceptance remains NO_GO_NOT_EXECUTED. No usability percentages, pass counts, success stories or counterpart responses were fabricated. No product change or deployment occurred.
+
+**Gate 3 source/UX investigation is closed; human acceptance is an explicit outstanding dependency, not a passed test.**
