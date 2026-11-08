@@ -7,6 +7,7 @@ import { StoreCollectionPanel } from '../../components/StoreCollectionPanel';
 import type { SelectionItem, StoreDestination } from './shopSelection.mjs';
 import { collectOffer, removeSelected, updateSelectedQuantity, updateSelectedBuyerNote, selectionToKs001 } from './shopSelection.mjs';
 import { demoStores, getOfferById, getOffersByStore, getStoreById, searchOffers } from '../../storeData';
+import type { StoreBrowserTarget } from '../living-workspace/CompactStoreBrowser';
 
 /**
  * An actual, interactive SHOPFRONT review of the SAME StoreHome component used
@@ -34,8 +35,18 @@ function itemCheck(offer:StoreOffer) {
   return ['What is the exact item, quantity and condition?','Is it currently available?','How will it be delivered or collected?'];
 }
 
-export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange,workspaceSelection,onOpenKs001Preview}:{shopFocused?:boolean;onSelectionChange?:(items:SelectionItem[])=>void;workspaceSelection?:SelectionItem[];onOpenKs001Preview?:()=>void}) {
+export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange,workspaceSelection,onOpenKs001Preview,externalNavigation}:{shopFocused?:boolean;onSelectionChange?:(items:SelectionItem[])=>void;workspaceSelection?:SelectionItem[];onOpenKs001Preview?:()=>void;externalNavigation?:StoreBrowserTarget|null}) {
   const [page,setPage] = useState<Page>('shop');
+  useEffect(()=>{
+    if(!externalNavigation)return;
+    if(externalNavigation.kind==='store' && externalNavigation.storeKs){
+      setStoreId(externalNavigation.storeKs);setPage('store');
+    }else if(externalNavigation.kind==='item' && externalNavigation.offerId){
+      setOfferId(externalNavigation.offerId);setPage('offer');
+    }else if(externalNavigation.kind==='marketplace'){
+      setPage('shop');
+    }
+  },[externalNavigation?.requestId]);
   const [quickShopOffer,setQuickShopOffer] = useState<string|null>(null);
   const [query,setQuery] = useState('');
   const [offerId,setOfferId] = useState<string | null>(null);
