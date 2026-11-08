@@ -61,3 +61,29 @@ test('mobile tools and summary remain explicitly navigable around the middle KS0
   assert.match(human, /sp-brand-conversation/);
   assert.match(human, /data-gate3-transcript/);
 });
+
+
+test('SecurePay Check opens with a compact glance and keeps depth on demand', () => {
+  const right = human.slice(human.indexOf('<aside aria-label="SecurePay Check"'), human.indexOf('</aside>', human.indexOf('<aside aria-label="SecurePay Check"')));
+  assert.match(right, /data-gate3-glance-first/);
+  assert.match(right, /At a glance/);
+  assert.match(right, /mentioned\.slice\(0,2\)/);
+  assert.match(right, /<span[^>]*>Next:<\/span>|<span className="font-semibold text-forest-800">Next:<\/span>/);
+  assert.doesNotMatch(right, /Your running summary|What.s being planned|Money follows the Agreement/);
+  assert.match(right, /data-gate3-more-details/);
+  assert.match(right, /data-gate3-milestone-row/);
+  assert.match(right, /data-gate3-compact-cart/);
+  assert.match(right, /data-gate3-compact-fair-trade/);
+  assert.match(right, /data-gate3-compact-money/);
+});
+
+test('collapsing the glance does not remove editing, honest statuses or user-initiated KS001 discussion', () => {
+  assert.match(human, /editMilestone\(m\.id,field,e\.target\.value\)/);
+  assert.match(human, /setCart\(updateSelectedQuantity\(current\.cart,item\.key,item\.quantity\+1\)\)/);
+  assert.match(human, /setCart\(removeSelected\(current\.cart,item\.key\)\)/);
+  assert.match(human, /onClick=\{discussCart\}/);
+  assert.match(human, /Not checked/);
+  assert.match(human, /Not funded/);
+  assert.match(human, /Example only · No Agreement saved/);
+  assert.match(human, /No milestone can be completed or approved in this preview/);
+});
