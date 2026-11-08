@@ -188,3 +188,6 @@ test('a Store-origin request shows a glance summary, not the same chat sentence 
  assert.match(demo,/kind:'cart',itemCount:items.reduce/);
  assert.doesNotMatch(board.slice(board.indexOf('if(storeOnly)return'),board.indexOf('return <section aria-label="SecurePay Check"',board.indexOf('if(storeOnly)return'))),/\{note.text\}|\{shown.value\}/);
 });
+
+// The focused Day 9 UI preview build also checks the isolated Gate 3 human journeys.
+import './gate3-human-ux-review.test.mjs';
