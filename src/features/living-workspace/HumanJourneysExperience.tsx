@@ -476,7 +476,7 @@ export function HumanJourneysExperience() {
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
               <span className="rounded-full bg-white/80 px-2 py-1 text-[0.67rem] text-forest-800">{mentioned.length} details</span>
               <span className="rounded-full bg-white/80 px-2 py-1 text-[0.67rem] text-forest-800">{current.milestones.length} steps</span>
-              {minutesOpen.length>0&&<span className="rounded-full bg-amber-100 px-2 py-1 text-[0.67rem] font-semibold text-amber-800">{minutesOpen.length} clarify</span>
+              {minutesOpen.length>0&&<span className="rounded-full bg-amber-100 px-2 py-1 text-[0.67rem] font-semibold text-amber-800">{minutesOpen.length} clarify</span>}
               {current.deferred.length>0&&<span className="rounded-full bg-white/80 px-2 py-1 text-[0.67rem] text-forest-800">{current.deferred.length} open</span>}
             </div>
           </section>
