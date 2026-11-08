@@ -93,7 +93,7 @@ export function OfferDetail({ offer, onBack, onInterested, onUseThis, onAskSecur
           <button type="button" onClick={()=>onCollect(offer,'vision')}
             className="min-h-11 rounded-xl border border-forest-200 bg-white px-4 text-sm font-semibold text-forest-800">+ Add to Vision</button>
           {!isUnavailable && <button type="button" onClick={()=>onCollect(offer,'agreement')}
-            className="min-h-11 rounded-xl bg-forest-800 px-4 text-sm font-semibold text-white">+ Add to shopping collection</button>}
+            className="min-h-11 rounded-xl bg-forest-800 px-4 text-sm font-semibold text-white">+ Add to KS Cart</button>}
         </section>}
 
         {/* Description */}
