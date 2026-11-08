@@ -217,20 +217,23 @@ export function CompactStoreBrowser({
               <p className="mt-1 text-sm font-semibold text-forest-800">{offer.price}</p>
             </div>
           </div>
-          <div className="mt-2 flex flex-wrap gap-1.5">
+          <div data-compact-store-actions className="mt-3 grid grid-cols-2 gap-2">
             {offer.lifecycle==='published' && !offer.isExternalReference && <button type="button"
-              onClick={()=>action(()=>onAddCart(offer),'Added to KS Cart. KS001 has not been interrupted.')}
-              className="min-h-11 flex-1 rounded-lg bg-forest-800 px-2 text-xs font-semibold text-white">
-              <ShoppingCart size={14} className="mr-1 inline"/>{inCart?'Add another':'Add to Cart'}
+              onClick={()=>action(()=>onAddCart(offer),'Added to KSCart')}
+              className="inline-flex min-h-11 items-center justify-center gap-1 rounded-xl bg-forest-800 px-2 text-[0.76rem] font-semibold tracking-tight text-white shadow-[0_2px_7px_rgba(21,58,40,0.12)] transition-colors hover:bg-forest-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest-500">
+              <ShoppingCart size={14}/>{inCart?'Add another':'Add to Cart'}
             </button>}
-            <button type="button" onClick={()=>view('item',offer)}
-              className="min-h-11 flex-1 rounded-lg border border-forest-200 px-2 text-xs font-semibold">View Item</button>
-          </div>
-          <div className="mt-1.5 flex flex-wrap gap-1.5">
-            <button type="button" onClick={()=>onSaveVision(offer)}
-              className="inline-flex min-h-10 flex-1 items-center justify-center gap-1 rounded-lg bg-cream-50 px-2 text-xs font-medium"><BookmarkPlus size={13}/> Vision</button>
             <button type="button" onClick={()=>onDiscuss(offer)}
-              className="inline-flex min-h-10 flex-1 items-center justify-center gap-1 rounded-lg bg-cream-50 px-2 text-xs font-medium"><MessageCircle size={13}/> KS001</button>
+              className="inline-flex min-h-11 items-center justify-center gap-1 rounded-xl border border-forest-200 bg-white px-2 text-[0.76rem] font-semibold tracking-tight text-forest-800 transition-colors hover:bg-forest-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest-500">
+              <MessageCircle size={14}/> Ask KS001
+            </button>
+          </div>
+          {inCart&&<p role="status" className="mt-1 text-[0.69rem] font-medium text-forest-700">In Cart · {inCart.quantity}</p>}
+          <div className="mt-1.5 flex items-center gap-2">
+            <button type="button" onClick={()=>view('item',offer)}
+              className="inline-flex min-h-10 flex-1 items-center justify-center rounded-xl px-2 text-xs font-medium text-forest-700 hover:bg-cream-50">Details</button>
+            <button type="button" onClick={()=>onSaveVision(offer)}
+              className="inline-flex min-h-10 flex-1 items-center justify-center gap-1 rounded-xl px-2 text-xs font-medium text-forest-700 hover:bg-cream-50"><BookmarkPlus size={13}/> Vision</button>
           </div>
           {!browser.selectedStoreKs && <button type="button" onClick={()=>change({selectedStoreKs:offer.storeId})}
             className="mt-2 flex min-h-9 items-center gap-1 text-xs text-forest-700 underline"><Store size={13}/> Browse {offer.storeName}</button>}
@@ -242,10 +245,13 @@ export function CompactStoreBrowser({
         <span className="text-xs font-semibold"><ShoppingCart size={15} className="mr-1 inline"/> KS Cart · {cartQuantity}</span>
         <span className="text-[0.68rem] text-sand-600">{new Set(cart.map(x=>x.sellerKsNumber)).size} Stores</span>
       </div>
-      <button type="button" disabled={!cartQuantity || working} onClick={async()=>{
+      {cartQuantity>0&&<button type="button" disabled={working} onClick={async()=>{
         setWorking(true);try{await onDiscussCart();}catch(e){setNotice(e instanceof Error?e.message:'Could not prepare this cart.');}finally{setWorking(false);}
-      }} className="mt-2 min-h-11 w-full rounded-lg bg-forest-800 px-2 text-xs font-semibold text-white disabled:opacity-40">Discuss Cart with KS001</button>
-      <p className="mt-1 text-[0.68rem] text-sand-600">Shopping is not a purchase or Agreement. Your chat stays independent until you choose KS001.</p>
+      }} className="mt-2 min-h-11 w-full rounded-xl bg-forest-800 px-3 text-xs font-semibold text-white transition-colors hover:bg-forest-900 disabled:opacity-40">Discuss Cart with KS001</button>}
+      <details className="mt-1.5 text-[0.69rem] text-sand-600">
+        <summary className="min-h-8 cursor-pointer py-1">About KSCart</summary>
+        <p>Shopping is not a purchase or Agreement. Your KS001 conversation stays independent until you choose to discuss the cart.</p>
+      </details>
       <button type="button" onClick={onManage} className="mt-1 min-h-10 text-xs text-sand-600 underline">Manage my Digital Store</button>
     </div>
   </section>;
