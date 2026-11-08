@@ -28,7 +28,9 @@ test('guest credentials stay in the SecurePay-owned origin and ShortStays is an 
   assert.match(shell,/APPROVED_PARENTS\.includes\(parentOrigin\)/);
   assert.match(shell,/window\.parent===window/);
   assert.match(shell,/document\.referrer/);
-  assert.match(shell,/getReturnContext:function\(\)\{return \{purpose:'UNSPECIFIED'\};\}/);
+  assert.match(shell,/getReturnContext:function\(\)/);
+  assert.match(shell,/purpose:'UNSPECIFIED'/);
+  assert.match(shell,/approvedPublicListingRef/);
   assert.match(agent,/sessionStorage/);
   assert.doesNotMatch(shell,/guestToken|accessSecret|Bearer |service_role/i);
 });
@@ -36,7 +38,10 @@ test('guest credentials stay in the SecurePay-owned origin and ShortStays is an 
 test('only click-sent visible draft can enter the guest composer; never auto-send',()=>{
   assert.match(shell,/event\.source!==window\.parent\|\|event\.origin!==parentOrigin/);
   assert.match(shell,/data\.type!=='shortstays\.ks001\.prefill\.v1'/);
-  assert.match(shell,/data\.product!==PROTOCOL\|\|data\.siteId!==SITE_ID/);
+  assert.match(shell,/data\.siteId!==SITE_ID/);
+  assert.match(shell,/data\.product!==PROTOCOL/);
+  assert.match(shell,/shortstays\.ks001\.hello\.v1/);
+  assert.match(shell,/publicListingRef/);
   assert.match(shell,/value\.length>1200/);
   assert.match(shell,/assistant\.prefill\(value\)/);
   assert.match(sdk,/prefill:function\(text\)/);
