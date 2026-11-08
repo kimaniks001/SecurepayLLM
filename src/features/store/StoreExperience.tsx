@@ -132,7 +132,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
     try{
       const next=collectOffer(selectionRef.current,offer,destination,false);
       selectionRef.current=next;setSelection(next);onSelectionChange?.(next);
-      setCollectionNotice('Added '+offer.title+' to '+(destination==='vision'?'Vision':'your agreement list')+'. Keep browsing.');
+      setCollectionNotice('Added '+offer.title+' to '+(destination==='vision'?'Vision':'KS Cart')+'. Keep browsing.');
     }catch(error){setCollectionNotice(error instanceof Error?error.message:'Could not add that offer.');}
   };
   const quickAsk=async(offer:import('../../types').StoreOffer)=>{
@@ -598,8 +598,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
             onCollect={collect}
             onAskSecurePay={() => {
               if(state.selectedOffer.status !== 'ready') return;
-              if(onAskKs001) onAskKs001(storeOfferAssistTurn(state.selectedOffer.data.offer));
-              else onNavigate('signed-in');
+              void quickAsk(state.selectedOffer.data.offer);
             }}
             onShare={() => setShowShareSheet(true)}
             onViewStore={id => void controller.openStore(id)}
@@ -618,8 +617,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
           onCollect={collect}
           onAskKs001={() => {
               if(state.selectedOffer.status !== 'ready') return;
-              if(onAskKs001) onAskKs001(storeOfferAssistTurn(state.selectedOffer.data.offer));
-              else onNavigate('signed-in');
+              void quickAsk(state.selectedOffer.data.offer);
             }}
           onOpenStore={() => void controller.openStore(state.selectedOffer.status === 'ready' ? state.selectedOffer.data.store.id : '')}
           onOpenFull={() => setShowFullOffer(true)}

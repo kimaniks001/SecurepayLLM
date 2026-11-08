@@ -75,7 +75,7 @@ export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange
     try{
       const next=collectOffer(selectionRef.current,offer,destination,true);
       selectionRef.current=next;setSelection(next);onSelectionChange?.(next);
-      setCollectionNotice((destination==='vision'?'Vision':'Agreement')+': added '+offer.title+'. Keep browsing.');
+      setCollectionNotice((destination==='vision'?'Vision':'KS Cart')+': added '+offer.title+'. Keep browsing.');
       setSelectionDraft('');
     }catch(error){setCollectionNotice(error instanceof Error?error.message:'Could not add that offer.');}
   };
@@ -176,7 +176,7 @@ export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange
             <button type="button" onClick={()=>collect(selectedOffer,'vision')}
               className="min-h-11 rounded-xl border border-forest-200 bg-white px-3 text-sm font-semibold text-forest-800">+ Add to Vision</button>
             <button type="button" onClick={()=>collect(selectedOffer,'agreement')}
-              className="min-h-11 rounded-xl bg-forest-800 px-3 text-sm font-semibold text-white">+ Add to collection</button>
+              className="min-h-11 rounded-xl bg-forest-800 px-3 text-sm font-semibold text-white">+ Add to KS Cart</button>
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
             <button type="button" onClick={()=>startEnquiry(selectedOffer)}
