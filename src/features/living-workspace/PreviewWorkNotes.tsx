@@ -7,7 +7,11 @@ import { answerActions } from './answerActions';
 import { localBuyingPlanNextQuestion, type LocalStoreBuyingPlan } from './StoreBuyingPlan';
 
 /** Preview-only, in-memory draft notes. Never an Agent turn, Agreement or server record. */
-export type PreviewWorkNote = { id:number; text:string; exampleId:Phase2ExampleId|null; origin?:'store';thumbnail?:string|null;filename?:string;mime?:string|null;size?:number|null;snippet?:string|null;storePlan?:LocalStoreBuyingPlan };
+/** Display-only references from a chosen Store offer/cart; never a verified trade. */
+export type PreviewStoreContext =
+  | {kind:'offer'; title:string; storeName:string; listedPrice?:string}
+  | {kind:'cart'; itemCount:number; storeCount:number};
+export type PreviewWorkNote = { id:number; text:string; exampleId:Phase2ExampleId|null; origin?:'store'; storeContext?:PreviewStoreContext;thumbnail?:string|null;filename?:string;mime?:string|null;size?:number|null;snippet?:string|null;storePlan?:LocalStoreBuyingPlan };
 const detailOptions: ReadonlyArray<{kind:MiniKind; label:string}> = [
   {kind:'person',label:'Person'}, {kind:'date',label:'Date'},
   {kind:'money',label:'Amount'}, {kind:'place',label:'Place'},
@@ -142,6 +146,51 @@ export function PreviewWorkBoard({notes,onUpdate,onRemove,onFocusComposer,onEdit
   const example=phase2ExampleById(exampleId);
   const enteredGoods=example?.id==='delivery'&&notes.some(note=>displayNote(note.text).label==='Goods');
   const storePlan=notes.find(note=>note.storePlan)?.storePlan;
+  const storeOnly=notes.length>0 && !example && !storePlan && notes.every(note=>note.origin==='store');
+  const currentStore=storeOnly?notes[notes.length-1].storeContext:null;
+  // Chat already contains the customer's exact request. Show only its meaning,
+  // source and next action here; never echo the sentence in the right panel.
+  if(storeOnly)return <section aria-label="Store enquiry summary" data-preview-store-glance-summary
+    className="space-y-4">
+    <header className="border-b border-cream-200 pb-3">
+      <p className="sp-brand-kicker">My Work</p>
+      <h2 className="mt-1 font-display text-xl text-forest-900">Store enquiry</h2>
+    </header>
+    {currentStore?.kind==='offer'
+      ? <div className="space-y-1">
+          <p className="text-[0.7rem] font-semibold uppercase tracking-wider text-sand-600">Considering</p>
+          <p className="font-display text-lg font-semibold leading-6 text-forest-900">{currentStore.title}</p>
+          <p className="text-xs text-sand-700">{currentStore.storeName}</p>
+          {currentStore.listedPrice&&<p className="mt-1 text-sm font-medium tabular-nums text-forest-900">{currentStore.listedPrice} · Listed</p>}
+        </div>
+      : currentStore?.kind==='cart'
+        ? <div className="space-y-1">
+            <p className="text-[0.7rem] font-semibold uppercase tracking-wider text-sand-600">Cart discussion</p>
+            <p className="font-display text-lg font-semibold text-forest-900">{currentStore.itemCount} {currentStore.itemCount===1?'item':'items'} · {currentStore.storeCount} {currentStore.storeCount===1?'Store':'Stores'}</p>
+          </div>
+        : <p className="text-sm font-medium text-forest-900">Store choice ready to discuss</p>}
+    {notes.length>1&&<p className="text-xs text-sand-600">{notes.length} Store requests in this conversation</p>}
+    <div className="border-t border-cream-200 pt-3" data-preview-store-status>
+      <p className="text-xs font-medium text-forest-800">Prepared for KS001 · Not examined</p>
+      <p className="mt-1 text-xs text-sand-600">No agreement or order yet.</p>
+    </div>
+    <button type="button" onClick={onFocusComposer}
+      className="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-forest-800 px-4 text-sm font-semibold text-white hover:bg-forest-900 focus-visible:outline-2 focus-visible:outline-forest-500">
+      Continue in conversation
+    </button>
+    <details className="border-t border-cream-200 pt-2" data-preview-store-requests>
+      <summary className="min-h-10 cursor-pointer text-xs font-medium text-forest-700">Manage Store requests</summary>
+      <div className="mt-2 space-y-2">
+        {notes.map(note=><div key={note.id} className="flex items-center justify-between gap-2 rounded-xl bg-cream-50 px-3 py-2">
+          <span className="min-w-0 truncate text-xs text-forest-900">{note.storeContext?.kind==='offer'?note.storeContext.title:note.storeContext?.kind==='cart'?'Cart discussion':'Store request'}</span>
+          <button type="button" onClick={()=>onRemove(note.id)}
+            aria-label={'Remove Store request '+note.id}
+            className="inline-flex min-h-10 shrink-0 items-center gap-1 text-xs text-sand-700 hover:text-ember-700"><Trash2 size={14}/> Remove</button>
+        </div>)}
+      </div>
+    </details>
+    <p className="text-[0.7rem] leading-5 text-sand-600">Design preview · No live KS001 reply or seller confirmation.</p>
+  </section>;
   return <section aria-label="SecurePay Check" data-phase1-preview-board data-phase2-check className="space-y-6">
     <header>
       <p className="sp-brand-kicker">My Work</p>
