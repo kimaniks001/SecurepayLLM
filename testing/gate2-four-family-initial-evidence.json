@@ -424,5 +424,17 @@
     "crossFamilyRealJourneys": "0/10",
     "humanParticipants": "0",
     "gate2Certification": "NO_GO"
+  },
+  "sourceReaderInvestigation20261108": {
+    "historicEvidenceDate": "2026-10-27",
+    "historicEvidenceSource": "SecurePay-Investigation.md (prior owner investigation, not verified current release)",
+    "oldRuntimeResult": "Real OpenAI conversational six-turn test persisted successfully, but sample PDF and JPEG source reading failed because Anthropic source credentials were absent/circuit breaker short-circuited.",
+    "currentBackendSourceSha": "f77b961940acd0e7f9e9565d316912de5ea4076c",
+    "currentSourceAdapterPresent": "services/agreement/src/main/java/ke/securepay/agreement/agent/source/understanding/openai/OpenAiSourceUnderstandingAdapter.java",
+    "currentConfig": "services/securepay-core/src/main/resources/application.yml",
+    "sourceReaderDefault": "SECUREPAY_AGENT_SOURCE_UNDERSTANDING_PROVIDER defaults to anthropic",
+    "sourceReaderOptional": "OpenAI source adapter can be selected through SECUREPAY_AGENT_SOURCE_UNDERSTANDING_PROVIDER=openai with approved non-production credentials",
+    "runtimeStatus": "NOT_VERIFIED; no inference that adapter currently works or is selected on live/staging",
+    "nextSafeDiagnostic": "On disposable isolated backend, confirm selected source reader and valid sandbox key without revealing secret; then use a disposable real JPEG/PDF and assert READY/PARTIAL plus grounded facts, not just HTTP 201. Recheck circuit-breaker reset."
   }
 }
