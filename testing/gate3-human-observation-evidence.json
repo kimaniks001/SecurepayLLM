@@ -536,5 +536,128 @@
     ],
     "changesToFrontendOrApi": false,
     "resultsNotCountedAsHumanTrials": true
+  },
+  "gate3SourceReviewCloseout": {
+    "date": "2026-11-08",
+    "sourceReviewStatus": "COMPLETE",
+    "formalUncoachedHumanAcceptance": "NO_GO_NOT_EXECUTED",
+    "reviewedUiSha": "930194dbd04fbb6d8756d5628e60f173f5f6fcc9",
+    "reviewedDeployment": "dpl_Fb21QGAD49ub9kKCcqKPMYh1bk87",
+    "deploymentStatus": "READY",
+    "focusedSourceAndUiChecks": {
+      "passed": 76,
+      "failed": 0,
+      "humanBehaviourConfirmed": false
+    },
+    "approvedThreePanelLayoutFrozen": true,
+    "unapprovedMinutesToolAbsent": true,
+    "ownerFeedback": "Owner likes compact right-hand Check, approves proceeding with Gate 3 investigation, requests no further building until the full picture emerges; not a blind usability outcome.",
+    "familySourceReviews": [
+      {
+        "id": "H01",
+        "family": "SecureLink",
+        "reviewStatus": "SOURCE_REVIEWED",
+        "humanOutcome": "NOT_RUN",
+        "known": "Six natural prompts, source filename preview, three milestone proposals, Store handoff",
+        "missing": "Counterpart consent, real source understanding, fair-trade and money authority"
+      },
+      {
+        "id": "H02",
+        "family": "GroupSecureLink",
+        "reviewStatus": "SOURCE_REVIEWED",
+        "humanOutcome": "NOT_RUN",
+        "known": "Contribution prompts and milestone proposals",
+        "missing": "Independent contributors, fund status, shared governance"
+      },
+      {
+        "id": "H03",
+        "family": "SecureFlow",
+        "reviewStatus": "SOURCE_REVIEWED",
+        "humanOutcome": "NOT_RUN",
+        "known": "Gate and drainage milestone outline",
+        "missing": "Independent contractor acceptance, allocation/challenge/release"
+      },
+      {
+        "id": "H04",
+        "family": "GroupSecureFlow",
+        "reviewStatus": "SOURCE_REVIEWED",
+        "humanOutcome": "NOT_RUN",
+        "known": "Three allocation themes and four milestone outline",
+        "missing": "Many-to-many authority, approvals and distribution"
+      },
+      {
+        "id": "H05",
+        "family": "CROSS_FAMILY",
+        "reviewStatus": "SOURCE_REVIEWED",
+        "humanOutcome": "NOT_RUN",
+        "known": "Preview per-work draft/cart/source/summary in same-tab session",
+        "missing": "Real API identity isolation, media switch safety, tab conflict resolution"
+      }
+    ],
+    "findings": [
+      {
+        "id": "G3-F01",
+        "class": "CONFIRMED_SAMPLE_BEHAVIOUR",
+        "topic": "Unrelated or correction chat sent into next prompt fact",
+        "humanObserved": false
+      },
+      {
+        "id": "G3-F02",
+        "class": "SOURCE_RISK_SAMPLE",
+        "topic": "Unkeyed tool sourceText can remain after work switch",
+        "humanObserved": false
+      },
+      {
+        "id": "G3-F03",
+        "class": "SOURCE_RISK_LIVE",
+        "topic": "Workspace-scoped Store cart not rekeyed to live conversation",
+        "humanObserved": false
+      },
+      {
+        "id": "G3-F04",
+        "class": "SOURCE_RISK_LIVE",
+        "topic": "Pending selected file may remain when conversation ID changes while tray stays open",
+        "humanObserved": false
+      },
+      {
+        "id": "G3-F05",
+        "class": "CONFIRMED_SAMPLE_BEHAVIOUR",
+        "topic": "1,100-character cart-to-KS001 sample composer truncation",
+        "humanObserved": false
+      },
+      {
+        "id": "G3-F06",
+        "class": "PRESERVE_EXISTING_CAPABILITY",
+        "topic": "Universal Documents supports contextual actions and read-status honesty",
+        "humanObserved": false
+      },
+      {
+        "id": "G3-F07",
+        "class": "GATE2_SHARED_SOURCE_GAP",
+        "topic": "Caption and place purpose/entrance metadata not forwarded in live source submission",
+        "humanObserved": false
+      },
+      {
+        "id": "G3-F08",
+        "class": "PRESERVE_EXISTING_SAFEGUARD",
+        "topic": "Version-bound Fair Trade advisory and Not funded sample status",
+        "humanObserved": false
+      },
+      {
+        "id": "G3-F09",
+        "class": "PARTIAL_EVIDENCE",
+        "topic": "Milestone readability verified from code, real execution/challenge not tested",
+        "humanObserved": false
+      },
+      {
+        "id": "G3-F10",
+        "class": "PARTIAL_EVIDENCE",
+        "topic": "Mobile panel controls exist; ergonomic human success not measured",
+        "humanObserved": false
+      }
+    ],
+    "noProductionOrUiCodeChanged": true,
+    "allowedNext": "Gate 4 provisional gap/root-cause analysis, without repair, merge, provider claim or final certification",
+    "notAllowed": "Marking five families as tested, inventing participant feedback, claiming all twelve Fair Trade lenses passed"
   }
 }
