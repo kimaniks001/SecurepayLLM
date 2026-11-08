@@ -77,17 +77,19 @@ test('P0: search exposes only real published Store identities; no dead seller bu
   assert.match(storeHome, /onOpenStore\(seller\.ksNumber\)/);
 });
 
-test('P0: opening or closing Store never navigates to a second application shell', () => {
-  const start = living.indexOf("if (name === 'Stores' && !request && signedIn && storeIntegration)");
-  const end = living.indexOf('setPhase4Journey(null);', start);
+test('P0: Store opens as a left tool, only deliberate View uses the existing middle shell', () => {
+  const start = living.indexOf('function openTool(');
+  const end = living.indexOf('function startPhase4Journey(',start);
   assert.ok(start > 0 && end > start);
-  const openAction = living.slice(start, end);
-  assert.match(openAction, /setStoreOpen\(true\)/);
-  assert.doesNotMatch(openAction, /window\.location\.(?:hash|assign|replace)/);
-  assert.doesNotMatch(openAction, /storeKs001ConversationReturn/);
-  assert.match(living, /storeReturnScreen\.current = screen/);
-  assert.match(living, /closeEmbeddedStore\('chat'\)/);
-  assert.match(living, /closeEmbeddedStore\('result'\)/);
+  const openAction=living.slice(start,end);
+  assert.match(openAction,/setActiveTool\(name\); setToolSelected\(true\); setToolsOpen\(true\)/);
+  assert.doesNotMatch(openAction,/setStoreOpen\(true\)/);
+  assert.doesNotMatch(openAction,/window\.location\.(?:hash|assign|replace)/);
+  assert.match(living,/const expandCompactStore=/);
+  assert.match(living,/setStoreNavigation\(\{\.\.\.target,requestId:storeNavigationSequence.current\}\)/);
+  assert.match(living,/data-store-ks001-original-conversation/);
+  assert.match(living,/data-store-expanded-middle/);
+  assert.match(living,/closeEmbeddedStore\('chat'\)/);
 });
 
 test('P0: Store uses its existing full-feature controllers but no duplicate NavBar', () => {
