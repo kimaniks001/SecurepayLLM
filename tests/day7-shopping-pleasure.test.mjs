@@ -54,7 +54,8 @@ test('the product type changes the next human question in preview, without fakin
 });
 
 test('one real KS001 composer gets a type-aware user-selected offer, without booking automatically',()=>{
- assert.match(live,/storeOfferAssistTurn\(state\.selectedOffer\.data\.offer\)/);
+ assert.match(live,/const question=storeOfferAssistTurn\(offer\)/);
+ assert.match(live,/void quickAsk\(state\.selectedOffer\.data\.offer\)/);
  assert.match(parent,/prepareEmbeddedStoreQuestion/);
  assert.match(parent,/writeDraft\(id,text\)/);
  const painter=storeOfferAssistTurn({title:'House painting',storeName:'Painter',offerType:'service'});
