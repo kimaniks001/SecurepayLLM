@@ -214,7 +214,7 @@ export function PreviewWorkBoard({notes,onUpdate,onRemove,onFocusComposer,onEdit
         const shown=displayNote(note.text);
         return <article key={note.id} className="py-3" data-phase1-preview-fact>
           <div className="flex items-center justify-between gap-2">
-            <p className="text-xs font-semibold text-sand-600">{shown.label}</p>
+            <p className="text-xs font-semibold text-sand-600">{note.origin==='store'?'Store selection':shown.label}</p>
             <span className="text-[0.7rem] text-sand-600">Not checked</span>
           </div>
           {note.storePlan&&<section aria-label="Proposed Store buying plan" data-phase4-proposed-plan className="mt-3 space-y-3">
@@ -241,7 +241,15 @@ export function PreviewWorkBoard({notes,onUpdate,onRemove,onFocusComposer,onEdit
               <button type="button" onClick={()=>setEditing(null)} className="min-h-11 rounded-lg border border-cream-200 px-3 text-sm">Cancel</button>
             </div>
           </form>:<>
-            <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-forest-900">{shown.value}</p>
+            <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-forest-900">
+              {note.origin==='store'
+                ? note.storeContext?.kind==='offer'
+                  ? note.storeContext.title+' · '+note.storeContext.storeName
+                  : note.storeContext?.kind==='cart'
+                    ? note.storeContext.itemCount+' items · '+note.storeContext.storeCount+' Stores'
+                    : 'Store request prepared for KS001'
+                : shown.value}
+            </p>
             {note.thumbnail&&<details className="mt-2"><summary className="cursor-pointer text-xs font-semibold text-forest-800">View selected photo</summary><img src={note.thumbnail} alt={'Local photograph of '+(note.filename||'selected goods')} className="mt-2 max-h-64 w-full rounded-xl object-contain"/></details>}
             {note.snippet&&<details className="mt-2"><summary className="cursor-pointer text-xs font-semibold text-forest-800">Read selected text</summary><pre className="mt-2 max-h-44 overflow-auto whitespace-pre-wrap break-words bg-cream-50 p-2 text-xs">{note.snippet}</pre></details>}
             {note.filename&&<p className="mt-1 text-xs text-sand-600">Selected locally · {note.mime||'Unknown file type'} · {note.size??0} bytes · not uploaded or examined</p>}
