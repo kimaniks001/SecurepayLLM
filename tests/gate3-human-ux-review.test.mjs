@@ -87,3 +87,47 @@ test('collapsing the glance does not remove editing, honest statuses or user-ini
   assert.match(human, /Example only · No Agreement saved/);
   assert.match(human, /No milestone can be completed or approved in this preview/);
 });
+
+
+const minutes = read('src/features/living-workspace/MinutesToAgreementPreview.tsx');
+
+test('fictional meeting minutes become THREE distinct drafts with source-labelled gaps', () => {
+  assert.match(minutes, /SAMPLE_MINUTES_LABEL/);
+  for (const work of ['security-light','repairs','resident-project']) {
+    assert.match(minutes,new RegExp("workId: '"+work+"'"));
+  }
+  assert.match(minutes, /data-gate3-minutes-tool/);
+  assert.match(minutes, /data-gate3-prepare-separate-drafts/);
+  assert.match(human,/minutesReview:makeMinuteReview\(decision\.workId\)/);
+  assert.match(human,/if\(existing\.minutesReview\)return/);
+  assert.match(human,/sources:\[\.\.\.existing\.sources,\{id:100000\+index,kind:'document'/);
+  assert.match(minutes, /Scripted example · no AI reading/);
+  assert.match(minutes, /does not read its contents/);
+});
+
+test('orange WWWWWH gaps can be rectified without turning proposals into accepted facts', () => {
+  for(const key of ['who','what','where','when','why','how']) {
+    assert.match(minutes,new RegExp("key:'"+key+"'"));
+  }
+  assert.match(minutes,/openMinutePoints=\(review:MinuteReview\)/);
+  assert.match(minutes,/!point\.fromMinutes && !review\.corrections\[point\.key\]\?\.trim\(\)/);
+  assert.match(minutes,/data-gate3-orange-count/);
+  assert.match(minutes,/data-gate3-clarify-point/);
+  assert.match(minutes,/data-gate3-wwwwwh-full/);
+  assert.match(minutes,/onPropose\(point\.key,answer\)/);
+  assert.match(human,/minutesReview:\{\.\.\.w\.minutesReview,corrections:/);
+  assert.match(human,/not a committee decision or a signed term/);
+  assert.match(minutes,/None has been accepted by the other parties/);
+  assert.match(minutes,/Not formally examined/);
+});
+
+test('clarification-to-KS001 is an unsent human message, not a committed change', () => {
+  assert.match(human,/draftFromMinutes:true/);
+  assert.match(human,/draft:'The sample minutes leave this unclear:/);
+  assert.match(human,/appendConversation\(current\.draft,current\.draftFromStore,current\.draftFromMinutes\)/);
+  assert.match(human,/fromStore\|\|fromMinutes\|\|!prompt/);
+  assert.match(human,/Your message is still unsent/);
+  assert.match(human,/Do not treat it as agreed/);
+  assert.match(human,/onPropose=\{proposeMinutes\} onAsk=\{askMinutes\}/);
+  assert.doesNotMatch(minutes, /\bfetch\(|\.send\(|gateway\.|createAgreement\(/);
+});
