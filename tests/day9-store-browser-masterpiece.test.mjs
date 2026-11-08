@@ -103,7 +103,7 @@ test('expanded Store cards expose direct Add to Cart and Ask KS001, using the sa
  assert.match(detail,/aria-label=\{'Add '\+offer.title\+' to KS Cart'\}/);
  assert.match(real,/onSelectionChange\?\.\(next\)/);
  assert.match(real,/onStageSelections\)await onStageSelections\(question,'agreement'\)/);
- assert.match(demo,/onOpenKs001Preview\?\.\(question\)/);
+ assert.match(demo,/onOpenKs001Preview\?\.\(question,\{kind:'offer'/);
  assert.match(layout,/workspaceSelection=\{storeSelected\}/);
  assert.match(layout,/onSelectionChange=\{setStoreSelected\}/);
 });
