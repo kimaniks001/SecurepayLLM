@@ -11,11 +11,6 @@ import { CompactStoreBrowser, initialStoreBrowserState, type StoreBrowserState, 
 import { StoreMasterpieceLayoutReview } from '../store/StoreMasterpieceLayoutReview';
 import { storeOfferAssistTurn } from '../store/offerAssistTurn.mjs';
 import securepayWordmark from '../../assets/brand/securepay/securepay-wordmark-horizontal.png';
-import {
-  MinutesToAgreementTool, MinutesAgreementCheck, SAMPLE_MINUTES,
-  makeMinuteReview, minuteDecision, openMinutePoints,
-  type MinuteField, type MinutePoint, type MinuteReview, type MinuteWorkId,
-} from './MinutesToAgreementPreview';
 
 /**
  * Gate 3 OWNER EXPERIENCE REVIEW — a deliberately isolated preview of the
@@ -35,8 +30,6 @@ type Work = {
   introduction: string;
   draft: string;
   draftFromStore: boolean;
-  draftFromMinutes?: boolean;
-  minutesReview?: MinuteReview;
   facts: Partial<Record<Field, string>>;
   deferred: Field[];
   turns: Turn[];
@@ -187,7 +180,7 @@ const TOOL_ACTIONS: {id: SourceKind; title:string; icon:typeof MapPin}[] = [
 export function HumanJourneysExperience() {
   const [works,setWorks]=useState<Record<WorkId,Work>>(restoredWorks);
   const [workId,setWorkId]=useState<WorkId>('cctv');
-  const [activeTool,setActiveTool]=useState<'overview'|'stores'|'minutes'|SourceKind>('overview');
+  const [activeTool,setActiveTool]=useState<'overview'|'stores'|SourceKind>('overview');
   const [middle,setMiddle]=useState<'chat'|'store'>('chat');
   const [mobilePanel,setMobilePanel]=useState<'chat'|'tools'|'summary'>('chat');
   const [sourceText,setSourceText]=useState('');
@@ -197,7 +190,6 @@ export function HumanJourneysExperience() {
   const current=works[workId];
   const scenario=SCENARIOS.find(s=>s.id===workId)!;
   const next=nextQuestion(current,scenario);
-  const minutesOpen=current.minutesReview?openMinutePoints(current.minutesReview):[];
   const count=current.cart.filter(item=>item.destination==='agreement').reduce((n,item)=>n+item.quantity,0);
   const mentioned=Object.entries(current.facts).filter(([,value])=>Boolean(value?.trim()));
   useEffect(()=>{
@@ -213,17 +205,15 @@ export function HumanJourneysExperience() {
     setNotice(srcNames[kind]+' noted for '+current.title+'. Local example only; nothing uploaded or verified.');
     setSourceText('');
   };
-  const appendConversation=(message:string,fromStore=false,fromMinutes=false)=>{
+  const appendConversation=(message:string,fromStore=false)=>{
     const clean=message.trim().slice(0,1100);
     if(!clean)return;
     const prompt=next;
     update(workId,w=>{
-      const facts=fromStore||fromMinutes||!prompt?w.facts:{...w.facts,[prompt.field]:clean};
-      const updated={...w,facts,draft:'',draftFromStore:false,draftFromMinutes:false};
+      const facts=fromStore||!prompt?w.facts:{...w.facts,[prompt.field]:clean};
+      const updated={...w,facts,draft:'',draftFromStore:false};
       const q=nextQuestion(updated,scenario);
-      const answer=fromMinutes
-        ?'The sample minutes do not settle that question. You can propose a clarification in the orange Minutes check on the right. The real people would still need to review it.'
-        :fromStore
+      const answer=fromStore
         ?'I have added that Store request as a proposal, not an order. ' + (q?.question??'Would you like to review the proposed terms?')
         :q?'I have noted that as a proposal. '+q.question:
           'You have the main proposed details. The next step is to review them with the other people. Nothing has been accepted or funded.';
@@ -245,7 +235,7 @@ export function HumanJourneysExperience() {
   const onSend=(e:FormEvent)=>{
     e.preventDefault();
     if(!current.draft.trim())return;
-    appendConversation(current.draft,current.draftFromStore,current.draftFromMinutes);
+    appendConversation(current.draft,current.draftFromStore);
   };
   const switchWork=(id:WorkId)=>{
     setWorkId(id);setMiddle('chat');setActiveTool('overview');setMobilePanel('chat');
@@ -273,57 +263,6 @@ export function HumanJourneysExperience() {
   const expandStore=(target:Omit<StoreBrowserTarget,'requestId'>)=>{
     setStoreNavigation({...target,requestId:Date.now()});
     setMiddle('store');setMobilePanel('chat');
-  };
-  const prepareSampleMinutes=()=>{
-    setWorks(previous=>{
-      const updated={...previous};
-      SAMPLE_MINUTES.forEach((decision,index)=>{
-        const existing=previous[decision.workId];
-        if(existing.minutesReview)return; // Reopening the tool must not reset people's own proposals.
-        const open=decision.points.filter(point=>!point.fromMinutes);
-        const n=existing.turns.length;
-        updated[decision.workId]={
-          ...existing,
-          minutesReview:makeMinuteReview(decision.workId),
-          sources:[...existing.sources,{id:100000+index,kind:'document',label:'Example minutes · '+decision.section}],
-          turns:[...existing.turns,
-            {id:n+1,by:'person',text:'Please help me organise '+decision.section+' from the fictional meeting minutes.'},
-            {id:n+2,by:'example',text:'I have prepared '+decision.heading+' as its own proposed work. The source describes the intention, but '+open.length+' points need clarity. The orange entries on SecurePay Check can be discussed or corrected. No document was actually read by AI.'}],
-        };
-      });
-      return updated;
-    });
-    setWorkId('security-light');setMiddle('chat');setMobilePanel('chat');
-    setNotice('Three separate example drafts prepared. Choose Minutes check in the right summary to clarify the orange points.');
-  };
-  const proposeMinutes=(key:MinuteField,value:string)=>{
-    const correction=value.trim().slice(0,300);
-    if(!correction || !current.minutesReview)return;
-    update(workId,w=>{
-      if(!w.minutesReview)return w;
-      const point=minuteDecision(w.minutesReview.decisionId).points.find(item=>item.key===key);
-      if(!point)return w;
-      const n=w.turns.length;
-      return {...w,
-        minutesReview:{...w.minutesReview,corrections:{...w.minutesReview.corrections,[key]:correction}},
-        turns:[...w.turns,
-          {id:n+1,by:'person',text:'Proposed clarification to '+point.short+': '+correction},
-          {id:n+2,by:'example',text:'I have noted that as your proposal, not a committee decision or a signed term. It will need the relevant people to review and accept it.'}],
-      };
-    });
-    setNotice('Your clarification is a proposal. It has not been verified or accepted.');
-  };
-  const askMinutes=(point:MinutePoint)=>{
-    if(current.draft.trim()){
-      setNotice('Your message is still unsent. Send or clear it before bringing this clarification to KS001.');
-      setMiddle('chat');setMobilePanel('chat');return;
-    }
-    update(workId,w=>({...w,
-      draft:'The sample minutes leave this unclear: '+point.question+' Help me think through a fair proposal. Do not treat it as agreed.',
-      draftFromStore:false,draftFromMinutes:true,
-    }));
-    setMiddle('chat');setMobilePanel('chat');
-    setNotice('Clarification prepared in your KS001 composer. Review it before sending.');
   };
   const editMilestone=(id:string,field:'owner'|'date'|'proof',value:string)=>
     update(workId,w=>({...w,milestones:w.milestones.map(m=>m.id===id?{...m,[field]:value.slice(0,140)}:m)}));
@@ -364,7 +303,6 @@ export function HumanJourneysExperience() {
             <button type="button" onClick={()=>{setMobilePanel('chat');setActiveTool('overview');}} className="min-h-10 rounded-lg px-2 text-xs lg:hidden">Back to KS001</button></div>
           <button className={toolClass+(activeTool==='overview'?' bg-cream-100 font-semibold':'')} onClick={()=>setActiveTool('overview')}><ClipboardList size={17}/> My work and examples</button>
           <button className={toolClass+(activeTool==='stores'?' bg-cream-100 font-semibold':'')} onClick={()=>setActiveTool('stores')}><Store size={17}/> Digital Stores <ChevronDown size={14} className="ml-auto"/></button>
-          <button type="button" className={toolClass+(activeTool==='minutes'?' bg-cream-100 font-semibold':'')} onClick={()=>setActiveTool('minutes')} data-gate3-open-minutes-tool><FileText size={17}/> Minutes to Agreement <ChevronDown size={14} className="ml-auto"/></button>
           <div className="mt-1 grid grid-cols-2 gap-1">
             {TOOL_ACTIONS.map(({id,title,icon:Icon})=><button key={id} type="button" onClick={()=>setActiveTool(id)}
               className={'flex min-h-11 items-center gap-1.5 rounded-xl border px-2 text-xs '+(activeTool===id?'border-forest-400 bg-forest-50 font-semibold':'border-cream-200 bg-white')}><Icon size={15}/>{title}</button>)}
@@ -387,11 +325,7 @@ export function HumanJourneysExperience() {
               onDiscuss={discussOffer} onDiscussCart={discussCart} onExpand={expandStore}
               onPhotoSearch={()=>setActiveTool('photo')} onManage={()=>expandStore({kind:'manage'})}/>
           </div>}
-          {activeTool==='minutes'&&<div className="min-h-0 flex-1 overflow-y-auto">
-            <MinutesToAgreementTool prepared={SAMPLE_MINUTES.filter(d=>Boolean(works[d.workId].minutesReview)).map(d=>d.workId)}
-              onPrepare={prepareSampleMinutes} onOpen={(id:MinuteWorkId)=>switchWork(id)}/>
-          </div>}
-          {activeTool!=='overview'&&activeTool!=='stores'&&activeTool!=='minutes'&&<div className="space-y-3 rounded-xl bg-cream-50 p-3">
+          {activeTool!=='overview'&&activeTool!=='stores'&&<div className="space-y-3 rounded-xl bg-cream-50 p-3">
             <p className="text-sm font-semibold">Add {srcNames[activeTool].toLowerCase()}</p>
             {(activeTool==='photo'||activeTool==='document')&&
               <label className="block cursor-pointer rounded-xl border border-dashed border-forest-300 bg-white p-3 text-xs">
@@ -476,7 +410,6 @@ export function HumanJourneysExperience() {
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
               <span className="rounded-full bg-white/80 px-2 py-1 text-[0.67rem] text-forest-800">{mentioned.length} details</span>
               <span className="rounded-full bg-white/80 px-2 py-1 text-[0.67rem] text-forest-800">{current.milestones.length} steps</span>
-              {minutesOpen.length>0&&<span className="rounded-full bg-amber-100 px-2 py-1 text-[0.67rem] font-semibold text-amber-800">{minutesOpen.length} clarify</span>}
               {current.deferred.length>0&&<span className="rounded-full bg-white/80 px-2 py-1 text-[0.67rem] text-forest-800">{current.deferred.length} open</span>}
             </div>
           </section>
@@ -510,7 +443,6 @@ export function HumanJourneysExperience() {
                 </details>}
             </section>
 
-            {current.minutesReview&&<MinutesAgreementCheck review={current.minutesReview} onPropose={proposeMinutes} onAsk={askMinutes}/>}
             <section className="py-3" aria-label="Proposed milestones">
               <div className="mb-1 flex items-center justify-between">
                 <h3 className="flex items-center gap-1.5 text-xs font-semibold text-forest-900"><ClipboardList size={15}/> Milestones</h3>
