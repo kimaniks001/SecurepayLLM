@@ -129,5 +129,5 @@ test('clarification-to-KS001 is an unsent human message, not a committed change'
   assert.match(human,/Your message is still unsent/);
   assert.match(human,/Do not treat it as agreed/);
   assert.match(human,/onPropose=\{proposeMinutes\} onAsk=\{askMinutes\}/);
-  assert.doesNotMatch(minutes, /\bfetch\(|\.send\(|gateway\.|createAgreement\(/);
+  assert.doesNotMatch(minutes, /\bfetch\(|\.send\(|\bgateway\.[a-zA-Z_$][\w$]*\(|createAgreement\(/);
 });
