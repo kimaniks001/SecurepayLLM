@@ -1,0 +1,289 @@
+{
+  "schema": "securepay-gate2-four-family-execution-v1",
+  "recordedAt": "2026-11-08",
+  "environment": "NOT_PROVISIONED_OR_ATTESTED",
+  "productionChanged": false,
+  "financialExecutionAttempted": false,
+  "uiCandidateSha": "6001f86e2e869627c93ee41af67739398a5bec3c",
+  "apiCandidateSha": "f77b961940acd0e7f9e9565d316912de5ea4076c",
+  "pairCompatibility": "NOT_VERIFIED",
+  "productionReleaseSha": "UNKNOWN",
+  "decision": "NO_GO_FOR_REAL_TEST_EXECUTION",
+  "staticPreflight": {
+    "status": "PERFORMED",
+    "method": "READ_ONLY_GITHUB_SOURCE_INSPECTION",
+    "apiFiles": 6,
+    "uiFiles": 3,
+    "results": [
+      {
+        "id": "PF-01",
+        "finding": "SECURE_LINK + KEY_CONTRACT product classification source present",
+        "status": "SOURCE_PRESENT"
+      },
+      {
+        "id": "PF-02",
+        "finding": "GroupSecureLink draft, activation and governance source present",
+        "status": "SOURCE_PRESENT"
+      },
+      {
+        "id": "PF-03",
+        "finding": "SecureFlow and GroupSecureFlow enum + allocation versioning source present",
+        "status": "SOURCE_PRESENT"
+      },
+      {
+        "id": "PF-04",
+        "finding": "Explicit milestone dependency readiness logic present",
+        "status": "SOURCE_PRESENT"
+      },
+      {
+        "id": "PF-05",
+        "finding": "Twelve-principle partial Fair Trade examination with NOT_ASSESSED state present",
+        "status": "SOURCE_PRESENT"
+      },
+      {
+        "id": "PF-06",
+        "finding": "ActiveAgreementWorkspace milestone list shows title and status, but not responsibility/evidence/deadline in that list",
+        "status": "STATIC_RISK"
+      },
+      {
+        "id": "PF-07",
+        "finding": "UniversalSourceTray live upload call does not pass optional photo/document caption",
+        "status": "STATIC_RISK"
+      },
+      {
+        "id": "PF-08",
+        "finding": "UniversalSourceTray live Place source omits selected purpose and entrance from sent text",
+        "status": "STATIC_RISK"
+      },
+      {
+        "id": "PF-09",
+        "finding": "Store selection is component state without demonstrated conversation-keyed restoration/isolation",
+        "status": "STATIC_RISK"
+      }
+    ]
+  },
+  "ciEvidence": {
+    "api": {
+      "runUrl": "https://github.com/kimaniks001/SecurePayAPI/actions/runs/42394186947",
+      "headSha": "917ce2f7e8d30f6f868fb33f197f21f733155e89",
+      "conclusion": "startup_failure",
+      "jobs": 0,
+      "qualifier": "NOT_SAME_AS_API_CANDIDATE; NO_JAVA_JOBS_EXECUTED"
+    },
+    "ui": {
+      "runUrl": "https://github.com/kimaniks001/SecurepayLLM/actions/runs/42460443111",
+      "headSha": "6001f86e2e869627c93ee41af67739398a5bec3c",
+      "conclusion": "failure",
+      "jobs": 2,
+      "executedStepsOnFailedJob": 0,
+      "qualifier": "NO_TEST_STEP_EVIDENCE; NOT_PROOF_OF_APPLICATION_TEST_FAILURE"
+    }
+  },
+  "blockers": [
+    "NO_ATTESTED_DISPOSABLE_BACKEND_AND_DATABASE",
+    "NO_CONFIRMED_MATCHED_UI_API_INTEGRATION",
+    "NO_TEST_IDENTITIES_OR_REAL_PROVIDER_STAGING_EVIDENCE",
+    "PRODUCTION_RELEASE_MANIFEST_UNVERIFIED",
+    "GITHUB_ACTIONS_DID_NOT_RUN_USABLE_APPLICATION_TEST_STEPS"
+  ],
+  "cases": [
+    {
+      "id": "SL-01",
+      "family": "SecureLink",
+      "status": "NOT_RUN",
+      "execution": "NONE",
+      "observation": null,
+      "evidenceRef": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "SL-02",
+      "family": "SecureLink",
+      "status": "NOT_RUN",
+      "execution": "NONE",
+      "observation": null,
+      "evidenceRef": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "SL-03",
+      "family": "SecureLink",
+      "status": "NOT_RUN",
+      "execution": "NONE",
+      "observation": null,
+      "evidenceRef": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "GSL-01",
+      "family": "GroupSecureLink",
+      "status": "NOT_RUN",
+      "execution": "NONE",
+      "observation": null,
+      "evidenceRef": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "GSL-02",
+      "family": "GroupSecureLink",
+      "status": "NOT_RUN",
+      "execution": "NONE",
+      "observation": null,
+      "evidenceRef": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "GSL-03",
+      "family": "GroupSecureLink",
+      "status": "NOT_RUN",
+      "execution": "NONE",
+      "observation": null,
+      "evidenceRef": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "SF-01",
+      "family": "SecureFlow",
+      "status": "NOT_RUN",
+      "execution": "NONE",
+      "observation": null,
+      "evidenceRef": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "SF-02",
+      "family": "SecureFlow",
+      "status": "NOT_RUN",
+      "execution": "NONE",
+      "observation": null,
+      "evidenceRef": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "SF-03",
+      "family": "SecureFlow",
+      "status": "NOT_RUN",
+      "execution": "NONE",
+      "observation": null,
+      "evidenceRef": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "GSF-01",
+      "family": "GroupSecureFlow",
+      "status": "NOT_RUN",
+      "execution": "NONE",
+      "observation": null,
+      "evidenceRef": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "GSF-02",
+      "family": "GroupSecureFlow",
+      "status": "NOT_RUN",
+      "execution": "NONE",
+      "observation": null,
+      "evidenceRef": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "GSF-03",
+      "family": "GroupSecureFlow",
+      "status": "NOT_RUN",
+      "execution": "NONE",
+      "observation": null,
+      "evidenceRef": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "X-01",
+      "family": "CROSS_FAMILY",
+      "status": "NOT_RUN",
+      "execution": "NONE",
+      "observation": null,
+      "evidenceRef": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "X-02",
+      "family": "CROSS_FAMILY",
+      "status": "NOT_RUN",
+      "execution": "NONE",
+      "observation": null,
+      "evidenceRef": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "X-03",
+      "family": "CROSS_FAMILY",
+      "status": "NOT_RUN",
+      "execution": "NONE",
+      "observation": null,
+      "evidenceRef": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "X-04",
+      "family": "CROSS_FAMILY",
+      "status": "NOT_RUN",
+      "execution": "NONE",
+      "observation": null,
+      "evidenceRef": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "X-05",
+      "family": "CROSS_FAMILY",
+      "status": "NOT_RUN",
+      "execution": "NONE",
+      "observation": null,
+      "evidenceRef": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "X-06",
+      "family": "CROSS_FAMILY",
+      "status": "NOT_RUN",
+      "execution": "NONE",
+      "observation": null,
+      "evidenceRef": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "X-07",
+      "family": "CROSS_FAMILY",
+      "status": "NOT_RUN",
+      "execution": "NONE",
+      "observation": null,
+      "evidenceRef": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "X-08",
+      "family": "CROSS_FAMILY",
+      "status": "NOT_RUN",
+      "execution": "NONE",
+      "observation": null,
+      "evidenceRef": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "X-09",
+      "family": "CROSS_FAMILY",
+      "status": "NOT_RUN",
+      "execution": "NONE",
+      "observation": null,
+      "evidenceRef": null,
+      "reviewedBy": null
+    },
+    {
+      "id": "X-10",
+      "family": "CROSS_FAMILY",
+      "status": "NOT_RUN",
+      "execution": "NONE",
+      "observation": null,
+      "evidenceRef": null,
+      "reviewedBy": null
+    }
+  ]
+}
