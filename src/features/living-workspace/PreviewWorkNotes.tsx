@@ -7,7 +7,7 @@ import { answerActions } from './answerActions';
 import { localBuyingPlanNextQuestion, type LocalStoreBuyingPlan } from './StoreBuyingPlan';
 
 /** Preview-only, in-memory draft notes. Never an Agent turn, Agreement or server record. */
-export type PreviewWorkNote = { id:number; text:string; exampleId:Phase2ExampleId|null;thumbnail?:string|null;filename?:string;mime?:string|null;size?:number|null;snippet?:string|null;storePlan?:LocalStoreBuyingPlan };
+export type PreviewWorkNote = { id:number; text:string; exampleId:Phase2ExampleId|null; origin?:'store';thumbnail?:string|null;filename?:string;mime?:string|null;size?:number|null;snippet?:string|null;storePlan?:LocalStoreBuyingPlan };
 const detailOptions: ReadonlyArray<{kind:MiniKind; label:string}> = [
   {kind:'person',label:'Person'}, {kind:'date',label:'Date'},
   {kind:'money',label:'Amount'}, {kind:'place',label:'Place'},
@@ -70,7 +70,7 @@ export function PreviewWorkComposer({notes,onAdd,onOpenTools,onSelectExample,exa
         </div>
       </div>}
       {notes.map(note=><div key={note.id} className="ml-auto max-w-[90%] rounded-2xl rounded-br-md bg-cream-100 px-4 py-3" data-phase1-preview-message>
-        <p className="mb-1 text-xs font-medium text-sand-600">You</p>
+        <p className="mb-1 text-xs font-medium text-sand-600">{note.origin==='store'?'From Store · Your selection':'You'}</p>
         <p className="whitespace-pre-wrap break-words text-sm leading-6 text-forest-900">{note.text}</p>
         {note.thumbnail&&<details className="mt-2"><summary className="cursor-pointer text-xs font-medium text-forest-800">View selected photo</summary><img src={note.thumbnail} alt={'Local photo '+(note.filename||'')} className="mt-2 max-h-48 w-full rounded-lg object-contain"/></details>}
       </div>)}
