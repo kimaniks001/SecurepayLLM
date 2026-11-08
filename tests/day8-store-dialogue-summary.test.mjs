@@ -8,6 +8,7 @@ const workspace=read('src/features/living-workspace/Phase1LivingWorkspacePreview
 const review=read('src/features/store/StoreMasterpieceLayoutReview.tsx');
 const real=read('src/features/store/StoreExperience.tsx');
 const chat=read('src/features/living-workspace/StoreKs001GuidedPreview.tsx');
+const cockpit=read('src/features/living-workspace/StoreCartCockpit.tsx');
 
 const offer={id:'cctv-4',storeId:'KS002',storeName:'Community Security',title:'Four CCTV cameras',
   offerType:'package',priceType:'fixed',price:'KES 85,000',currency:'KES',priceUnit:'set',lifecycle:'published'};
@@ -25,14 +26,15 @@ test('one select, quantity edits and deletion in SecurePay Check recalculate the
 });
 
 test('right-hand panel contains a quantity stepper and remove control, but no editable seller price',()=>{
-  assert.match(workspace,/data-store-selection-parent-summary/);
-  assert.match(workspace,/data-store-summary-edit-row/);
-  assert.match(workspace,/updateSelectedQuantity\(items,entry.key,entry.quantity-1\)/);
-  assert.match(workspace,/updateSelectedQuantity\(items,entry.key,entry.quantity\+1\)/);
-  assert.match(workspace,/removeSelected\(items,entry.key\)/);
-  assert.match(workspace,/Seller-listed · locked/);
-  assert.match(workspace,/formatListedMoney\(minor,currency\)/);
-  assert.doesNotMatch(workspace,/setEntryPrice|onPriceChange|updateSelectedPrice/);
+  assert.match(workspace,/<StoreCartCockpit/);
+  assert.match(cockpit,/data-store-selection-parent-summary/);
+  assert.match(cockpit,/data-store-summary-edit-row/);
+  assert.match(cockpit,/updateSelectedQuantity\(current, entry.key, entry.quantity - 1\)/);
+  assert.match(cockpit,/updateSelectedQuantity\(current, entry.key, entry.quantity \+ 1\)/);
+  assert.match(cockpit,/removeSelected\(current, entry.key\)/);
+  assert.match(cockpit,/Seller-listed · locked/);
+  assert.match(cockpit,/formatListedMoney\(minor,currency\)/);
+  assert.doesNotMatch(cockpit,/setEntryPrice|onPriceChange|updateSelectedPrice/);
   assert.match(workspace,/workspaceSelection=\{storeSelected\}/);
 });
 
