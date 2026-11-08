@@ -599,7 +599,6 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
             onAskSecurePay={() => {
               if(state.selectedOffer.status !== 'ready') return;
               void quickAsk(state.selectedOffer.data.offer);
-              else onNavigate('signed-in');
             }}
             onShare={() => setShowShareSheet(true)}
             onViewStore={id => void controller.openStore(id)}
@@ -619,7 +618,6 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
           onAskKs001={() => {
               if(state.selectedOffer.status !== 'ready') return;
               void quickAsk(state.selectedOffer.data.offer);
-              else onNavigate('signed-in');
             }}
           onOpenStore={() => void controller.openStore(state.selectedOffer.status === 'ready' ? state.selectedOffer.data.store.id : '')}
           onOpenFull={() => setShowFullOffer(true)}
