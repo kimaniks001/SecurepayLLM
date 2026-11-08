@@ -145,7 +145,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
       if(onStageSelections)await onStageSelections(question,'agreement');
       else if(onAskKs001)onAskKs001(question);
       else throw new Error('Sign in to the full SecurePay KS001 workspace to continue. Your item remains selected.');
-      setCollectionNotice('This offer is ready in the KS001 composer for your review. Nothing was automatically sent or agreed.');
+      setCollectionNotice('Offer details prepared for KS001 review. Your Cart has not changed and nothing was sent.');
     }catch(error){setCollectionNotice(error instanceof Error?error.message:'Could not prepare KS001. Your selection is still here.');}
     finally{setCollectionBusy(false);}
   };
