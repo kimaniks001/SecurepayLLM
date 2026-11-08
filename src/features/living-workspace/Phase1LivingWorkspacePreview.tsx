@@ -704,6 +704,52 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
     }
   };
 
+  /** Explicit View Store/Item is the ONLY compact-tool action that swaps the
+   * middle display. The KS001 session remains mounted and unchanged underneath. */
+  const expandCompactStore=(target:Omit<StoreBrowserTarget,'requestId'>)=>{
+    storeNavigationSequence.current+=1;
+    setStoreNavigation({...target,requestId:storeNavigationSequence.current});
+    setStoreFocus(false);
+    setStoreReviewRoute(uiOnlyPreview||!signedIn);
+    setStoreEverOpened(true);
+    setStoreOpen(true);
+    setStoreHandoffError(null);
+    setScreen('chat');
+    if(typeof window!=='undefined' && window.matchMedia('(max-width: 1279px)').matches){
+      // Mobile: tool sheet yields to middle display. Shared browser/cart state
+      // survives and is available when the person reopens Stores.
+      setToolsOpen(false);setToolSelected(false);
+    }
+  };
+  const discussCompactStoreOffer=async(offer:StoreOffer)=>{
+    const message=storeOfferAssistTurn(offer);
+    try{
+      if(uiOnlyPreview || !signedIn){
+        addPreviewNote(message);
+      }else{
+        await prepareEmbeddedStoreQuestion(message);
+      }
+      closeTool();
+      setScreen('chat');
+    }catch(error){
+      setReturnError(error instanceof Error?error.message:'Could not prepare the Store item in KS001.');
+    }
+  };
+  const discussCompactStoreCart=async()=>{
+    const message=selectionToKs001(storeSelected,'agreement');
+    try{
+      if(uiOnlyPreview || !signedIn){
+        addPreviewNote(message);
+      }else{
+        await prepareEmbeddedStoreQuestion(message);
+      }
+      closeTool();
+      setScreen('chat');
+    }catch(error){
+      setReturnError(error instanceof Error?error.message:'Could not prepare the cart in KS001.');
+    }
+  };
+
   const closeIdentity=()=>{
     setSignInOpen(false);
     // A direct identity deep-link returns to the same masterpiece, not the retired homepage.
