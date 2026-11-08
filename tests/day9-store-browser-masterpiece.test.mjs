@@ -14,7 +14,8 @@ test('opening the Stores TOOL only selects a left tool; explicit View opens the 
  const open=layout.slice(layout.indexOf('function openTool('),layout.indexOf('function startPhase4Journey('));
  assert.match(open,/setActiveTool\(name\); setToolSelected\(true\); setToolsOpen\(true\)/);
  assert.doesNotMatch(open,/setStoreOpen\(true\)/);
- assert.match(layout,/data-compact-store-browser/);
+ assert.match(layout,/<CompactStoreBrowser/);
+ assert.match(tool,/data-compact-store-browser/);
  assert.match(layout,/onExpand=\{expandCompactStore\}/);
  assert.match(layout,/const expandCompactStore=/);
  assert.match(layout,/setStoreNavigation\(\{\.\.\.target,requestId:storeNavigationSequence.current\}\)/);
