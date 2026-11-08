@@ -103,7 +103,7 @@ test('expanded Store cards expose direct Add to Cart and Ask KS001, using the sa
  assert.match(detail,/aria-label=\{'Add '\+offer.title\+' to KS Cart'\}/);
  assert.match(real,/onSelectionChange\?\.\(next\)/);
  assert.match(real,/onStageSelections\)await onStageSelections\(question,'agreement'\)/);
- assert.match(demo,/onOpenKs001Preview\?\.\(question\)/);
+ assert.match(demo,/onOpenKs001Preview\?\.\(question,\{kind:'offer'/);
  assert.match(layout,/workspaceSelection=\{storeSelected\}/);
  assert.match(layout,/onSelectionChange=\{setStoreSelected\}/);
 });
@@ -167,4 +167,24 @@ test('live KS001 progress is concise in Store context but full review and errors
  assert.match(progress,/onClick=\{\(\)=>setExpanded\(true\)\}/);
  assert.match(progress,/data-live-formation/);
  assert.match(layout,/data-store-agreements-progress/);
+});
+
+test('a Store-origin request shows a glance summary, not the same chat sentence again',()=>{
+ const board=read('src/features/living-workspace/PreviewWorkNotes.tsx');
+ const demo=read('src/features/store/StoreMasterpieceLayoutReview.tsx');
+ const parent=read('src/features/living-workspace/Phase1LivingWorkspacePreview.tsx');
+ assert.match(board,/data-preview-store-glance-summary/);
+ assert.match(board,/notes.every\(note=>note.origin==='store'\)/);
+ assert.match(board,/currentStore\.title/);
+ assert.match(board,/currentStore\.storeName/);
+ assert.match(board,/Prepared for KS001 · Not examined/);
+ assert.match(board,/No agreement or order yet/);
+ assert.match(board,/Continue in conversation/);
+ assert.match(board,/data-preview-store-requests/);
+ assert.match(board,/note.origin==='store'/);
+ assert.match(board,/note.storeContext\?\.kind==='offer'/);
+ assert.match(parent,/addPreviewNote\(message,'store',storeContext\)/);
+ assert.match(demo,/kind:'offer',title:offer.title,storeName:offer.storeName,listedPrice:offer.price/);
+ assert.match(demo,/kind:'cart',itemCount:items.reduce/);
+ assert.doesNotMatch(board.slice(board.indexOf('if(storeOnly)return'),board.indexOf('return <section aria-label="SecurePay Check"',board.indexOf('if(storeOnly)return'))),/\{note.text\}|\{shown.value\}/);
 });

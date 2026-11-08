@@ -27,7 +27,7 @@ import { HandoffPanel } from '../handoff/HandoffPanel';
 import { createIdentityController } from '../identity/controller';
 import { retryPending, submitCorrection } from '../formation/correction';
 import { LiveKs001Session } from './LiveKs001Session';
-import { PreviewWorkComposer, PreviewWorkBoard, type PreviewWorkNote } from './PreviewWorkNotes';
+import { PreviewWorkComposer, PreviewWorkBoard, type PreviewWorkNote, type PreviewStoreContext } from './PreviewWorkNotes';
 import { type Phase2ExampleId } from './phase2Examples';
 import type { AgentGateway } from '../../api/securepay/agent';
 import { QuickSupportPanel, type QuickAssistId } from './QuickSupportPanel';
@@ -113,11 +113,11 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
   const [phase2ExampleId,setPhase2ExampleId]=useState<Phase2ExampleId|null>(null);
   const [sampleBuyingPlan,setSampleBuyingPlan]=useState<LocalStoreBuyingPlan|null>(null);
   const previewNoteId=useRef(0);
-  const addPreviewNote=(text:string, origin?:'store')=>{
+  const addPreviewNote=(text:string, origin?:'store', storeContext?:PreviewStoreContext)=>{
     if(!text.trim())return;
     previewNoteId.current+=1;
     const id=previewNoteId.current;
-    setPreviewNotes(notes=>[...notes,{id,text:text.trim(),exampleId:phase2ExampleId,origin}]);
+    setPreviewNotes(notes=>[...notes,{id,text:text.trim(),exampleId:phase2ExampleId,origin,storeContext}]);
   };
   // Each local demonstration keeps its own draft notes. Switching examples never discards them.
   const addPreviewSource=(proposal:LocalSourceProposal)=>{
@@ -727,9 +727,10 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
   };
   const discussCompactStoreOffer=async(offer:StoreOffer)=>{
     const message=storeOfferAssistTurn(offer);
+    const storeContext:PreviewStoreContext={kind:'offer',title:offer.title,storeName:offer.storeName,listedPrice:offer.price};
     try{
       if(uiOnlyPreview || !signedIn){
-        addPreviewNote(message,'store');
+        addPreviewNote(message,'store',storeContext);
       }else{
         await prepareEmbeddedStoreQuestion(message);
       }
@@ -741,9 +742,11 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
   };
   const discussCompactStoreCart=async()=>{
     const message=selectionToKs001(storeSelected,'agreement');
+    const selected=storeSelected.filter(item=>item.destination==='agreement');
+    const storeContext:PreviewStoreContext={kind:'cart',itemCount:selected.reduce((n,item)=>n+item.quantity,0),storeCount:new Set(selected.map(item=>item.sellerKsNumber)).size};
     try{
       if(uiOnlyPreview || !signedIn){
-        addPreviewNote(message,'store');
+        addPreviewNote(message,'store',storeContext);
       }else{
         await prepareEmbeddedStoreQuestion(message);
       }
@@ -1183,8 +1186,8 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden" data-store-feature-preservation data-store-expanded-middle>
           {storeReviewRoute && (!signedIn || !storeIntegration)
             ? <StoreMasterpieceLayoutReview shopFocused={false} externalNavigation={storeNavigation} onSelectionChange={setStoreSelected} workspaceSelection={storeSelected}
-                onOpenKs001Preview={message=>{
-                  if(message)addPreviewNote(message,'store');
+                onOpenKs001Preview={(message,storeContext)=>{
+                  if(message)addPreviewNote(message,'store',storeContext);
                   else addPreviewNote('I would like to talk about this Store choice.','store');
                   closeEmbeddedStore('chat');
                 }} />

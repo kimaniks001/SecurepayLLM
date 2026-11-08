@@ -9,6 +9,7 @@ import { collectOffer, removeSelected, updateSelectedQuantity, updateSelectedBuy
 import { demoStores, getOfferById, getOffersByStore, getStoreById, searchOffers } from '../../storeData';
 import type { StoreBrowserTarget } from '../living-workspace/CompactStoreBrowser';
 import { storeOfferAssistTurn } from './offerAssistTurn.mjs';
+import type { PreviewStoreContext } from '../living-workspace/PreviewWorkNotes';
 
 /**
  * An actual, interactive SHOPFRONT review of the SAME StoreHome component used
@@ -36,7 +37,7 @@ function itemCheck(offer:StoreOffer) {
   return ['What is the exact item, quantity and condition?','Is it currently available?','How will it be delivered or collected?'];
 }
 
-export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange,workspaceSelection,onOpenKs001Preview,externalNavigation}:{shopFocused?:boolean;onSelectionChange?:(items:SelectionItem[])=>void;workspaceSelection?:SelectionItem[];onOpenKs001Preview?:(message?:string)=>void;externalNavigation?:StoreBrowserTarget|null}) {
+export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange,workspaceSelection,onOpenKs001Preview,externalNavigation}:{shopFocused?:boolean;onSelectionChange?:(items:SelectionItem[])=>void;workspaceSelection?:SelectionItem[];onOpenKs001Preview?:(message?:string,storeContext?:PreviewStoreContext)=>void;externalNavigation?:StoreBrowserTarget|null}) {
   const [page,setPage] = useState<Page>('shop');
   useEffect(()=>{
     if(!externalNavigation)return;
@@ -85,7 +86,7 @@ export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange
       const question=storeOfferAssistTurn(offer);
       setSelectionDraft(question);
       setCollectionNotice('Example Store item prepared for KS001. Cart unchanged; no live message sent.');
-      onOpenKs001Preview?.(question);
+      onOpenKs001Preview?.(question,{kind:'offer',title:offer.title,storeName:offer.storeName,listedPrice:offer.price});
     }catch(error){setCollectionNotice(error instanceof Error?error.message:'Could not prepare KS001 question.');}
   };
   const stage=(destination:StoreDestination)=>{
@@ -95,7 +96,10 @@ export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange
       setCollectionNotice(destination==='vision'
         ? 'Example Vision draft prepared here for review only. Nothing has been saved to Vision.'
         : 'Example agreement enquiry ready. You can discuss it in the guided KS001 preview.');
-      if(destination==='agreement')onOpenKs001Preview?.(proposal);
+      if(destination==='agreement'){
+        const items=selectionRef.current.filter(item=>item.destination==='agreement');
+        onOpenKs001Preview?.(proposal,{kind:'cart',itemCount:items.reduce((n,item)=>n+item.quantity,0),storeCount:new Set(items.map(item=>item.sellerKsNumber)).size});
+      }
     }catch(error){setCollectionNotice(error instanceof Error?error.message:'Could not prepare that selection.');}
   };
   const visible = demoPublished(searchOffers(query));
