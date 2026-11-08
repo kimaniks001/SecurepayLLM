@@ -64,3 +64,26 @@ Replace the scripted demonstration *inside the existing actual Living Workspace*
 ### Validation
 
 The selected Vercel review project compiles TypeScript, builds Vite, and runs its existing 69 focused UI tests. Five additional bounded structural checks have been added to the same focused suite. Passing these confirms repository structure and build, **not** live backend behavior or uncoached usability. Evidence and owner feedback should determine any subsequent correction prompt.
+
+## Next UX slice: Meeting minutes → three proposals → orange clarification
+
+This is a **scripted sample-minutes demonstration**, not automated reading of user files.
+
+The left **Minutes to Agreement** tool offers fictional Example Estate Works Committee minutes with three independent agenda decisions:
+- One shared security light (many contributors, one supplier).
+- Gate and drainage repairs (one budget, two separately inspectable contractors).
+- A community CCTV project (many contributors and several providers).
+
+**Prepare 3 separate drafts** keeps existing user-typed drafts and Store selections intact. Pressing it again does **not** replace or duplicate previously prepared minutes, corrections or conversations.
+
+The centre has the original KS001 example conversation for the selected draft. Its message identifies the source's known intentions but explains that some WWWWWH details need clarification.
+
+The compact right-hand **Minutes check** displays **orange** only for facts absent from the prewritten source and not yet proposed by the user. Each row opens an inline editor with the question and related principle themes, plus **Discuss with KS001** that *prepares an unsent draft*. Source-backed proposals appear under a separate expandable **Who · What · Where · When · Why · How** audit. An entered correction moves from **Clarify** to **Proposed correction**, not **Verified** or **Accepted**; all twelve Fair Trade principles remain **Not checked**.
+
+The Documents tool still records a selected file's **filename only**. No uploaded PDF/DOCX is parsed, OCR'd, sent to a model, stored on a server, certified fair, or bound into a real Agreement. A real media-to-Agreement workflow requires the isolated SecurePayAPI, provenance, versioned examination, party consent and regulated financial controls.
+
+### Owner's review
+
+Open the same Vercel human-journeys preview, select **Tools → Minutes to Agreement**, reveal the fictional minutes, then choose **Prepare 3 separate drafts**. Visit the right **Minutes check** and open an orange item; save a proposed clarification, watch its open count change, and try **Discuss with KS001**. Switch to another draft, return, and confirm that the previous correction and any unrelated Store cart remain in their own work.
+
+This is a usability prototype and does not advance Gate 2's real E2E case count or Gate 3's independent-participant pass count.
