@@ -56,7 +56,7 @@ test('one shared parent cart sums cross-trader items without changing listed pri
  assert.equal(chosen.length,2);
  assert.equal(new Set(chosen.map(x=>x.sellerKsNumber)).size,2);
  assert.equal(collectionTotals(chosen).byDestination.agreement.subtotal.KES,700000);
- assert.match(selectionToKs001(chosen,'agreement'),/Trader 2/);
+ assert.match(selectionToKs001(chosen,'agreement'),/Store B/);
  assert.match(layout,/collectOffer\(storeSelected,offer,'agreement',uiOnlyPreview\|\|!signedIn\)/);
 });
 test('real expanded Store and example catalogue accept deliberate external navigation',()=>{
