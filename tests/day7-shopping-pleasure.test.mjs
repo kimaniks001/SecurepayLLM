@@ -21,18 +21,18 @@ test('shopping leads with good discovery, not tool machinery or signup friction'
  assert.match(shelf,/onManageStore/);
 });
 
-test('a beautiful store-focused view leaves the original workspace and KS001 alive',()=>{
- assert.match(parent,/const \[storeFocus, setStoreFocus\] = useState\(true\)/);
- assert.match(parent,/data-store-shopping-focus-toggle/);
- assert.match(parent,/Workspace view/);
- assert.match(parent,/Full shop/);
- assert.match(parent,/storeFocus \?/);
- assert.match(parent,/md:fixed md:inset-x-5/);
+test('a familiar left Store expands only on View and preserves KS001 in the original middle',()=>{
+ assert.match(parent,/const \[storeFocus, setStoreFocus\] = useState\(false\)/);
+ assert.match(parent,/<CompactStoreBrowser/);
+ assert.match(parent,/data-store-ks001-original-conversation/);
+ assert.match(parent,/data-store-expanded-middle/);
+ assert.match(parent,/const expandCompactStore=/);
+ assert.match(parent,/Back to KS001/);
  assert.match(parent,/<StoreExperience/);
  assert.match(parent,/<LiveKs001Session/);
  assert.match(parent,/closeEmbeddedStore\('chat'\)/);
  assert.match(parent,/writeDraft\(id,text\)/);
- assert.doesNotMatch(parent,/window\.location\.assign\([^\n]*storeFocus/);
+ assert.doesNotMatch(parent,/md:fixed md:inset-x-5/);
 });
 
 test('trader images are shown only when source media exists and is NOT a stock/example image',()=>{
