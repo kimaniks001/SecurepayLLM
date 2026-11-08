@@ -1,0 +1,26 @@
+{
+  "version": 2,
+  "headers": [
+    {
+      "source": "/embed/shortstays-mini.html",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "frame-ancestors https://shortstays-ke-preview-james-8078.vercel.app https://shortstays-ke-preview-4l4ash77m-james-8078.vercel.app https://shortstays-ke-preview-ovpakdq2k-james-8078.vercel.app https://shortstays-ke-preview-niki1tekb-james-8078.vercel.app"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "private, no-store, max-age=0"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        }
+      ]
+    }
+  ]
+}
