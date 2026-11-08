@@ -500,5 +500,41 @@
       "reviewNotes": null,
       "decision": "NOT_ASSESSED"
     }
-  ]
+  ],
+  "ownerLedStaticUxReview": {
+    "date": "2026-11-08",
+    "status": "SOURCE_REVIEW_ONLY_NOT_PARTICIPANT_EVIDENCE",
+    "approvedPreviewSha": "930194dbd04fbb6d8756d5628e60f173f5f6fcc9",
+    "deploymentId": "dpl_Fb21QGAD49ub9kKCcqKPMYh1bk87",
+    "deploymentReadyState": "READY",
+    "sourceFindings": [
+      {
+        "id": "G3-S01",
+        "classification": "PRESERVE",
+        "topic": "Universal Documents handles mixed types and separates receipt/read/authority"
+      },
+      {
+        "id": "G3-S02",
+        "classification": "SAMPLE_UX_PROBE",
+        "topic": "Sample reply assigned to next prompt without meaning check"
+      },
+      {
+        "id": "G3-S03",
+        "classification": "PREVIEW_LIMITATION",
+        "topic": "Document picker preserves only filename; cannot verify real source interpretation"
+      },
+      {
+        "id": "G3-S04",
+        "classification": "TECHNICAL_RISK_REQUIRES_ISOLATED_API_TEST",
+        "topic": "Live Store cart scope does not demonstrate conversation-keyed isolation"
+      },
+      {
+        "id": "G3-S05",
+        "classification": "PRESERVE",
+        "topic": "Fair Trade unexamined and Money not funded do not overclaim readiness"
+      }
+    ],
+    "changesToFrontendOrApi": false,
+    "resultsNotCountedAsHumanTrials": true
+  }
 }
