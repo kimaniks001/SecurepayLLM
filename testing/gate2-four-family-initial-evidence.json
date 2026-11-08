@@ -86,7 +86,9 @@
     "NO_CONFIRMED_MATCHED_UI_API_INTEGRATION",
     "NO_TEST_IDENTITIES_OR_REAL_PROVIDER_STAGING_EVIDENCE",
     "PRODUCTION_RELEASE_MANIFEST_UNVERIFIED",
-    "GITHUB_ACTIONS_DID_NOT_RUN_USABLE_APPLICATION_TEST_STEPS"
+    "GITHUB_ACTIONS_DID_NOT_RUN_USABLE_APPLICATION_TEST_STEPS",
+    "NO_DEPLOYED_KS001_VERCEL_STAGING_PROJECT",
+    "CURRENT_SESSION_HAS_NO_LOCAL_SECUREPAY_CORE_OR_DATABASE"
   ],
   "cases": [
     {
@@ -355,5 +357,46 @@
     "backendIntegration": "NOT_PROVEN",
     "productionDomain": "securepay.ke not found as domain on inspected Vercel project; production host source remains unknown",
     "note": "A Vercel page response and successful build do not constitute an authenticated user journey."
+  },
+  "environmentAudit20261108": {
+    "investigator": "ChatGPT",
+    "source": "Connected Vercel project/deployment metadata, logs, GitHub exact-source file inspection, and isolated current-session runtime",
+    "vercelStaging": {
+      "projectId": "prj_bnd17Uacp36N38RuE12wluwtHLlV",
+      "project": "securepay-ks001-staging",
+      "deployments": 0,
+      "backendAvailable": false,
+      "note": "An empty Vercel frontend project cannot establish a real SecurePayAPI backend."
+    },
+    "reviewPreview": {
+      "deploymentId": "dpl_8iw7FQCoTdFeMhy9DCMu3zgLQuco",
+      "state": "READY",
+      "backendAttachedEvidence": false,
+      "note": "Owner-reviewed mock preview explicitly states KS001 is not responding live; no agreement is saved."
+    },
+    "certificationBuild": {
+      "deploymentId": "dpl_2h7mSWPfVYHAYcTsUmwcuEAweXft",
+      "state": "ERROR",
+      "actualTestOutcome": "6 PASS; 1 FAIL in quick-assist-first-use.test.mjs",
+      "matchedHead": "1ca240b522cb75d39e99c74992a5fac5a176a7ca",
+      "failingTest": "Quick Assist uses the Store service discovery gateway, not another marketplace",
+      "failure": "A source-string regex expects showSamples initialised with Boolean(onLocalProposal)||!initialServiceQuery; StoresTool.tsx currently initialises Boolean(onLocalProposal).",
+      "classification": "SOURCE_ASSERTION_MISMATCH_NOT_FOUR_FAMILY_E2E_PROOF",
+      "evidence": "Vercel build event, code tests/quick-assist-first-use.test.mjs line 39 and src/features/living-workspace/StoresTool.tsx line 70",
+      "nextAction": "Determine whether the behaviour changed intentionally; replace brittle source assertion with behavioural test only if supported by the desired default. Do not conflate with backend blocker."
+    },
+    "localBackend": {
+      "java21Installed": true,
+      "dockerInstalled": false,
+      "postgresInstalled": false,
+      "gradleInstalled": false,
+      "apiHealth8080": "HTTP_404_NOT_SECUREPAY",
+      "managementHealth8081": "CONNECTION_REFUSED",
+      "repositoryCheckoutAvailable": false,
+      "internetGitHostResolution": false,
+      "validDisposableApi": false
+    },
+    "production": "Not attested; no access to release manifest or host-backed securepay-core in connected services",
+    "safeConclusion": "NO_REAL_BACKEND_ACCESS_IN_CURRENT_SESSION"
   }
 }
