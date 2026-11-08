@@ -139,11 +139,9 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
     if(collectionBusy)return;
     setCollectionBusy(true);setCollectionNotice('');
     try{
-      // Asking about an already selected item must not silently add another unit.
-      const existing=selectionRef.current.find(item=>item.offerId===offer.id && item.sellerKsNumber===offer.storeId && item.destination==='agreement');
-      const next=existing ? selectionRef.current : collectOffer(selectionRef.current,offer,'agreement',false);
-      selectionRef.current=next;setSelection(next);onSelectionChange?.(next);
-      const question=selectionToKs001(next,'agreement');
+      // Discussing a single offer is different from Add to KS Cart. The
+      // customer's selected quantities and other traders remain unchanged.
+      const question=storeOfferAssistTurn(offer);
       if(onStageSelections)await onStageSelections(question,'agreement');
       else if(onAskKs001)onAskKs001(question);
       else throw new Error('Sign in to the full SecurePay KS001 workspace to continue. Your item remains selected.');
