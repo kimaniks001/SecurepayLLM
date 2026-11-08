@@ -64,7 +64,7 @@ test('owner preview uses the original composer with clearly labelled example Sto
  assert.match(tool,/Example catalogue only/);
  assert.match(shell,/<PreviewWorkComposer/);
  assert.match(shell,/onOpenKs001Preview=\{message=>/);
- assert.match(review,/onOpenKs001Preview\?\.\(selectionToKs001\(next,'agreement'\)\)/);
+ assert.match(review,/onOpenKs001Preview\?\.\(question\)/);
  assert.match(review,/onSelectionChange\?\.\(next\)/);
  assert.match(shell,/onSelectionChange=\{setStoreSelected\}/);
  assert.doesNotMatch(shell,/autoSendStoreAssistant/);
