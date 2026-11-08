@@ -477,13 +477,16 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
             Check reading status
           </button>}
         {serverSource.extractionStatus==='FAILED'&&gateway&&<button type="button" disabled={uploadState==='uploading'} onClick={async()=>{
-          setUploadState('uploading');setUploadMessage('SecurePay is retrying the existing '+(tool==='Photos'?'photo':'document')+' source…');
+          const sequence=seq.current;
+        setUploadState('uploading');setUploadMessage('SecurePay is retrying the existing '+(tool==='Photos'?'photo':'document')+' source…');
           try{
             const retry=await gateway.retrySource(serverSource.conversationId,serverSource.sourceArtifactId);
-            if(retry.sourceArtifactId!==serverSource.sourceArtifactId)throw new Error('Unexpected source');
+            if(seq.current!==sequence)return;
+            if(retry.sourceArtifactId!==serverSource.sourceArtifactId || retry.conversationId!==serverSource.conversationId)throw new Error('Unexpected source');
             setServerSource(retry);setUploadState('confirmed');
             setUploadMessage(retry.extractionStatus==='FAILED'?'The '+(tool==='Photos'?'photo':'document')+' is still unreadable. Try a different file or share the important details in text.':'SecurePay retried the same source. Review its updated processing status.');
           }catch{
+            if(seq.current!==sequence)return;
             setUploadState('error');setUploadMessage('The retry could not be confirmed. The original '+(tool==='Photos'?'photo':'document')+' source has not been removed.');
           }
         }} className="min-h-11 rounded-lg border border-cream-200 px-4 text-sm">Retry reading this {tool==='Photos'?'photo':'document'}</button>}
