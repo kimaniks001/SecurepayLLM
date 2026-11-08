@@ -8,6 +8,7 @@ import type { SelectionItem, StoreDestination } from './shopSelection.mjs';
 import { collectOffer, removeSelected, updateSelectedQuantity, updateSelectedBuyerNote, selectionToKs001 } from './shopSelection.mjs';
 import { demoStores, getOfferById, getOffersByStore, getStoreById, searchOffers } from '../../storeData';
 import type { StoreBrowserTarget } from '../living-workspace/CompactStoreBrowser';
+import { storeOfferAssistTurn } from './offerAssistTurn.mjs';
 
 /**
  * An actual, interactive SHOPFRONT review of the SAME StoreHome component used
