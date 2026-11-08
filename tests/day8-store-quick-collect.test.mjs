@@ -14,6 +14,7 @@ const tray=source('src/components/StoreCollectionPanel.tsx');
 const live=source('src/features/store/StoreExperience.tsx');
 const demo=source('src/features/store/StoreMasterpieceLayoutReview.tsx');
 const parent=source('src/features/living-workspace/Phase1LivingWorkspacePreview.tsx');
+const cockpit=source('src/features/living-workspace/StoreCartCockpit.tsx');
 
 const offer=(overrides={})=>({
  id:'offer-painting',storeId:'KS001',storeName:'Mary’s Paint Shop',
@@ -94,10 +95,11 @@ test('selection-to-KS001 is a reviewable, bounded, non-binding human request',()
  assert.equal(MAX_DISTINCT_ITEMS,12);
 });
 
-test('the product card previews on hover or explicit tap and lets users opt into a full page/image',()=>{
+test('the product card reveals a non-obscuring extra-details area on deliberate tap',()=>{
  assert.match(card,/data-shop-hover-preview/);
- assert.match(card,/group-hover\/visual:block/);
- assert.match(card,/group-focus-within\/visual:block/);
+ assert.match(card,/quickEnabled && quickOpen/);
+ assert.doesNotMatch(card,/group-hover\/visual:block/);
+ assert.match(card,/data-store-item-primary-actions/);
  assert.match(card,/aria-expanded=\{quickOpen\}/);
  assert.match(card,/onQuickKs001\?\.\(offer\)/);
  assert.match(card,/Open full details for/);
@@ -125,20 +127,21 @@ test('shop remains visible while both real and example modes update the right-ha
 });
 
 test('the original SecurePay Check right panel retains a selection summary after leaving the full shop',()=>{
- assert.match(parent,/data-store-selection-parent-summary/);
+ assert.match(parent,/<StoreCartCockpit/);
+ assert.match(cockpit,/data-store-selection-parent-summary/);
  assert.match(parent,/onSelectionChange=\{setStoreSelected\}/);
- assert.match(parent,/storeSelectedTotals\.byDestination\[destination\]/);
- assert.match(parent,/formatListedMoney\(minor,currency\)/);
+ assert.match(cockpit,/collectionTotals\(selections\)/);
+ assert.match(cockpit,/formatListedMoney\(minor,currency\)/);
  assert.match(parent,/if\(previousStoreOwnerSignedIn\.current && !signedIn\)setStoreSelected\(\[\]\)/);
- assert.match(parent,/not a provider quote, saved Vision Dream, binding Agreement or payment/);
+ assert.match(cockpit,/not a provider quote, saved Vision Dream, binding Agreement or payment/);
 });
 
 test('compact workspace uses original SecurePay Check on right instead of duplicating a basket under the shelf',()=>{
  assert.match(demo,/selectionPanel=\{shopFocused \?/);
  assert.match(live,/selectionPanel=\{shoppingWide \|\| !embedded \?/);
  assert.match(live,/shoppingWide=\{shoppingWide \|\| !embedded\}/);
- assert.match(parent,/Edit selections in full shop/);
- assert.match(parent,/onClick=\{\(\)=>setStoreFocus\(true\)\}/);
+ assert.match(parent,/onViewItem=\{\(storeKs,offerId\)=>expandCompactStore/);
+ assert.match(cockpit,/onSelectionChange: \(update:/);
 });
 
 test('real KS001 and Vision stage only unsent drafts with consent, never auto accept or lose existing text',()=>{

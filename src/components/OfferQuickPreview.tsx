@@ -60,7 +60,8 @@ export function OfferQuickPreview({ offer, onBack, backLabel = 'Results', source
             <button type="button" onClick={()=>onCollect(offer,'vision')}
               className="min-h-11 rounded-xl border border-forest-200 bg-forest-50 px-4 text-sm font-semibold text-forest-800">+ Add to Vision</button>
             {!unavailable && <button type="button" onClick={()=>onCollect(offer,'agreement')}
-              className="min-h-11 rounded-xl bg-forest-800 px-4 text-sm font-semibold text-white">+ Add to KS Cart</button>}
+              aria-label={'Add '+offer.title+' to KS Cart'}
+              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-forest-800 px-4 text-sm font-semibold text-white shadow-[0_2px_7px_rgba(21,58,40,0.11)] transition-colors hover:bg-forest-900 active:translate-y-px focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest-500">Add to Cart</button>}
           </div>}
           <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             <button type="button" onClick={onAskKs001} className="sp-primary-action inline-flex min-h-11 items-center justify-center gap-2 px-5 text-sm font-semibold">

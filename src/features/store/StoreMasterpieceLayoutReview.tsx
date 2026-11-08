@@ -176,7 +176,8 @@ export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange
             <button type="button" onClick={()=>collect(selectedOffer,'vision')}
               className="min-h-11 rounded-xl border border-forest-200 bg-white px-3 text-sm font-semibold text-forest-800">+ Add to Vision</button>
             <button type="button" onClick={()=>collect(selectedOffer,'agreement')}
-              className="min-h-11 rounded-xl bg-forest-800 px-3 text-sm font-semibold text-white">+ Add to KS Cart</button>
+              aria-label={'Add '+selectedOffer.title+' to KS Cart'}
+              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-forest-800 px-3 text-sm font-semibold text-white shadow-[0_2px_7px_rgba(21,58,40,0.11)] transition-colors hover:bg-forest-900 active:translate-y-px focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest-500">Add to Cart</button>
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
             <button type="button" onClick={()=>startEnquiry(selectedOffer)}

@@ -98,9 +98,11 @@ test('same quick-add component now appears on catalogue AND merchant Store, with
 
 test('explicit full item detail and quick preview allow add-to-collection without leaving it',()=>{
  assert.match(preview,/onCollect\?: \(offer:StoreOffer,destination:StoreDestination\)=>void/);
- assert.match(preview,/Add to KS Cart/);
+ assert.match(preview,/Add to Cart/);
+ assert.match(preview,/aria-label=\{'Add '\+offer.title\+' to KS Cart'\}/);
  assert.match(detail,/onCollect\?: \(offer:StoreOffer,destination:StoreDestination\)=>void/);
- assert.match(detail,/Add to KS Cart/);
+ assert.match(detail,/Add to Cart/);
+ assert.match(detail,/aria-label=\{'Add '\+offer.title\+' to KS Cart'\}/);
  assert.match(real,/onCollect=\{collect\}/);
 });
 

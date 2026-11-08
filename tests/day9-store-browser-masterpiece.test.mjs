@@ -8,6 +8,7 @@ const tool=read('src/features/living-workspace/CompactStoreBrowser.tsx');
 const vision=read('src/features/living-workspace/StoreVisionSavePanel.tsx');
 const real=read('src/features/store/StoreExperience.tsx');
 const demo=read('src/features/store/StoreMasterpieceLayoutReview.tsx');
+const cockpit=read('src/features/living-workspace/StoreCartCockpit.tsx');
 const good={id:'a',storeId:'KS001A',storeName:'Store A',title:'Ordinary item',offerType:'product',priceType:'fixed',price:'KES 2,000',currency:'KES',lifecycle:'published',description:'ordinary product'};
 const service={id:'b',storeId:'KS001B',storeName:'Store B',title:'Work service',offerType:'service',priceType:'fixed',price:'KES 5,000',currency:'KES',lifecycle:'published',description:'service'};
 test('opening the Stores TOOL only selects a left tool; explicit View opens the middle',()=>{
@@ -29,7 +30,8 @@ test('KS001 middle is preserved, expanded Store is NOT fixed modal overlay',()=>
  assert.match(store,/sp-brand-conversation/);
  assert.doesNotMatch(store,/fixed inset-0|z-\[75\]|shadow-2xl/);
  assert.match(layout,/Back to KS001/);
- assert.match(layout,/data-store-selection-parent-summary/);
+ assert.match(layout,/<StoreCartCockpit/);
+ assert.match(cockpit,/data-store-selection-parent-summary/);
 });
 test('mini Store exposes independent browsing, search, Store switching, cart, item view and KS001',()=>{
  for(const pattern of [/role="search"/,/onPhotoSearch/,/aria-label="Stores with published offers"/,/data-compact-store-selected/,/onExpand\(\{kind:'store'/,/view\('item',offer\)/,/onAddCart\(offer\)/,/onSaveVision\(offer\)/,/onDiscuss\(offer\)/,/onDiscussCart\(\)/,/data-compact-store-cart/])
@@ -95,11 +97,74 @@ test('expanded Store cards expose direct Add to Cart and Ask KS001, using the sa
  assert.match(cards,/Ask KS001/);
  assert.match(cards,/onCollect\?\.\(offer,destination\)/);
  assert.match(cards,/onQuickKs001\?\.\(offer\)/);
- assert.match(quick,/Add to KS Cart/);
- assert.match(detail,/Add to KS Cart/);
+ assert.match(quick,/Add to Cart/);
+ assert.match(quick,/aria-label=\{'Add '\+offer.title\+' to KS Cart'\}/);
+ assert.match(detail,/Add to Cart/);
+ assert.match(detail,/aria-label=\{'Add '\+offer.title\+' to KS Cart'\}/);
  assert.match(real,/onSelectionChange\?\.\(next\)/);
  assert.match(real,/onStageSelections\)await onStageSelections\(question,'agreement'\)/);
  assert.match(demo,/onOpenKs001Preview\?\.\(question\)/);
  assert.match(layout,/workspaceSelection=\{storeSelected\}/);
  assert.match(layout,/onSelectionChange=\{setStoreSelected\}/);
+});
+
+test('glance summary owns the work context, while sensitive explanation is optional',()=>{
+ assert.match(layout,/const shoppingContext = mode==='work'/);
+ assert.match(layout,/uiOnlyPreview && !shoppingContext \? <PreviewWorkBoard/);
+ assert.match(layout,/<StoreCartCockpit selections=\{storeSelected\}/);
+ assert.match(layout,/onDiscussCart=\{discussCompactStoreCart\}/);
+ assert.match(layout,/onSelectionChange=\{setStoreSelected\}/);
+ assert.match(layout,/onViewItem=\{\(storeKs,offerId\)=>expandCompactStore/);
+ assert.match(cockpit,/data-store-cart-cockpit/);
+ assert.match(cockpit,/data-store-cart-rows/);
+ assert.match(cockpit,/data-store-cart-totals/);
+ assert.match(cockpit,/data-store-cart-explanation/);
+ assert.match(cockpit,/<details className="mt-2 border-t/);
+ assert.match(cockpit,/Discuss Cart with KS001/);
+ assert.match(cockpit,/No agreement yet/);
+ assert.doesNotMatch(cockpit,/executePayment|confirmAgreement|acceptAgreement/);
+});
+
+test('multi-currency and unpriced Store selections never pretend to be one grand total',()=>{
+ const foreign={...good,id:'usd',storeId:'KS-USD',storeName:'Foreign seller',price:'USD 12.50',currency:'USD'};
+ const unknown={...good,id:'unknown',storeId:'KS-UNKNOWN',storeName:'Unknown price seller',priceType:'unlisted',price:'Ask seller'};
+ let chosen=collectOffer([],good,'agreement',true);
+ chosen=collectOffer(chosen,foreign,'agreement',true);
+ chosen=collectOffer(chosen,unknown,'agreement',true);
+ const totals=collectionTotals(chosen).byDestination.agreement;
+ assert.equal(totals.subtotal.KES,200000);
+ assert.equal(totals.subtotal.USD,1250);
+ assert.equal(totals.unpriced,1);
+ assert.match(cockpit,/Object.entries\(totals.byDestination.agreement.subtotal\)/);
+ assert.match(cockpit,/listed.length === 1 && unpriced === 0/);
+ assert.match(cockpit,/listed.map\(\(\[currency,minor\]\)=>/);
+ assert.match(cockpit,/Price to confirm/);
+ assert.match(cockpit,/onSelectionChange\(fn\)/);
+});
+
+test('buttons are lightweight and shopping operations are reachable without hover',()=>{
+ const card=read('src/components/ShopOfferCard.tsx');
+ const tool=read('src/features/living-workspace/CompactStoreBrowser.tsx');
+ assert.match(card,/data-store-item-primary-actions/);
+ assert.match(card,/cartQuantity\?'Add another':'Add to Cart'/);
+ assert.match(card,/In Cart ·/);
+ assert.match(card,/Ask KS001/);
+ assert.match(card,/quickEnabled && quickOpen/);
+ assert.doesNotMatch(card,/group-hover\/visual:block/);
+ assert.match(tool,/data-compact-store-actions/);
+ assert.match(tool,/In Cart · \{inCart.quantity\}/);
+ assert.match(tool,/onAddCart\(offer\)/);
+ assert.match(tool,/onDiscuss\(offer\)/);
+});
+
+test('live KS001 progress is concise in Store context but full review and errors remain accessible',()=>{
+ const progress=read('src/features/living-workspace/LiveWorkResultPanel.tsx');
+ assert.match(layout,/compactInStore=\{shoppingContext\}/);
+ assert.match(progress,/data-store-live-work-compact/);
+ assert.match(progress,/!formation\?\.reviewable/);
+ assert.match(progress,/state\?\.status!=='error'/);
+ assert.match(progress,/View work details/);
+ assert.match(progress,/onClick=\{\(\)=>setExpanded\(true\)\}/);
+ assert.match(progress,/data-live-formation/);
+ assert.match(layout,/data-store-agreements-progress/);
 });

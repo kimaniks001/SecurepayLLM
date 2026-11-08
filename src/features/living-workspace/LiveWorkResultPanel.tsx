@@ -30,7 +30,7 @@ function humanTitle(summary:string|null|undefined):string {
   const leading=summary.split(':')[0].trim();
   return (leading.length>=8 && leading.length<=72 ? leading : summary.slice(0,70)).trim();
 }
-export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, onCorrectFact, onAddToFact, onOpenPeople, examination, onReview, selectedSource, enquiryContext, onPrepareFairTradeDraft }: {
+export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, onCorrectFact, onAddToFact, onOpenPeople, examination, onReview, selectedSource, enquiryContext, onPrepareFairTradeDraft, compactInStore=false }: {
   state: FormationState | null;
   conversationId: string | null;
   busy: boolean;
@@ -45,6 +45,8 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, on
   selectedSource?: SelectedCommercialSourceDto | null;
   enquiryContext?: SelectedStoreEnquiryContextDto | null;
   onPrepareFairTradeDraft?: (draft:string)=>void;
+  /** In Store context show a small, truthful work status. Full review stays one tap away. */
+  compactInStore?: boolean;
 }) {
   const [expanded,setExpanded]=useState(false);
   const [customTitle,setCustomTitle]=useState('');
@@ -66,6 +68,22 @@ export function LiveWorkResultPanel({ state, conversationId, busy, onRefresh, on
   const hasContent = formation && (formation.what.length>0 || formation.who.length>0 || formation.money.length>0 ||
     formation.when.length>0 || formation.responsibilities.some(g=>g.duties.length>0) ||
     formation.conditions.length>0 || formation.notIncluded.length>0);
+  // Do not compete with KSCart when this work has not yet reached formal review.
+  // Actual errors and reviewable Agreements keep their full, authoritative view.
+  if(compactInStore && !formation?.reviewable && state?.status!=='error' && !expanded) {
+    return <section data-store-live-work-compact aria-label="KS001 discussion progress"
+      className="mb-3 rounded-xl border border-cream-200 bg-white p-3">
+      <div className="flex items-center justify-between gap-2">
+        <strong className="text-xs font-semibold text-forest-900">KS001 · Work progress</strong>
+        <span className="text-[0.7rem] text-sand-600">{formation?'In discussion':'Not yet agreed'}</span>
+      </div>
+      {formation?.summary && <p className="mt-1 line-clamp-2 text-xs leading-5 text-sand-700">{formation.summary}</p>}
+      <button type="button" onClick={()=>setExpanded(true)}
+        className="mt-1 min-h-10 rounded-lg px-2 text-xs font-medium text-forest-700 hover:bg-cream-50 focus-visible:outline-2 focus-visible:outline-forest-500">
+        View work details
+      </button>
+    </section>;
+  }
   return <section aria-label="Live forming Agreement" data-live-formation data-phase2-live-check className="space-y-5">
     <div className="sp-brand-work sticky top-0 z-20 flex items-start justify-between gap-3 bg-white pb-2">
       <div className="min-w-0 flex-1"><p className="sp-brand-kicker">SecurePay Check · My Work</p>
