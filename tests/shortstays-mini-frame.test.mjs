@@ -45,9 +45,9 @@ test('only click-sent visible draft can enter the guest composer; never auto-sen
 });
 
 test('financial and consent authority is never conferred through iframe',()=>{
-  assert.match(shell,/not a real AI connection/);
+  assert.match(shell,/not confirmation of a real AI connection/);
   assert.match(sdk,/No anonymous SecureLink creation/);
-  assert.match(sdk,/not signed, sent or funded/);
+  assert.match(sdk,/NOT signed, sent or funded/);
   assert.match(shell,/tools:\['ask','contract','securelink'\]/);
   assert.doesNotMatch(shell,/\/api\/v1\/payments|\/api\/v1\/rails/);
 });
