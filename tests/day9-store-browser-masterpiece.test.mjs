@@ -97,8 +97,10 @@ test('expanded Store cards expose direct Add to Cart and Ask KS001, using the sa
  assert.match(cards,/Ask KS001/);
  assert.match(cards,/onCollect\?\.\(offer,destination\)/);
  assert.match(cards,/onQuickKs001\?\.\(offer\)/);
- assert.match(quick,/Add to KS Cart/);
- assert.match(detail,/Add to KS Cart/);
+ assert.match(quick,/Add to Cart/);
+ assert.match(quick,/aria-label=\{'Add '\+offer.title\+' to KS Cart'\}/);
+ assert.match(detail,/Add to Cart/);
+ assert.match(detail,/aria-label=\{'Add '\+offer.title\+' to KS Cart'\}/);
  assert.match(real,/onSelectionChange\?\.\(next\)/);
  assert.match(real,/onStageSelections\)await onStageSelections\(question,'agreement'\)/);
  assert.match(demo,/onOpenKs001Preview\?\.\(question\)/);
