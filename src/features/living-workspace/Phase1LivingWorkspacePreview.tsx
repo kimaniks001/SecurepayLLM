@@ -333,7 +333,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
     community:'Explore ways to contribute.',
   };
   const previousScreen = useRef<Screen>('chat');
-  const [activeTool, setActiveTool] = useState<(typeof tools)[number]['name']>(isStoreLayoutReviewRoute()?'Stores':'Photos');
+  const [activeTool, setActiveTool] = useState<(typeof tools)[number]['name']>(()=>typeof window!=='undefined' && window.location.hostname.endsWith('.vercel.app') && /^#\/preview\/living-workspace\/store\/?$/.test(window.location.hash)?'Stores':'Photos');
   // This panel is a CHILD of the approved Living Workspace. Keep it mounted
   // when closed so a trader does not lose an unfinished offer draft by talking
   // to KS001. Signing out unmounts it and clears private Store state.
