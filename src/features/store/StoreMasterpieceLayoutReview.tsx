@@ -35,7 +35,7 @@ function itemCheck(offer:StoreOffer) {
   return ['What is the exact item, quantity and condition?','Is it currently available?','How will it be delivered or collected?'];
 }
 
-export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange,workspaceSelection,onOpenKs001Preview,externalNavigation}:{shopFocused?:boolean;onSelectionChange?:(items:SelectionItem[])=>void;workspaceSelection?:SelectionItem[];onOpenKs001Preview?:()=>void;externalNavigation?:StoreBrowserTarget|null}) {
+export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange,workspaceSelection,onOpenKs001Preview,externalNavigation}:{shopFocused?:boolean;onSelectionChange?:(items:SelectionItem[])=>void;workspaceSelection?:SelectionItem[];onOpenKs001Preview?:(message?:string)=>void;externalNavigation?:StoreBrowserTarget|null}) {
   const [page,setPage] = useState<Page>('shop');
   useEffect(()=>{
     if(!externalNavigation)return;
@@ -43,6 +43,8 @@ export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange
       setStoreId(externalNavigation.storeKs);setPage('store');
     }else if(externalNavigation.kind==='item' && externalNavigation.offerId){
       setOfferId(externalNavigation.offerId);setPage('offer');
+    }else if(externalNavigation.kind==='manage'){
+      setPage('manage');
     }else if(externalNavigation.kind==='marketplace'){
       setPage('shop');
     }
@@ -84,7 +86,7 @@ export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange
       selectionRef.current=next;setSelection(next);onSelectionChange?.(next);
       setSelectionDraft(selectionToKs001(next,'agreement'));
       setCollectionNotice('Your example KS001 discussion is open. No live message has been sent.');
-      onOpenKs001Preview?.();
+      onOpenKs001Preview?.(selectionToKs001(next,'agreement'));
     }catch(error){setCollectionNotice(error instanceof Error?error.message:'Could not prepare KS001 question.');}
   };
   const stage=(destination:StoreDestination)=>{
@@ -94,7 +96,7 @@ export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange
       setCollectionNotice(destination==='vision'
         ? 'Example Vision draft prepared here for review only. Nothing has been saved to Vision.'
         : 'Example agreement enquiry ready. You can discuss it in the guided KS001 preview.');
-      if(destination==='agreement')onOpenKs001Preview?.();
+      if(destination==='agreement')onOpenKs001Preview?.(proposal);
     }catch(error){setCollectionNotice(error instanceof Error?error.message:'Could not prepare that selection.');}
   };
   const visible = demoPublished(searchOffers(query));
