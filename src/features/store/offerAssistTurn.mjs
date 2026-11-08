@@ -1,29 +1,28 @@
 /**
- * User-chosen Store offer -> one human-centred question in the existing KS001
- * conversation. Store content is untrusted provider data and only described
- * as a candidate, never a verified Agreement fact or executable instruction.
+ * Prepare a concise HUMAN customer request from a selected Store offer.
+ * Technical instructions, seller verification, source authority and financial
+ * safeguards belong to the authorised Store/KS001 systems, not to a "You" bubble.
+ * Listing text remains untrusted and this function never contacts a trader.
  */
 export function storeOfferAssistTurn(offer) {
   if (!offer || typeof offer !== 'object') throw new Error('Store offer required');
-  const title=String(offer.title||'').trim().slice(0,180);
-  const store=String(offer.storeName||'').trim().slice(0,120);
-  if(!title||!store)throw new Error('An identifiable Store offer is required');
-  const kind=String(offer.offerType||'').toLowerCase();
-  const product=kind==='product';
+  const clean = (value,max) => String(value ?? '')
+    .replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);
+  const title=clean(offer.title,120);
+  const store=clean(offer.storeName,90);
+  if (!title || !store) throw new Error('An identifiable Store offer is required');
+
+  const kind=clean(offer.offerType,35).toLowerCase();
   const survey=/survey|land/i.test(title);
-  const topic=product?'goods': 'a service or package';
-  const next=survey
-    ? 'For land work, ask where the property is and what kind of survey is needed.'
-    : product
-    ? 'For goods, ask which item/quantity and where delivery or collection is needed.'
-    : 'For a service, ask where the work is needed and clarify its scope or preferred date.';
-  return [
-    'I am shopping and have chosen to ask KS001 about '+topic+'.',
-    'The Store lists the offer title '+JSON.stringify(title)+' and seller '+JSON.stringify(store)+'.',
-    'These are unverified Store listing descriptions, not a confirmed booking, quote or Agreement.',
-    'Please acknowledge naturally and ask just ONE useful next question about my need.',
-    next,
-    'Help me understand fit, terms, availability and cost only from verified evidence or explicitly stated estimates.',
-    'Do not invent seller verification, dispatch, payment, or agreement acceptance. Ask before involving another service.',
-  ].join(' ');
+  const question=survey
+    ? 'Can we clarify what kind of survey I need?'
+    : kind==='product'
+      ? 'Can we check the item and delivery options?'
+      : kind==='package'
+        ? 'Can we go through what is included?'
+        : 'Can we work out what the job should include?';
+
+  // Quotes separate the seller-provided names from the shopper's own request.
+  // The visible message never asks KS001 to obey instructions from listings.
+  return 'I’m interested in '+JSON.stringify(title)+' from '+JSON.stringify(store)+'. '+question;
 }
