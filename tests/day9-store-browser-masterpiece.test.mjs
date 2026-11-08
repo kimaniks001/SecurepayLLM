@@ -156,3 +156,15 @@ test('buttons are lightweight and shopping operations are reachable without hove
  assert.match(tool,/onAddCart\(offer\)/);
  assert.match(tool,/onDiscuss\(offer\)/);
 });
+
+test('live KS001 progress is concise in Store context but full review and errors remain accessible',()=>{
+ const progress=read('src/features/living-workspace/LiveWorkResultPanel.tsx');
+ assert.match(layout,/compactInStore=\{shoppingContext\}/);
+ assert.match(progress,/data-store-live-work-compact/);
+ assert.match(progress,/!formation\?\.reviewable/);
+ assert.match(progress,/state\?\.status!=='error'/);
+ assert.match(progress,/View work details/);
+ assert.match(progress,/onClick=\{\(\)=>setExpanded\(true\)\}/);
+ assert.match(progress,/data-live-formation/);
+ assert.match(layout,/data-store-agreements-progress/);
+});
