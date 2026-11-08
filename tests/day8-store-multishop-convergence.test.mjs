@@ -117,9 +117,10 @@ test('example shop, full item and live individual shops keep SAME basket and ass
  assert.match(example,/onCollect=\{collect\}/);
  assert.match(example,/onQuickKs001=\{quickAsk\}/);
  assert.match(example,/const basketPane=<StoreCollectionPanel/);
- assert.match(example,/setSelectionDraft\(selectionToKs001\(next,'agreement'\)\)/);
- assert.match(real,/const question=selectionToKs001\(next,'agreement'\)/);
- assert.match(real,/const existing=selectionRef\.current\.find/);
+ assert.match(example,/const question=storeOfferAssistTurn\(offer\)/);
+ assert.match(example,/onOpenKs001Preview\?\.\(question\)/);
+ assert.match(real,/const question=storeOfferAssistTurn\(offer\)/);
+ assert.doesNotMatch(real.slice(real.indexOf('const quickAsk='),real.indexOf('const stageCollection=')),/collectOffer\(/);
 });
 
 test('example content stays generic: a shoe is not a new Store, real provider or required domain category',()=>{
