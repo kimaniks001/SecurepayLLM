@@ -120,7 +120,7 @@ test('example shop, full item and live individual shops keep SAME basket and ass
  assert.match(example,/onQuickKs001=\{quickAsk\}/);
  assert.match(example,/const basketPane=<StoreCollectionPanel/);
  assert.match(example,/const question=storeOfferAssistTurn\(offer\)/);
- assert.match(example,/onOpenKs001Preview\?\.\(question\)/);
+ assert.match(example,/onOpenKs001Preview\?\.\(question,\{kind:'offer'/);
  assert.match(real,/const question=storeOfferAssistTurn\(offer\)/);
  assert.doesNotMatch(real.slice(real.indexOf('const quickAsk='),real.indexOf('const stageCollection=')),/collectOffer\(/);
 });
