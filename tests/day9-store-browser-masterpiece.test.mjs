@@ -8,6 +8,7 @@ const tool=read('src/features/living-workspace/CompactStoreBrowser.tsx');
 const vision=read('src/features/living-workspace/StoreVisionSavePanel.tsx');
 const real=read('src/features/store/StoreExperience.tsx');
 const demo=read('src/features/store/StoreMasterpieceLayoutReview.tsx');
+const cockpit=read('src/features/living-workspace/StoreCartCockpit.tsx');
 const good={id:'a',storeId:'KS001A',storeName:'Store A',title:'Ordinary item',offerType:'product',priceType:'fixed',price:'KES 2,000',currency:'KES',lifecycle:'published',description:'ordinary product'};
 const service={id:'b',storeId:'KS001B',storeName:'Store B',title:'Work service',offerType:'service',priceType:'fixed',price:'KES 5,000',currency:'KES',lifecycle:'published',description:'service'};
 test('opening the Stores TOOL only selects a left tool; explicit View opens the middle',()=>{
@@ -29,7 +30,8 @@ test('KS001 middle is preserved, expanded Store is NOT fixed modal overlay',()=>
  assert.match(store,/sp-brand-conversation/);
  assert.doesNotMatch(store,/fixed inset-0|z-\[75\]|shadow-2xl/);
  assert.match(layout,/Back to KS001/);
- assert.match(layout,/data-store-selection-parent-summary/);
+ assert.match(layout,/<StoreCartCockpit/);
+ assert.match(cockpit,/data-store-selection-parent-summary/);
 });
 test('mini Store exposes independent browsing, search, Store switching, cart, item view and KS001',()=>{
  for(const pattern of [/role="search"/,/onPhotoSearch/,/aria-label="Stores with published offers"/,/data-compact-store-selected/,/onExpand\(\{kind:'store'/,/view\('item',offer\)/,/onAddCart\(offer\)/,/onSaveVision\(offer\)/,/onDiscuss\(offer\)/,/onDiscussCart\(\)/,/data-compact-store-cart/])
