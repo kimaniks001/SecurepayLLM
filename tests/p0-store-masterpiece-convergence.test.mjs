@@ -37,7 +37,7 @@ test('P0: authenticated Store is mounted inside the ONE actual Living Workspace 
 test('P0: preview Store has an explicit route, reused Store component, labelled examples and NO fake backend', () => {
   assert.match(runtime, /(?:work\|vision\|circle\|community\|store)/);
   assert.match(living, /isStoreLayoutReviewRoute/);
-  assert.match(living, /#\/preview\/living-workspace\/store/);
+  assert.match(living, /setStoreReviewRoute\(reviewing\)/);
   assert.match(living, /<StoreMasterpieceLayoutReview/);
   assert.match(living, /!signedIn \|\| !storeIntegration/);
   assert.match(review, /<StoreHome/);
