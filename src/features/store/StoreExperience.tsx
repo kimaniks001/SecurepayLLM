@@ -35,6 +35,7 @@ import { holdFirstStoreOffer, consumeFirstStoreOffer } from '../experience/entry
 import { StoreConnectionsHome } from './StoreConnectionsHome';
 import { StoreCustomerConnections, emptyStoreCustomerDraft, type StoreCustomerDraft } from './StoreCustomerConnections';
 import { StoreEnquiryInbox } from './StoreEnquiryInbox';
+import type { StoreBrowserTarget } from '../living-workspace/CompactStoreBrowser';
 
 type Gateway = Pick<StoreGateway, 'search' | 'store' | 'offer' | 'myProfile' | 'myOffers' | 'createOffer' | 'updateOffer' | 'confirmAvailability' | 'businessProfile' | 'businessOffers' | 'businessOpportunities' | 'createBusinessOffer' | 'updateBusinessOffer' | 'confirmBusinessOfferAvailability' | 'updateMyProfile' | 'updateBusinessProfile' | 'myDigitalAddress' | 'businessDigitalAddress' | 'saveMyDigitalAddress' | 'saveBusinessDigitalAddress' | 'publicDigitalAddress' | 'publicDigitalAddressForKs'
   | 'myFavourites' | 'saveFavourite' | 'removeFavourite' | 'createStoreEnquiry'
@@ -60,7 +61,7 @@ function LoadingNotice({ text }: { text: string }) {
  * Agreement/Trade authority is created here — only `onUseOffer` (a local view switch plus, on explicit
  * proceed, a call into the caller's Agent controller) ever leaves this feature.
  */
-export function StoreExperience({ gateway, businessGateway, marketNetworkGateway, fulfilmentNeedsGateway, auth, session, initialOfferRoute, returnContext, trustedMediaOrigin, onUseOffer, onResumeSavedWork, onNavigate, onOpenBusinessVision, onAskKs001, onStageSelections, onSelectionChange, workspaceSelection, shoppingWide = false, embedded = false }: {
+export function StoreExperience({ gateway, businessGateway, marketNetworkGateway, fulfilmentNeedsGateway, auth, session, initialOfferRoute, returnContext, trustedMediaOrigin, onUseOffer, onResumeSavedWork, onNavigate, onOpenBusinessVision, onAskKs001, onStageSelections, onSelectionChange, workspaceSelection, externalNavigation, shoppingWide = false, embedded = false }: {
   gateway: Gateway; businessGateway: Pick<BusinessGateway, 'mine' | 'representation'>; marketNetworkGateway: Pick<MarketNetworkGateway, 'plugAvailability' | 'updatePlugAvailability' | 'plugMissions'>; fulfilmentNeedsGateway?: Pick<FulfilmentNeedsGateway, 'matches' | 'routes' | 'miniAgreementReview'>; auth: AuthGateway; session: SessionStore;
   initialOfferRoute?: { canonicalKsNumber: string; offerId: string } | null;
   returnContext?: { label: string; onReturn: () => void } | null;
@@ -75,6 +76,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
   onSelectionChange?: (items: SelectionItem[]) => void;
   /** Parent editing in SecurePay Check updates the same live Store collection. */
   workspaceSelection?: SelectionItem[];
+  externalNavigation?: StoreBrowserTarget|null;
   shoppingWide?: boolean;
   /** Signed-in Store is a CHILD of the approved Living Workspace; public routes remain standalone. */
   embedded?: boolean;
@@ -137,15 +139,13 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
     if(collectionBusy)return;
     setCollectionBusy(true);setCollectionNotice('');
     try{
-      // Asking about an already selected item must not silently add another unit.
-      const existing=selectionRef.current.find(item=>item.offerId===offer.id && item.sellerKsNumber===offer.storeId && item.destination==='agreement');
-      const next=existing ? selectionRef.current : collectOffer(selectionRef.current,offer,'agreement',false);
-      selectionRef.current=next;setSelection(next);onSelectionChange?.(next);
-      const question=selectionToKs001(next,'agreement');
+      // Discussing a single offer is different from Add to KS Cart. The
+      // customer's selected quantities and other traders remain unchanged.
+      const question=storeOfferAssistTurn(offer);
       if(onStageSelections)await onStageSelections(question,'agreement');
       else if(onAskKs001)onAskKs001(question);
       else throw new Error('Sign in to the full SecurePay KS001 workspace to continue. Your item remains selected.');
-      setCollectionNotice('This offer is ready in the KS001 composer for your review. Nothing was automatically sent or agreed.');
+      setCollectionNotice('Offer details prepared for KS001 review. Your Cart has not changed and nothing was sent.');
     }catch(error){setCollectionNotice(error instanceof Error?error.message:'Could not prepare KS001. Your selection is still here.');}
     finally{setCollectionBusy(false);}
   };
@@ -230,6 +230,22 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
     // Runs once on mount only — controller/initialOfferRoute are stable for this component's lifetime.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // A compact left Store tool opens details in this SAME controller only when
+  // View Store / View Item is explicitly chosen. Cart remains parent-owned.
+  useEffect(()=>{
+    if(!externalNavigation)return;
+    if(externalNavigation.kind==='store'&&externalNavigation.storeKs)
+      void controller.openStore(externalNavigation.storeKs);
+    else if(externalNavigation.kind==='item'&&externalNavigation.storeKs&&externalNavigation.offerId){
+      offerOriginRef.current='seller';
+      setShowFullOffer(false);
+      void controller.openOffer(externalNavigation.storeKs,externalNavigation.offerId);
+    }else if(externalNavigation.kind==='marketplace')void controller.enter().then(()=>controller.backToHome());
+    else if(externalNavigation.kind==='manage')void controller.enterManagement();
+    // Distinct requests can revisit the same Store without losing the global cart.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[externalNavigation?.requestId]);
 
   // A customer may follow several merchant links in the same tab. Re-read each
   // address; never carry one seller's pin or identity into another Store.

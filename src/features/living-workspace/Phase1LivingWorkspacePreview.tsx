@@ -35,9 +35,12 @@ import { PeopleInvitationsTool } from './PeopleInvitationsTool';
 import { StoresTool } from './StoresTool';
 import { StoreExperience } from '../store/StoreExperience';
 import { StoreMasterpieceLayoutReview } from '../store/StoreMasterpieceLayoutReview';
-import { StoreKs001GuidedPreview } from './StoreKs001GuidedPreview';
+import { CompactStoreBrowser, initialStoreBrowserState, type StoreBrowserState, type StoreBrowserTarget } from './CompactStoreBrowser';
+import { StoreVisionSavePanel } from './StoreVisionSavePanel';
+import { storeOfferAssistTurn } from '../store/offerAssistTurn.mjs';
+import type { StoreOffer } from '../../types';
 import type { SelectionItem } from '../store/shopSelection.mjs';
-import { collectionTotals, formatListedMoney, updateSelectedQuantity, updateSelectedBuyerNote, removeSelected } from '../store/shopSelection.mjs';
+import { collectOffer, collectionTotals, formatListedMoney, updateSelectedQuantity, updateSelectedBuyerNote, removeSelected, selectionToKs001 } from '../store/shopSelection.mjs';
 import type { OfferFact } from '../agent/controller';
 import type { LocalStoreBuyingPlan } from './StoreBuyingPlan';
 import { UnifiedMoneyTool } from './UnifiedMoneyTool';
@@ -318,9 +321,9 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
   // Shelf presentation is remembered while this workspace stays mounted; no browser
   // storage is used for private preferences, tokens, identity or Agreement work.
   const [shelfPinned,setShelfPinned] = useState(false);
-  const [toolsOpen, setToolsOpen] = useState(shelfPinned);
+  const [toolsOpen, setToolsOpen] = useState(shelfPinned || (typeof window!=='undefined' && window.location.hostname.endsWith('.vercel.app') && /^#\/preview\/living-workspace\/store\/?$/.test(window.location.hash)));
   const contextTools = tools.filter(tool => mode==='work' || (mode==='vision'
-    ? ['Photos','Documents','Places'].includes(tool.name)
+    ? ['Photos','Documents','Places','Stores'].includes(tool.name)
     : mode==='circle' ? ['Photos','Documents','Places'].includes(tool.name)
     : ['Photos','Documents','Places','Stores'].includes(tool.name)));
   const contextHint: Record<Mode,string> = {
@@ -330,7 +333,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
     community:'Explore ways to contribute.',
   };
   const previousScreen = useRef<Screen>('chat');
-  const [activeTool, setActiveTool] = useState<(typeof tools)[number]['name']>('Photos');
+  const [activeTool, setActiveTool] = useState<(typeof tools)[number]['name']>(()=>typeof window!=='undefined' && window.location.hostname.endsWith('.vercel.app') && /^#\/preview\/living-workspace\/store\/?$/.test(window.location.hash)?'Stores':'Photos');
   // This panel is a CHILD of the approved Living Workspace. Keep it mounted
   // when closed so a trader does not lose an unfinished offer draft by talking
   // to KS001. Signing out unmounts it and clears private Store state.
@@ -341,13 +344,18 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
     && window.location.hostname.endsWith('.vercel.app')
     && /^#\/preview\/living-workspace\/store\/?$/.test(window.location.hash);
   const [storeReviewRoute, setStoreReviewRoute] = useState(isStoreLayoutReviewRoute);
-  const initialStoreOpen = () => isStoreLayoutReviewRoute() ||
+  const initialStoreOpen = () =>
     (typeof window !== 'undefined'
       && (/^#\/store\/?$/.test(window.location.hash) ||
         /^#\/store\/enquiry\/[0-9a-f-]{36}\/(?:buyer|trader)$/.test(window.location.hash))
       && session.getSnapshot().status === 'signed-in');
   const [storeOpen, setStoreOpen] = useState(initialStoreOpen);
   const [storeSelected,setStoreSelected]=useState<SelectionItem[]>([]);
+  const [storeBrowser,setStoreBrowser]=useState<StoreBrowserState>(initialStoreBrowserState);
+  const [storeNavigation,setStoreNavigation]=useState<StoreBrowserTarget|null>(null);
+  const storeNavigationSequence=useRef(0);
+  const [visionStoreOffer,setVisionStoreOffer]=useState<StoreOffer|null>(null);
+  const [previewVisionSources,setPreviewVisionSources]=useState<Array<{vision:string;offerId:string;title:string;storeName:string}>>([]);
   const storeSelectedTotals=collectionTotals(storeSelected);
   const previousStoreOwnerSignedIn=useRef(signedIn);
   useEffect(()=>{
@@ -356,11 +364,11 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
   },[signedIn]);
   // Shop in focus by default; the original three-panel shell stays mounted underneath.
   // The customer can switch to the compact workspace view without losing a draft.
-  const [storeFocus, setStoreFocus] = useState(true);
+  const [storeFocus, setStoreFocus] = useState(false);
   // During shopping KS001 stays mounted but is visually tucked away until asked for.
   // This is a view choice only, never a second conversation or identity.
   const [storeAssistantOpen, setStoreAssistantOpen] = useState(false);
-  const [storeEverOpened, setStoreEverOpened] = useState(initialStoreOpen);
+  const [storeEverOpened, setStoreEverOpened] = useState(initialStoreOpen() || isStoreLayoutReviewRoute());
   const [storeHandoffBusy, setStoreHandoffBusy] = useState(false);
   const [storeHandoffError, setStoreHandoffError] = useState<string | null>(null);
   const storeTransitionLock = useRef(false);
@@ -378,8 +386,11 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
     const onHash = () => {
       const reviewing = isStoreLayoutReviewRoute();
       setStoreReviewRoute(reviewing);
-      if (reviewing || (signedIn && (/^#\/store\/?$/.test(window.location.hash) ||
-          /^#\/store\/enquiry\/[0-9a-f-]{36}\/(?:buyer|trader)$/.test(window.location.hash)))) {
+      if (reviewing) {
+        setStoreOpen(false);setStoreEverOpened(true);setToolsOpen(true);setActiveTool('Stores');setToolSelected(true);return;
+      }
+      if (signedIn && (/^#\/store\/?$/.test(window.location.hash) ||
+          /^#\/store\/enquiry\/[0-9a-f-]{36}\/(?:buyer|trader)$/.test(window.location.hash))) {
         setStoreOpen(true);setStoreEverOpened(true);return;
       }
       if (!signedIn) {
@@ -390,7 +401,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
     window.addEventListener('hashchange',onHash);
     return () => window.removeEventListener('hashchange',onHash);
   }, [signedIn]);
-  const [toolSelected, setToolSelected] = useState(false);
+  const [toolSelected, setToolSelected] = useState(isStoreLayoutReviewRoute);
   const persona = KS001_WORKSPACE_PERSONAS[mode];
   const [quickAssistCollection, setQuickAssistCollection] = useState<QuickAssistId[]>(['stays', 'ride']);
   const [quickAssistSeed, setQuickAssistSeed] = useState('');
@@ -406,23 +417,9 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
     // P0 masterpiece convergence: the REAL Store is an in-workspace tool.
     // Merely opening it never switches or replaces the KS001 controller and
     // never discards unsent chat, attachments or the right Agreement panel.
-    if (name === 'Stores' && !request && !signedIn &&
-        typeof window !== 'undefined' && window.location.hostname.endsWith('.vercel.app')) {
-      // Show the ACTUAL parent layout with the reused StoreHome inside it.
-      // No private account, fake publication or production-backed writes.
-      storeReturnScreen.current = screen;
-      setStoreReviewRoute(true);setStoreEverOpened(true);setStoreOpen(true);
-      setStoreHandoffError(null);setToolsOpen(false);setToolSelected(false);
-      window.location.hash = '#/preview/living-workspace/store';
-      return;
-    }
-    if (name === 'Stores' && !request && signedIn && storeIntegration) {
-      if (!mayLeaveDream()) return;
-      storeReturnScreen.current = screen;
-      setStoreEverOpened(true);setStoreOpen(true);setStoreHandoffError(null);
-      setToolsOpen(false);setToolSelected(false);
-      return;
-    }
+    // The Store is a genuine left tool. Opening it must NEVER expand over
+    // the middle KS001 chat or automatically change the existing work.
+    // View Store / View Item explicitly controls the middle display.
     setPhase4Journey(null);
     if (name === 'Quick Assist') setQuickAssistSeed(request);
     if (name === 'Stores') { setStoreServiceQuery('');setStoreQuickAssistNeed(''); }
@@ -706,6 +703,52 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
     }
   };
 
+  /** Explicit View Store/Item is the ONLY compact-tool action that swaps the
+   * middle display. The KS001 session remains mounted and unchanged underneath. */
+  const expandCompactStore=(target:Omit<StoreBrowserTarget,'requestId'>)=>{
+    storeNavigationSequence.current+=1;
+    setStoreNavigation({...target,requestId:storeNavigationSequence.current});
+    setStoreFocus(false);
+    setStoreReviewRoute(uiOnlyPreview||!signedIn);
+    setStoreEverOpened(true);
+    setStoreOpen(true);
+    setStoreHandoffError(null);
+    setScreen('chat');
+    if(typeof window!=='undefined' && window.matchMedia('(max-width: 1279px)').matches){
+      // Mobile: tool sheet yields to middle display. Shared browser/cart state
+      // survives and is available when the person reopens Stores.
+      setToolsOpen(false);setToolSelected(false);
+    }
+  };
+  const discussCompactStoreOffer=async(offer:StoreOffer)=>{
+    const message=storeOfferAssistTurn(offer);
+    try{
+      if(uiOnlyPreview || !signedIn){
+        addPreviewNote(message);
+      }else{
+        await prepareEmbeddedStoreQuestion(message);
+      }
+      closeTool();
+      setScreen('chat');
+    }catch(error){
+      setReturnError(error instanceof Error?error.message:'Could not prepare the Store item in KS001.');
+    }
+  };
+  const discussCompactStoreCart=async()=>{
+    const message=selectionToKs001(storeSelected,'agreement');
+    try{
+      if(uiOnlyPreview || !signedIn){
+        addPreviewNote(message);
+      }else{
+        await prepareEmbeddedStoreQuestion(message);
+      }
+      closeTool();
+      setScreen('chat');
+    }catch(error){
+      setReturnError(error instanceof Error?error.message:'Could not prepare the cart in KS001.');
+    }
+  };
+
   const closeIdentity=()=>{
     setSignInOpen(false);
     // A direct identity deep-link returns to the same masterpiece, not the retired homepage.
@@ -874,7 +917,27 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
                       if(liveController.getSnapshot().error||liveController.getSnapshot().pending)throw new Error('Unconfirmed turn');
                       closeTool();
                     }}/>
-                : activeTool==='Stores'?<StoresTool
+                : activeTool==='Stores'?<>
+                  <CompactStoreBrowser
+                    browser={storeBrowser} onBrowserChange={setStoreBrowser}
+                    gateway={storeIntegration?.gateway || workspaceGateways?.stores}
+                    trustedMediaOrigin={storeIntegration?.trustedMediaOrigin || null}
+                    example={uiOnlyPreview || !signedIn}
+                    selection={storeSelected}
+                    onAddCart={offer=>{
+                      const next=collectOffer(storeSelected,offer,'agreement',uiOnlyPreview||!signedIn);
+                      setStoreSelected(next);
+                    }}
+                    onSaveVision={setVisionStoreOffer}
+                    onDiscuss={offer=>{void discussCompactStoreOffer(offer);}}
+                    onDiscussCart={discussCompactStoreCart}
+                    onExpand={expandCompactStore}
+                    onPhotoSearch={()=>openTool('Photos')}
+                    onManage={()=>expandCompactStore({kind:'manage'})}
+                  />
+                  <details className="mt-4 rounded-lg border border-cream-200 p-2" data-existing-store-tools-preserved>
+                    <summary className="min-h-10 cursor-pointer text-xs font-medium text-forest-700">More Store operations · Sell, enquiries and community</summary>
+                    <div className="mt-2"><StoresTool
                     key={phase4Journey || storeServiceQuery || 'general-store'} initialServiceQuery={storeServiceQuery || undefined} initialQuickAssistNeed={storeQuickAssistNeed || undefined}
                     initialAssistance={phase4Journey==='plug'||phase4Journey==='master'?phase4Journey:null}
                     onLocalProposal={uiOnlyPreview&&mode==='work'?text=>{addPreviewNote(text);closeTool();}:undefined}
@@ -891,7 +954,9 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
                       await liveController.send(message);
                       if(liveController.getSnapshot().error||liveController.getSnapshot().pending)throw new Error('Unconfirmed turn');
                       closeTool();
-                    }}/>
+                    }}/></div>
+                  </details>
+                </>
                 : activeTool==='Money'?<UnifiedMoneyTool
                     gateways={workspaceGateways} signedIn={signedIn&&!mockSignedIn} context={mode==='vision'?'vision':'work'}
                     onOpenMoney={()=>{storeWorkspaceMoneyReturn(liveConversationId);closeTool();window.location.hash='#/money';}}
@@ -991,13 +1056,9 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
         </aside>
       </>}
       {returnError&&<p role="alert" className="mx-4 mt-2 rounded-xl bg-amber-50 p-3 text-sm">{returnError}</p>}
-      <section aria-label="KS001 conversation" aria-hidden={storeOpen&&!storeAssistantOpen}
-        data-store-ks001-compact-assist={storeOpen ? (storeAssistantOpen?'open':'closed') : undefined}
-        className={`${storeOpen
-          ? (storeAssistantOpen
-              ? 'fixed inset-x-3 bottom-3 top-3 z-[90] flex shadow-2xl sm:inset-x-auto sm:left-5 sm:w-[390px] md:bottom-4 md:left-24 md:top-[100px]'
-              : 'hidden')
-          : (screen==='chat'||toolsOpen?'flex md:flex':'hidden md:flex')} sp-brand-conversation min-w-0 ${storeOpen?'min-h-0':'min-h-[70dvh] flex-1 md:min-h-0'} flex-col overflow-hidden rounded-2xl border border-cream-200 bg-white`}>
+      <section aria-label="KS001 conversation" aria-hidden={storeOpen}
+        data-store-ks001-original-conversation
+        className={`${storeOpen?'hidden':(screen==='chat'||toolsOpen?'flex md:flex':'hidden md:flex')} sp-brand-conversation min-w-0 min-h-[70dvh] flex-1 flex-col overflow-hidden rounded-2xl border border-cream-200 bg-white md:min-h-0`}>
 
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cream-100 p-4"><div><p className="text-xs text-sand-600">{storeOpen?'Your shopping assistant':areaLabels[mode]+' · '+persona.label}</p><strong className="sp-type-display text-xl">KS001</strong></div><div className="flex flex-wrap gap-2">
           {storeOpen && <button type="button" onClick={()=>setStoreAssistantOpen(false)}
@@ -1056,10 +1117,8 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
             <button type="button" onClick={()=>{setCreatedAgreementId(null);setDraftReviewOpen(false);setScreen('result');}}
               className="min-h-11 rounded-xl border border-forest-300 px-4 text-sm font-semibold text-forest-800">Open My Agreements</button>
           </section>}
-        {uiOnlyPreview && mode==='work' && (storeOpen && storeReviewRoute
-          ? <StoreKs001GuidedPreview items={storeSelected}/>
-          : <PreviewWorkComposer notes={activePreviewNotes} exampleId={phase2ExampleId} onAdd={addPreviewNote} onOpenTools={openToolPicker}
-              onSelectExample={id=>setPhase2ExampleId(id)}/>)}
+        {uiOnlyPreview && mode==='work' && <PreviewWorkComposer notes={activePreviewNotes} exampleId={phase2ExampleId} onAdd={addPreviewNote} onOpenTools={openToolPicker}
+              onSelectExample={id=>setPhase2ExampleId(id)}/>} 
         {mode==='community' && (!signedIn || workspaceGateways) && <div data-phase6-community-main
           className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5">
           <InlineCommunityHub gateways={workspaceGateways} session={session}
@@ -1097,29 +1156,14 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
         data-masterpiece-digital-store
         aria-label="Digital Stores inside Living Workspace"
         aria-hidden={!storeOpen}
-        className={`${storeOpen?'flex':'hidden'} min-h-0 min-w-0 flex-col overflow-hidden bg-white ${storeFocus ? 'fixed inset-0 z-[60] md:fixed md:inset-x-5 md:top-[96px] md:bottom-4 md:z-[75] md:w-auto md:max-w-none md:rounded-2xl md:border md:border-cream-200 md:shadow-2xl' : 'fixed inset-0 z-[60] md:static md:inset-auto md:z-auto md:flex-1 md:rounded-2xl md:border md:border-cream-200 md:shadow-sm'}`}>
+        className={`${storeOpen?'flex':'hidden'} sp-brand-conversation min-h-[70dvh] min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-cream-200 bg-white shadow-sm md:min-h-0`}>
         <header className="flex shrink-0 items-center justify-between gap-2 border-b border-cream-200 bg-white px-3 py-2 sm:px-4">
           <div className="min-w-0"><p className="text-[0.65rem] font-semibold uppercase tracking-widest text-sand-500">Digital Store · Shop & Sell</p>
             <strong className="sp-type-display text-base text-forest-900">Digital Stores</strong></div>
           <div className="flex flex-wrap items-center gap-1.5">
-            <button type="button" data-store-shopping-focus-toggle onClick={()=>setStoreFocus(value=>!value)}
-              className="hidden min-h-11 items-center gap-1.5 rounded-xl border border-forest-200 bg-forest-50 px-3 text-xs font-semibold text-forest-800 md:inline-flex">
-              {storeFocus ? <><Minimize2 size={14}/> Workspace view</> : <><Maximize2 size={14}/> Full shop</>}
-            </button>
-            <button type="button" onClick={()=>setStoreAssistantOpen(open=>!open)}
-              disabled={storeHandoffBusy} aria-expanded={storeAssistantOpen} data-store-ks001-trigger
-              className="min-h-11 rounded-xl border border-forest-200 bg-white px-3 text-xs font-semibold text-forest-800 disabled:opacity-50">
-              {storeAssistantOpen?'Hide KS001':'Ask KS001'}
-            </button>
-            <button type="button" onClick={()=>{chooseMode('vision');closeEmbeddedStore('chat');}}
-              disabled={storeHandoffBusy}
-              className="min-h-11 rounded-xl border border-cream-200 bg-white px-3 text-xs text-forest-800 disabled:opacity-50">
-              Vision
-            </button>
-            <button type="button" onClick={()=>closeEmbeddedStore('result')}
-              disabled={storeHandoffBusy}
-              className="min-h-11 rounded-xl border border-cream-200 bg-white px-3 text-xs text-forest-800 disabled:opacity-50">
-              Agreement
+            <button type="button" onClick={()=>closeEmbeddedStore('chat')}
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-forest-200 bg-forest-50 px-3 text-xs font-semibold text-forest-800">
+              <ArrowLeft size={15}/> Back to KS001
             </button>
             <button type="button" aria-label="Close Digital Stores and return to my work"
               disabled={storeHandoffBusy} onClick={()=>closeEmbeddedStore()}
@@ -1130,23 +1174,28 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
         </header>
         {storeHandoffBusy && <p role="status" className="shrink-0 bg-cream-50 px-4 py-2 text-xs text-forest-800">Verifying your Store source with KS001. No Agreement has been accepted.</p>}
         {storeHandoffError && <p role="alert" className="shrink-0 border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-900">{storeHandoffError}</p>}
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden" data-store-feature-preservation>
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden" data-store-feature-preservation data-store-expanded-middle>
           {storeReviewRoute && (!signedIn || !storeIntegration)
-            ? <StoreMasterpieceLayoutReview shopFocused={storeFocus} onSelectionChange={setStoreSelected} workspaceSelection={storeSelected} onOpenKs001Preview={()=>setStoreAssistantOpen(true)} />
-            : storeIntegration && <StoreExperience {...storeIntegration} embedded session={session} shoppingWide={storeFocus} onSelectionChange={setStoreSelected} workspaceSelection={storeSelected}
+            ? <StoreMasterpieceLayoutReview shopFocused={false} externalNavigation={storeNavigation} onSelectionChange={setStoreSelected} workspaceSelection={storeSelected}
+                onOpenKs001Preview={message=>{
+                  if(message)addPreviewNote(message);
+                  else addPreviewNote('Help me understand this Store choice before I proceed.');
+                  closeEmbeddedStore('chat');
+                }} />
+            : storeIntegration && <StoreExperience {...storeIntegration} embedded session={session} shoppingWide={false} externalNavigation={storeNavigation} onSelectionChange={setStoreSelected} workspaceSelection={storeSelected}
             initialOfferRoute={initialEmbeddedStoreOffer}
             onUseOffer={fact=>{void continueEmbeddedOffer(fact);}}
             onResumeSavedWork={conversationId=>{void resumeEmbeddedStoreWork(conversationId);}}
-            onAskKs001={message=>{void prepareEmbeddedStoreQuestion(message,true)
-              .then(()=>setStoreAssistantOpen(true))
+            onAskKs001={message=>{void prepareEmbeddedStoreQuestion(message)
+              .then(()=>closeEmbeddedStore('chat'))
               .catch(error=>{
                 setStoreHandoffError(error instanceof Error?error.message:'KS001 could not prepare that question.');
               });}}
             onStageSelections={async (text,destination)=>{
               if(destination==='vision')await stageStoreVision(text);
               else {
-                await prepareEmbeddedStoreQuestion(text,true);
-                setStoreAssistantOpen(true);
+                await prepareEmbeddedStoreQuestion(text);
+                closeEmbeddedStore('chat');
               }
             }}
             onNavigate={view=>{void leaveEmbeddedStoreFor(view);}}
@@ -1160,6 +1209,11 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
       </section>}
       <aside aria-label="Living result" className={`${screen==='result'?'flex':'hidden'} sp-brand-result w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-cream-200 bg-white md:flex ${storeOpen?'md:w-[32%] lg:max-w-[440px]':'md:w-[35%] lg:max-w-[460px]'}`}>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5">
+        {previewVisionSources.length>0 && uiOnlyPreview && (mode==='work'||mode==='vision') && <section
+          data-store-preview-vision-sources className="mb-3 rounded-xl border border-forest-100 bg-cream-50 p-3">
+          <p className="text-xs font-semibold text-forest-900">Vision · Preview sources</p>
+          {previewVisionSources.map((saved,index)=><p key={index} className="mt-1 text-xs text-sand-700">{saved.vision}: {saved.title} from {saved.storeName} · Example only, not saved to SecurePay.</p>)}
+        </section>}
         {storeSelected.length>0 && (mode==='work'||mode==='vision') && <section
           data-store-selection-parent-summary
           aria-label="Selected Digital Store items for review"
@@ -1351,6 +1405,14 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
     </div>}
     {!workingCircleId && <nav aria-label="Mobile workspace panels" className="sticky bottom-0 flex justify-around gap-2 border-t border-cream-200 bg-white p-2 md:hidden">{([['chat','Chat',MessageCircle],['result',mode==='work'?'Agreement':mode==='community'?'Community Check':'About '+areaLabels[mode],Lightbulb],['tools','Tools',Plus]] as const).map(([id,label,Icon])=><button key={id} onClick={()=>id==='tools'?openToolPicker():(id==='result'&&setShowSavedWork(false),setScreen(id))} className={`flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-2 text-xs ${screen===id?'bg-forest-800 text-white':'bg-cream-100'}`}><Icon size={16}/>{label}</button>)}</nav>}
     {!uiOnlyPreview && <p className="px-5 pb-4 text-center text-xs text-sand-600">Agreements, invitations and Money require your review and authorisation.</p>}
+    {visionStoreOffer && <StoreVisionSavePanel
+      key={visionStoreOffer.storeId+':'+visionStoreOffer.id}
+      offer={visionStoreOffer} example={uiOnlyPreview || !signedIn}
+      api={signedIn && workspaceGateways ? {dreams:workspaceGateways.dreams,agent:workspaceGateways.agent} : undefined}
+      onClose={()=>setVisionStoreOffer(null)}
+      onPreviewSaved={(vision,offer)=>setPreviewVisionSources(current=>[
+        ...current,{vision,offerId:offer.id,title:offer.title,storeName:offer.storeName}
+      ])}/>}
     {signInOpen && !workspaceGateways && <div role="dialog" aria-modal="true"
       aria-label="SecurePay identity unavailable" data-gate-d-identity-not-connected
       className="fixed inset-0 z-[100] flex items-center justify-center bg-forest-950/50 p-3">

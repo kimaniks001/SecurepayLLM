@@ -7,6 +7,8 @@ import { StoreCollectionPanel } from '../../components/StoreCollectionPanel';
 import type { SelectionItem, StoreDestination } from './shopSelection.mjs';
 import { collectOffer, removeSelected, updateSelectedQuantity, updateSelectedBuyerNote, selectionToKs001 } from './shopSelection.mjs';
 import { demoStores, getOfferById, getOffersByStore, getStoreById, searchOffers } from '../../storeData';
+import type { StoreBrowserTarget } from '../living-workspace/CompactStoreBrowser';
+import { storeOfferAssistTurn } from './offerAssistTurn.mjs';
 
 /**
  * An actual, interactive SHOPFRONT review of the SAME StoreHome component used
@@ -34,8 +36,20 @@ function itemCheck(offer:StoreOffer) {
   return ['What is the exact item, quantity and condition?','Is it currently available?','How will it be delivered or collected?'];
 }
 
-export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange,workspaceSelection,onOpenKs001Preview}:{shopFocused?:boolean;onSelectionChange?:(items:SelectionItem[])=>void;workspaceSelection?:SelectionItem[];onOpenKs001Preview?:()=>void}) {
+export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange,workspaceSelection,onOpenKs001Preview,externalNavigation}:{shopFocused?:boolean;onSelectionChange?:(items:SelectionItem[])=>void;workspaceSelection?:SelectionItem[];onOpenKs001Preview?:(message?:string)=>void;externalNavigation?:StoreBrowserTarget|null}) {
   const [page,setPage] = useState<Page>('shop');
+  useEffect(()=>{
+    if(!externalNavigation)return;
+    if(externalNavigation.kind==='store' && externalNavigation.storeKs){
+      setStoreId(externalNavigation.storeKs);setPage('store');
+    }else if(externalNavigation.kind==='item' && externalNavigation.offerId){
+      setOfferId(externalNavigation.offerId);setPage('offer');
+    }else if(externalNavigation.kind==='manage'){
+      setPage('manage');
+    }else if(externalNavigation.kind==='marketplace'){
+      setPage('shop');
+    }
+  },[externalNavigation?.requestId]);
   const [quickShopOffer,setQuickShopOffer] = useState<string|null>(null);
   const [query,setQuery] = useState('');
   const [offerId,setOfferId] = useState<string | null>(null);
@@ -67,13 +81,11 @@ export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange
   };
   const quickAsk=(offer:StoreOffer)=>{
     try{
-      // Asking about an already selected item must not silently add another unit.
-      const existing=selectionRef.current.find(item=>item.offerId===offer.id && item.sellerKsNumber===offer.storeId && item.destination==='agreement');
-      const next=existing ? selectionRef.current : collectOffer(selectionRef.current,offer,'agreement',true);
-      selectionRef.current=next;setSelection(next);onSelectionChange?.(next);
-      setSelectionDraft(selectionToKs001(next,'agreement'));
-      setCollectionNotice('Your example KS001 discussion is open. No live message has been sent.');
-      onOpenKs001Preview?.();
+      // Asking KS001 about an item never adds it to the customer's Cart.
+      const question=storeOfferAssistTurn(offer);
+      setSelectionDraft(question);
+      setCollectionNotice('Example Store item prepared for KS001. Cart unchanged; no live message sent.');
+      onOpenKs001Preview?.(question);
     }catch(error){setCollectionNotice(error instanceof Error?error.message:'Could not prepare KS001 question.');}
   };
   const stage=(destination:StoreDestination)=>{
@@ -83,7 +95,7 @@ export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange
       setCollectionNotice(destination==='vision'
         ? 'Example Vision draft prepared here for review only. Nothing has been saved to Vision.'
         : 'Example agreement enquiry ready. You can discuss it in the guided KS001 preview.');
-      if(destination==='agreement')onOpenKs001Preview?.();
+      if(destination==='agreement')onOpenKs001Preview?.(proposal);
     }catch(error){setCollectionNotice(error instanceof Error?error.message:'Could not prepare that selection.');}
   };
   const visible = demoPublished(searchOffers(query));

@@ -8,39 +8,32 @@ const home=read('src/components/StoreHome.tsx');
 const live=read('src/features/store/StoreExperience.tsx');
 const review=read('src/features/store/StoreMasterpieceLayoutReview.tsx');
 
-test('idle KS001 gets out of the way while shopping, but is never unmounted or replaced',()=>{
- assert.match(shell,/const \[storeAssistantOpen, setStoreAssistantOpen\] = useState\(false\)/);
- assert.match(shell,/data-store-ks001-compact-assist/);
- assert.match(shell,/storeAssistantOpen\s*\?\s*'open':'closed'/);
- assert.match(shell,/storeOpen\s*\?\s*\(storeAssistantOpen/);
- assert.match(shell,/:\s*'hidden'\)/);
- assert.match(shell,/data-store-ks001-trigger/);
- assert.match(shell,/Ask KS001/);
- assert.match(shell,/Hide KS001/);
- assert.match(shell,/Back to shop/);
+test('KS001 remains mounted independently while the left Store tool is being used',()=>{
+ assert.match(shell,/data-store-ks001-original-conversation/);
  assert.match(shell,/<LiveKs001Session controller=\{liveController!\}/);
+ assert.match(shell,/data-store-expanded-middle/);
+ assert.match(shell,/const expandCompactStore=/);
+ assert.match(shell,/setStoreOpen\(true\)/);
+ assert.match(shell,/Back to KS001/);
  assert.doesNotMatch(shell,/new AgentController\(/);
 });
-
-test('compact store uses freed left width and the EXISTING right SecurePay Check summary',()=>{
- assert.match(shell,/md:flex-1 md:rounded-2xl md:border/);
- assert.match(shell,/md:w-\[32%\] lg:max-w-\[440px\]/);
+test('Store tool, middle display and right SecurePay Check retain their original three-panel owners',()=>{
+ assert.match(shell,/<CompactStoreBrowser/);
+ assert.match(shell,/data-workspace-shell/);
+ assert.match(shell,/data-tool-shelf/);
+ assert.match(shell,/data-store-expanded-middle/);
  assert.match(shell,/data-store-selection-parent-summary/);
- assert.match(shell,/Edit selections in full shop/);
- assert.match(shell,/setStoreAssistantOpen\(false\)/);
- assert.match(shell,/setStoreFocus\(true\)/);
+ assert.match(shell,/Seller-listed · locked/);
+ assert.match(shell,/onSelectionChange=\{setStoreSelected\}/);
 });
-
-test('real KS001 offer handoff opens the existing compact conversation without closing the shop',()=>{
- assert.match(shell,/prepareEmbeddedStoreQuestion\(message,true\)/);
- assert.match(shell,/\.then\(\(\)=>setStoreAssistantOpen\(true\)\)/);
- assert.match(shell,/onStageSelections=\{async \(text,destination\)=>/);
- assert.match(shell,/await prepareEmbeddedStoreQuestion\(text,true\)/);
- assert.match(shell,/setStoreAssistantOpen\(true\)/);
+test('KS001 item/cart handoff returns to existing conversation and does not silently send',()=>{
+ assert.match(shell,/const discussCompactStoreOffer=async/);
+ assert.match(shell,/const discussCompactStoreCart=async/);
+ assert.match(shell,/await prepareEmbeddedStoreQuestion\(message\)/);
+ assert.match(shell,/writeDraft\(id,text\)/);
  assert.match(shell,/if\(!remainInShop\)closeEmbeddedStore\('chat'\)/);
  assert.match(live,/onStageSelections/);
 });
-
 test('hover peek is small and stays inside the IMAGE without covering title, price or description',()=>{
  assert.match(card,/group\/visual relative overflow-hidden rounded-t-2xl/);
  assert.match(card,/data-shop-hover-preview/);
@@ -66,16 +59,12 @@ test('only one manually opened quick peek is allowed, even after repeated taps o
  assert.match(card,/aria-expanded=\{quickOpen\}/);
 });
 
-test('preview assistant uses an interactive, clearly scripted conversation with chosen Store offers',()=>{
- const guide=read('src/features/living-workspace/StoreKs001GuidedPreview.tsx');
- assert.match(shell,/<StoreKs001GuidedPreview items=\{storeSelected\}/);
- assert.match(shell,/onOpenKs001Preview=\{\(\)=>setStoreAssistantOpen\(true\)\}/);
- assert.match(guide,/data-store-guided-conversation/);
- assert.match(guide,/textarea aria-label="Your reply to KS001"/);
- assert.match(guide,/onSubmit=\{\(event:FormEvent\)=>/);
- assert.match(guide,/turns\.map\(turn=>/);
- assert.match(guide,/the replies are scripted, not live AI/);
- assert.match(review,/onOpenKs001Preview\?\.\(\)/);
+test('owner preview uses the original composer with clearly labelled example Store sources',()=>{
+ const tool=read('src/features/living-workspace/CompactStoreBrowser.tsx');
+ assert.match(tool,/Example catalogue only/);
+ assert.match(shell,/<PreviewWorkComposer/);
+ assert.match(shell,/onOpenKs001Preview=\{message=>/);
+ assert.match(review,/onOpenKs001Preview\?\.\(question\)/);
  assert.match(review,/onSelectionChange\?\.\(next\)/);
  assert.match(shell,/onSelectionChange=\{setStoreSelected\}/);
  assert.doesNotMatch(shell,/autoSendStoreAssistant/);
