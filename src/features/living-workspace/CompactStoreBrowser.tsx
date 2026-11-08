@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { ArrowLeft, Camera, ChevronRight, MapPin, Search, ShoppingCart, Store, BookmarkPlus, MessageCircle, Maximize2 } from 'lucide-react';
+import { ArrowLeft, Camera, ChevronRight, MapPin, Search, ShoppingCart, Store, BookmarkPlus, MessageCircle, Maximize2, Package } from 'lucide-react';
 import type { StoreOffer } from '../../types';
 import type { StoreGateway } from '../../api/securepay/store';
 import { storeIdentityView, storeOffersView, searchResultsView, type StoreSearchResult } from '../../api/securepay/store/adapters';
@@ -205,9 +205,18 @@ export function CompactStoreBrowser({
       {sortedOffers.map(offer=>{
         const inCart=cart.find(item=>item.offerId===offer.id&&item.sellerKsNumber===offer.storeId);
         return <article key={offer.storeId+':'+offer.id} className="rounded-xl border border-cream-200 bg-white p-3" data-compact-offer-card>
-          <p className="font-semibold leading-5 text-forest-900">{offer.title}</p>
-          <p className="mt-1 text-xs text-sand-600">{offer.storeName} · {offer.availability}</p>
-          <p className="mt-1 text-sm font-semibold text-forest-800">{offer.price}</p>
+          <div className="flex items-start gap-2.5">
+            <div className="flex size-[68px] shrink-0 items-center justify-center overflow-hidden rounded-lg border border-cream-200 bg-cream-50" aria-label={offer.media.some(media=>media.url&&!media.isExample)?'Trader photo':'Photo not supplied'}>
+              {offer.media.find(media=>media.url&&!media.isExample)?.url
+                ? <img src={offer.media.find(media=>media.url&&!media.isExample)!.url} alt={'Seller listing for '+offer.title} loading="lazy" className="h-full w-full object-cover"/>
+                : <Package size={25} className="text-forest-600"/>}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold leading-5 text-forest-900">{offer.title}</p>
+              <p className="mt-1 text-xs text-sand-600">{offer.storeName} · {offer.availability}</p>
+              <p className="mt-1 text-sm font-semibold text-forest-800">{offer.price}</p>
+            </div>
+          </div>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {offer.lifecycle==='published' && !offer.isExternalReference && <button type="button"
               onClick={()=>action(()=>onAddCart(offer),'Added to KS Cart. KS001 has not been interrupted.')}
