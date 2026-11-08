@@ -1,0 +1,290 @@
+{
+  "schema": "securepay-gate4-lineage-gap-analysis-v1",
+  "date": "2026-11-08",
+  "verdict": "PROVISIONAL_ROOT_CAUSE_MAP_COMPLETE_RUNTIME_AND_HUMAN_PENDING",
+  "uiFrozen": true,
+  "apiChanged": false,
+  "uiChanged": false,
+  "moneyExecuted": false,
+  "productionChanged": false,
+  "lineage": {
+    "gate0": {
+      "status": "PROVISIONAL",
+      "refs": [
+        "testing/GATE0_FOUR_FAMILY_FAIR_TRADE_BASELINE_2026-11-08.md",
+        "02_SecurePay_Four_Money_Flows_Specification_v1.0.md",
+        "SecurePay_Agent_Fair_Trade_Constitution_v1.0(1).md"
+      ],
+      "productionRelease": "UNKNOWN"
+    },
+    "gate1": {
+      "status": "TEST_DESIGN_ONLY",
+      "familyCases": 12,
+      "crossFamilyCases": 10
+    },
+    "gate2": {
+      "status": "NO_GO_NOT_EXECUTED",
+      "realFamilyCasesPassed": 0,
+      "realCasesTotal": 22,
+      "staticInterfaceSignaturesMatched": 13,
+      "staticSignaturesExamined": 13,
+      "previewStaticTestsPassed": 69,
+      "isolatedBackendAttested": false
+    },
+    "gate3": {
+      "status": "SOURCE_UX_REVIEW_COMPLETE_HUMAN_NOT_RUN",
+      "samplePreviewTestsPassed": 76,
+      "independentParticipants": 0,
+      "humanSessions": 0,
+      "scenariosSourceReviewed": 5
+    },
+    "reviewedUi": {
+      "sha": "930194dbd04fbb6d8756d5628e60f173f5f6fcc9",
+      "deploymentId": "dpl_Fb21QGAD49ub9kKCcqKPMYh1bk87",
+      "state": "READY",
+      "unchangedFromApprovedBaseline": true
+    },
+    "proposedApi": {
+      "sha": "f77b961940acd0e7f9e9565d316912de5ea4076c",
+      "compatibility": "NOT_RUNTIME_VERIFIED"
+    }
+  },
+  "principles": [
+    "To Protect Trust",
+    "To Safeguard Buyers & Sellers",
+    "To Build Long-Term Relationships",
+    "To Protect the Reputation of Every Store",
+    "To Strengthen the Marketplace",
+    "To Honour Our Commitments",
+    "To Prevent Exploitation",
+    "To Encourage Healthy Competition",
+    "To Uphold the Law",
+    "To Empower Growth",
+    "To Protect Community Goodwill",
+    "To Honour Good"
+  ],
+  "rootCauseClusters": {
+    "A": "Release/environment provenance and provider gaps",
+    "B": "Per-conversation source/cart/draft ownership",
+    "C": "Source fidelity and semantic understanding",
+    "D": "Consent, versioned obligations and regulated Money authority",
+    "E": "Human cognition and restrained UI",
+    "F": "Test quality versus synthetic/structural proof"
+  },
+  "families": [
+    "SecureLink",
+    "GroupSecureLink",
+    "SecureFlow",
+    "GroupSecureFlow",
+    "Cross-work isolation"
+  ],
+  "issues": [
+    {
+      "id": "G4-01",
+      "title": "Environment and release provenance",
+      "evidenceState": "ENVIRONMENT_BLOCKER",
+      "investigationPriority": "FIRST",
+      "origin": "Gate0+Gate2",
+      "diagnosis": "Exact production manifest and isolated compatible UI/API backend missing",
+      "requiredProof": "Obtain read-only manifest, disposable DB, provider credentials and disabled external rails",
+      "confirmedProductionSeverity": null,
+      "rootCauseStatus": "HYPOTHESIS_OR_SOURCE_SCOPE",
+      "fixAllowed": false
+    },
+    {
+      "id": "G4-02",
+      "title": "Source reader availability",
+      "evidenceState": "HISTORIC_RUNTIME_FAILURE_CURRENT_UNKNOWN",
+      "investigationPriority": "FIRST",
+      "origin": "Gate2",
+      "diagnosis": "27 October provider credentials/circuit breaker failed JPEG and PDF; current adapter exists but not verified",
+      "requiredProof": "Disposable real source READY/PARTIAL and correct extracted facts",
+      "confirmedProductionSeverity": null,
+      "rootCauseStatus": "HYPOTHESIS_OR_SOURCE_SCOPE",
+      "fixAllowed": false
+    },
+    {
+      "id": "G4-03",
+      "title": "Store cart scoped to workspace",
+      "evidenceState": "SOURCE_CONFIRMED_RUNTIME_RISK",
+      "investigationPriority": "FIRST",
+      "origin": "Gate2 SC-03; Gate3 F03",
+      "diagnosis": "One storeSelected state across saved work changes; possible wrong-work attachment",
+      "requiredProof": "Authenticate and switch independent A/B work with different carts",
+      "confirmedProductionSeverity": null,
+      "rootCauseStatus": "HYPOTHESIS_OR_SOURCE_SCOPE",
+      "fixAllowed": false
+    },
+    {
+      "id": "G4-04",
+      "title": "Pending media scoped to tool not conversation",
+      "evidenceState": "SOURCE_CONFIRMED_RUNTIME_RISK",
+      "investigationPriority": "FIRST",
+      "origin": "Gate3 F04",
+      "diagnosis": "Source tray reset dependencies exclude conversationId; pending file may cross work switch",
+      "requiredProof": "Select media in A, switch to B while tool open, inspect upload ID",
+      "confirmedProductionSeverity": null,
+      "rootCauseStatus": "HYPOTHESIS_OR_SOURCE_SCOPE",
+      "fixAllowed": false
+    },
+    {
+      "id": "G4-05",
+      "title": "Live caption omitted",
+      "evidenceState": "SOURCE_CONFIRMED_DOWNSTREAM_UNKNOWN",
+      "investigationPriority": "HIGH",
+      "origin": "Gate2 SC-01; Gate3 F07",
+      "diagnosis": "uploadToKs001 call omits supported caption argument",
+      "requiredProof": "Verify multipart and source lineage with labelled disposable image",
+      "confirmedProductionSeverity": null,
+      "rootCauseStatus": "HYPOTHESIS_OR_SOURCE_SCOPE",
+      "fixAllowed": false
+    },
+    {
+      "id": "G4-06",
+      "title": "Place purpose and entrance omitted",
+      "evidenceState": "SOURCE_CONFIRMED_DOWNSTREAM_UNKNOWN",
+      "investigationPriority": "HIGH",
+      "origin": "Gate2 SC-02; Gate3 F07",
+      "diagnosis": "Live createPlaceSource includes value and caption only",
+      "requiredProof": "Compare pickup vs delivery and entrances in formation",
+      "confirmedProductionSeverity": null,
+      "rootCauseStatus": "HYPOTHESIS_OR_SOURCE_SCOPE",
+      "fixAllowed": false
+    },
+    {
+      "id": "G4-07",
+      "title": "Scripted replies put into next field",
+      "evidenceState": "PREVIEW_ONLY_CONFIRMED",
+      "investigationPriority": "HUMAN_PROBE",
+      "origin": "Gate3 F01",
+      "diagnosis": "No semantic distinction between answer, question and correction in script",
+      "requiredProof": "Probe real KS001 with objection and corrections",
+      "confirmedProductionSeverity": null,
+      "rootCauseStatus": "HYPOTHESIS_OR_SOURCE_SCOPE",
+      "fixAllowed": false
+    },
+    {
+      "id": "G4-08",
+      "title": "Preview unsent source note scoped across work",
+      "evidenceState": "SOURCE_RISK_PREVIEW_ONLY",
+      "investigationPriority": "HUMAN_PROBE",
+      "origin": "Gate3 F02",
+      "diagnosis": "Tool sourceText shared across sample work selection",
+      "requiredProof": "Switch A to B with unsent tool text, observe",
+      "confirmedProductionSeverity": null,
+      "rootCauseStatus": "HYPOTHESIS_OR_SOURCE_SCOPE",
+      "fixAllowed": false
+    },
+    {
+      "id": "G4-09",
+      "title": "Preview 1100-character Store message clipping",
+      "evidenceState": "PREVIEW_ONLY_CONFIRMED",
+      "investigationPriority": "LATER",
+      "origin": "Gate3 F05",
+      "diagnosis": "Client preview clips prepared large cart text without warning",
+      "requiredProof": "Compare sample cart quantities and real handoff separately",
+      "confirmedProductionSeverity": null,
+      "rootCauseStatus": "HYPOTHESIS_OR_SOURCE_SCOPE",
+      "fixAllowed": false
+    },
+    {
+      "id": "G4-10",
+      "title": "Active milestone clarity",
+      "evidenceState": "SOURCE_USABILITY_RISK",
+      "investigationPriority": "HUMAN_PROBE",
+      "origin": "Gate1; Gate2 SC-04; Gate3 F09",
+      "diagnosis": "Live milestone title/status summary may omit owner/evidence/dependency clarity",
+      "requiredProof": "Independent user explains duties and disputed vs unaffected steps",
+      "confirmedProductionSeverity": null,
+      "rootCauseStatus": "HYPOTHESIS_OR_SOURCE_SCOPE",
+      "fixAllowed": false
+    },
+    {
+      "id": "G4-11",
+      "title": "Group and distribution multirole rules",
+      "evidenceState": "UNTESTED_AUTHORITY",
+      "investigationPriority": "CERTIFICATION_REQUIRED",
+      "origin": "Gate0+Gate1+Gate2+Gate3",
+      "diagnosis": "Independently authenticated group consent and allocations not run",
+      "requiredProof": "Run group/flow cases with contributors, contractors and review changes",
+      "confirmedProductionSeverity": null,
+      "rootCauseStatus": "HYPOTHESIS_OR_SOURCE_SCOPE",
+      "fixAllowed": false
+    },
+    {
+      "id": "G4-12",
+      "title": "Full WWWWWH and twelve principle examination",
+      "evidenceState": "UNTESTED_AUTHORITY",
+      "investigationPriority": "CERTIFICATION_REQUIRED",
+      "origin": "Gate0+Gate1+Gate2+Gate3",
+      "diagnosis": "No full real end-to-end versioned advisory per family",
+      "requiredProof": "Evidence-backed versioned twelve-lens statuses with unknowns and consent",
+      "confirmedProductionSeverity": null,
+      "rootCauseStatus": "HYPOTHESIS_OR_SOURCE_SCOPE",
+      "fixAllowed": false
+    },
+    {
+      "id": "G4-13",
+      "title": "Financial ledger, challenge isolation and Money",
+      "evidenceState": "UNTESTED_AUTHORITY",
+      "investigationPriority": "CERTIFICATION_REQUIRED",
+      "origin": "Gate0+Gate1+Gate2",
+      "diagnosis": "No verified current sandbox money/ledger/allocation paths",
+      "requiredProof": "Use isolated disabled-rail ledger and separate-acceptance tests",
+      "confirmedProductionSeverity": null,
+      "rootCauseStatus": "HYPOTHESIS_OR_SOURCE_SCOPE",
+      "fixAllowed": false
+    },
+    {
+      "id": "G4-14",
+      "title": "Dated pricing doctrine and quote reconciliation",
+      "evidenceState": "VERSION_RECONCILIATION_REQUIRED",
+      "investigationPriority": "BEFORE_QUOTE_TEST",
+      "origin": "Gate0 July 2026 specification",
+      "diagnosis": "Historical 1.0 fee examples may differ from later binding owner-approved terms",
+      "requiredProof": "Lock latest effective price policy and compare server quotes",
+      "confirmedProductionSeverity": null,
+      "rootCauseStatus": "HYPOTHESIS_OR_SOURCE_SCOPE",
+      "fixAllowed": false
+    },
+    {
+      "id": "G4-15",
+      "title": "Quick Assist source assertion mismatch",
+      "evidenceState": "CONFIRMED_TEST_MISMATCH",
+      "investigationPriority": "LATER",
+      "origin": "Gate2",
+      "diagnosis": "6/7 separate certification job; regex source expectation differs",
+      "requiredProof": "Determine intended first-use state and test behavior not code strings",
+      "confirmedProductionSeverity": null,
+      "rootCauseStatus": "HYPOTHESIS_OR_SOURCE_SCOPE",
+      "fixAllowed": false
+    },
+    {
+      "id": "G4-16",
+      "title": "Preserve approved workspace and universal Documents",
+      "evidenceState": "PRESERVE",
+      "investigationPriority": "ALWAYS",
+      "origin": "Gate0+Gate3+owner decision",
+      "diagnosis": "Compact three-panel, Store handoff, versioned Fair Trade and honest Money",
+      "requiredProof": "No specialist minutes tool, regression checks and owner approval",
+      "confirmedProductionSeverity": null,
+      "rootCauseStatus": "HYPOTHESIS_OR_SOURCE_SCOPE",
+      "fixAllowed": false
+    },
+    {
+      "id": "G4-17",
+      "title": "Uncoached human acceptance not yet run",
+      "evidenceState": "HUMAN_EVIDENCE_BLOCKER",
+      "investigationPriority": "AFTER_API_SMOKE",
+      "origin": "Gate1+Gate3",
+      "diagnosis": "0 independent participants, 0 sessions",
+      "requiredProof": "Observe H01-H05 after one verified safe Gate2 smoke",
+      "confirmedProductionSeverity": null,
+      "rootCauseStatus": "HYPOTHESIS_OR_SOURCE_SCOPE",
+      "fixAllowed": false
+    }
+  ],
+  "severityRule": "Only reproduced consequential failures receive P0/P1; untested live behavior cannot be marked failed.",
+  "gate4Closeout": "Static/source diagnosis completed; full root-cause closure blocked until Gate2 runtime and Gate3 independent humans.",
+  "gate5": "NOT_AUTHORISED_BY_THIS_AUDIT"
+}
