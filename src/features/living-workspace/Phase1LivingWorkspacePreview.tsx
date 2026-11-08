@@ -50,7 +50,7 @@ import { storeAgreementEntry, storeCircleEntry, storeCommunityObjectEntry, store
 import { KS001_WORKSPACE_PERSONAS } from './personas';
 import { WorkspaceWelcome } from './WorkspaceWelcome';
 import { WorkspacePurposeGuide } from './WorkspacePurposeGuide';
-import { useCallback, useEffect, useState, useSyncExternalStore, useRef } from 'react';
+import { useCallback, useEffect, useState, useSyncExternalStore, useRef, type SetStateAction } from 'react';
 import securepayWordmark from '../../assets/brand/securepay/securepay-wordmark-horizontal.png';
 import { ArrowLeft, CalendarDays, Camera, FileText, Lightbulb, MapPin, MessageCircle, Plus, Store, UserRoundPlus, Wallet, X, BedDouble, PanelLeftClose, PanelLeftOpen, Pin, PinOff, Maximize2, Minimize2 } from 'lucide-react';
 
@@ -351,7 +351,35 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
         /^#\/store\/enquiry\/[0-9a-f-]{36}\/(?:buyer|trader)$/.test(window.location.hash))
       && session.getSnapshot().status === 'signed-in');
   const [storeOpen, setStoreOpen] = useState(initialStoreOpen);
-  const [storeSelected,setStoreSelected]=useState<SelectionItem[]>([]);
+  // Gate 5 staging safety: Store choices belong to the current Work conversation,
+  // not the entire Living Workspace. Other areas keep independent selections.
+  // The unsaved Work bucket only holds choices made before KS001 allocates an ID.
+  const storeScope=mode==='work' ? 'work:'+(liveConversationId??'unsaved') : 'area:'+mode;
+  const [storeSelectionsByScope,setStoreSelectionsByScope]=useState<Record<string,SelectionItem[]>>({});
+  const storeSelected=storeSelectionsByScope[storeScope]??[];
+  const setStoreSelected=useCallback((action:SetStateAction<SelectionItem[]>)=>{
+    setStoreSelectionsByScope(previous=>{
+      const existing=previous[storeScope]??[];
+      const selection=typeof action==='function'?action(existing):action;
+      return {...previous,[storeScope]:selection};
+    });
+  },[storeScope]);
+  const priorStoreConversation=useRef(liveConversationId);
+  useEffect(()=>{
+    // A first created conversation inherits only the choices the user made
+    // before it existed; Saved Work and new-work transitions never inherit A's cart.
+    const previousId=priorStoreConversation.current;
+    priorStoreConversation.current=liveConversationId;
+    if(mode!=='work'||!signedIn||previousId!==null||!liveConversationId)return;
+    setStoreSelectionsByScope(previous=>{
+      const staged=previous['work:unsaved'];
+      const target='work:'+liveConversationId;
+      if(!staged?.length||previous[target]?.length)return previous;
+      const next={...previous,[target]:staged};
+      delete next['work:unsaved'];
+      return next;
+    });
+  },[liveConversationId,signedIn,mode]);
   const [storeBrowser,setStoreBrowser]=useState<StoreBrowserState>(initialStoreBrowserState);
   const [storeNavigation,setStoreNavigation]=useState<StoreBrowserTarget|null>(null);
   const storeNavigationSequence=useRef(0);
@@ -360,7 +388,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
   const storeSelectedTotals=collectionTotals(storeSelected);
   const previousStoreOwnerSignedIn=useRef(signedIn);
   useEffect(()=>{
-    if(previousStoreOwnerSignedIn.current && !signedIn)setStoreSelected([]);
+    if(previousStoreOwnerSignedIn.current && !signedIn)setStoreSelectionsByScope({});
     previousStoreOwnerSignedIn.current=signedIn;
   },[signedIn]);
   // Shop in focus by default; the original three-panel shell stays mounted underneath.

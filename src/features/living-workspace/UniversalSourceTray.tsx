@@ -115,13 +115,31 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
   const [entrance,setEntrance]=useState('');
 
   const seq=useRef(0);
-  useEffect(()=>{setItems([]);setCaption('');setLabel('');setError(null);setPending(null);setConfirmation(null);setSelectedTask('');setQrValue(null);setQrState(null);pendingFile.current=null;setUploadState('idle');setUploadMessage('');setServerSource(null);setVisionChooser(false);setVisionPhase('idle');setDetailsOpen(false);setLocalSnippet(null);setEntrance('');seq.current++;},[area,tool,isDemo]);
+  const priorScope=useRef({area,tool,isDemo,conversationId});
+  useEffect(()=>{
+    const previous=priorScope.current;
+    priorScope.current={area,tool,isDemo,conversationId};
+    // The first null → ID assignment may be caused by uploading the selected
+    // file itself; keep that deliberate upload alive. An existing Work → new
+    // Work transition must ALWAYS clear unsubmitted sources and stale receipts.
+    const changed=previous.area!==area||previous.tool!==tool||previous.isDemo!==isDemo||
+      (previous.conversationId!=null && previous.conversationId!==conversationId);
+    if(!changed)return;
+    seq.current++;
+    pendingFile.current=null;
+    setItems([]);setCaption('');setLabel('');setError(null);setPending(null);
+    setConfirmation(null);setSelectedTask('');setQrValue(null);setQrState(null);
+    setUploadState('idle');setUploadMessage('');setServerSource(null);
+    setVisionChooser(false);setVisionPhase('idle');setDetailsOpen(false);
+    setLocalSnippet(null);setEntrance('');setPlacePurpose('Destination');
+    setPlaceMethod('type');setMapText('');setPlaceBusy(false);setTaskBusy(false);
+  },[area,tool,isDemo,conversationId]);
 
   function receive(file:File|undefined) {
     if(!file)return;
     // A newer selection supersedes any pending FileReader or older network result.
     seq.current++;
-    setError(null);setConfirmation(null);setPending(null);setSelectedTask('');pendingFile.current=null;setServerSource(null);setUploadState('idle');setUploadMessage('');setQrValue(null);setQrState(null);setVisionChooser(false);setVisionPhase('idle');setDetailsOpen(false);setLocalSnippet(null);
+    setError(null);setConfirmation(null);setPending(null);setSelectedTask('');setCaption('');pendingFile.current=null;setServerSource(null);setUploadState('idle');setUploadMessage('');setQrValue(null);setQrState(null);setVisionChooser(false);setVisionPhase('idle');setDetailsOpen(false);setLocalSnippet(null);
     file=canonicalUploadFile(file);
     const photo=tool==='Photos';
     const allowed=photo ? PHOTO_MIME_TYPES.some(type=>type===file.type) : (
@@ -197,7 +215,7 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
     try{
       const targetConversationId=conversationId ?? await onEnsureConversation?.();
       if(!targetConversationId)throw new Error('No KS001 conversation');
-      let source=await gateway.uploadSource(targetConversationId,tool==='Photos'?'PHOTO':'DOCUMENT',file);
+      let source=await gateway.uploadSource(targetConversationId,tool==='Photos'?'PHOTO':'DOCUMENT',file,caption.trim()||undefined);
       if(seq.current!==sequence)return;
       if(!source.sourceArtifactId || source.conversationId!==targetConversationId)
         throw new Error('Unrecognised source receipt');
@@ -238,9 +256,11 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
   async function checkReadingStatus(){
     if(!gateway||!serverSource||!['RECEIVED','PROCESSING'].includes(serverSource.extractionStatus))return;
     const original=serverSource;
+    const sequence=seq.current;
     setUploadState('reading');
     try{
       const latest=await gateway.getSource(original.conversationId,original.sourceArtifactId);
+      if(seq.current!==sequence)return;
       if(latest.sourceArtifactId!==original.sourceArtifactId || latest.conversationId!==original.conversationId)
         throw new Error('Unexpected source');
       setServerSource(latest);
@@ -252,6 +272,7 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
       else
         setUploadMessage('The upload is complete; SecurePay has not finished reading this source yet.');
     }catch{
+      if(seq.current!==sequence)return;
       setUploadState('confirmed');
       setUploadMessage('Could not check the reading status. The uploaded source remains available; try checking again.');
     }
@@ -332,17 +353,21 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
       setLabel('');setCaption('');setEntrance('');setError(null);
       setConfirmation('Proposed place added locally. Not saved or shared.');return;
     }
+    const sequence=seq.current;
     setPlaceBusy(true);setError(null);setConfirmation(null);setServerSource(null);
     try{
       const id=conversationId??await onEnsureConversation?.();
       if(!id)throw new Error('No KS001 conversation');
-      const created=await gateway.createPlaceSource(id,{text:[value,caption.trim()].filter(Boolean).join(' — ')});
+      const proposedPlace=placePurpose+': '+value+(entrance.trim()?' · Entrance: '+entrance.trim():'')+(caption.trim()?' · Instructions: '+caption.trim():'');
+      const created=await gateway.createPlaceSource(id,{text:proposedPlace});
+      if(seq.current!==sequence)return;
       if(!created.sourceArtifactId||created.conversationId!==id)throw new Error('Place source not confirmed');
       setServerSource(created);setLabel('');setCaption('');
       setConfirmation('Place received by SecurePay. Its accuracy is not independently verified.');
     }catch(e){
+      if(seq.current!==sequence)return;
       setError(isOutcomeUnknown(e)?'SecurePay could not confirm whether it saved this place. Check the conversation before retrying.':'Could not add this place to KS001. Nothing has been confirmed.');
-    }finally{setPlaceBusy(false);}
+    }finally{if(seq.current===sequence)setPlaceBusy(false);}
   }
   if(!supported)return null;
   return <section aria-label={tool+' source intake'} data-universal-source-tray className={tool==='Photos'||tool==='Documents'?'space-y-2':'space-y-3'}>
@@ -415,7 +440,7 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
         setTaskBusy(true);try{await onContinueTask(serverSource,action.id);}catch{setError('Could not continue. The place remains in KS001.');}finally{setTaskBusy(false);}
       }} className="min-h-10 rounded-full border border-cream-200 bg-white px-3 text-xs">{action.label}</button>)}</div>}
     </section>}
-    {(tool==='Photos'||tool==='Documents')&&pending&&(isDemo||(detailsOpen&&uploadState==='confirmed'))&&<label className="block text-xs text-sand-600">
+    {(tool==='Photos'||tool==='Documents')&&pending&&(isDemo||(area==='work'&&uploadState==='idle'))&&<label className="block text-xs text-sand-600">
       Add a note (optional)
       <input className="mt-1 min-h-10 w-full rounded-xl border border-cream-200 px-3" placeholder="Anything KS001 should know?" value={caption} onChange={event=>setCaption(event.target.value)} maxLength={500}/>
     </label>}
@@ -453,13 +478,16 @@ export function UniversalSourceTray({tool,area,isDemo,gateway,conversationId,onC
             Check reading status
           </button>}
         {serverSource.extractionStatus==='FAILED'&&gateway&&<button type="button" disabled={uploadState==='uploading'} onClick={async()=>{
-          setUploadState('uploading');setUploadMessage('SecurePay is retrying the existing '+(tool==='Photos'?'photo':'document')+' source…');
+          const sequence=seq.current;
+        setUploadState('uploading');setUploadMessage('SecurePay is retrying the existing '+(tool==='Photos'?'photo':'document')+' source…');
           try{
             const retry=await gateway.retrySource(serverSource.conversationId,serverSource.sourceArtifactId);
-            if(retry.sourceArtifactId!==serverSource.sourceArtifactId)throw new Error('Unexpected source');
+            if(seq.current!==sequence)return;
+            if(retry.sourceArtifactId!==serverSource.sourceArtifactId || retry.conversationId!==serverSource.conversationId)throw new Error('Unexpected source');
             setServerSource(retry);setUploadState('confirmed');
             setUploadMessage(retry.extractionStatus==='FAILED'?'The '+(tool==='Photos'?'photo':'document')+' is still unreadable. Try a different file or share the important details in text.':'SecurePay retried the same source. Review its updated processing status.');
           }catch{
+            if(seq.current!==sequence)return;
             setUploadState('error');setUploadMessage('The retry could not be confirmed. The original '+(tool==='Photos'?'photo':'document')+' source has not been removed.');
           }
         }} className="min-h-11 rounded-lg border border-cream-200 px-4 text-sm">Retry reading this {tool==='Photos'?'photo':'document'}</button>}

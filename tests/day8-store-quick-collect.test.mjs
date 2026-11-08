@@ -133,7 +133,7 @@ test('the original SecurePay Check right panel retains a selection summary after
  assert.match(parent,/onSelectionChange=\{setStoreSelected\}/);
  assert.match(cockpit,/collectionTotals\(selections\)/);
  assert.match(cockpit,/formatListedMoney\(minor,currency\)/);
- assert.match(parent,/if\(previousStoreOwnerSignedIn\.current && !signedIn\)setStoreSelected\(\[\]\)/);
+ assert.match(parent,/if\(previousStoreOwnerSignedIn\.current && !signedIn\)setStoreSelectionsByScope\(\{\}\)/);
  assert.match(cockpit,/not a provider quote, saved Vision Dream, binding Agreement or payment/);
 });
 
