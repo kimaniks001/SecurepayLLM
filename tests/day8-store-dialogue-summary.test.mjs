@@ -45,14 +45,13 @@ test('right-panel changes are reflected back in the same live and example Store 
   assert.match(workspace,/onSelectionChange=\{setStoreSelected\}/);
 });
 
-test('the KS001 button on a product actually opens the chosen-item assistant drawer',()=>{
-  assert.match(review,/onOpenKs001Preview\?\.\(\)/);
-  assert.match(workspace,/onOpenKs001Preview=\{\(\)=>setStoreAssistantOpen\(true\)\}/);
-  assert.match(workspace,/<StoreKs001GuidedPreview items=\{storeSelected\}\/>/);
-  assert.match(chat,/items\.map\(item=>/);
-  assert.match(chat,/firstQuestion\(items\)/);
+test('an item can be explicitly brought into the ORIGINAL KS001 composer without opening a drawer',()=>{
+ assert.match(review,/onOpenKs001Preview\?\.\(selectionToKs001\(next,'agreement'\)\)/);
+ assert.match(workspace,/onOpenKs001Preview=\{message=>/);
+ assert.match(workspace,/addPreviewNote\(message\)/);
+ assert.match(workspace,/closeEmbeddedStore\('chat'\)/);
+ assert.match(workspace,/data-store-ks001-original-conversation/);
 });
-
 test('preview supports a typed back-and-forth, but never impersonates a connected model',()=>{
   assert.match(chat,/onSubmit=\{\(event:FormEvent\)=>/);
   assert.match(chat,/send\(draft\)/);
@@ -64,9 +63,10 @@ test('preview supports a typed back-and-forth, but never impersonates a connecte
   assert.doesNotMatch(chat,/fetch\(|\.sendMessage\(|\.createAgreement\(|window\.location/);
 });
 
-test('the authenticated real conversation is still the one already mounted by the workspace',()=>{
-  assert.match(workspace,/<LiveKs001Session controller=\{liveController!\}/);
-  assert.match(workspace,/prepareEmbeddedStoreQuestion\(message,true\)/);
-  assert.match(workspace,/\.then\(\(\)=>setStoreAssistantOpen\(true\)\)/);
-  assert.match(workspace,/if\(!remainInShop\)closeEmbeddedStore\('chat'\)/);
+test('the authenticated real conversation stays mounted and safely stages the selected source',()=>{
+ assert.match(workspace,/<LiveKs001Session controller=\{liveController!\}/);
+ assert.match(workspace,/await prepareEmbeddedStoreQuestion\(message\)/);
+ assert.match(workspace,/\.then\(\(\)=>closeEmbeddedStore\('chat'\)\)/);
+ assert.match(workspace,/if\(!remainInShop\)closeEmbeddedStore\('chat'\)/);
+ assert.match(workspace,/readDraft\(current\.conversationId\?\?undefined\)\.trim\(\)/);
 });
