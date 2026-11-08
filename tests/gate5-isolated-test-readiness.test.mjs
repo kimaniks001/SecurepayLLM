@@ -34,6 +34,10 @@ test('source tray invalidates pending files and stale reads on a work switch',()
   assert.match(tray,/pendingFile\.current=null/);
   assert.match(tray,/setPending\(null\)/);
   assert.match(tray,/setServerSource\(null\)/);
+  assert.match(tray,/setPlacePurpose\('Destination'\)/);
+  assert.match(tray,/setPlaceMethod\('type'\)/);
+  assert.match(tray,/setMapText\(''\)/);
+  assert.match(tray,/setSelectedTask\(''\);setCaption\(''\);pendingFile\.current=null/);
   assert.match(tray,/const sequence=seq\.current;\s*setUploadState\('reading'\)/);
   assert.match(tray,/if\(seq\.current!==sequence\)return/);
 });
