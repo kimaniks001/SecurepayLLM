@@ -61,6 +61,15 @@ An example **shape only**, not a real observation:
 
 Allowed outcomes: `PASS`, `FAIL`, `BLOCKED`, `NOT_TESTED`, `DESIGN_GAP`. Do not mark an actor PASS merely because a React component rendered or a unit test passed; financial and human claims require the appropriate real evidence. A staging sandbox pass cannot certify an enabled bank rail.
 
+## Owner-led human testing before public pilot
+
+1. Use fictional trader records to create realistic tasks, changing one or two circumstances each run. The assistant/test harness can play opposing roles or produce sample utterances, but those runs count as **synthetic behaviour tests**, not real people successfully using Mini.
+2. The owner independently uses the **actual staged Mini** on their own device (preferably mobile). Give the owner a job and trade context, not a mandated sequence of clicks. Observe what the owner naturally tries and where the design causes confusion. Owner experience is a genuine human test, but it is one tester, not evidence of accessibility for all ages or abilities.
+3. Record each result with the exact frontend and API build, stage, method, evidence and owner-observed problem. When reviewing with ChatGPT, document only the defect/observations; do not claim that ChatGPT operated the owner's device unless verified.
+4. Revisit the **same stable fictional trader** at first-use, repeated-use and growing-business stages across releases; compare outcomes while varying products and wordings. Record changed behaviour, error recovery and financial correctness independently.
+5. Keep financial flows in sandbox with explicitly simulated provider results, never actual customer money. A simulated funded status must always say it is simulated. Actual production rails require the independent partner, regulatory and security gates.
+6. After owner review, recruit consenting real participants to measure accessibility and wider usefulness. Lack of field participants should not block the first owner-facing UI prototype, but must block any claim that a broad segment—including older adults—is validated.
+
 ## How to use real traders after production
 
 A real merchant must **not** be represented by turning `TR-002` into their actual KS Number or adding their real name, phone, location, customer conversations, payment IDs or transactions to this GitHub fixture. Instead:
