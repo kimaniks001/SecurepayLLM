@@ -5,6 +5,17 @@
 **Base:** Checkout-first Phase 0 source audit and earlier Mini phases (draft/unmerged branches).  
 **Production status:** NO-GO.
 
+## Owner UX principle — no forced chat, no coaching
+
+The owner requires **one tool that finishes the job without outside assistance**. This is a permanent product constraint:
+
+- Checkout is complete in the same SecurePay Mini window: **review → select Choice/M-Pesa/PesaLink → provider outcome → return to the correct host**.
+- **Ask KS001 is optional**, accessible inside Mini and never required before a standard checkout; it does not open a separate product, change financial authority or force a new explanation.
+- In this owner-only **fictional simulation**, after the visitor selects a rail and clicks Continue, Mini shows a brief waiting state and generates an automatic **TEST-ONLY** response. The owner does **not** need to open the hidden Test a result control. That control remains available only in the standalone simulator for advanced error testing.
+- A simulated result explicitly says **not paid/no money moved**. The main next action becomes **Return to Store** or **Return to ShortStays**. No real provider callback, booking confirmation or funds transfer exists.
+- When changing Mini screens, scroll resets to the beginning; the customer should find the next action unaided.
+- This does **not** authorise production auto-confirmation. A real checkout must wait for actual verified payment-intent/partner evidence, and unknown statuses must remain unresolved until reconciled.
+
 ## User-facing experience
 
 Two isolated fictional websites are built as Vite multi-page entries:
