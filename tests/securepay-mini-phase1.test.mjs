@@ -86,3 +86,16 @@ test('Mini phase 1 does not expose merchant fixtures or a fake funded/success st
   assert.match(ui, /not yet connected to this Mini/);
   assert.match(ui, /No invitation, payment or fund release happens here/);
 });
+
+test('Mini is a compact pocket window without shrinking essential touch targets', () => {
+  const css = read('src/mini/mini.css');
+  const host = read('mini-host-preview.html');
+  assert.match(css, /max-width:366px; min-height:min\(565px/);
+  assert.match(host, /width:min\(342px,calc\(100vw - 28px\)\);height:min\(510px/);
+  assert.match(host, /height:min\(530px,78dvh\)/);
+  assert.match(host, /min-height:44px;min-width:44px/);
+  assert.match(css, /\.spm-lang, \.spm-icon-btn[^\n]*min-height:44px/);
+  assert.match(css, /font-size:16px/);
+  assert.match(host, /resize:both/);
+  assert.match(host, /@media\(max-width:550px\)/);
+});
