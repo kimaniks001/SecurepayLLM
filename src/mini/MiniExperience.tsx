@@ -70,7 +70,7 @@ const words = {
   },
 } as const;
 
-function useSavedDraft(): MiniDraft | null {
+function readSavedMiniDraft(): MiniDraft | null {
   try {
     const raw = sessionStorage.getItem(STORE_KEY);
     return raw ? miniRestoreDraft(JSON.parse(raw) as unknown) : null;
@@ -88,12 +88,13 @@ export function MiniExperience() {
   const [error, setError] = useState('');
   const [photo, setPhoto] = useState<string | null>(null);
   const [photoName, setPhotoName] = useState('');
-  const [hasSaved, setHasSaved] = useState(() => useSavedDraft() !== null);
+  const [hasSaved, setHasSaved] = useState(() => readSavedMiniDraft() !== null);
   const [persisted, setPersisted] = useState(false);
   const [imageLoading, setImageLoading] = useState(false);
   const imageInput = useRef<HTMLInputElement | null>(null);
   const firstField = useRef<HTMLTextAreaElement | null>(null);
   const nextBtn = useRef<HTMLButtonElement | null>(null);
+  const amountField = useRef<HTMLInputElement | null>(null);
   const compact = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('embedded') === '1';
 
   useEffect(() => {
@@ -102,8 +103,7 @@ export function MiniExperience() {
   useEffect(() => { document.documentElement.lang = lang === 'sw' ? 'sw' : 'en'; }, [lang]);
 
   const begin = (intent: MiniIntent) => {
-    setDraft(emptyMiniDraft(intent));
-    setDraft(current => ({ ...current, description: opening.trim().slice(0, 400) }));
+    setDraft({ ...emptyMiniDraft(intent), description: opening.trim().slice(0, 400) });
     setOpening('');
     setError('');
     setPhoto(null);
@@ -125,7 +125,7 @@ export function MiniExperience() {
     setScreen('home');
   };
   const resume = () => {
-    const previous = useSavedDraft();
+    const previous = readSavedMiniDraft();
     if (!previous) { setHasSaved(false); return; }
     setDraft(previous);
     setError('');
@@ -154,7 +154,8 @@ export function MiniExperience() {
     const issue = miniDraftIssue(draft);
     if (issue) {
       setError(issue === 'description' ? t.needDescription : issue === 'amount' ? t.needAmount : t.invalidAmount);
-      firstField.current?.focus();
+      if (issue === 'description') firstField.current?.focus();
+      else amountField.current?.focus();
       return;
     }
     setScreen('review');
@@ -237,7 +238,7 @@ export function MiniExperience() {
           <textarea className="spm-field spm-main-field" id="spm-description" ref={firstField} maxLength={400} rows={3}
             placeholder={t.descriptionHint} value={draft.description} onChange={e => update('description', e.target.value)}/>
           <label className="spm-label" htmlFor="spm-amount">{draft.intent === 'collect' ? t.optionalAmount : t.amount}</label>
-          <input className="spm-field" id="spm-amount" type="text" inputMode="decimal" maxLength={30}
+          <input className="spm-field" id="spm-amount" ref={amountField} type="text" inputMode="decimal" maxLength={30}
             placeholder={draft.intent === 'collect' ? t.optionalAmountHint : t.amountHint}
             value={draft.amount} onChange={e => update('amount', e.target.value)}/>
           <div className="spm-details">
@@ -285,7 +286,7 @@ export function MiniExperience() {
           <div className="spm-finish-icon"><CheckCircle2 size={28}/></div>
           <h1 className="spm-question">{t.saved}</h1>
           <p className="spm-lead">{persisted ? t.savedDetail : t.savedUnavailable}</p>
-          <div className="spm-quote">{draft.description} · {formatMiniAmount(draft.amount)}</div>
+          <div className="spm-quote">{draft.description} · {miniReviewSummary(draft).amount}</div>
           <button ref={nextBtn} type="button" className="spm-primary" onClick={reset}>{t.newWork}<ArrowRight size={19}/></button>
           <a className="spm-quiet-link" href="https://securepay.ke/" target="_blank" rel="noopener noreferrer">{t.openFull}</a>
           <p className="spm-disclaimer">{t.fullDisclaimer}</p>
