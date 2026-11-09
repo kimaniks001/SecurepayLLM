@@ -22,30 +22,33 @@ Opening `CHECKOUT` must not force a KS001 conversation before paying, but KS001 
 
 **Mini owns:** a concise, readable UI and client-side lifecycle/visible state; it relays user intent but is not a bank, trust ledger, payment authority, merchant inventory system or record of funds. **No duplicated “Checkout Wallet”, local transaction ledger or independent KS001 brain.**
 
-## 3. Proposed host-to-SecurePay handoff (not existing endpoint)
+## 3. Host-to-SecurePay handoff — reuse audited backend first
 
-Host server submits a trusted checkout-session creation request to a SecurePayAPI integration endpoint **to be designed and approved**, using installed host credentials *on the server*, not JavaScript.
+**Existing service, already present in SecurePayAPI source:** `POST /api/v1/developer/money-sessions` (`DeveloperMoneySessionController`) creates an opaque short-lived Money Session under an API-key application holding `MONEY_SESSIONS_WRITE`, for an Agreement belonging to the application's administered organisation. The backend offers `GET /api/v1/money-sessions/{token}` to resolve the server-owned Agreement/obligation and `POST /api/v1/money-sessions/{token}/redeem` to redeem under authenticated participant authority. The developer input includes agreement/obligation IDs, a purpose from `OPEN|FUND|EXERCISE|RELEASE`, an optional amount cap, participant and allowlisted return URL.
 
-Canonical payload semantics (**field names are illustrative contract concepts, not production wire schema**):
+**Important boundary:** customer-facing checkout must be restricted to a legitimate **FUND** path (and only after terms and participant authority are validated). Do not expose `EXERCISE` or `RELEASE` authority through a public Pay button. The same service may not automatically be appropriate for standalone informal sellers because its developer app authorisation requires a genuine administered Agreement organisation; never weaken that rule to force a Store checkout.
+
+**Unresolved compatibility decision:** Hosted `FUND` currently delegates to Agreement-funded orchestration, while provider Payment Intent initiation has its own provider/callback process. The inspected source does **not** establish that they are equivalent to a customer paying via Choice Bank, M-Pesa or PesaLink. **Verify this before issuing any new session API or coding checkout**; use the existing hosted service where appropriate and add only a minimal, separately approved adapter if needed.
+
+**Logical checkout context still required (not an implemented wire request):** registered host, exact host order/booking reference and immutable version, approved Agreement/obligation, merchant identity, buyer authority, origin/return binding and expiration. The host must first create or authenticate this context *on its own server* and securely bind it to the Agreement. The browser cannot supply authoritative order prices, beneficiaries, rail eligibility or fee amounts.
+
+The following describes **design concepts only** (not a new `POST /checkout-sessions` endpoint):
 
 ```json
 {
-  "registeredInstallation": "<server-owned host registration>",
-  "hostOrderReference": "<opaque exact order or booking reference>",
+  "registeredInstallation": "<server-owned and approved host>",
+  "hostOrderReference": "<opaque host-owned order or booking>",
   "sourceType": "STORE_ORDER | STAY_BOOKING | RIDE_ORDER | STORAGE_BOOKING | INVOICE | DIRECT_TRADE",
-  "hostOrderVersion": "<immutable expected version>",
-  "userReturnIntent": "<registered return-purpose alias>",
+  "hostOrderVersion": "<server-validated immutable version>",
+  "agreementReference": "<server-owned Agreement/obligation>",
+  "userReturnIntent": "<registered return alias>",
   "requestedExperience": "CHECKOUT"
 }
 ```
 
-SecurePayAPI must look up and verify material fields; it does not accept arbitrary amount, beneficiary, currencies, inventory, expiry or participant claims merely because a client/browser included them.
+**Secure browser handoff:** use a short-lived bounded opaque capability with safe handling of URL/token leakage, expiry, binding and replay. No developer API keys, provider secrets, unrestricted return URL, KS Number allocation power or raw bank details inside Mini or host JavaScript. A copied/replayed reference must not grant a second financial effect.
 
-**Browser handoff:** receive a short-lived, single-purpose opaque checkout-session identifier or one-time capability, bound to the exact registered host origin, trusted merchant/order, expiry and appropriate participant session. Sensitive host credentials, customer tokens, unrestricted redirect URLs or payment-provider secrets must not appear in browser query strings, cross-frame messages, logs or source code.
-
-**Checkout read response** should provide only permitted, redacted display facts: host name, merchant display identity, order purpose/lines, seller-specific positions, currency, total and applicable rules, version and expiry, verified required identity step, available next actions. Any difference between initial host price and SecurePay reviewed quote must be explained and explicitly re-accepted.
-
-**Expired/revoked/changed checkout session:** cannot fund stale terms; give a safe update/review or return to host. A copied/replayed reference must never grant a second financial effect.
+**Server-owned checkout display:** show only permitted merchant, order/stay, exact version, amounts, terms and authenticated participant status. If amount/fees/booking changed, explicitly re-review before payment. Expired, revoked, unavailable or stale sessions must fail closed.
 
 ## 4. Review → authority → quote → intent → status (reuse real gateways)
 
