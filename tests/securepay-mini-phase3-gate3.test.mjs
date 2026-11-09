@@ -3,7 +3,7 @@ import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import ts from 'typescript';
-import {gate2Config,issueGate2Sandbox,progressGate2Sandbox} from '../api/mini-gate2-sandbox.js';
+import {gate2Config,issueGate2Sandbox,progressGate2Sandbox,handleGate2Sandbox} from '../api/mini-gate2-sandbox.js';
 import {
   GATE3_BRANCH,GATE3_TTL_MS,gate3Config,readGate3Attempt,
   startGate3Attempt,gate3AttemptStatus,handleGate3Sandbox
@@ -208,4 +208,81 @@ test('two Gate 3 hosts and original Gate 2 hosts are separate, no production pay
   const code=read('api/mini-gate3-sandbox.js');
   assert.doesNotMatch(code,/PaymentInitiationService|fundFromSelf\(|createIntent\(|releaseFunds\(|fetch\(/);
   assert.match(code,/NO database-backed/);
+});
+
+
+test('executing Gate 3 launcher preserves one Mini and treats all progress as untrusted NOT PAID',async()=>{
+  for(const [source,fixtureId,path] of [
+    ['STORE','STORE-DEMO-01','/checkout-gate3-store.html'],
+    ['SHORTSTAYS','STAY-DEMO-01','/checkout-gate3-shortstays.html']
+  ]) {
+    const listeners={};
+    const elements={};
+    for(const id of ['demo-pay','demo-popup','demo-overlay','demo-frame',
+      'demo-close','demo-fallback','demo-status']){
+      elements[id]={
+        hidden:['demo-popup','demo-overlay','demo-fallback'].includes(id),
+        textContent:id==='demo-pay'?'Pay with SecurePay':'Payment not started',
+        dataset:{},listeners:{},disabled:false,
+        src:id==='demo-frame'?'about:blank':undefined,
+        contentWindow:id==='demo-frame'?{}:undefined,
+        addEventListener(event,handler){this.listeners[event]=handler;},
+        setAttribute(){},focus(){}
+      };
+    }
+    const calls=[];
+    const browser={
+      window:{location:{pathname:path,origin},addEventListener(k,fn){listeners[k]=fn},
+        setTimeout(){return 0}},
+      document:{querySelector:sel=>sel==='[data-gate3-host]'?
+        {dataset:{gate3Host:source,checkoutFixture:fixtureId}}:null,
+        getElementById:id=>elements[id],
+        addEventListener(k,fn){listeners[k]=fn}},
+      fetch:async(url,options)=>{
+        calls.push({url,options});
+        if(options.credentials!=='same-origin')return {ok:false,status:401};
+        const res=response();
+        await handleGate2Sandbox({
+          method:'POST',url,
+          headers:{host:env.VERCEL_URL,origin,'content-type':'application/json'},
+          body:JSON.parse(options.body)
+        },res,env,Date.now());
+        return {ok:res.statusCode>=200&&res.statusCode<300,
+          status:res.statusCode,json:async()=>res.body};
+      }
+    };
+    runInNewContext(read('public/checkout-gate3-host.js'),browser);
+    elements['demo-pay'].listeners.click();
+    await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(calls.length,1);
+    assert.deepEqual(JSON.parse(calls[0].options.body),{action:'BEGIN',source});
+    assert.match(elements['demo-frame'].src,/^\/mini\.html\?embedded=1&sandboxPayment=/);
+    assert.equal(elements['demo-popup'].hidden,false);
+    assert.match(elements['demo-status'].textContent,/NOT PAID/);
+    const frame=elements['demo-frame'].contentWindow;
+    const eventPayload={type:'SECUREPAY_MINI_SANDBOX_PROGRESS_V1',
+      sandboxGate:3,fixtureId,simulated:true,orderCreated:false,
+      agreementAccepted:false,result:'SIMULATED_UNKNOWN'};
+    listeners.message({origin:'https://attacker.example',source:frame,data:eventPayload});
+    assert.doesNotMatch(elements['demo-status'].textContent,/Unknown/);
+    listeners.message({origin,source:{},data:eventPayload});
+    assert.doesNotMatch(elements['demo-status'].textContent,/Unknown/);
+    listeners.message({origin,source:frame,data:{...eventPayload,agreementAccepted:true}});
+    assert.doesNotMatch(elements['demo-status'].textContent,/Unknown/);
+    listeners.message({origin,source:frame,data:eventPayload});
+    assert.match(elements['demo-status'].textContent,/Unknown test result — NOT PAID/);
+    assert.equal(elements['demo-popup'].hidden,false);
+    elements['demo-close'].listeners.click();
+    elements['demo-pay'].listeners.click();
+    await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(calls.length,1,'same unexpired mock checkout resumes on reopen');
+    listeners.message({origin,source:frame,data:{
+      type:'SECUREPAY_MINI_OWNER_DEMO_RETURN_V1',version:1,
+      sandboxGate:3,fixtureId,simulated:true,orderCreated:false,
+      agreementAccepted:false,result:'SIMULATED_CONFIRMED'
+    }});
+    assert.equal(elements['demo-popup'].hidden,true);
+    assert.match(elements['demo-status'].textContent,/NOT PAID/);
+    assert.doesNotMatch(elements['demo-status'].textContent,/Payment received|Order paid|Booking confirmed/);
+  }
 });
