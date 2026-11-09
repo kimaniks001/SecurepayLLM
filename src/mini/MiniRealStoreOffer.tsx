@@ -44,6 +44,13 @@ export function MiniRealStoreOffer({session,language}:{
   },[screen,status]);
 
   const reviewUrl='/checkout-store-offer-preview.html';
+  const returnToStore = () => {
+    if(window.parent !== window) {
+      window.parent.postMessage({type:'SECUREPAY_MINI_STORE_OFFER_REVIEW_CLOSED',reviewOnly:true},window.location.origin);
+      return;
+    }
+    window.location.assign(reviewUrl);
+  };
 
   if(status!=='ready' || !source){
     return <section className="spm-content spm-server-wait" role="status" aria-live="polite">
@@ -102,13 +109,13 @@ export function MiniRealStoreOffer({session,language}:{
       <button className="spm-quiet-button" type="button" onClick={showChat}>
         <MessageCircle size={16}/>Need help? Ask KS001
       </button>
-      <a href={reviewUrl} className="spm-quiet-link">Back to Store lookup</a>
+      <button type="button" className="spm-quiet-button" onClick={returnToStore}>Back to Store lookup</button>
     </div>}
 
     <div className="spm-hosted-finance" hidden={screen!=='simulation'}>
       <MiniFundingPreview draft={draft} language={language}
         guidedDemo onBack={()=>setScreen('review')}
-        onReturnToHost={()=>window.location.assign(reviewUrl)}
+        onReturnToHost={returnToStore}
         returnLabel={sw?'Rudi dukani':'Return to Store lookup'}/>
     </div>
 
