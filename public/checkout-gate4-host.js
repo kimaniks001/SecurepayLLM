@@ -35,6 +35,8 @@
   // A later attempt may replace the original ONLY after the host independently
   // verifies that original as failed. Unknown/pending/confirmed are never retryable.
   let verifiedAttempt=null,verifiedStatus=null,validatingAttempt=false;
+  // Preview-only, in-memory retry hint. An unverified token is NEVER persisted.
+  let unverifiedCandidate=null;
   const label=pay.textContent;
   function persist(){
     try{
@@ -56,7 +58,7 @@
   }
   function clearExpired(){
     checkout=null;attempt=null;activeUntil=0;
-    verifiedAttempt=null;verifiedStatus=null;
+    verifiedAttempt=null;verifiedStatus=null;unverifiedCandidate=null;
     persist();
   }
   // Every iframe-supplied attempt token is just an untrusted lookup hint.
@@ -88,6 +90,19 @@
     return data;
   }
   async function reconcile(){
+    if(checkout&&activeUntil<=Date.now()){
+      clearExpired();
+      status.textContent='Original sample checkout expired — NOT PAID. No result can be inferred.';
+      checkButton.hidden=true;
+      return;
+    }
+    // A new attempt reported during an outage cannot be mistaken for "no attempt".
+    // Keep the hint in memory only; explicit Check must first verify it on server.
+    if(unverifiedCandidate){
+      status.textContent='Original test attempt still unverified — NOT PAID. Check when connected.';
+      checkButton.hidden=false;
+      return;
+    }
     if(!checkout){
       status.textContent='No test checkout started — NOT PAID';
       checkButton.hidden=true;
@@ -127,6 +142,7 @@
     // The host never writes an unverified message reference to sessionStorage.
     if(validatingAttempt)return;
     validatingAttempt=true;
+    unverifiedCandidate=candidate;
     const originalCheckout=checkout,originalAttempt=attempt;
     try{
       const data=await verifiedSnapshot(originalCheckout,candidate);
@@ -135,6 +151,7 @@
       if(attempt&&
           !(verifiedAttempt===attempt&&verifiedStatus==='SIMULATED_FAILED'))return;
       attempt=candidate;
+      unverifiedCandidate=null;
       verifiedAttempt=candidate;
       verifiedStatus=data.status;
       persist();
@@ -142,8 +159,10 @@
       checkButton.hidden=false;
     }catch{
       if(originalCheckout!==checkout||originalAttempt!==attempt)return;
-      status.textContent='Cannot verify this new test attempt — NOT PAID';
-      // Preserve the previous attempt and its independently established state.
+      status.textContent='Cannot verify this new test attempt — NOT PAID. Check original attempt when connected.';
+      checkButton.hidden=false;
+      // Preserve previous independently established state; candidate remains only
+      // in ephemeral tab memory, never browser storage or payment authority.
     }finally{
       validatingAttempt=false;
     }
@@ -197,7 +216,7 @@
         !Number.isSafeInteger(data.expiresAt)||data.expiresAt<=Date.now())
         throw Error('UNSAFE_SESSION');
       checkout=data.session;attempt=null;activeUntil=data.expiresAt;
-      verifiedAttempt=null;verifiedStatus=null;
+      verifiedAttempt=null;verifiedStatus=null;unverifiedCandidate=null;
       persist();
       frame.hidden=false;fallback.hidden=true;
       frame.src='/mini.html?embedded=1&sandboxReconcile='+encodeURIComponent(checkout);
@@ -234,7 +253,10 @@
   pay.addEventListener('click',()=>{void open();});
   closeButton.addEventListener('click',()=>{close();void reconcile();});
   overlay.addEventListener('click',()=>{close();void reconcile();});
-  checkButton.addEventListener('click',()=>{void reconcile();});
+  checkButton.addEventListener('click',()=>{
+    if(unverifiedCandidate&&!validatingAttempt)void adoptAttempt(unverifiedCandidate);
+    else void reconcile();
+  });
   window.addEventListener('message',receive);
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!popup.hidden){
     close();void reconcile();
