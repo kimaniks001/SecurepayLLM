@@ -94,3 +94,56 @@ webhook/ledger reconciliation, durable idempotency and official provider sandbox
 certification are **not** implemented by this offline gate. Backend PR #406 remains
 draft; the live Store API 503/CI startup_failure must be separately resolved.
 No production release or financial activation.
+
+## Gate 3 — offline checkout continuity after a failed status read
+
+**2026-11-09 — implemented and build-verified; owner acceptance still open.**
+
+A genuine sandbox recovery gap was found after Gate 2: when the Mini sent its
+original signed test attempt during a temporary 503/network outage, the host
+correctly refused to persist an unverified attempt, but it could then show
+"No attempt started" and offered no direct way to recheck that same attempt.
+
+The host now holds the incoming candidate in **volatile memory only** until
+it can independently call its existing read-only, exact-original-checkout
+reconciliation API. While unverified, it displays a clear **NOT PAID** state
+and leaves **Check original test attempt** available. When the connection
+recovers, the button retries *the same candidate*, and only a correctly
+source/order/version/amount-matched server response allows persistence.
+
+No candidate is saved to sessionStorage, reused as legal acceptance or
+authorised for money. On explicit checkout expiry the local references are
+cleared with an unambiguous **NOT PAID** warning; only a fresh user-initiated
+sandbox Pay click can start another example. Closing Mini while a candidate
+is unverified does not erase the warning.
+
+### Executed gate tests
+
+`tests/securepay-mini-phase4-resilience.test.mjs` now also executes Store
+and ShortStays browser-host scripts through:
+- unavailable status server → unverified attempt remains unsaved,
+- close Mini → unresolved status remains visible,
+- reconnect and click Check original → original attempt verified and stored,
+- same-tab page reload → original verified attempt recovers with **no new checkout POST**,
+- active checkout reaches expiry → no status GET/retry, explicit new Pay required.
+
+Vercel Preview deployment `dpl_GGMcp57eZaxW7r4PavAtkZFFigCs` is
+**READY** at source commit `c4e96175458b9b7ebaf291ef0b5ee2c1fa7205ae`.
+Focused regression suites, TypeScript and Vite build passed. Earlier
+Gate 1/2 checks remain enabled, and the owner-approved Phase 3 preview
+was not changed.
+
+**Important boundaries:** an unverified candidate is held only in tab memory,
+not durable storage; after a full page reload while still offline, reopening
+the Mini may be necessary for it to resend the original attempt. This is
+still a fictional expiring test token, not cross-device idempotency,
+bank/provider reconciliation, escrow or payment safety certification.
+Do not merge to production or activate any provider.
+
+### Owner's focused Gate 3 checks
+
+On both the Store and ShortStays sandbox pages, start a mock payment attempt,
+choose an unknown outcome, close and reopen Mini, press Check original and
+confirm the same reference reconciles without duplicate Pay. Repeat for a
+failed outcome and confirm a second simulation is possible only after an
+independent failure read. All screens should explicitly report **NOT PAID**.
