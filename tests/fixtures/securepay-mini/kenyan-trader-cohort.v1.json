@@ -1,0 +1,1101 @@
+{
+  "schemaVersion": 1,
+  "cohortId": "securepay-mini-kenyan-traders-v1",
+  "createdOn": "2026-11-09",
+  "nature": "fictional synthetic test population",
+  "status": "SPECIFIED_NOT_TESTED",
+  "productionUse": "NEVER_SEED_OR_PERSONALISE_PRODUCT_RUNTIME",
+  "definition": "Stable actor identifiers and trade behaviours; not real people, identities, customer accounts, payment instructions, fake financial records or expected model utterances.",
+  "actorProgressionCheckpoints": [
+    "first_use",
+    "repeat_use",
+    "business_evolution"
+  ],
+  "actors": [
+    {
+      "id": "TR-001",
+      "label": "Market produce seller",
+      "tradeType": "fresh_produce",
+      "context": "Older adult trader; chooses spoken Kiswahili; variable measures; needs readable confirmations.",
+      "fictional": true,
+      "progression": [
+        {
+          "checkpoint": "first_use",
+          "anticipatedNeed": "Sell produce without lengthy forms."
+        },
+        {
+          "checkpoint": "repeat_use",
+          "anticipatedNeed": "Regular buyers order mixed quantities."
+        },
+        {
+          "checkpoint": "business_evolution",
+          "anticipatedNeed": "Uses simple stock and supplier records."
+        }
+      ],
+      "scenarioIds": [
+        "F02",
+        "B20"
+      ]
+    },
+    {
+      "id": "TR-002",
+      "label": "Neighbourhood kiosk owner",
+      "tradeType": "kiosk",
+      "context": "Small Android, busy counter, customers waiting; sometimes interrupted.",
+      "fictional": true,
+      "progression": [
+        {
+          "checkpoint": "first_use",
+          "anticipatedNeed": "Make a small sale quickly."
+        },
+        {
+          "checkpoint": "repeat_use",
+          "anticipatedNeed": "Handle overlapping funded/pending sales."
+        },
+        {
+          "checkpoint": "business_evolution",
+          "anticipatedNeed": "Review a full day's transactions."
+        }
+      ],
+      "scenarioIds": [
+        "F01",
+        "F04",
+        "B19",
+        "B20"
+      ]
+    },
+    {
+      "id": "TR-003",
+      "label": "Household goods merchant",
+      "tradeType": "general_shop",
+      "context": "Sells multiple products; prices occasionally negotiated; returns happen.",
+      "fictional": true,
+      "progression": [
+        {
+          "checkpoint": "first_use",
+          "anticipatedNeed": "Correct a basket total."
+        },
+        {
+          "checkpoint": "repeat_use",
+          "anticipatedNeed": "Handle refunds and returns."
+        },
+        {
+          "checkpoint": "business_evolution",
+          "anticipatedNeed": "Manage stock and repeat orders."
+        }
+      ],
+      "scenarioIds": [
+        "F03",
+        "B13",
+        "B20"
+      ]
+    },
+    {
+      "id": "TR-004",
+      "label": "Shop assistant",
+      "tradeType": "retail_employee",
+      "context": "Works under owner authority; must not inherit release power from seeing notifications.",
+      "fictional": true,
+      "progression": [
+        {
+          "checkpoint": "first_use",
+          "anticipatedNeed": "Recognise correct customer payment."
+        },
+        {
+          "checkpoint": "repeat_use",
+          "anticipatedNeed": "Handle rush-hour queues."
+        },
+        {
+          "checkpoint": "business_evolution",
+          "anticipatedNeed": "Use scoped employee permissions."
+        }
+      ],
+      "scenarioIds": [
+        "F04"
+      ]
+    },
+    {
+      "id": "TR-005",
+      "label": "Barber or salon operator",
+      "tradeType": "personal_service",
+      "context": "Services are performed immediately; add-on work may be disputed.",
+      "fictional": true,
+      "progression": [
+        {
+          "checkpoint": "first_use",
+          "anticipatedNeed": "Record one completed service."
+        },
+        {
+          "checkpoint": "repeat_use",
+          "anticipatedNeed": "Serve repeat customers."
+        },
+        {
+          "checkpoint": "business_evolution",
+          "anticipatedNeed": "Keep receipts and daily sales records."
+        }
+      ],
+      "scenarioIds": [
+        "F05"
+      ]
+    },
+    {
+      "id": "TR-006",
+      "label": "Social commerce seller",
+      "tradeType": "remote_goods",
+      "context": "Takes enquiries in chat; ships to customers not present.",
+      "fictional": true,
+      "progression": [
+        {
+          "checkpoint": "first_use",
+          "anticipatedNeed": "Issue a remote offer."
+        },
+        {
+          "checkpoint": "repeat_use",
+          "anticipatedNeed": "Manage deliveries and cancellations."
+        },
+        {
+          "checkpoint": "business_evolution",
+          "anticipatedNeed": "Sell across several websites."
+        }
+      ],
+      "scenarioIds": [
+        "F06",
+        "B13"
+      ]
+    },
+    {
+      "id": "TR-007",
+      "label": "Home repair professional",
+      "tradeType": "repair_service",
+      "context": "Work price may change after diagnosing fault; photos may not prove work is done.",
+      "fictional": true,
+      "progression": [
+        {
+          "checkpoint": "first_use",
+          "anticipatedNeed": "Agree on an initial service."
+        },
+        {
+          "checkpoint": "repeat_use",
+          "anticipatedNeed": "Amend work and partial payment."
+        },
+        {
+          "checkpoint": "business_evolution",
+          "anticipatedNeed": "Track multiple stages and evidence."
+        }
+      ],
+      "scenarioIds": [
+        "F07",
+        "B18"
+      ]
+    },
+    {
+      "id": "TR-008",
+      "label": "School bursar",
+      "tradeType": "education",
+      "context": "Must allocate fees to the correct learner and term without disclosing family data.",
+      "fictional": true,
+      "progression": [
+        {
+          "checkpoint": "first_use",
+          "anticipatedNeed": "Receive one partial school-fees payment."
+        },
+        {
+          "checkpoint": "repeat_use",
+          "anticipatedNeed": "Handle multiple learners/instalments."
+        },
+        {
+          "checkpoint": "business_evolution",
+          "anticipatedNeed": "Review reconciled institutional receipts."
+        }
+      ],
+      "scenarioIds": [
+        "F08"
+      ]
+    },
+    {
+      "id": "TR-009",
+      "label": "Community fund organiser",
+      "tradeType": "community_contribution",
+      "context": "Organises transparent contributions with contributor privacy and committee oversight.",
+      "fictional": true,
+      "progression": [
+        {
+          "checkpoint": "first_use",
+          "anticipatedNeed": "Publish a truthful contribution purpose."
+        },
+        {
+          "checkpoint": "repeat_use",
+          "anticipatedNeed": "Track pledges versus confirmed deposits."
+        },
+        {
+          "checkpoint": "business_evolution",
+          "anticipatedNeed": "Explain verified disbursements and governance."
+        }
+      ],
+      "scenarioIds": [
+        "F09"
+      ]
+    },
+    {
+      "id": "TR-010",
+      "label": "Wholesale supplier",
+      "tradeType": "wholesale",
+      "context": "Large quantities, partial deliveries, business-to-business settlement.",
+      "fictional": true,
+      "progression": [
+        {
+          "checkpoint": "first_use",
+          "anticipatedNeed": "Create a quantity-specific order."
+        },
+        {
+          "checkpoint": "repeat_use",
+          "anticipatedNeed": "Handle partial delivery."
+        },
+        {
+          "checkpoint": "business_evolution",
+          "anticipatedNeed": "Support repeat stock supply."
+        }
+      ],
+      "scenarioIds": [
+        "F10"
+      ]
+    },
+    {
+      "id": "TR-011",
+      "label": "Small retailer buying stock",
+      "tradeType": "business_buyer",
+      "context": "Purchases restocking supply and may have trusted customers buying on credit.",
+      "fictional": true,
+      "progression": [
+        {
+          "checkpoint": "first_use",
+          "anticipatedNeed": "Pay for delivered stock."
+        },
+        {
+          "checkpoint": "repeat_use",
+          "anticipatedNeed": "Reconcile incomplete supply."
+        },
+        {
+          "checkpoint": "business_evolution",
+          "anticipatedNeed": "Handle a repeat customer obligation separately."
+        }
+      ],
+      "scenarioIds": [
+        "F10",
+        "B11"
+      ]
+    },
+    {
+      "id": "TR-012",
+      "label": "Second-hand goods seller",
+      "tradeType": "used_goods",
+      "context": "Sells individual items with condition and inspection terms.",
+      "fictional": true,
+      "progression": [
+        {
+          "checkpoint": "first_use",
+          "anticipatedNeed": "Offer used goods with disclosed defects."
+        },
+        {
+          "checkpoint": "repeat_use",
+          "anticipatedNeed": "Negotiate collection."
+        },
+        {
+          "checkpoint": "business_evolution",
+          "anticipatedNeed": "Handle post-inspection disagreement."
+        }
+      ],
+      "scenarioIds": [
+        "B12"
+      ]
+    },
+    {
+      "id": "TR-013",
+      "label": "Delivery rider",
+      "tradeType": "transport",
+      "context": "May complete physical movement when customer network is down; price can change if route changes.",
+      "fictional": true,
+      "progression": [
+        {
+          "checkpoint": "first_use",
+          "anticipatedNeed": "Agree on one delivery."
+        },
+        {
+          "checkpoint": "repeat_use",
+          "anticipatedNeed": "Handle changed destination."
+        },
+        {
+          "checkpoint": "business_evolution",
+          "anticipatedNeed": "Keep a record of completion and payment."
+        }
+      ],
+      "scenarioIds": [
+        "B15"
+      ]
+    },
+    {
+      "id": "TR-014",
+      "label": "Short-stay host",
+      "tradeType": "accommodation",
+      "context": "Controls real booking availability and cancellation policy outside financial Mini.",
+      "fictional": true,
+      "progression": [
+        {
+          "checkpoint": "first_use",
+          "anticipatedNeed": "Offer available dates."
+        },
+        {
+          "checkpoint": "repeat_use",
+          "anticipatedNeed": "Handle deposits and change requests."
+        },
+        {
+          "checkpoint": "business_evolution",
+          "anticipatedNeed": "Reconcile cancellations and refunds."
+        }
+      ],
+      "scenarioIds": [
+        "B16"
+      ]
+    },
+    {
+      "id": "TR-015",
+      "label": "Physical storage operator",
+      "tradeType": "storage",
+      "context": "Tracks physical custody and extra days; transport is a different service.",
+      "fictional": true,
+      "progression": [
+        {
+          "checkpoint": "first_use",
+          "anticipatedNeed": "Arrange four days of space."
+        },
+        {
+          "checkpoint": "repeat_use",
+          "anticipatedNeed": "Extend by consent."
+        },
+        {
+          "checkpoint": "business_evolution",
+          "anticipatedNeed": "Track release of physical goods."
+        }
+      ],
+      "scenarioIds": [
+        "B17"
+      ]
+    },
+    {
+      "id": "TR-016",
+      "label": "Milestone contractor",
+      "tradeType": "construction",
+      "context": "Trades often require proof, several releases and comprehensive review.",
+      "fictional": true,
+      "progression": [
+        {
+          "checkpoint": "first_use",
+          "anticipatedNeed": "Agree on staged job."
+        },
+        {
+          "checkpoint": "repeat_use",
+          "anticipatedNeed": "Request first milestone assessment."
+        },
+        {
+          "checkpoint": "business_evolution",
+          "anticipatedNeed": "Continue complex job in full SecurePay."
+        }
+      ],
+      "scenarioIds": [
+        "B18"
+      ]
+    },
+    {
+      "id": "TR-017",
+      "label": "Parent and regular buyer",
+      "tradeType": "household_buyer",
+      "context": "Pays fees and shops both in person and remotely; values clear receipts.",
+      "fictional": true,
+      "progression": [
+        {
+          "checkpoint": "first_use",
+          "anticipatedNeed": "Accept one correct invitation."
+        },
+        {
+          "checkpoint": "repeat_use",
+          "anticipatedNeed": "Pay a fee for named term/learner."
+        },
+        {
+          "checkpoint": "business_evolution",
+          "anticipatedNeed": "Track receipts and corrections."
+        }
+      ],
+      "scenarioIds": [
+        "F01",
+        "F06",
+        "F07",
+        "F08",
+        "F09",
+        "B11",
+        "B13",
+        "B14",
+        "B15",
+        "B16",
+        "B17"
+      ]
+    },
+    {
+      "id": "TR-018",
+      "label": "Customer without KS or smartphone",
+      "tradeType": "offline_buyer",
+      "context": "Wants to buy goods with minimal digital friction; cannot assume wallet or internet.",
+      "fictional": true,
+      "progression": [
+        {
+          "checkpoint": "first_use",
+          "anticipatedNeed": "Understand available lawful options."
+        },
+        {
+          "checkpoint": "repeat_use",
+          "anticipatedNeed": "Decline forced registration."
+        },
+        {
+          "checkpoint": "business_evolution",
+          "anticipatedNeed": "Return later without bogus funded history."
+        }
+      ],
+      "scenarioIds": [
+        "B19"
+      ]
+    },
+    {
+      "id": "TR-019",
+      "label": "Estate or rent collection administrator",
+      "tradeType": "recurring_obligations",
+      "context": "Needs correct period, payer and authorised payee; must avoid double billing.",
+      "fictional": true,
+      "progression": [
+        {
+          "checkpoint": "first_use",
+          "anticipatedNeed": "Identify correct monthly obligation."
+        },
+        {
+          "checkpoint": "repeat_use",
+          "anticipatedNeed": "Accept part arrears accurately."
+        },
+        {
+          "checkpoint": "business_evolution",
+          "anticipatedNeed": "Reconcile month-by-month statements."
+        }
+      ],
+      "scenarioIds": [
+        "B14"
+      ]
+    },
+    {
+      "id": "TR-020",
+      "label": "Everyday retail customer",
+      "tradeType": "counter_buyer",
+      "context": "Visits a kiosk, market and other shops; impatient with long agreement forms.",
+      "fictional": true,
+      "progression": [
+        {
+          "checkpoint": "first_use",
+          "anticipatedNeed": "Understand and approve tiny purchase."
+        },
+        {
+          "checkpoint": "repeat_use",
+          "anticipatedNeed": "Change quantity before paying."
+        },
+        {
+          "checkpoint": "business_evolution",
+          "anticipatedNeed": "Feel safe leaving shop after confirmed funding."
+        }
+      ],
+      "scenarioIds": [
+        "F01",
+        "F02",
+        "F03",
+        "F05",
+        "B12",
+        "B19"
+      ]
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "F01",
+      "tier": "focus",
+      "title": "Tiny in-person counter sale",
+      "actorIds": [
+        "TR-002",
+        "TR-017",
+        "TR-020"
+      ],
+      "job": "Make a quick in-person sale of a low-priced item without slowing the queue.",
+      "surprise": "Swap item before acceptance",
+      "tradeShape": "immediate_goods",
+      "capabilities": [
+        "propose",
+        "invite",
+        "accept",
+        "fund",
+        "handover",
+        "release",
+        "settlement"
+      ],
+      "invariants": [
+        "no_false_funding",
+        "exact_agreement_version",
+        "authorised_release"
+      ],
+      "failureClass": "low_value_fee_and_speed",
+      "status": "NOT_TESTED"
+    },
+    {
+      "id": "F02",
+      "tier": "focus",
+      "title": "Market produce by quantity",
+      "actorIds": [
+        "TR-001",
+        "TR-020"
+      ],
+      "job": "Sell variable amounts of produce; allow Kiswahili and correcting units without trusting a camera to determine a price.",
+      "surprise": "Add or subtract an item after opening",
+      "tradeShape": "negotiated_units",
+      "capabilities": [
+        "capture",
+        "edit",
+        "accept",
+        "fund",
+        "handover",
+        "release"
+      ],
+      "invariants": [
+        "seller_confirms_amount",
+        "pending_is_not_funded",
+        "accessible"
+      ],
+      "failureClass": "low_connectivity",
+      "status": "NOT_TESTED"
+    },
+    {
+      "id": "F03",
+      "tier": "focus",
+      "title": "Multi-item household basket",
+      "actorIds": [
+        "TR-003",
+        "TR-020"
+      ],
+      "job": "Prepare and correct several lines in a basket and issue an accurate receipt.",
+      "surprise": "Return one item immediately",
+      "tradeShape": "basket",
+      "capabilities": [
+        "create_basket",
+        "review_total",
+        "fund",
+        "fulfil",
+        "receipt",
+        "stock"
+      ],
+      "invariants": [
+        "no_fabricated_quantity",
+        "no_inventory_change_from_invite",
+        "refund_authority"
+      ],
+      "failureClass": "basket_price_change",
+      "status": "NOT_TESTED"
+    },
+    {
+      "id": "F04",
+      "tier": "focus",
+      "title": "Several customers at once",
+      "actorIds": [
+        "TR-002",
+        "TR-004"
+      ],
+      "job": "Serve several people at once and safely reconcile notifications when two purchases have the same amount.",
+      "surprise": "Duplicate or reordered funding notifications",
+      "tradeShape": "counter_queue",
+      "capabilities": [
+        "track_multiple",
+        "confirm_funding",
+        "handover",
+        "release"
+      ],
+      "invariants": [
+        "transaction_specific_identity",
+        "idempotency",
+        "role_scoped_authority"
+      ],
+      "failureClass": "notification_race",
+      "status": "NOT_TESTED"
+    },
+    {
+      "id": "F05",
+      "tier": "focus",
+      "title": "Immediate service",
+      "actorIds": [
+        "TR-005",
+        "TR-020"
+      ],
+      "job": "Complete a small salon or barber service without requiring a product barcode.",
+      "surprise": "Buyer disputes an extra unquoted service",
+      "tradeShape": "immediate_service",
+      "capabilities": [
+        "scope_service",
+        "accept",
+        "fund",
+        "completion",
+        "release"
+      ],
+      "invariants": [
+        "service_not_product",
+        "no_unapproved_uplift"
+      ],
+      "failureClass": "scope_dispute",
+      "status": "NOT_TESTED"
+    },
+    {
+      "id": "F06",
+      "tier": "focus",
+      "title": "Remote order for later delivery",
+      "actorIds": [
+        "TR-006",
+        "TR-017"
+      ],
+      "job": "Sell goods through an invitation to a buyer who is not physically present.",
+      "surprise": "Seller offers a different product size after acceptance",
+      "tradeShape": "remote_delivery",
+      "capabilities": [
+        "prepare_offer",
+        "invite",
+        "accept",
+        "fund",
+        "dispatch",
+        "delivery",
+        "release"
+      ],
+      "invariants": [
+        "dispatch_not_delivery",
+        "exact_version",
+        "dispute_safe"
+      ],
+      "failureClass": "remote_undelivered",
+      "status": "NOT_TESTED"
+    },
+    {
+      "id": "F07",
+      "tier": "focus",
+      "title": "Repair with changing materials",
+      "actorIds": [
+        "TR-007",
+        "TR-017"
+      ],
+      "job": "Prepare a quote for a repair and renegotiate extra parts after inspection.",
+      "surprise": "Buyer agrees to only partial completed work",
+      "tradeShape": "variable_service",
+      "capabilities": [
+        "estimate",
+        "amend",
+        "accept",
+        "fund",
+        "evidence",
+        "release"
+      ],
+      "invariants": [
+        "version_bound_amendment",
+        "evidence_not_confirmation",
+        "no_overrelease"
+      ],
+      "failureClass": "changed_work",
+      "status": "NOT_TESTED"
+    },
+    {
+      "id": "F08",
+      "tier": "focus",
+      "title": "School-fees instalment",
+      "actorIds": [
+        "TR-008",
+        "TR-017"
+      ],
+      "job": "Allocate part of a fee obligation to the right learner and period without leaking private information.",
+      "surprise": "Same family has two students",
+      "tradeShape": "recurring_obligation",
+      "capabilities": [
+        "identify_obligation",
+        "review_beneficiary",
+        "fund",
+        "receipt"
+      ],
+      "invariants": [
+        "learner_privacy",
+        "correct_beneficiary",
+        "partial_funding_is_not_full"
+      ],
+      "failureClass": "wrong_learner",
+      "status": "NOT_TESTED"
+    },
+    {
+      "id": "F09",
+      "tier": "focus",
+      "title": "Community QR contribution",
+      "actorIds": [
+        "TR-009",
+        "TR-017"
+      ],
+      "job": "Support a contribution for a clear purpose and show confirmed receipts separately from pledges and reported spending.",
+      "surprise": "Contributor chooses not to be publicly named",
+      "tradeShape": "group_contribution",
+      "capabilities": [
+        "publish_purpose",
+        "scan_qr",
+        "consent",
+        "fund",
+        "report"
+      ],
+      "invariants": [
+        "intent_not_funding",
+        "privacy",
+        "governed_disbursement"
+      ],
+      "failureClass": "anonymous_contributor",
+      "status": "NOT_TESTED"
+    },
+    {
+      "id": "F10",
+      "tier": "focus",
+      "title": "Wholesale partial supply",
+      "actorIds": [
+        "TR-010",
+        "TR-011"
+      ],
+      "job": "Fund a larger supply order and reconcile partial delivery versus the agreed quantity.",
+      "surprise": "32 of 40 items delivered; rest later",
+      "tradeShape": "b2b_supply",
+      "capabilities": [
+        "quote",
+        "accept",
+        "fund",
+        "partial_delivery",
+        "authorise_partial_release"
+      ],
+      "invariants": [
+        "no_overrelease",
+        "seller_buyer_authority",
+        "quantities_match"
+      ],
+      "failureClass": "partial_delivery",
+      "status": "NOT_TESTED"
+    },
+    {
+      "id": "B11",
+      "tier": "breadth",
+      "title": "Pay later or part now",
+      "actorIds": [
+        "TR-011",
+        "TR-017"
+      ],
+      "job": "Record an unpaid or part-paid customer obligation without pretending secured funding exists.",
+      "surprise": "Customer pays part after leaving",
+      "tradeShape": "unfunded_obligation",
+      "capabilities": [
+        "propose_deferred",
+        "agree",
+        "record_obligation"
+      ],
+      "invariants": [
+        "no_false_funding",
+        "no_unlicensed_credit"
+      ],
+      "failureClass": "promised_vs_received",
+      "status": "NOT_TESTED"
+    },
+    {
+      "id": "B12",
+      "tier": "breadth",
+      "title": "Used item with defects",
+      "actorIds": [
+        "TR-012",
+        "TR-020"
+      ],
+      "job": "Disclose condition and allow inspection before agreement.",
+      "surprise": "New defect disclosed after invite",
+      "tradeShape": "used_goods",
+      "capabilities": [
+        "capture_condition",
+        "accept",
+        "fund",
+        "inspect",
+        "handover"
+      ],
+      "invariants": [
+        "photo_not_verified",
+        "exact_version",
+        "returns_terms"
+      ],
+      "failureClass": "changed_condition",
+      "status": "NOT_TESTED"
+    },
+    {
+      "id": "B13",
+      "tier": "breadth",
+      "title": "Cross-store basket",
+      "actorIds": [
+        "TR-006",
+        "TR-003",
+        "TR-017"
+      ],
+      "job": "Buy from different sellers through one shopping experience without pooling settlement permissions.",
+      "surprise": "One merchant cancels while other continues",
+      "tradeShape": "multi_seller",
+      "capabilities": [
+        "select_multi",
+        "review_seller_boundaries",
+        "fund",
+        "fulfil"
+      ],
+      "invariants": [
+        "no_cross_store_funds",
+        "independent_release",
+        "no_duplicate_order"
+      ],
+      "failureClass": "seller_cancels",
+      "status": "NOT_TESTED"
+    },
+    {
+      "id": "B14",
+      "tier": "breadth",
+      "title": "Recurring estate or rent obligation",
+      "actorIds": [
+        "TR-019",
+        "TR-017"
+      ],
+      "job": "Pay the correct entity, month and balance.",
+      "surprise": "Previous month partly outstanding",
+      "tradeShape": "recurring_fee",
+      "capabilities": [
+        "identify_period",
+        "confirm_payee",
+        "fund",
+        "receipt"
+      ],
+      "invariants": [
+        "correct_period",
+        "payee_verified",
+        "no_duplicate_bill"
+      ],
+      "failureClass": "arrears",
+      "status": "NOT_TESTED"
+    },
+    {
+      "id": "B15",
+      "tier": "breadth",
+      "title": "Ride or delivery service",
+      "actorIds": [
+        "TR-013",
+        "TR-017"
+      ],
+      "job": "Pay an agreed local ride or delivery after appropriate completion evidence.",
+      "surprise": "Destination changes and price is revised",
+      "tradeShape": "transport",
+      "capabilities": [
+        "quote",
+        "confirm",
+        "complete",
+        "fund",
+        "release"
+      ],
+      "invariants": [
+        "provider_trip_truth",
+        "no_unapproved_fare"
+      ],
+      "failureClass": "route_change",
+      "status": "NOT_TESTED"
+    },
+    {
+      "id": "B16",
+      "tier": "breadth",
+      "title": "Short stay booking",
+      "actorIds": [
+        "TR-014",
+        "TR-017"
+      ],
+      "job": "Book only verified available dates and make deposit subject to clear terms.",
+      "surprise": "Host cancels before arrival",
+      "tradeShape": "accommodation",
+      "capabilities": [
+        "verify_availability",
+        "agree",
+        "fund",
+        "arrival",
+        "cancel_or_release"
+      ],
+      "invariants": [
+        "booking_not_from_draft",
+        "refund_rules"
+      ],
+      "failureClass": "host_cancellation",
+      "status": "NOT_TESTED"
+    },
+    {
+      "id": "B17",
+      "tier": "breadth",
+      "title": "Physical storage extension",
+      "actorIds": [
+        "TR-015",
+        "TR-017"
+      ],
+      "job": "Arrange short-term custody of furniture and optionally separate transport.",
+      "surprise": "Goods stay two extra days",
+      "tradeShape": "storage",
+      "capabilities": [
+        "define_custody",
+        "accept",
+        "fund",
+        "extend",
+        "release_goods"
+      ],
+      "invariants": [
+        "custody_truth",
+        "new_terms_require_consent"
+      ],
+      "failureClass": "late_pickup",
+      "status": "NOT_TESTED"
+    },
+    {
+      "id": "B18",
+      "tier": "breadth",
+      "title": "Milestone construction",
+      "actorIds": [
+        "TR-016",
+        "TR-007"
+      ],
+      "job": "Make part-payment only for correctly approved stages and preserve continuity to full workspace.",
+      "surprise": "First milestone disputed",
+      "tradeShape": "milestone_work",
+      "capabilities": [
+        "agree_scope",
+        "fund",
+        "evidence",
+        "review",
+        "partial_release",
+        "full_workspace"
+      ],
+      "invariants": [
+        "milestone_authority",
+        "same_agreement",
+        "no_unilateral_release"
+      ],
+      "failureClass": "rejected_milestone",
+      "status": "NOT_TESTED"
+    },
+    {
+      "id": "B19",
+      "tier": "breadth",
+      "title": "Buyer without KS or smartphone",
+      "actorIds": [
+        "TR-018",
+        "TR-002",
+        "TR-020"
+      ],
+      "job": "Serve or honestly decline a buyer who cannot use Mini without inventing an identity or a safeguarded cash deposit.",
+      "surprise": "Buyer declines registration",
+      "tradeShape": "inclusion",
+      "capabilities": [
+        "offer_safe_options",
+        "no_coercion"
+      ],
+      "invariants": [
+        "no_fake_ks",
+        "cash_not_automatically_protected",
+        "accessibility"
+      ],
+      "failureClass": "no_device",
+      "status": "NOT_TESTED"
+    },
+    {
+      "id": "B20",
+      "tier": "breadth",
+      "title": "End of day merchant review",
+      "actorIds": [
+        "TR-002",
+        "TR-003",
+        "TR-001"
+      ],
+      "job": "Ask what sold and what actually settled despite open orders and disputes.",
+      "surprise": "One provider result is still unknown",
+      "tradeShape": "daily_merchant_view",
+      "capabilities": [
+        "review_sales",
+        "review_inventory",
+        "reconcile"
+      ],
+      "invariants": [
+        "settled_distinct_from_funded",
+        "no_made_up_revenue"
+      ],
+      "failureClass": "bank_delay",
+      "status": "NOT_TESTED"
+    }
+  ],
+  "safetyChecks": [
+    {
+      "id": "S01",
+      "challenge": "wrong_ks_or_lookalike",
+      "invariant": "no_unauthorised_identity_or_beneficiary",
+      "status": "NOT_TESTED"
+    },
+    {
+      "id": "S02",
+      "challenge": "false_paid_claim",
+      "invariant": "only_provider_reconciliation_can_mark_funded",
+      "status": "NOT_TESTED"
+    },
+    {
+      "id": "S03",
+      "challenge": "seller_handover_before_funding",
+      "invariant": "handover_never_generates_funds",
+      "status": "NOT_TESTED"
+    },
+    {
+      "id": "S04",
+      "challenge": "wrong_person_attempts_release",
+      "invariant": "transaction_scoped_reauthentication_required",
+      "status": "NOT_TESTED"
+    },
+    {
+      "id": "S05",
+      "challenge": "duplicate_webhook_or_tap",
+      "invariant": "idempotent_financial_effect",
+      "status": "NOT_TESTED"
+    },
+    {
+      "id": "S06",
+      "challenge": "provider_timeout_unknown",
+      "invariant": "never_blind_resend_or_claim_settled",
+      "status": "NOT_TESTED"
+    },
+    {
+      "id": "S07",
+      "challenge": "changed_price_or_terms",
+      "invariant": "exact_version_fresh_consent",
+      "status": "NOT_TESTED"
+    },
+    {
+      "id": "S08",
+      "challenge": "dispute_or_nonresponse",
+      "invariant": "no_unauthorised_release_or_invented_timeout",
+      "status": "NOT_TESTED"
+    },
+    {
+      "id": "S09",
+      "challenge": "untrusted_embedded_origin",
+      "invariant": "no_leaked_tokens_or_money_authority",
+      "status": "NOT_TESTED"
+    },
+    {
+      "id": "S10",
+      "challenge": "tiny_transaction_fee",
+      "invariant": "disclose_actual_total_and_dont_invent_tariff",
+      "status": "NOT_TESTED"
+    }
+  ],
+  "runLog": "tests/fixtures/securepay-mini/cohort-runlog.v1.json",
+  "sourceSpec": "docs/SECUREPAY_MINI_KENYAN_MARKET_TEST_PACK_V1_20261109.md"
+}
