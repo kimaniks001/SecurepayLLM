@@ -9,10 +9,19 @@ const js=ts.transpileModule(source,{
   compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}
 }).outputText;
 const outputs={};
+const reviewSource=readFileSync(new URL('../src/mini/checkoutSourceReview.ts',import.meta.url),'utf8');
+const reviewJs=ts.transpileModule(reviewSource,{
+  compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}
+}).outputText;
+const reviewExports={};
+runInNewContext(reviewJs,{
+  exports:reviewExports,Number,String,Object,Date,RegExp,Error
+});
 runInNewContext(js,{
   exports:outputs,require:spec=>{
-    assert.equal(spec,'../http');
-    return {segment:encodeURIComponent};
+    if(spec==='../http')return {segment:encodeURIComponent};
+    if(spec==='../../../mini/checkoutSourceReview')return reviewExports;
+    assert.fail('Unexpected dependency in authenticated Store source gateway: '+spec);
   },Number,String,Object,Date,RegExp,Error
 });
 const buyerId='11111111-1111-4111-8111-111111111111';
@@ -71,6 +80,23 @@ test('only authenticated reads can get real intention or source-linked agreement
   assert.ok(calls.every(c=>c.options.auth==='required'));
   assert.ok(calls.every(c=>c.options.method===undefined));
   assert.match(calls[1].path,/\/agreement-readiness\//);
+});
+
+test('authenticated Store source review is non-payable and uses a single exact intention read',async()=>{
+  const calls=[];
+  const gateway=outputs.createStoreCheckoutGateway({
+    request:async(path,options)=>{calls.push({path,options});return intent;}
+  });
+  const review=await gateway.sourceReview(buyerId);
+  assert.equal(review.protocol,'SECUREPAY_CHECKOUT_SOURCE_REVIEW_V1');
+  assert.equal(review.source,'STORE');
+  assert.equal(review.sourceReference,buyerId);
+  assert.equal(review.paymentEnabled,false);
+  assert.equal(review.agreementAccepted,false);
+  assert.equal(review.checkoutSessionIssued,false);
+  assert.equal(calls.length,1);
+  assert.equal(calls[0].options.auth,'required');
+  assert.equal(calls[0].options.method,undefined);
 });
 
 test('malformed source, stale amount, fake payment or Agreement claims are rejected',async()=>{
