@@ -111,7 +111,8 @@ export function gate2Snapshot(session, config, now = Date.now()) {
       description: fixture.itemDescription, details: fixture.details,
       quantity: fixture.quantity, unit: fixture.unit,
       amountMinor: fixture.amountMinor, currency: fixture.currency,
-      hostReturnPath: fixture.hostReturnPath,
+      hostReturnPath: fixture.source === 'STORE' ?
+        '/checkout-gate2-store.html' : '/checkout-gate2-shortstays.html',
       status: 'NOT_PLACED_SANDBOX_ONLY',
     },
     agreement: {
