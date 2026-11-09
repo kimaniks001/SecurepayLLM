@@ -23,6 +23,8 @@ export default defineConfig({
         demoStore: fileURLToPath(new URL('./checkout-demo-store.html', import.meta.url)),
         demoShortStays: fileURLToPath(new URL('./checkout-demo-shortstays.html', import.meta.url)),
         storeOfferReview: fileURLToPath(new URL('./checkout-store-offer-preview.html', import.meta.url)),
+        gate2Store: fileURLToPath(new URL('./checkout-gate2-store.html', import.meta.url)),
+        gate2Stays: fileURLToPath(new URL('./checkout-gate2-shortstays.html', import.meta.url)),
       },
     },
   },
