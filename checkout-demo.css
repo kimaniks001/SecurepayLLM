@@ -51,3 +51,15 @@
 .demo-manual label{font-size:12px;color:#526b57;font-weight:650}
 .demo-manual input{font:inherit;width:100%;font-size:14px;padding:11px 12px;min-height:44px;border:1px solid #d6e3d5;background:#fff;border-radius:9px}
 .demo-manual .demo-pay{margin-top:6px}
+
+
+/* Phase 3 explicit offline sandbox: never merge with live Store search results. */
+.demo-sandbox-section{max-width:640px;margin-top:16px;border-style:dashed;border-color:#c7d7c3;background:#fafcf8}
+.demo-sandbox-section h2{margin:8px 0}
+.demo-sandbox-options{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0}
+.demo-sandbox-link{display:grid;gap:5px;border:1px solid #bfd4bd;background:#edf5e9;border-radius:12px;padding:14px;text-decoration:none;color:#29583d;min-height:82px}
+.demo-sandbox-link strong{font-size:13px;line-height:1.4}
+.demo-sandbox-link span{font-size:11px;color:#617361;line-height:1.35}
+.demo-sandbox-link:hover{border-color:#6c9f76;background:#e6f0df}
+.demo-sandbox-honesty{font-size:11px;color:#7b806b;line-height:1.5}
+@media(max-width:520px){.demo-sandbox-options{grid-template-columns:1fr}}
