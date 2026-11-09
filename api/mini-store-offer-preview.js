@@ -102,6 +102,40 @@ export async function fetchCurrentPublishedOffer(apiOrigin, seller, offerId, qua
   return verifyPublishedStoreOffer(parsed,seller,offerId,quantity);
 }
 
+/** Public discoverability only; every selected offer is re-read on POST and GET. */
+export async function discoverStoreOffers(apiOrigin, fetcher = fetch) {
+  const response=await fetcher(apiOrigin+'/api/v1/stores/search?kind=PRODUCT&limit=5',{
+    method:'GET',redirect:'error',credentials:'omit',cache:'no-store',
+    headers:{Accept:'application/json'},signal:AbortSignal.timeout(5000)
+  });
+  if(!response.ok)return [];
+  const size=Number(response.headers?.get?.('content-length')||0);
+  if(size>32768)return [];
+  const text=await response.text();
+  if(text.length>32768)return [];
+  let records;
+  try{records=JSON.parse(text);}catch{return [];}
+  if(!Array.isArray(records))return [];
+  return records.slice(0,5).flatMap(entry=>{
+    const o=entry?.offer;
+    if(!validSeller(entry?.canonicalKsNumber) ||
+      !validOffer(o?.id) || !scalar(o?.title,160) ||
+      !scalar(entry?.displayName,120) ||
+      !OPEN_STATES.has(o?.availabilityState) ||
+      o?.currency!=='KES' ||
+      !Number.isSafeInteger(o?.priceMinor) ||
+      o.priceMinor<=0)return [];
+    return [{
+      sellerKsNumber:entry.canonicalKsNumber,
+      offerId:o.id,
+      sellerName:entry.displayName,
+      title:o.title,
+      priceMinor:o.priceMinor,
+      currency:'KES',
+    }];
+  });
+}
+
 export function issueOfferReview(reference, config, now = Date.now()) {
   const claims = {v:1,origin:config.origin,ks:reference.record.sellerKsNumber,
     offerId:reference.record.offerId,
@@ -176,6 +210,12 @@ export async function handleOfferReview(req,res,env=process.env,now=Date.now(),f
   }
   if (req.method === 'GET') {
     const q=new URL(req.url||'/',conf.origin).searchParams;
+    if(q.size===1 && q.getAll('discover').length===1 && q.get('discover')==='1') {
+      try {
+        const choices=await discoverStoreOffers(conf.apiOrigin,fetcher);
+        return respond(res,200,{offers:choices,simulationOnly:true,checkoutEnabled:false});
+      } catch{return respond(res,503,{code:'STORE_API_UNAVAILABLE'});}
+    }
     if (q.getAll('session').length !== 1 || [...q.keys()].some(k=>k!=='session'))
       return respond(res,400,{code:'SESSION_REQUIRED'});
     const c=readOfferReview(q.get('session'),conf,now);
