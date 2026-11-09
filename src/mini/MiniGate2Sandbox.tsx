@@ -7,6 +7,7 @@ import type { MiniDraft, MiniLanguage } from './miniModel';
 import type { MiniDemoStatus } from './checkoutDemoFixtures';
 import type { MiniFundingTestStatus, MiniTestRailId } from './miniFundingSimulator';
 import { MiniFundingPreview } from './MiniFundingPreview';
+import { MiniGate3Funding } from './MiniGate3Funding';
 import { MiniGuestChat } from './MiniGuestChat';
 import {
   acknowledgeGate2Review, getGate2Snapshot,
@@ -19,10 +20,13 @@ type Screen = 'review' | 'funding' | 'chat';
 /** Gate 2 sandbox. Uses the same existing Mini and simulated rail component.
  * Review is a TEST transition only, never legal acceptance or a real order.
  */
-export function MiniGate2Sandbox({session, language}: {session:string;language:MiniLanguage}) {
+export function MiniGate2Sandbox({session, language, gate3Enabled = false}: {
+  session:string;language:MiniLanguage;gate3Enabled?:boolean;
+}) {
   const sw = language === 'sw';
   const [loading,setLoading] = useState<LoadState>('loading');
   const [snapshot,setSnapshot] = useState<SandboxGate2Snapshot|null>(null);
+  const [reviewSession,setReviewSession] = useState(session);
   const [screen,setScreen] = useState<Screen>('review');
   const [cameFrom,setCameFrom] = useState<'review'|'funding'>('review');
   const [chatStarted,setChatStarted] = useState(false);
@@ -33,15 +37,35 @@ export function MiniGate2Sandbox({session, language}: {session:string;language:M
   useEffect(()=>{
     const controller = new AbortController();
     const timeout = window.setTimeout(()=>controller.abort(),8000);
-    void getGate2Snapshot(session,controller.signal).then(result=>{
+    void getGate2Snapshot(session,controller.signal).then(async result=>{
       if(controller.signal.aborted)return;
       if(result.kind==='ready'){
-        setSnapshot(result.data);
+        let data=result.data;
+        let activeSession=session;
+        if(gate3Enabled&&data.stage==='REVIEW'){
+          try{
+            const cached=sessionStorage.getItem('spm-gate3-reviewed-'+data.order.sandboxId);
+            if(cached){
+              const resumed=await getGate2Snapshot(cached,controller.signal);
+              if(resumed.kind==='ready'&&resumed.data.stage==='TERMS_REVIEWED'&&
+                  resumed.data.order.sandboxId===data.order.sandboxId&&
+                  resumed.data.order.amountMinor===data.order.amountMinor&&
+                  resumed.data.agreement.version===data.agreement.version){
+                data=resumed.data;
+                activeSession=cached;
+              }
+            }
+          }catch{/* optional session storage */}
+        }
+        if(controller.signal.aborted)return;
+        setReviewSession(activeSession);
+        setSnapshot(data);
+        if(gate3Enabled&&data.stage==='TERMS_REVIEWED')setScreen('funding');
         setLoading('ready');
-      } else setLoading(result.kind);
+      }else setLoading(result.kind);
     }).finally(()=>window.clearTimeout(timeout));
     return ()=>{window.clearTimeout(timeout);controller.abort();};
-  },[session]);
+  },[session,gate3Enabled]);
 
   useEffect(()=>{
     if(loading!=='ready'||!snapshot)return;
@@ -56,19 +80,21 @@ export function MiniGate2Sandbox({session, language}: {session:string;language:M
     document.querySelector<HTMLElement>('.spm-frame')?.scrollTo(0,0);
   },[screen,loading]);
 
-  const returnPath = snapshot?.order.hostReturnPath || '/checkout-gate2-store.html';
+  const returnPath = gate3Enabled && snapshot ?
+    (snapshot.order.source==='STORE' ? '/checkout-gate3-store.html' : '/checkout-gate3-shortstays.html') :
+    snapshot?.order.hostReturnPath || (gate3Enabled?'/checkout-gate3-store.html':'/checkout-gate2-store.html');
   const backToHost = () => {
     if(window.parent!==window) {
       if(!snapshot) {
         window.parent.postMessage({
-          type:'SECUREPAY_MINI_GATE2_CANCEL',sandboxGate:2,simulated:true
+          type:'SECUREPAY_MINI_GATE2_CANCEL',sandboxGate:gate3Enabled?3:2,simulated:true
         },window.location.origin);
         return;
       }
       window.parent.postMessage({
         type:'SECUREPAY_MINI_OWNER_DEMO_RETURN_V1',version:1,
         fixtureId:snapshot?.order.fixtureId,
-        result:simulatedStatus,simulated:true,sandboxGate:2,
+        result:simulatedStatus,simulated:true,sandboxGate:gate3Enabled?3:2,
         agreementAccepted:false,orderCreated:false
       },window.location.origin);
       return;
@@ -76,8 +102,16 @@ export function MiniGate2Sandbox({session, language}: {session:string;language:M
     window.location.assign(snapshot ? returnPath : '/checkout-store-offer-preview.html');
   };
   const onDemoStateChange = useCallback((status:MiniFundingTestStatus, method:MiniTestRailId|null)=>{
-    setSimulatedStatus(status==='SELECT_METHOD'&&!method?'NOT_STARTED':status);
-  },[]);
+    const state=status==='SELECT_METHOD'&&!method?'NOT_STARTED':status;
+    setSimulatedStatus(state);
+    if(gate3Enabled&&window.parent!==window&&snapshot){
+      window.parent.postMessage({
+        type:'SECUREPAY_MINI_SANDBOX_PROGRESS_V1',sandboxGate:3,simulated:true,
+        fixtureId:snapshot.order.fixtureId,result:state,
+        agreementAccepted:false,orderCreated:false
+      },window.location.origin);
+    }
+  },[gate3Enabled,snapshot]);
   const showChat = () => {
     setCameFrom(screen==='funding'?'funding':'review');
     setChatStarted(true);setScreen('chat');
@@ -107,6 +141,11 @@ export function MiniGate2Sandbox({session, language}: {session:string;language:M
         return;
       }
       setSnapshot(loaded.data);
+      setReviewSession(reviewed.session);
+      if(gate3Enabled){
+        try{sessionStorage.setItem('spm-gate3-reviewed-'+loaded.data.order.sandboxId,reviewed.session);}
+        catch{/* optional browser tab resume */}
+      }
       setScreen('funding');
     } finally {setBusy(false);}
   };
@@ -136,7 +175,7 @@ export function MiniGate2Sandbox({session, language}: {session:string;language:M
     counterparty:''
   };
 
-  return <section className="spm-hosted-demo spm-gate2" data-sandbox-gate="2"
+  return <section className="spm-hosted-demo spm-gate2" data-sandbox-gate={gate3Enabled?3:2}
       data-order-fixture={order.fixtureId}>
     {screen==='review'&&<div className="spm-hosted-review">
       <div className="spm-demo-flag"><FileCheck2 size={16}/>
@@ -182,12 +221,20 @@ export function MiniGate2Sandbox({session, language}: {session:string;language:M
 
     {reviewed&&<div className="spm-hosted-finance" hidden={screen!=='funding'}>
       <div className="spm-gate2-reviewed">Sample terms reviewed · NOT SIGNED · NOT PAID</div>
-      <MiniFundingPreview draft={draft} language={language}
-        guidedDemo
+      {gate3Enabled ? <MiniGate3Funding
+        reviewSession={reviewSession} language={language}
+        expected={{orderId:order.sandboxId,fixtureId:order.fixtureId,amountMinor:order.amountMinor}}
+        description={order.description}
         onDemoStateChange={onDemoStateChange}
         onBack={()=>setScreen('review')}
         onReturnToHost={backToHost}
         returnLabel={sw?'Rudi kwenye tovuti':order.source==='STORE'?'Return to Store':'Return to ShortStays'}/>
+      : <MiniFundingPreview draft={draft} language={language}
+        guidedDemo
+        onDemoStateChange={onDemoStateChange}
+        onBack={()=>setScreen('review')}
+        onReturnToHost={backToHost}
+        returnLabel={sw?'Rudi kwenye tovuti':order.source==='STORE'?'Return to Store':'Return to ShortStays'}/>}
       <button type="button" className="spm-quiet-button" onClick={showChat}>
         <MessageCircle size={16}/>Need help? Ask KS001
       </button>

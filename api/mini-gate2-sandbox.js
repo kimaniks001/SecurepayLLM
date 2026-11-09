@@ -12,6 +12,7 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:
 import { getMiniSandboxFixture } from './mini-checkout-preview.js';
 
 export const GATE2_BRANCH = 'feat/mini-phase3-gate2-sandbox-order-agreement-20261109';
+export const GATE3_BRANCH = 'feat/mini-phase3-gate3-sandbox-payment-status-20261109';
 export const GATE2_TTL_MS = 10 * 60 * 1000;
 const STAGES = new Set(['REVIEW', 'TERMS_REVIEWED']);
 const FORMAT = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
@@ -20,7 +21,8 @@ function hasOwn(value, key) {
   return Object.prototype.hasOwnProperty.call(value, key);
 }
 export function gate2Config(env = process.env) {
-  if (env.VERCEL_ENV !== 'preview' || env.VERCEL_GIT_COMMIT_REF !== GATE2_BRANCH) return null;
+  if (env.VERCEL_ENV !== 'preview' ||
+      ![GATE2_BRANCH, GATE3_BRANCH].includes(env.VERCEL_GIT_COMMIT_REF)) return null;
   const secret = String(env.MINI_GATE2_SANDBOX_SECRET || '');
   const host = String(env.VERCEL_URL || '');
   if (!/^[A-Za-z0-9_-]{43,128}$/.test(secret) ||
@@ -28,7 +30,7 @@ export function gate2Config(env = process.env) {
   return { origin: 'https://' + host, key: createHash('sha256').update(secret).digest() };
 }
 
-function sourceHash(record) {
+export function sourceHash(record) {
   return createHash('sha256').update(JSON.stringify([
     record.id, record.source, record.orderVersion, record.amountMinor, record.currency,
     record.merchant, record.quantity, record.itemDescription, record.details, record.terms

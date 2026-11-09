@@ -299,3 +299,13 @@ textarea.spm-field { resize:vertical; }
 .spm-gate2-agreement small{font-size:11px;line-height:1.35}
 .spm-gate2-reviewed{font-size:11px;line-height:1.4;padding:8px 10px;margin:0 0 8px;border-radius:10px;background:#eef4e7;color:#48634a;font-weight:650}
 .spm-gate2 .spm-hosted-review .spm-primary[disabled]{opacity:.6;cursor:wait}
+
+/* Gate 3: server-simulated rail statuses inside the approved compact Mini. */
+.spm-gate3-funding .spm-demo-rails{margin-top:8px}
+.spm-gate3-scenarios{font-size:12px;color:#52705b;padding:5px 0 11px}
+.spm-gate3-scenarios summary{cursor:pointer;min-height:28px;display:flex;align-items:center}
+.spm-gate3-scenario-list{display:grid;gap:5px;margin-top:8px}
+.spm-gate3-scenario-list label{font-size:12px;font-weight:600}
+.spm-gate3-scenario-list select{display:block;width:100%;padding:9px 10px;border:1px solid #d2dfd1;border-radius:9px;background:#fffdf8;color:#244f32;font:inherit}
+.spm-gate3-funding .spm-demo-result{margin:14px 0}
+.spm-gate3-funding .spm-secondary{margin-top:7px}

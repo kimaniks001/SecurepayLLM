@@ -25,6 +25,8 @@ export default defineConfig({
         storeOfferReview: fileURLToPath(new URL('./checkout-store-offer-preview.html', import.meta.url)),
         gate2Store: fileURLToPath(new URL('./checkout-gate2-store.html', import.meta.url)),
         gate2Stays: fileURLToPath(new URL('./checkout-gate2-shortstays.html', import.meta.url)),
+        gate3Store: fileURLToPath(new URL('./checkout-gate3-store.html', import.meta.url)),
+        gate3Stays: fileURLToPath(new URL('./checkout-gate3-shortstays.html', import.meta.url)),
       },
     },
   },
