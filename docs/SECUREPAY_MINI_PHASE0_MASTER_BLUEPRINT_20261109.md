@@ -107,7 +107,7 @@ It requires real merchant/buyer observation and a representative matrix spanning
 
 Select automated regression cases by **general behavioural class and state/authority boundary**, not nouns or rehearsed prompts; rotate goods, actor roles, input sources, money conditions and settlement outcomes. Keep holdout trades unseen in development; no illustrative example gets automatic priority solely because it appeared in the product discussion.
 
-**Phase 0 is not fully field-certified:** external discovery and representative human testing remain open, and their results should determine the test cohort before Phase 1 is considered ready for human acceptance.
+**Owner-led experience validation:** The initial controlled Mini preview can proceed to Phase 1 using the stable synthetic cohort, guided-by-job but uncoached **owner hands-on testing**, and source/API assertions. Real external merchant observation remains an explicit evidence gap for broad rollout, not a reason to prohibit early prototype learning. AI-generated trader simulations are scenario tests, never actual human-usability observations.
 
 ## 8. Phase 0 unresolved decisions (not implementation permission)
 
@@ -130,9 +130,9 @@ Phase 0 audit/blueprint -> 1 Mini interface -> 2 capture/trade -> 3 KS identity/
 - locked main three-panel UI and host UIs baseline/screenshots recorded;
 - agreed miniature mobile shell and non-destructive entry/exit/handoff;
 - staged money disabled, real/fixture labels unmistakable;
-- representative non-scripted trading coverage and human research protocol recorded, with no broad wasteful test sweep.
+- representative non-scripted trading coverage plus owner-first preview test protocol recorded, with no broad wasteful test sweep. Field research remains a production rollout milestone rather than a mandatory blocker to begin UI prototype testing.
 
-**Phase 0 document-review checkpoint:** source evidence and missing authorities are documented, owner can review the blueprint, and a **draft documentation-only PR** exists. Actual trader observation and uncoached human evidence are still needed before signing off the representative acceptance corpus. Phase 0 does **not** claim completed production testing, partner certification, a real integrated Mini or live financial enablement.
+**Phase 0 document-review checkpoint:** source evidence and missing authorities are documented, owner can review the blueprint, and a **draft documentation-only PR** exists. Owner hands-on tests on a working preview will inform Phase 1 and subsequent UX gates. Independent real-trader field evidence is required before claiming representative usability or scaled-market readiness. Phase 0 does **not** claim completed production testing, partner certification, a real integrated Mini or live financial enablement.
 
 ## 10. Source references
 
