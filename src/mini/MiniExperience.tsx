@@ -101,6 +101,7 @@ export function MiniExperience() {
   const firstField = useRef<HTMLTextAreaElement | null>(null);
   const nextBtn = useRef<HTMLButtonElement | null>(null);
   const amountField = useRef<HTMLInputElement | null>(null);
+  const quantityField = useRef<HTMLInputElement | null>(null);
   const compact = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('embedded') === '1';
 
   useEffect(() => {
@@ -179,7 +180,10 @@ export function MiniExperience() {
     if (issue) {
       setError(issue === 'description' ? t.needDescription : issue === 'amount' ? t.needAmount : issue === 'quantity' ? t.invalidQuantity : t.invalidAmount);
       if (issue === 'description') firstField.current?.focus();
-      else amountField.current?.focus();
+      else if (issue === 'quantity') {
+        quantityField.current?.closest('details')?.setAttribute('open', '');
+        quantityField.current?.focus();
+      } else amountField.current?.focus();
       return;
     }
     setScreen('review');
@@ -270,7 +274,7 @@ export function MiniExperience() {
             <summary>{t.extra}</summary>
             <div className="spm-quantity-row">
               <label className="spm-label" htmlFor="spm-quantity">{t.quantity}
-                <input className="spm-field" id="spm-quantity" inputMode="decimal" maxLength={15}
+                <input className="spm-field" id="spm-quantity" ref={quantityField} inputMode="decimal" maxLength={15}
                   value={draft.quantity} onChange={e => update('quantity', e.target.value)} placeholder="1"/>
               </label>
               <label className="spm-label" htmlFor="spm-unit">{t.unit}
