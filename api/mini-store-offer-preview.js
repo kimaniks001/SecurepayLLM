@@ -47,7 +47,7 @@ export function verifyPublishedStoreOffer(raw, seller, offerId, quantity = 1) {
       raw.canonicalKsNumber !== seller || raw.status !== 'ACTIVE' ||
       !scalar(raw.displayName,120) || !raw.offer || typeof raw.offer !== 'object') return null;
   const o = raw.offer;
-  if (o.id.toLowerCase?.() !== offerId.toLowerCase() ||
+  if (typeof o.id !== 'string' || o.id.toLowerCase() !== offerId.toLowerCase() ||
       !KINDS.has(o.kind) || !OPEN_STATES.has(o.availabilityState) ||
       CLOSED_STATES.has(o.availabilityState) || o.currency !== 'KES' ||
       !scalar(o.title,160) || (o.description !== null && typeof o.description !== 'string') ||
