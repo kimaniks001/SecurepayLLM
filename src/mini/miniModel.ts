@@ -26,7 +26,7 @@ export function emptyMiniDraft(intent: MiniIntent = 'sell'): MiniDraft {
 /** Price is trader-supplied and optional for a collection, never inferred from a photograph. */
 export function miniDraftIssue(draft: MiniDraft): MiniIssue {
   if (!draft.description.trim()) return 'description';
-  if (draft.quantity.trim() && !/^(?:0|[1-9]\\d{0,6})(?:\\.\\d{1,3})?$/.test(draft.quantity.trim())) return 'quantity';
+  if (draft.quantity.trim() && !/^(?:0|[1-9]\d{0,6})(?:\.\d{1,3})?$/.test(draft.quantity.trim())) return 'quantity';
   if (draft.quantity.trim() && Number(draft.quantity.trim()) <= 0) return 'quantity';
   const raw = draft.amount.trim().replace(/,/g, '');
   if (!raw && draft.intent === 'collect') return null;
