@@ -311,7 +311,7 @@ export function MiniExperience() {
               <button type="button" onClick={() => removeSource(source.id)} aria-label={'Remove ' + source.label}><X size={16}/></button>
             </div>)}
           </div>}
-          {error && <p className="spm-error" role="alert">{error}</p>
+          {error && <p className="spm-error" role="alert">{error}</p>}
           <button type="button" className="spm-primary" onClick={review}>{t.review}<ArrowRight size={19}/></button>
         </section>}
 
@@ -359,7 +359,7 @@ export function MiniExperience() {
       <footer className="spm-footer">
         <ShieldCheck size={16} aria-hidden="true"/>
         <span>{t.boundary}</span>
-        <span className="spm-footer-dash">·</span><span>Phase 1</span>
+        <span className="spm-footer-dash">·</span><span>Phase 2</span>
       </footer>
     </div>
   </main>;
