@@ -11,6 +11,7 @@ const suites = [
   'tests/securepay-mini-checkout-phase1.test.mjs',
   'tests/securepay-mini-checkout-phase2.test.mjs',
   'tests/securepay-mini-checkout-launcher-auth.test.mjs',
+  'tests/securepay-mini-checkout-phase3-store-offer.test.mjs',
   'tests/securepay-mini-phase1.test.mjs',
   'tests/securepay-mini-phase2.test.mjs',
   'tests/securepay-mini-phase3.test.mjs',

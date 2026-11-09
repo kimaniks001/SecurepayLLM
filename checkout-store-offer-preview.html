@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="robots" content="noindex,nofollow"/>
+  <meta name="referrer" content="no-referrer"/>
+  <title>Published Store offer → SecurePay Mini · owner preview</title>
+  <link rel="stylesheet" href="/checkout-demo.css"/>
+</head>
+<body>
+  <header class="demo-header">
+    <div class="demo-brand">SecurePay · Store</div>
+    <nav class="demo-switch" aria-label="Test pages">
+      <a href="/checkout-demo-store.html">Sample checkout</a>
+      <a href="/checkout-store-offer-preview.html" aria-current="page">Published offers</a>
+    </nav>
+  </header>
+  <main class="demo-main">
+    <div class="demo-kicker">Phase 3 · Gate 1 · real Store source</div>
+    <h1>From a published Store offer into Mini.</h1>
+    <p class="demo-intro">Choose a listing. SecurePay checks its current seller, price and availability before showing it in Mini. <strong>No order is placed and no money moves.</strong></p>
+    <section class="demo-card" style="max-width:640px">
+      <h2 style="margin:0 0 6px">Published Store offers</h2>
+      <p class="demo-meta">These come from SecurePayAPI, not fabricated demo products. Only listings currently published and eligible for review can appear.</p>
+      <div id="offer-choices" class="demo-offer-choices" aria-live="polite">
+        <p class="demo-meta">Checking published offers…</p>
+      </div>
+      <p id="offer-notice" class="demo-status" role="status" aria-live="polite">No order or payment has started.</p>
+      <details class="demo-manual">
+        <summary>Have a seller KS Number and Offer ID?</summary>
+        <form id="offer-form">
+          <label for="offer-ks">Seller KS Number</label>
+          <input id="offer-ks" name="sellerKsNumber" placeholder="KS123" pattern="KS[0-9]{3,12}" maxlength="14" required/>
+          <label for="offer-id">Published Offer ID</label>
+          <input id="offer-id" name="offerId" placeholder="xxxxxxxx-xxxx-4xxx-xxxx-xxxxxxxxxxxx" maxlength="36" required/>
+          <label for="offer-quantity">Quantity</label>
+          <input id="offer-quantity" name="quantity" type="number" value="1" min="1" max="20" step="1" required/>
+          <button class="demo-pay" type="submit">Review this offer in Mini</button>
+        </form>
+      </details>
+    </section>
+    <p class="demo-keep-note">A published offer is not a customer order, stock reservation or accepted Agreement. The payment rails remain simulated until the authorised backend order/Agreement flow exists.</p>
+  </main>
+  <div id="demo-overlay" class="demo-overlay" hidden></div>
+  <section id="demo-popup" class="demo-popup" role="dialog" aria-modal="true" aria-label="SecurePay Mini Store offer review" hidden>
+    <div class="demo-popup-header">
+      <span>SecurePay Mini · Store review</span>
+      <button type="button" id="demo-close" aria-label="Close Mini">×</button>
+    </div>
+    <iframe id="demo-frame" src="about:blank" title="SecurePay Mini read-only Store offer"
+      sandbox="allow-scripts allow-same-origin allow-forms"
+      referrerpolicy="no-referrer"></iframe>
+    <div id="demo-fallback" class="demo-fallback" hidden>
+      <strong>Mini could not open here.</strong>
+      <p>The published offer was not purchased or reserved.</p>
+      <a id="demo-direct" href="/checkout-store-offer-preview.html" target="_blank" rel="noopener noreferrer">Open the review separately</a>
+    </div>
+  </section>
+  <script defer src="/mini-store-offer-launcher.js"></script>
+</body>
+</html>
