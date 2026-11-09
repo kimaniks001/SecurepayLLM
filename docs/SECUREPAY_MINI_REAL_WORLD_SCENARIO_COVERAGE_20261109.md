@@ -5,7 +5,7 @@
 **Related:** `docs/SECUREPAY_MINI_PHASE0_MASTER_BLUEPRINT_20261109.md`
 **Scope:** Documentation only. No production code, UI, tariff, rail or financial-authority modifications.
 
-## 0. Why this correction exists
+**Concrete candidate test set:** [SECUREPAY_MINI_KENYAN_MARKET_TEST_PACK_V1_20261109.md](SECUREPAY_MINI_KENYAN_MARKET_TEST_PACK_V1_20261109.md) proposes 10 everyday focused jobs, 10 broader market jobs, 10 cross-cutting financial/security checks and blinded scenario substitutions. Sample products and prices are replaceable fixture data; no field tests have been executed.\n\n## 0. Why this correction exists
 
 Owner correction: the charger, school-fees and wedding-contribution examples were **illustrations to discover the product**, not an authorised fixed feature checklist or privileged regression corpus. This programme must **not** optimise the model, interface or APIs for those three illustrated scripts. We need broad, evidence-led coverage of the most common real-world trading *behaviours* and the exceptional states that cause loss or distrust.
 
