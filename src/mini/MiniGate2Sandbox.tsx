@@ -20,8 +20,8 @@ type Screen = 'review' | 'funding' | 'chat';
 /** Gate 2 sandbox. Uses the same existing Mini and simulated rail component.
  * Review is a TEST transition only, never legal acceptance or a real order.
  */
-export function MiniGate2Sandbox({session, language, gate3Enabled = false}: {
-  session:string;language:MiniLanguage;gate3Enabled?:boolean;
+export function MiniGate2Sandbox({session, language, gate3Enabled = false, gate4Enabled = false}: {
+  session:string;language:MiniLanguage;gate3Enabled?:boolean;gate4Enabled?:boolean;
 }) {
   const sw = language === 'sw';
   const [loading,setLoading] = useState<LoadState>('loading');
@@ -80,11 +80,21 @@ export function MiniGate2Sandbox({session, language, gate3Enabled = false}: {
     document.querySelector<HTMLElement>('.spm-frame')?.scrollTo(0,0);
   },[screen,loading]);
 
-  const returnPath = gate3Enabled && snapshot ?
+  const returnPath = gate4Enabled && snapshot ?
+    (snapshot.order.source==='STORE' ? '/checkout-gate4-store.html' : '/checkout-gate4-shortstays.html') :
+    gate3Enabled && snapshot ?
     (snapshot.order.source==='STORE' ? '/checkout-gate3-store.html' : '/checkout-gate3-shortstays.html') :
     snapshot?.order.hostReturnPath || (gate3Enabled?'/checkout-gate3-store.html':'/checkout-gate2-store.html');
   const backToHost = () => {
     if(window.parent!==window) {
+      if(gate4Enabled) {
+        window.parent.postMessage({
+          type:'SECUREPAY_MINI_GATE4_RETURN_V1',sandboxGate:4,simulated:true,
+          fixtureId:snapshot?.order.fixtureId||null,orderCreated:false,
+          agreementAccepted:false
+        },window.location.origin);
+        return;
+      }
       if(!snapshot) {
         window.parent.postMessage({
           type:'SECUREPAY_MINI_GATE2_CANCEL',sandboxGate:gate3Enabled?3:2,simulated:true
@@ -104,14 +114,22 @@ export function MiniGate2Sandbox({session, language, gate3Enabled = false}: {
   const onDemoStateChange = useCallback((status:MiniFundingTestStatus, method:MiniTestRailId|null)=>{
     const state=status==='SELECT_METHOD'&&!method?'NOT_STARTED':status;
     setSimulatedStatus(state);
-    if(gate3Enabled&&window.parent!==window&&snapshot){
+    if(gate3Enabled&&!gate4Enabled&&window.parent!==window&&snapshot){
       window.parent.postMessage({
         type:'SECUREPAY_MINI_SANDBOX_PROGRESS_V1',sandboxGate:3,simulated:true,
         fixtureId:snapshot.order.fixtureId,result:state,
         agreementAccepted:false,orderCreated:false
       },window.location.origin);
     }
-  },[gate3Enabled,snapshot]);
+  },[gate3Enabled,gate4Enabled,snapshot]);
+  const onAttemptReference = useCallback((token:string|null)=>{
+    if(!gate4Enabled||!token||!snapshot||window.parent===window)return;
+    window.parent.postMessage({
+      type:'SECUREPAY_MINI_GATE4_ATTEMPT_REF_V1',sandboxGate:4,
+      fixtureId:snapshot.order.fixtureId,simulated:true,
+      orderCreated:false,agreementAccepted:false,attempt:token
+    },window.location.origin);
+  },[gate4Enabled,snapshot?.order.fixtureId]);
   const showChat = () => {
     setCameFrom(screen==='funding'?'funding':'review');
     setChatStarted(true);setScreen('chat');
@@ -175,7 +193,7 @@ export function MiniGate2Sandbox({session, language, gate3Enabled = false}: {
     counterparty:''
   };
 
-  return <section className="spm-hosted-demo spm-gate2" data-sandbox-gate={gate3Enabled?3:2}
+  return <section className="spm-hosted-demo spm-gate2" data-sandbox-gate={gate4Enabled?4:gate3Enabled?3:2}
       data-order-fixture={order.fixtureId}>
     {screen==='review'&&<div className="spm-hosted-review">
       <div className="spm-demo-flag"><FileCheck2 size={16}/>
@@ -223,6 +241,7 @@ export function MiniGate2Sandbox({session, language, gate3Enabled = false}: {
       <div className="spm-gate2-reviewed">Sample terms reviewed · NOT SIGNED · NOT PAID</div>
       {gate3Enabled ? <MiniGate3Funding
         reviewSession={reviewSession} language={language}
+        reconcileMode={gate4Enabled} onAttemptReference={onAttemptReference}
         expected={{orderId:order.sandboxId,fixtureId:order.fixtureId,amountMinor:order.amountMinor}}
         description={order.description}
         onDemoStateChange={onDemoStateChange}
