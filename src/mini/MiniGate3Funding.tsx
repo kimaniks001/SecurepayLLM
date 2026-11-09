@@ -14,7 +14,8 @@ type Terminal = 'none' | 'expired' | 'unavailable';
  * signed server simulation responses, never by client dispatch or a timer.
  */
 export function MiniGate3Funding({reviewSession, expected, description,
-  language, onBack, onReturnToHost, onDemoStateChange, returnLabel}:{
+  language, onBack, onReturnToHost, onDemoStateChange, returnLabel,
+  reconcileMode = false, onAttemptReference}:{
   reviewSession:string;
   expected:Expected;
   description:string;
@@ -23,6 +24,9 @@ export function MiniGate3Funding({reviewSession, expected, description,
   onReturnToHost:()=>void;
   returnLabel:string;
   onDemoStateChange?:(status:MiniFundingTestStatus,method:MiniTestRailId|null)=>void;
+  /** Gate 4: send only the signed fictional attempt reference, never a status claim. */
+  reconcileMode?:boolean;
+  onAttemptReference?:(attempt:string|null)=>void;
 }) {
   const sw=language==='sw';
   const [rail,setRail]=useState<MiniTestRailId|null>(null);
@@ -36,6 +40,9 @@ export function MiniGate3Funding({reviewSession, expected, description,
   const firstAttempt=useRef(false);
   const storageKey='spm-gate3-mock-attempt-'+expected.orderId;
   const status=snapshot?.status||'SELECT_METHOD';
+  useEffect(()=>{
+    if(reconcileMode)onAttemptReference?.(attempt);
+  },[attempt,reconcileMode,onAttemptReference]);
   const pending=status==='SIMULATED_PENDING';
   const unknown=status==='SIMULATED_UNKNOWN';
   const confirmed=status==='SIMULATED_CONFIRMED';
@@ -79,10 +86,11 @@ export function MiniGate3Funding({reviewSession, expected, description,
     // permitted to set a confirmed/failed/unknown result in this component.
     if(snapshot?.status==='SIMULATED_CONFIRMED'||
        snapshot?.status==='SIMULATED_FAILED'||
-       snapshot?.status==='SIMULATED_UNKNOWN')return ()=>controller.abort();
+       (snapshot?.status==='SIMULATED_UNKNOWN'&&!reconcileMode))
+      return ()=>controller.abort();
     const timer=window.setInterval(()=>void checkStatus(attempt,controller.signal),1250);
     return ()=>{window.clearInterval(timer);controller.abort();};
-  },[attempt,checkStatus,refresh,snapshot?.status]);
+  },[attempt,checkStatus,refresh,snapshot?.status,reconcileMode]);
 
   useEffect(()=>{
     const translated:MiniFundingTestStatus =
@@ -148,6 +156,8 @@ export function MiniGate3Funding({reviewSession, expected, description,
             <option value="FAILURE">Fail the attempt</option>
             <option value="UNKNOWN">Result unknown — no retry</option>
             <option value="SLOW">Remain pending longer</option>
+          {reconcileMode&&<option value="UNKNOWN_THEN_CONFIRMED">Unknown → reconciled test confirmation</option>}
+          {reconcileMode&&<option value="UNKNOWN_THEN_FAILED">Unknown → reconciled test failure</option>}
           </select>
         </div>
       </details>
