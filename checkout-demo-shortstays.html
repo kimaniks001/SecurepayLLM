@@ -29,7 +29,7 @@
         <div class="demo-order-line"><span>Test order reference</span><strong>DEMO-STAY-2001</strong></div>
         <span class="demo-badge">Sample only · not reserved</span>
         <button id="demo-pay" class="demo-pay" type="button" aria-expanded="false" aria-controls="demo-popup">Book / Pay with SecurePay</button>
-        <p class="demo-keep-note">The Pay button opens one SecurePay Mini. You can close it and return here without marking anything paid.</p>
+        <p class="demo-keep-note">The Pay button opens one Mini with a short-lived test reference. You can return safely without marking anything paid.</p>
       </article>
       <aside class="demo-card demo-aside">
         <h3>Your booking status</h3>
@@ -51,9 +51,9 @@
     <div id="demo-fallback" class="demo-fallback" role="alert" hidden>
       <strong>Checkout did not load in this window.</strong>
       <p>Open the sample Mini separately.</p>
-      <a href="/mini.html?demoCheckout=STAY-DEMO-01" target="_blank" rel="noopener noreferrer">Open simulated checkout</a>
+      <a href="/checkout-demo-shortstays.html">Restart test checkout</a>
     </div>
   </section>
-  <script defer src="/checkout-demo-host.js"></script>
+  <script defer src="/checkout-demo-server-host.js"></script>
 </body>
 </html>
