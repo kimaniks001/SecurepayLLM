@@ -31,5 +31,5 @@
       ]
     }
   ],
-  "buildCommand": "node --test tests/securepay-mini-trader-cohort.test.mjs && node --test tests/securepay-mini-phase1.test.mjs && node --test tests/securepay-mini-phase2.test.mjs && node --test tests/securepay-mini-phase3.test.mjs && node --test tests/securepay-mini-phase4.test.mjs && npm run typecheck && npm run build"
+  "buildCommand": "node scripts/securepay-mini-preview-checks.mjs && npm run build"
 }
