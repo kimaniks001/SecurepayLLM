@@ -32,6 +32,9 @@
     SIMULATED_FAILED:'Test failure reconciled — NOT PAID'
   });
   let checkout=null,attempt=null,activeUntil=0,opening=false,checking=false;
+  // A later attempt may replace the original ONLY after the host independently
+  // verifies that original as failed. Unknown/pending/confirmed are never retryable.
+  let verifiedAttempt=null,verifiedStatus=null;
   const label=pay.textContent;
   function persist(){
     try{
@@ -53,6 +56,7 @@
   }
   function clearExpired(){
     checkout=null;attempt=null;activeUntil=0;
+    verifiedAttempt=null;verifiedStatus=null;
     persist();
   }
   async function reconcile(){
@@ -63,6 +67,7 @@
     }
     if(checking)return;
     checking=true;
+    const checkedCheckout=checkout,checkedAttempt=attempt;
     checkButton.disabled=true;
     status.textContent='Checking original test attempt with server — NOT PAID';
     try{
@@ -74,6 +79,8 @@
       });
       if(!response.ok)throw Error('NOT_VERIFIED');
       const data=await response.json();
+      // A late read from the preceding attempt must not overwrite a newer one.
+      if(checkedCheckout!==checkout||checkedAttempt!==attempt)return;
       if(!data||data.source!=='SERVER_MATCHED_SANDBOX_ORDER_AND_ATTEMPT'||
         data.simulationOnly!==true||data.fixtureId!==current.id||
         data.hostReturnPath!==current.path||
@@ -88,9 +95,13 @@
         (attempt&&(!/^SIM-PAY-[A-F0-9]{24}$/.test(data.attemptId)||
           data.status==='NO_SIMULATED_ATTEMPT')))
         throw Error('UNTRUSTED_STATE');
+      verifiedAttempt=checkedAttempt;
+      verifiedStatus=data.status;
       status.textContent=safeStatuses[data.status];
       checkButton.hidden=false;
     }catch{
+      if(checkedCheckout!==checkout||checkedAttempt!==attempt)return;
+      verifiedAttempt=null;verifiedStatus=null;
       status.textContent='Cannot independently verify this test attempt — NOT PAID';
       checkButton.hidden=false;
     }finally{
@@ -101,8 +112,16 @@
   function restore(){
     try{
       const raw=JSON.parse(sessionStorage.getItem(key)||'null');
-      if(!raw||raw.fixtureId!==current.id||!goodToken(raw.checkout,100,1200)||
-        !Number.isSafeInteger(raw.expiresAt)||raw.expiresAt<=Date.now())return;
+      if(!raw)return;
+      if(raw.fixtureId!==current.id||!goodToken(raw.checkout,100,1200)||
+        !Number.isSafeInteger(raw.expiresAt)){
+        clearExpired();return;
+      }
+      if(raw.expiresAt<=Date.now()){
+        clearExpired();
+        status.textContent='Previous sample checkout expired — NOT PAID. A new test needs a fresh checkout.';
+        return;
+      }
       checkout=raw.checkout;
       activeUntil=raw.expiresAt;
       attempt=goodToken(raw.attempt,95,1500)?raw.attempt:null;
@@ -133,6 +152,7 @@
         !Number.isSafeInteger(data.expiresAt)||data.expiresAt<=Date.now())
         throw Error('UNSAFE_SESSION');
       checkout=data.session;attempt=null;activeUntil=data.expiresAt;
+      verifiedAttempt=null;verifiedStatus=null;
       persist();
       frame.hidden=false;fallback.hidden=true;
       frame.src='/mini.html?embedded=1&sandboxReconcile='+encodeURIComponent(checkout);
@@ -157,6 +177,12 @@
         !checkout||activeUntil<=Date.now())return;
       // Reference is only a lookup key. Always re-check against the original
       // checkout via server before treating ANY status as meaningful.
+      if(attempt&&msg.attempt!==attempt&&
+          !(verifiedAttempt===attempt&&verifiedStatus==='SIMULATED_FAILED')){
+        status.textContent='Original test attempt must be resolved before another — NOT PAID';
+        return;
+      }
+      if(msg.attempt!==attempt){verifiedAttempt=null;verifiedStatus=null;}
       attempt=msg.attempt;
       persist();
       void reconcile();
