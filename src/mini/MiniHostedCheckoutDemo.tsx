@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { ArrowLeft, ArrowRight, CalendarDays, CheckCircle2, CircleAlert, MessageCircle, ShieldCheck, ShoppingBag, TestTube2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CalendarDays, CircleAlert, MessageCircle, ShieldCheck, ShoppingBag, TestTube2 } from 'lucide-react';
 import { getMiniDemoAmount, miniDemoStatusLabel, type MiniCheckoutDemoRecord, type MiniDemoStatus } from './checkoutDemoFixtures';
 import { MiniFundingPreview } from './MiniFundingPreview';
 import { MiniGuestChat } from './MiniGuestChat';
@@ -24,6 +24,7 @@ export function MiniHostedCheckoutDemo({ record, language }: {
   const sw = language === 'sw';
   const [step, setStep] = useState<Step>('review');
   const [cameFrom, setCameFrom] = useState<'review' | 'funding'>('review');
+  const [chatStarted, setChatStarted] = useState(false);
   const [simulatedStatus, setSimulatedStatus] = useState<MiniDemoStatus>('NOT_STARTED');
 
   const draft: MiniDraft = {
@@ -61,6 +62,7 @@ export function MiniHostedCheckoutDemo({ record, language }: {
   };
 
   const showChat = () => {
+    setChatStarted(true);
     setCameFrom(step === 'funding' ? 'funding' : 'review');
     setStep('chat');
   };
@@ -116,8 +118,9 @@ export function MiniHostedCheckoutDemo({ record, language }: {
       </button>
     </div>
 
-    {step === 'chat' && <MiniGuestChat draft={draft} language={language}
-      onBack={() => setStep(cameFrom)}/>}
+    {chatStarted && <div className="spm-hosted-chat" hidden={step !== 'chat'}>
+      <MiniGuestChat draft={draft} language={language} onBack={() => setStep(cameFrom)}/>
+    </div>}
 
     {step !== 'chat' && <div className="spm-hosted-mini-status">
       <CircleAlert size={14}/>
