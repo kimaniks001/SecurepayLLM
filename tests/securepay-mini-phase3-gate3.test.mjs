@@ -185,7 +185,8 @@ test('Gate 3 host launcher preserves one Mini, safely handles progress and retur
   assert.doesNotMatch(funding,/dispatch\(\{ type: 'SIMULATE_CONFIRMED' \}\)/);
   assert.match(funding,/unknown\?\x27Status unknown — do not retry\x27/);
   assert.match(funding,/Check original attempt/);
-  assert.match(funding,/\(!attempt \|\| failed \|\| terminal===\x27expired\x27\)/);
+  // Phase 4 resilience: expired mock attempts must return to host, not restart here.
+  assert.match(funding,/terminal!==\\'expired\\'&&\\(!attempt \\|\\| failed\\)/);
   assert.match(funding,/<MiniFundingPreview|spm-demo-rails/);
   assert.match(ui,/MiniGuestChat/);
 });
