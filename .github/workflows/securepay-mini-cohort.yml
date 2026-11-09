@@ -5,7 +5,6 @@ on:
       - 'tests/fixtures/securepay-mini/**'
       - 'tests/securepay-mini-trader-cohort.test.mjs'
       - 'scripts/securepay-mini-cohort-report.mjs'
-      - 'package.json'
       - '.github/workflows/securepay-mini-cohort.yml'
   push:
     branches:
@@ -26,6 +25,6 @@ jobs:
         with:
           node-version: '22'
       - name: Validate only Mini cohort fixture and longitudinal mappings
-        run: npm run test:mini-cohort
+        run: node --test tests/securepay-mini-trader-cohort.test.mjs
       - name: Show cohort progress without fabricating results
-        run: npm run report:mini-cohort
+        run: node scripts/securepay-mini-cohort-report.mjs
