@@ -1,4 +1,4 @@
-import { useReducer } from 'react';
+import { useEffect, useReducer } from 'react';
 import {
   ArrowLeft, ArrowLeftRight, CircleAlert, CircleCheck, Clock3,
   Landmark, RotateCcw, ShieldCheck, Smartphone, TestTube2
@@ -6,7 +6,7 @@ import {
 import {
   INITIAL_MINI_FUNDING_TEST, MINI_TEST_RAILS,
   miniFundingTestTransition, miniFundingTestWords, miniTestAmount,
-  type MiniTestRailId
+  type MiniTestRailId, type MiniFundingTestStatus
 } from './miniFundingSimulator';
 import type { MiniDraft, MiniLanguage } from './miniModel';
 
@@ -14,15 +14,19 @@ import type { MiniDraft, MiniLanguage } from './miniModel';
  * OWNER TEST ONLY: the following controls simulate three rail responses locally.
  * Real payment options, quotes, provider status and release belong to SecurePayAPI.
  */
-export function MiniFundingPreview({ draft, language, onBack }: {
+export function MiniFundingPreview({ draft, language, onBack, onDemoStateChange, onReturnToHost }: {
   draft: MiniDraft;
   language: MiniLanguage;
   onBack: () => void;
+  /** Demo-only status, never an actual payment or verified host order result. */
+  onDemoStateChange?: (status: MiniFundingTestStatus, method: MiniTestRailId | null) => void;
+  onReturnToHost?: () => void;
 }) {
   const [demo, dispatch] = useReducer(miniFundingTestTransition, INITIAL_MINI_FUNDING_TEST);
   const sw = language === 'sw';
   const amount = miniTestAmount(draft.amount);
   const selected = MINI_TEST_RAILS.find(item => item.id === demo.method);
+  useEffect(() => { onDemoStateChange?.(demo.status, demo.method); }, [demo.status, demo.method, onDemoStateChange]);
   const stage = miniFundingTestWords(demo.status);
   const canSelect = demo.status === 'SELECT_METHOD' || demo.status === 'SIMULATED_FAILED';
   const pending = demo.status === 'AWAITING_FAKE_PROVIDER';
@@ -124,6 +128,10 @@ export function MiniFundingPreview({ draft, language, onBack }: {
     {(confirmed || failed) && <button className="spm-quiet-button" type="button"
       onClick={() => dispatch({type:'RESET'})}>
       <RotateCcw size={16}/>{sw ? 'Chagua njia nyingine' : 'Compare another method'}
+    </button>}
+
+    {onReturnToHost && <button type="button" className="spm-secondary spm-demo-return" onClick={onReturnToHost}>
+      <ArrowLeft size={16}/>{sw ? 'Rudi kwenye tovuti' : 'Return to website'}
     </button>}
 
     <details className="spm-demo-explain">
