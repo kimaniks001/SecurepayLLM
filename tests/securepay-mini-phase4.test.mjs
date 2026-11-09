@@ -127,3 +127,25 @@ test('main three-panel workspace is preserved and test controls stay inside simu
   assert.match(simulator,/role="radio" aria-checked=\{active\}/);
   assert.match(simulator,/disabled=\{!canSelect \|\| !amount\}/);
 });
+
+
+test('owner feedback: payment view stays glanceable and moves dense detail behind disclosure', () => {
+  const ui = read('src/mini/MiniFundingPreview.tsx');
+  const css = read('src/mini/mini.css');
+  assert.match(ui, /spm-demo-concise/);
+  assert.match(ui, /'Pay with'/);
+  assert.match(ui, /<details className="spm-demo-explain">/);
+  assert.match(ui, /Fees & payment details/);
+  assert.match(ui, /'Preview only · No real payment'/);
+  assert.match(ui, /'Test a result'/);
+  assert.match(ui, /'Confirmed in simulation'/);
+  assert.match(ui, /'No money moved\.'/);
+  assert.match(ui, /'Unknown — do not retry'/);
+  assert.match(css, /spm-demo-topsum/);
+  assert.match(css, /spm-demo-concise \.spm-demo-rail \{ min-height:52px/);
+  // The three rail choices remain visible, while fees and detailed status are optional.
+  const railIndex = ui.indexOf('<div role="radiogroup"');
+  const detailIndex = ui.indexOf('<details className="spm-demo-explain">');
+  assert.ok(railIndex > 0 && detailIndex > railIndex);
+  assert.ok(ui.indexOf('SecurePay fee') > detailIndex);
+});
