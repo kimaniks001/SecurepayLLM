@@ -10,6 +10,8 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 
 export const STORE_OFFER_PREVIEW_BRANCH = 'feat/mini-checkout-phase3-store-offer-provenance-20261109';
+/** Separate offline sandbox does not disable the read-only real-source route. */
+export const STORE_OFFER_OFFLINE_SANDBOX_BRANCH = 'feat/mini-phase3-explicit-sandbox-lane-20261109';
 export const STORE_OFFER_PREVIEW_TTL_MS = 5 * 60 * 1000;
 const KS_NUMBER = /^KS\d{3,12}$/;
 const OFFER_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -19,7 +21,8 @@ const KINDS = new Set(['PRODUCT','SERVICE','CAPACITY']);
 
 export function storePreviewConfig(env = process.env) {
   if (env.VERCEL_ENV !== 'preview' ||
-      env.VERCEL_GIT_COMMIT_REF !== STORE_OFFER_PREVIEW_BRANCH) return null;
+      ![STORE_OFFER_PREVIEW_BRANCH, STORE_OFFER_OFFLINE_SANDBOX_BRANCH]
+        .includes(env.VERCEL_GIT_COMMIT_REF)) return null;
   const secret = String(env.MINI_STORE_OFFER_PREVIEW_SECRET || '');
   const host = String(env.VERCEL_URL || '');
   if (!/^[A-Za-z0-9_-]{43,128}$/.test(secret) ||

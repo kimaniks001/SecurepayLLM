@@ -12,6 +12,8 @@
 import { createHash, createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
 
 export const MINI_CHECKOUT_PREVIEW_BRANCH = 'feat/mini-checkout-phase2-server-context-20261109';
+/** Phase 3 owner-only offline simulation: intentionally distinct from Store API source review. */
+export const MINI_CHECKOUT_PHASE3_SANDBOX_BRANCH = 'feat/mini-phase3-explicit-sandbox-lane-20261109';
 export const MINI_CHECKOUT_PREVIEW_TTL_MS = 5 * 60 * 1000;
 
 const PREVIEW_ORDERS = Object.freeze({
@@ -42,7 +44,8 @@ function hasOwn(object, key) {
 
 export function miniCheckoutPreviewConfig(env = process.env) {
   if (env.VERCEL_ENV !== 'preview' ||
-      env.VERCEL_GIT_COMMIT_REF !== MINI_CHECKOUT_PREVIEW_BRANCH) return null;
+      ![MINI_CHECKOUT_PREVIEW_BRANCH, MINI_CHECKOUT_PHASE3_SANDBOX_BRANCH]
+        .includes(env.VERCEL_GIT_COMMIT_REF)) return null;
   const secret = String(env.MINI_CHECKOUT_PREVIEW_SECRET || '');
   const host = String(env.VERCEL_URL || '');
   if (!/^[A-Za-z0-9_-]{43,128}$/.test(secret) ||
