@@ -136,3 +136,9 @@ test('identity, invitation and actual settlement explicitly remain disabled in g
   assert.match(ui,/A typed KS Number does not verify someone/);
   assert.match(read('src/main.tsx'),/RuntimeApp/);
 });
+
+test('canonical review failure stays visible even if the backend returns no proposal',()=>{
+  const chat=read('src/mini/MiniGuestChat.tsx');
+  assert.match(chat, /\{snapshot\?\.agreementError && <p className="spm-error" role="alert">/);
+  assert.match(chat, /status !== 'client-missing'/);
+});
