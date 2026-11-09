@@ -59,3 +59,12 @@ The existing Mini/trader/Store/ShortStays focused regression suites and TypeScri
 **Phase 3 Gate 2 requires SecurePayAPI-owned transaction records**, with at least: authenticated seller and legitimate participant relationship; source Store offer and seller KS; exact buyer quantity and unit; source/offer freshness; order state and expiry; immutable version; seller acceptance/stock hold where applicable; escrow/fee/rail eligibility through existing Agreement+PaymentIntent gateways; signed host status read/events. Only after that may Mini say **Pay** for a real Store order. A user-visible listing alone is not payment consent.
 
 **No production activation or merge authorised.** The operator must verify whether the configured SecurePayAPI origin is reachable from Vercel and whether public published offers exist; owner uncoached browser acceptance remains open.
+
+
+## Deployed preview observation — API reachability blocker
+
+The separate owner preview route `/checkout-store-offer-preview.html` returned HTTP 200 on the Vercel branch deployment. The server's `/api/mini-store-offer-preview?discover=1` route returned HTTP **503** with **`STORE_API_UNAVAILABLE`**, not `STORE_REVIEW_NOT_CONFIGURED`. This confirms the preview branch/secret-origin gate was satisfied and the application attempted to read the configured SecurePay API Store discovery path, but the Store API request was not completed.
+
+The frontend project's `VITE_SECUREPAY_API_BASE_URL` currently identifies `https://securepay.ke`. Public Store API availability from the Vercel runtime has **not** been established. Do not infer that there are zero Store offers from this error, or silently substitute a fictional catalogue.
+
+**Current honest state:** source-code integration and mocked upstream contract tests pass; **live Store offer reading is blocked by upstream reachability**. No published Store data, signed order, reservation, agreement, payment or settlement has been verified live. The next operator check is the deployed public Store GET through the responsible SecurePayAPI reverse proxy, including DNS, TLS, HTTP status and route registration, then a new owner preview. Never replace the Store endpoint with browser-entered prices or fake merchants merely to make a demonstration look successful.
