@@ -24,7 +24,8 @@
     AWAITING_FAKE_PROVIDER:'Test result pending — NOT PAID',
     SIMULATED_UNKNOWN:'Unknown test result — NOT PAID',
     SIMULATED_FAILED:'Test failed — NOT PAID',
-    SIMULATED_CONFIRMED:'Simulated confirmation — NOT PAID · NOT BOOKED',
+    SIMULATED_CONFIRMED:source==='STORE'?'Simulated confirmation — NOT PAID':
+      'Simulated confirmation — NOT PAID · NOT BOOKED',
   });
   const original=button.textContent;
   let activeUntil=0;
