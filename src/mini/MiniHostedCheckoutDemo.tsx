@@ -17,15 +17,24 @@ const RETURN_EVENT = 'SECUREPAY_MINI_OWNER_DEMO_RETURN_V1';
  * The synthetic postMessage is only an owner UX notification; a real host MUST
  * await authenticated server evidence and not derive paid/confirmed from it.
  */
-export function MiniHostedCheckoutDemo({ record, language }: {
+export function MiniHostedCheckoutDemo({ record, language, sessionExpiresAt }: {
   record: MiniCheckoutDemoRecord;
   language: MiniLanguage;
+  /** Expiring preview-server display session; never payment authority. */
+  sessionExpiresAt?: number;
 }) {
   const sw = language === 'sw';
   const [step, setStep] = useState<Step>('review');
   const [cameFrom, setCameFrom] = useState<'review' | 'funding'>('review');
   const [chatStarted, setChatStarted] = useState(false);
   const [simulatedStatus, setSimulatedStatus] = useState<MiniDemoStatus>('NOT_STARTED');
+  const [expired, setExpired] = useState(() => Boolean(sessionExpiresAt && Date.now() >= sessionExpiresAt));
+  useEffect(() => {
+    if (!sessionExpiresAt) return;
+    const ms = Math.max(0, sessionExpiresAt - Date.now());
+    const id = window.setTimeout(() => setExpired(true), ms);
+    return () => window.clearTimeout(id);
+  }, [sessionExpiresAt]);
 
   // Screens must begin at the top without the customer hunting for the next action.
   useEffect(() => {
@@ -74,6 +83,16 @@ export function MiniHostedCheckoutDemo({ record, language }: {
   };
 
   const SourceIcon = record.source === 'STORE' ? ShoppingBag : CalendarDays;
+
+  if (expired) return <section className="spm-content spm-hosted-expired" role="alert">
+    <h1 className="spm-question">{sw ? 'Checkout imeisha muda' : 'Checkout expired'}</h1>
+    <p className="spm-lead">{sw ? 'Hakuna malipo yaliyotumwa. Rudi uanze tena.' :
+      'No payment was made. Return to the website and start again.'}</p>
+    <button type="button" className="spm-primary" onClick={returnToHost}>
+      <ArrowLeft size={17}/>{sw ? 'Rudi kwenye tovuti' :
+        (record.source === 'STORE' ? 'Return to Store' : 'Return to ShortStays')}
+    </button>
+  </section>;
 
   return <section className="spm-hosted-demo" data-checkout-test-id={record.id}>
     {step === 'review' && <div className="spm-hosted-review">
