@@ -207,5 +207,5 @@ test('two Gate 3 hosts and original Gate 2 hosts are separate, no production pay
   assert.match(read('vite.config.ts'),/gate3Stays: fileURLToPath/);
   const code=read('api/mini-gate3-sandbox.js');
   assert.doesNotMatch(code,/PaymentInitiationService|fundFromSelf\(|createIntent\(|releaseFunds\(|fetch\(/);
-  assert.match(code,/No database/);
+  assert.match(code,/NO database-backed/);
 });
