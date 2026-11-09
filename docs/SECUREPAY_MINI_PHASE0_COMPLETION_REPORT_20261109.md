@@ -21,7 +21,7 @@ Phase 0 has documented the existing source architecture, reusable systems, expli
 | Kenyan candidate market cases | `docs/SECUREPAY_MINI_KENYAN_MARKET_TEST_PACK_V1_20261109.md` | 10 focus + 10 breadth + 10 safety cases; candidate priority, not measured market shares |
 | Stable synthetic reference cohort | `tests/fixtures/securepay-mini/kenyan-trader-cohort.v1.json` | 20 fictional actor IDs, three checkpoints, 20 scenario families, 10 safety invariants; no real KS identities |
 | Honest continuing evidence ledger | `tests/fixtures/securepay-mini/cohort-runlog.v1.json` | Created empty; **no imagined PASS results** |
-| Focused source tests and report | `tests/securepay-mini-trader-cohort.test.mjs`; `scripts/securepay-mini-cohort-report.mjs`; two npm scripts | Source implemented; direct GitHub Actions test completion **not established** |
+| Focused source tests and report | `tests/securepay-mini-trader-cohort.test.mjs`; `scripts/securepay-mini-cohort-report.mjs`; direct Node commands | Source implemented; direct GitHub Actions test completion **not established** |
 | Ongoing owner-led testing | `testing/securepay-mini/CONTINUING_TRADER_COHORT.md`; `testing/securepay-mini/OWNER_HUMAN_EXPERIENCE_CHARTER_20261109.md` | Written; owner will test actual preview, ChatGPT challenges with fictional scenarios |
 | Review branch | PR #242 | Draft, unmerged; protected production untouched |
 
