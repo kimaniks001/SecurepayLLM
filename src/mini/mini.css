@@ -236,3 +236,28 @@ textarea.spm-field { resize:vertical; }
   .spm-demo-rail { padding:8px; }
   .spm-demo-fees { font-size:10px; }
 }
+
+
+/* Owner simplification: glanceable three-rail chooser; safety remains on demand. */
+.spm-demo-concise .spm-back { margin-bottom:3px; }
+.spm-demo-concise .spm-demo-flag { margin:0 0 8px; padding:6px 9px; }
+.spm-demo-topsum .spm-question { font-size:29px; margin:0 0 3px; }
+.spm-demo-topsum p { font-size:12px; line-height:1.4; color:#71816f; margin:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.spm-demo-concise .spm-demo-section-heading { font-size:13px; margin:15px 0 8px; }
+.spm-demo-concise .spm-demo-rails { gap:6px; }
+.spm-demo-concise .spm-demo-rail { min-height:52px; padding:7px 10px; }
+.spm-demo-concise .spm-demo-rail-icon { width:34px; height:34px; }
+.spm-demo-concise .spm-demo-rail-name small { font-size:10px; }
+.spm-demo-concise .spm-primary { margin-top:12px; }
+.spm-demo-concise .spm-demo-result { padding:10px; margin-top:12px; }
+.spm-demo-concise .spm-demo-result p { margin:2px 0 3px; }
+.spm-demo-concise .spm-demo-controls { margin-top:10px; }
+.spm-demo-concise .spm-demo-controls summary { font-size:12px; }
+.spm-demo-explain { margin-top:15px; border-top:1px solid #e9eee4; color:#6f806f; }
+.spm-demo-explain summary { min-height:44px; display:flex; align-items:center; font-size:12px; font-weight:650; color:#3f6d4e; cursor:pointer; }
+.spm-demo-explain p { font-size:11px; line-height:1.5; margin:8px 0; }
+.spm-demo-explain .spm-demo-fees { margin:9px 0; }
+.spm-demo-concise .spm-demo-control-grid { gap:5px; }
+.spm-demo-footnote { display:flex; justify-content:center; align-items:center; gap:6px; margin:7px 0 2px; color:#819080; font-size:10px; }
+.spm-demo-footnote svg { flex:none; }
+.spm-demo-concise .spm-demo-result strong { font-size:12px; }
