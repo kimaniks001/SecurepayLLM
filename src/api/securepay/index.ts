@@ -5,6 +5,7 @@ import { createAuthGateway } from './auth';
 import { createAgreementGateway } from './agreements';
 import { createMoneyGateway } from './money';
 import { createStoreGateway } from './store';
+import { createStoreCheckoutGateway } from './store-checkout';
 import { createFulfilmentNeedsGateway } from './fulfilment-needs';
 import { createSharedFulfilmentGateway } from './shared-fulfilment';
 import { createCircleGateway } from './circle';
@@ -46,7 +47,7 @@ export function createSecurePayApi(baseUrl: string | undefined, getAccessToken: 
     financialInstitutions: createFinancialInstitutionsGateway(http),
     skillsInstitute: createSkillsInstituteGateway(http),
     mode: 'real' as const, baseUrl: validatedBaseUrl,
-    agent: createAgentGateway(http), auth: createAuthGateway(http), agreements: createAgreementGateway(http), money: createMoneyGateway(http), store: createStoreGateway(http), fulfilmentNeeds: createFulfilmentNeedsGateway(http), sharedFulfilment: createSharedFulfilmentGateway(http),
+    agent: createAgentGateway(http), auth: createAuthGateway(http), agreements: createAgreementGateway(http), money: createMoneyGateway(http), store: createStoreGateway(http), storeCheckout: createStoreCheckoutGateway(http), fulfilmentNeeds: createFulfilmentNeedsGateway(http), sharedFulfilment: createSharedFulfilmentGateway(http),
     circle: createCircleGateway(http),
     community: createCommunityGateway(http),
     discovery: createDiscoveryGateway(http),
