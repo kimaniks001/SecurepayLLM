@@ -1,0 +1,39 @@
+:root{font-family:Inter,system-ui,-apple-system,sans-serif;color:#254634;background:#f7f6f0;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}body{margin:0;min-height:100vh}button{font:inherit;cursor:pointer}button:focus-visible,a:focus-visible{outline:3px solid #bd9556;outline-offset:3px}
+.demo-header{display:flex;justify-content:space-between;align-items:center;gap:14px;background:#fff;padding:15px min(6vw,60px);border-bottom:1px solid #e7ebdf}
+.demo-brand{display:flex;align-items:center;gap:9px;font-size:17px;font-weight:750;letter-spacing:-.02em}
+.demo-brand svg{color:#2d704b}.demo-switch{display:flex;gap:8px;align-items:center;color:#476450}
+.demo-switch a{border:1px solid #d7e6d9;border-radius:99px;padding:9px 12px;text-decoration:none;color:#366346;font-size:12px;font-weight:700}
+.demo-switch a[aria-current="page"]{background:#eaf2e7}
+.demo-main{max-width:890px;margin:0 auto;padding:38px 22px 100px}
+.demo-kicker{font-size:11px;font-weight:750;color:#477252;letter-spacing:.12em;text-transform:uppercase}
+.demo-main h1{font:500 clamp(30px,6vw,50px)/1.15 Georgia,serif;letter-spacing:-.04em;max-width:580px;margin:9px 0 12px}
+.demo-intro{font-size:14px;line-height:1.6;color:#637366;max-width:570px;margin:0 0 25px}
+.demo-grid{display:grid;grid-template-columns:minmax(0,1fr) 285px;gap:20px;align-items:start}
+.demo-card{border:1px solid #e0e7dc;background:#fff;border-radius:20px;padding:20px;box-shadow:0 9px 32px -27px #23493044}
+.demo-visual{border-radius:15px;min-height:175px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;background:linear-gradient(135deg,#e7eee5,#f8f2e9);color:#37604a}
+.demo-visual svg{width:62px;height:62px;stroke-width:1.25}
+.demo-visual span{font:500 22px Georgia,serif;color:#2d6045}
+.demo-card h2{font-size:19px;margin:18px 0 8px}
+.demo-meta{color:#738071;font-size:13px;line-height:1.55;margin:0}
+.demo-order-line{display:flex;gap:10px;align-items:center;justify-content:space-between;border-top:1px solid #e9eee7;padding:13px 0;font-size:13px}
+.demo-order-line strong{white-space:nowrap}
+.demo-order-line:first-of-type{margin-top:15px}
+.demo-pay{width:100%;border:0;background:#285d41;color:white;font-weight:700;border-radius:13px;padding:13px 18px;min-height:48px;margin-top:11px}
+.demo-pay:hover{background:#1b4c31}
+.demo-badge{display:inline-flex;align-items:center;gap:5px;border-radius:99px;padding:5px 9px;background:#fff2dc;color:#795b28;font-size:10px;font-weight:750}
+.demo-aside h3{font-size:15px;margin:0 0 12px}
+.demo-aside p{font-size:12px;color:#637361;line-height:1.6;margin:0 0 12px}
+.demo-status{font-size:12px;line-height:1.5;background:#f3f6f0;border:1px solid #e0eadc;color:#345840;padding:12px;border-radius:12px;min-height:50px}
+.demo-keep-note{margin-top:16px;color:#7c8578;font-size:11px;line-height:1.55}
+.demo-overlay{position:fixed;inset:0;background:rgba(11,38,25,.16);z-index:10}
+.demo-overlay[hidden],.demo-popup[hidden],.demo-fallback[hidden]{display:none!important}
+.demo-popup{position:fixed;bottom:18px;right:18px;z-index:11;width:min(342px,calc(100vw - 28px));height:min(510px,calc(100dvh - 32px));min-width:300px;min-height:320px;max-height:calc(100dvh - 16px);max-width:calc(100vw - 16px);resize:both;overflow:hidden;display:flex;flex-direction:column;background:#fff;border-radius:18px;border:1px solid #e0e8d8;box-shadow:0 21px 60px #153d2d33}
+.demo-popup-header{background:#26583d;color:white;display:flex;align-items:center;justify-content:space-between;padding:6px 8px 6px 15px;min-height:46px;font-size:12px;font-weight:700}
+.demo-popup-header button{border:0;color:#fff;background:#356d4a;min-width:44px;min-height:44px;border-radius:9px;font-size:21px}
+.demo-popup iframe{width:100%;flex:1;border:0;min-height:0;background:#fff}
+.demo-fallback{padding:18px;color:#5b6f5f;font-size:13px}
+.demo-fallback a{color:#2a6644;font-weight:700}
+.demo-note{font-size:12px!important;color:#9c7b48!important}
+@media(max-width:640px){.demo-header{padding:12px 14px}.demo-brand{font-size:14px}.demo-switch{gap:4px}.demo-switch a{font-size:10px;padding:7px}.demo-main{padding:28px 17px 100px}.demo-grid{grid-template-columns:1fr}.demo-popup{right:8px;left:8px;bottom:8px;width:calc(100vw - 16px);height:min(530px,78dvh);min-width:0;max-width:none;resize:none}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
