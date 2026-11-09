@@ -20,6 +20,8 @@ export default defineConfig({
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
         mini: fileURLToPath(new URL('./mini.html', import.meta.url)),
         miniHostPreview: fileURLToPath(new URL('./mini-host-preview.html', import.meta.url)),
+        demoStore: fileURLToPath(new URL('./checkout-demo-store.html', import.meta.url)),
+        demoShortStays: fileURLToPath(new URL('./checkout-demo-shortstays.html', import.meta.url)),
       },
     },
   },
