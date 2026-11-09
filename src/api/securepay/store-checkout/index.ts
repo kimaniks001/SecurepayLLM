@@ -1,4 +1,5 @@
 import { segment, type HttpClient } from '../http';
+import { makeStoreSourceReview } from '../../../mini/checkoutSourceReview';
 
 /**
  * Real SecurePayAPI Phase 3 checkout INTENTION: not yet an accepted order,
@@ -126,6 +127,13 @@ export function createStoreCheckoutGateway(http: HttpClient) {
       if(!uuid.test(intentId))throw new Error('Invalid checkout reference');
       return verifiedStoreCheckoutIntent(await http.request<StoreCheckoutIntent>(
         route+'/'+segment(intentId),{auth:'required'}));
+    },
+    /** One shared source-review shape. A Store intent is NOT an order or checkout session. */
+    sourceReview: async (intentId: string) => {
+      if(!uuid.test(intentId))throw new Error('Invalid checkout reference');
+      const intention=verifiedStoreCheckoutIntent(await http.request<StoreCheckoutIntent>(
+        route+'/'+segment(intentId),{auth:'required'}));
+      return makeStoreSourceReview(intention);
     },
     /** Read-only comparison. Even two real confirmations do NOT unlock funds. */
     agreementReadiness: async (intentId: string, agreementId: string) => {
