@@ -27,6 +27,8 @@ export default defineConfig({
         gate2Stays: fileURLToPath(new URL('./checkout-gate2-shortstays.html', import.meta.url)),
         gate3Store: fileURLToPath(new URL('./checkout-gate3-store.html', import.meta.url)),
         gate3Stays: fileURLToPath(new URL('./checkout-gate3-shortstays.html', import.meta.url)),
+        gate4Store: fileURLToPath(new URL('./checkout-gate4-store.html', import.meta.url)),
+        gate4Stays: fileURLToPath(new URL('./checkout-gate4-shortstays.html', import.meta.url)),
       },
     },
   },
