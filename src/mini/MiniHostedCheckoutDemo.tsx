@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ArrowLeft, ArrowRight, CalendarDays, CircleAlert, MessageCircle, ShieldCheck, ShoppingBag, TestTube2 } from 'lucide-react';
 import { getMiniDemoAmount, miniDemoStatusLabel, type MiniCheckoutDemoRecord, type MiniDemoStatus } from './checkoutDemoFixtures';
 import { MiniFundingPreview } from './MiniFundingPreview';
@@ -26,6 +26,12 @@ export function MiniHostedCheckoutDemo({ record, language }: {
   const [cameFrom, setCameFrom] = useState<'review' | 'funding'>('review');
   const [chatStarted, setChatStarted] = useState(false);
   const [simulatedStatus, setSimulatedStatus] = useState<MiniDemoStatus>('NOT_STARTED');
+
+  // Screens must begin at the top without the customer hunting for the next action.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    document.querySelector<HTMLElement>('.spm-frame')?.scrollTo(0, 0);
+  }, [step, simulatedStatus]);
 
   const draft: MiniDraft = {
     intent: 'pay',
@@ -79,7 +85,7 @@ export function MiniHostedCheckoutDemo({ record, language }: {
         <small>{sw ? 'Tovuti ya mfano' : 'Sample website'}</small>
       </div>
 
-      <h1 className="spm-question">{sw ? 'Kagua kabla ya kulipa' : 'Review before paying'}</h1>
+      <h1 className="spm-question">{sw ? 'Kagua malipo yako' : 'Review your checkout'}</h1>
       <div className="spm-hosted-summary">
         <small>{record.reference} · {record.orderVersion}</small>
         <strong>{record.itemDescription}</strong>
@@ -94,10 +100,10 @@ export function MiniHostedCheckoutDemo({ record, language }: {
       </p>
 
       <button type="button" className="spm-primary" onClick={() => setStep('funding')}>
-        {sw ? 'Chagua njia ya malipo' : 'Choose how to pay'}<ArrowRight size={18}/>
+        {sw ? 'Endelea kulipa' : 'Continue to payment'}<ArrowRight size={18}/>
       </button>
       <button className="spm-quiet-button" type="button" onClick={showChat}>
-        <MessageCircle size={16}/>{sw ? 'Uliza KS001' : 'Ask KS001'}
+        <MessageCircle size={16}/>{sw ? 'Unahitaji msaada? Uliza KS001' : 'Need help? Ask KS001'}
       </button>
       <button className="spm-hosted-return spm-quiet-button" type="button" onClick={returnToHost}>
         <ArrowLeft size={16}/>{sw ? 'Rudi kwenye tovuti' : 'Back to website'}
@@ -112,9 +118,12 @@ export function MiniHostedCheckoutDemo({ record, language }: {
         onBack={() => setStep('review')}
         onDemoStateChange={onStatusChange}
         onReturnToHost={returnToHost}
+        guidedDemo
+        returnLabel={sw ? (record.source === 'STORE' ? 'Rudi dukani' : 'Rudi ShortStays') :
+          (record.source === 'STORE' ? 'Return to Store' : 'Return to ShortStays')}
       />
       <button type="button" className="spm-quiet-button" onClick={showChat}>
-        <MessageCircle size={16}/>{sw ? 'Uliza KS001 kuhusu hii' : 'Ask KS001 about this'}
+        <MessageCircle size={16}/>{sw ? 'Unahitaji msaada? Uliza KS001' : 'Need help? Ask KS001'}
       </button>
     </div>
 
