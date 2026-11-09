@@ -1,4 +1,4 @@
-import { useReducer } from 'react';
+import { useEffect, useReducer } from 'react';
 import {
   ArrowLeft, ArrowLeftRight, CircleAlert, CircleCheck, Clock3,
   Landmark, RotateCcw, ShieldCheck, Smartphone, TestTube2
@@ -6,7 +6,7 @@ import {
 import {
   INITIAL_MINI_FUNDING_TEST, MINI_TEST_RAILS,
   miniFundingTestTransition, miniFundingTestWords, miniTestAmount,
-  type MiniTestRailId
+  type MiniTestRailId, type MiniFundingTestStatus
 } from './miniFundingSimulator';
 import type { MiniDraft, MiniLanguage } from './miniModel';
 
@@ -14,15 +14,29 @@ import type { MiniDraft, MiniLanguage } from './miniModel';
  * OWNER TEST ONLY: the following controls simulate three rail responses locally.
  * Real payment options, quotes, provider status and release belong to SecurePayAPI.
  */
-export function MiniFundingPreview({ draft, language, onBack }: {
+export function MiniFundingPreview({ draft, language, onBack, onDemoStateChange, onReturnToHost, guidedDemo = false, returnLabel }: {
   draft: MiniDraft;
   language: MiniLanguage;
   onBack: () => void;
+  /** Demo-only status, never an actual payment or verified host order result. */
+  onDemoStateChange?: (status: MiniFundingTestStatus, method: MiniTestRailId | null) => void;
+  onReturnToHost?: () => void;
+  /** Fake owner-preview provider result only; not a live API status. */
+  guidedDemo?: boolean;
+  returnLabel?: string;
 }) {
   const [demo, dispatch] = useReducer(miniFundingTestTransition, INITIAL_MINI_FUNDING_TEST);
   const sw = language === 'sw';
   const amount = miniTestAmount(draft.amount);
   const selected = MINI_TEST_RAILS.find(item => item.id === demo.method);
+  useEffect(() => { onDemoStateChange?.(demo.status, demo.method); }, [demo.status, demo.method, onDemoStateChange]);
+  // A guided owner demo resolves its fictional provider response automatically.
+  // This effect NEVER calls a PSP or backend, and cannot verify funds.
+  useEffect(() => {
+    if (!guidedDemo || demo.status !== 'AWAITING_FAKE_PROVIDER') return;
+    const pendingReply = window.setTimeout(() => dispatch({ type: 'SIMULATE_CONFIRMED' }), 1100);
+    return () => window.clearTimeout(pendingReply);
+  }, [guidedDemo, demo.status]);
   const stage = miniFundingTestWords(demo.status);
   const canSelect = demo.status === 'SELECT_METHOD' || demo.status === 'SIMULATED_FAILED';
   const pending = demo.status === 'AWAITING_FAKE_PROVIDER';
@@ -33,9 +47,9 @@ export function MiniFundingPreview({ draft, language, onBack }: {
 
   const selectMethod = (method: MiniTestRailId) => dispatch({ type: 'SELECT_METHOD', method });
   const statusLine = sw
-    ? pending ? 'Inasubiri jibu la jaribio' : unknown ? 'Haijulikani — usijaribu tena' :
+    ? guidedDemo && confirmed ? 'Jaribio limekamilika' : pending ? 'Inasubiri jibu la jaribio' : unknown ? 'Haijulikani — usijaribu tena' :
       failed ? 'Jaribio limeshindwa' : 'Imethibitishwa kwenye jaribio tu'
-    : pending ? 'Waiting for test result' : unknown ? 'Unknown — do not retry' :
+    : guidedDemo && confirmed ? 'Test complete — not paid' : pending ? 'Checking test result…' : unknown ? 'Unknown — do not retry' :
       failed ? 'Test failed' : 'Confirmed in simulation';
   const statusSubline = sw
     ? confirmed ? 'Hakuna pesa iliyotumwa.' : pending ? 'Hakuna malipo yaliyotumwa.' :
@@ -62,8 +76,8 @@ export function MiniFundingPreview({ draft, language, onBack }: {
       {sw ? 'Weka kiasi kwenye rasimu kwanza.' : 'Enter an amount in your draft first.'}
     </p>}
 
-    <h2 className="spm-demo-section-heading">{sw ? 'Lipa kwa' : 'Pay with'}</h2>
-    <div role="radiogroup" aria-label="Simulated payment method" className="spm-demo-rails">
+    {(!guidedDemo || demo.status === 'SELECT_METHOD') && <h2 className="spm-demo-section-heading">{sw ? 'Lipa kwa' : 'Pay with'}</h2>}
+    {(!guidedDemo || demo.status === 'SELECT_METHOD') && <div role="radiogroup" aria-label="Simulated payment method" className="spm-demo-rails">
       {MINI_TEST_RAILS.map(item => {
         const active = demo.method === item.id;
         const Icon = item.id === 'CHOICE_BANK' ? Landmark : item.id === 'MPESA' ? Smartphone : ArrowLeftRight;
@@ -76,11 +90,11 @@ export function MiniFundingPreview({ draft, language, onBack }: {
           <span className="spm-demo-rail-choice" aria-hidden="true">{active ? <CircleCheck size={18}/> : <span/>}</span>
         </button>;
       })}
-    </div>
+    </div>}
 
     {demo.status === 'SELECT_METHOD' && <button type="button" className="spm-primary"
       disabled={!canStart} onClick={() => dispatch({ type: 'START_ATTEMPT' })}>
-      <TestTube2 size={18}/>{sw ? 'Jaribu' : 'Try'} {selected?.name || (sw ? 'njia hii' : 'this method')}
+      <TestTube2 size={18}/>{guidedDemo ? (sw ? 'Endelea na ' : 'Continue with ') : (sw ? 'Jaribu ' : 'Try ')}{selected?.name || (sw ? 'njia hii' : 'this method')}
     </button>}
 
     {(pending || unknown || confirmed || failed) &&
@@ -94,7 +108,7 @@ export function MiniFundingPreview({ draft, language, onBack }: {
         </div>
       </div>}
 
-    {(pending || unknown) && <details className="spm-demo-controls">
+    {(pending || unknown) && !guidedDemo && <details className="spm-demo-controls">
       <summary><TestTube2 size={17}/>{sw ? 'Badili matokeo ya jaribio' : 'Test a result'}</summary>
       <div className="spm-demo-control-grid">
         <button type="button" className="spm-secondary"
@@ -121,9 +135,13 @@ export function MiniFundingPreview({ draft, language, onBack }: {
       <RotateCcw size={18}/>{sw ? 'Jaribu tena' : 'Try again'}
     </button>}
 
-    {(confirmed || failed) && <button className="spm-quiet-button" type="button"
+    {(confirmed || failed) && !guidedDemo && <button className="spm-quiet-button" type="button"
       onClick={() => dispatch({type:'RESET'})}>
       <RotateCcw size={16}/>{sw ? 'Chagua njia nyingine' : 'Compare another method'}
+    </button>}
+
+    {onReturnToHost && <button type="button" className={confirmed && guidedDemo ? 'spm-primary spm-demo-return' : 'spm-secondary spm-demo-return'} onClick={onReturnToHost}>
+      <ArrowLeft size={16}/>{returnLabel || (sw ? 'Rudi kwenye tovuti' : 'Return to website')}
     </button>}
 
     <details className="spm-demo-explain">

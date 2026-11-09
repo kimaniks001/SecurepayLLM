@@ -10,6 +10,8 @@ import {
 import { MiniCaptureTools } from './MiniCaptureTools';
 import { MiniGuestChat } from './MiniGuestChat';
 import { MiniFundingPreview } from './MiniFundingPreview';
+import { getMiniDemoCheckout } from './checkoutDemoFixtures';
+import { MiniHostedCheckoutDemo } from './MiniHostedCheckoutDemo';
 import { miniMergeUserDescription, miniCaptureText, type MiniCaptureSource, type MiniCaptureKind } from './miniCapture';
 import './mini.css';
 
@@ -111,7 +113,10 @@ export function MiniExperience() {
   const nextBtn = useRef<HTMLButtonElement | null>(null);
   const amountField = useRef<HTMLInputElement | null>(null);
   const quantityField = useRef<HTMLInputElement | null>(null);
-  const compact = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('embedded') === '1';
+  const urlParams = typeof window === 'undefined' ? null : new URLSearchParams(window.location.search);
+  const compact = urlParams?.get('embedded') === '1';
+  const demoRequest = urlParams?.get('demoCheckout') ?? null;
+  const demoRecord = getMiniDemoCheckout(demoRequest);
 
   useEffect(() => {
     if (screen === 'describe') firstField.current?.focus({ preventScroll: true });
@@ -230,11 +235,17 @@ export function MiniExperience() {
         <div className="spm-head-actions">
           <button className="spm-lang" type="button" onClick={() => setLang(lang === 'en' ? 'sw' : 'en')}
             aria-label={lang === 'en' ? 'Badili kwa Kiswahili' : 'Switch to English'}>{lang === 'en' ? 'Kiswahili' : 'English'}</button>
-          {screen !== 'home' && <button type="button" className="spm-icon-btn" aria-label={t.clear} onClick={reset}><X size={19}/></button>}
+          {!demoRequest && screen !== 'home' && <button type="button" className="spm-icon-btn" aria-label={t.clear} onClick={reset}><X size={19}/></button>}
         </div>
       </header>
 
       <div className="spm-main" aria-live="polite">
+        {demoRequest ? (demoRecord
+          ? <MiniHostedCheckoutDemo record={demoRecord} language={lang}/>
+          : <section className="spm-content" role="alert"><h1 className="spm-question">Checkout unavailable</h1>
+              <p className="spm-lead">That test order was not found. No payment was started.</p>
+              <a className="spm-quiet-link" href="/mini.html">Open Mini</a>
+            </section>) : <>
         {screen === 'home' && <section className="spm-entrance">
           <div className="spm-persona"><Sparkles size={16}/><span>KS001</span><span className="spm-dot"/><span>{t.phase4}</span></div>
           <h1 className="spm-hero">{t.hello}</h1>
@@ -368,12 +379,13 @@ export function MiniExperience() {
         {screen === 'funding' && <MiniFundingPreview draft={draft} language={lang} onBack={() => setScreen('review')}/>}
         {screen === 'help' && <MiniGuestChat draft={discussDraft} language={lang}
           onBack={() => setScreen(discussDraft ? 'review' : 'home')}/>} 
+        </>}
       </div>
 
       <footer className="spm-footer">
         <ShieldCheck size={16} aria-hidden="true"/>
         <span>{t.boundary}</span>
-        <span className="spm-footer-dash">·</span><span>Phase 4</span>
+        <span className="spm-footer-dash">·</span><span>{demoRequest ? 'Checkout test' : 'Phase 4'}</span>
       </footer>
     </div>
   </main>;

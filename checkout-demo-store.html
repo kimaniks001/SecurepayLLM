@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="robots" content="noindex,nofollow"/>
+  <meta name="theme-color" content="#f7f6f0"/>
+  <title>Digital Store — SecurePay Mini shared checkout demonstration</title>
+  <link rel="stylesheet" href="/checkout-demo.css"/>
+</head>
+<body>
+  <header class="demo-header">
+    <div class="demo-brand">Sample Digital Store</div>
+    <nav class="demo-switch" aria-label="Switch checkout examples">
+      <a href="/checkout-demo-store.html" aria-current="page">Store</a>
+      <a href="/checkout-demo-shortstays.html">ShortStays</a>
+    </nav>
+  </header>
+  <main class="demo-main" data-demo-host="STORE" data-checkout-fixture="STORE-DEMO-01">
+    <div class="demo-kicker">SecurePay Mini · Phase 1 owner test</div>
+    <h1>Shop here. Pay with confidence.</h1>
+    <p class="demo-intro">An illustrative shop order using exactly the same SecurePay Mini as the ShortStays example. Nothing is booked, reserved or paid on this test site.</p>
+    <div class="demo-grid">
+      <article class="demo-card">
+        <div class="demo-visual"><svg viewBox="0 0 64 64" width="74" height="74" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M8 25h48v31H8V25ZM5 25l8-17h38l8 17M8 25c0 5 10 7 12 0 2 7 12 7 14 0 2 7 12 7 14 0 2 7 12 5 12 0M21 56V37h22v19"/></svg><span>Community shop</span></div>
+        <h2>Everyday goods</h2>
+        <p class="demo-meta">3 packs · Pick up at the shop</p>
+        <div class="demo-order-line"><span>Items · 3 × KSh 600</span><strong>KSh 1,800</strong></div>
+        <div class="demo-order-line"><span>Test order reference</span><strong>DEMO-STORE-1001</strong></div>
+        <span class="demo-badge">Sample only · not reserved</span>
+        <button id="demo-pay" class="demo-pay" type="button" aria-expanded="false" aria-controls="demo-popup">Pay with SecurePay</button>
+        <p class="demo-keep-note">The Pay button opens one SecurePay Mini. You can close it and return here without marking anything paid.</p>
+      </article>
+      <aside class="demo-card demo-aside">
+        <h3>Your order status</h3>
+        <div id="demo-status" class="demo-status" role="status" aria-live="polite">Payment not started (test only)</div>
+        <p style="margin-top:14px">This is a locally simulated journey. A real store must wait for verified SecurePayAPI evidence before confirming payment.</p>
+        <p class="demo-note">Choice Bank, M-Pesa and PesaLink here are simulated selections—not enabled bank rails.</p>
+      </aside>
+    </div>
+  </main>
+
+  <div id="demo-overlay" class="demo-overlay" hidden></div>
+  <section id="demo-popup" class="demo-popup" aria-label="SecurePay Mini sample checkout" hidden>
+    <div class="demo-popup-header">
+      <span>SecurePay Mini · checkout test</span>
+      <button type="button" id="demo-close" aria-label="Close checkout window">×</button>
+    </div>
+    <!-- Same-origin owner test ONLY. Do not copy this iframe or its sandbox model into a real external site. -->
+    <iframe id="demo-frame" title="SecurePay Mini simulated checkout" sandbox="allow-scripts allow-same-origin allow-forms" src="about:blank" referrerpolicy="no-referrer"></iframe>
+    <div id="demo-fallback" class="demo-fallback" role="alert" hidden>
+      <strong>Checkout did not load in this window.</strong>
+      <p>Open the sample Mini separately.</p>
+      <a href="/mini.html?demoCheckout=STORE-DEMO-01" target="_blank" rel="noopener noreferrer">Open simulated checkout</a>
+    </div>
+  </section>
+  <script defer src="/checkout-demo-host.js"></script>
+</body>
+</html>
