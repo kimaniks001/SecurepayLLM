@@ -54,7 +54,7 @@ export function MiniFundingPreview({ draft, language, onBack, onDemoStateChange,
   const statusSubline = sw
     ? confirmed ? 'Hakuna pesa iliyotumwa.' : pending ? 'Hakuna malipo yaliyotumwa.' :
       failed ? 'Hakuna malipo yaliyofanyika.' : 'Subiri jibu la awali.'
-    : confirmed ? 'No money moved. This was only a demonstration.' : pending ? 'No payment sent.' :
+    : confirmed ? 'No money moved.' : pending ? 'No payment sent.' :
       failed ? 'No payment made.' : 'The original result must be checked.';
 
   return <section className="spm-content spm-money-demo spm-demo-concise"
