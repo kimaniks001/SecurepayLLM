@@ -16,13 +16,16 @@ import { gate2Config, readGate2Sandbox, sourceHash } from './mini-gate2-sandbox.
 import { getMiniSandboxFixture } from './mini-checkout-preview.js';
 
 export const GATE3_BRANCH = 'feat/mini-phase3-gate3-sandbox-payment-status-20261109';
+export const GATE4_BRANCH = 'feat/mini-phase3-gate4-verified-return-20261109';
 export const GATE3_RAILS = Object.freeze(['CHOICE_BANK', 'MPESA', 'PESALINK']);
 export const GATE3_SCENARIOS = Object.freeze(['SUCCESS', 'FAILURE', 'UNKNOWN', 'SLOW']);
+/** Only Gate 4 may exercise a deliberately delayed mock reconciliation. */
+export const GATE4_SCENARIOS = Object.freeze(['UNKNOWN_THEN_CONFIRMED','UNKNOWN_THEN_FAILED']);
 export const GATE3_TTL_MS = 10 * 60 * 1000;
 const tokenPattern = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
 
 export function gate3Config(env = process.env) {
-  if (env.VERCEL_ENV !== 'preview' || env.VERCEL_GIT_COMMIT_REF !== GATE3_BRANCH)
+  if (env.VERCEL_ENV !== 'preview' || ![GATE3_BRANCH,GATE4_BRANCH].includes(env.VERCEL_GIT_COMMIT_REF))
     return null;
   const secret = String(env.MINI_GATE3_SANDBOX_SECRET || '');
   const host = String(env.VERCEL_URL || '');
@@ -30,7 +33,8 @@ export function gate3Config(env = process.env) {
       !/^[a-z0-9-]+\.vercel\.app$/.test(host)) return null;
   const gate2 = gate2Config(env);
   if (!gate2 || gate2.origin !== 'https://' + host) return null;
-  return { origin: 'https://' + host, key: createHash('sha256').update(secret).digest(), gate2 };
+  return { origin: 'https://' + host, branch: env.VERCEL_GIT_COMMIT_REF,
+    key: createHash('sha256').update(secret).digest(), gate2 };
 }
 function seal(data, config) {
   const iv = randomBytes(12);
@@ -50,7 +54,8 @@ export function readGate3Attempt(token, config, now = Date.now()) {
     const c = JSON.parse(Buffer.concat([dec.update(p[1]),dec.final()]).toString('utf8'));
     const fixture = getMiniSandboxFixture(c.source);
     if (!fixture || c.v !== 1 || c.origin !== config.origin ||
-        !GATE3_RAILS.includes(c.rail) || !GATE3_SCENARIOS.includes(c.scenario) ||
+        !GATE3_RAILS.includes(c.rail) || !(GATE3_SCENARIOS.includes(c.scenario) ||
+          (config.origin && GATE4_SCENARIOS.includes(c.scenario))) ||
         !/^SIM-PAY-[A-F0-9]{24}$/.test(c.attemptId) ||
         !/^SIM-[A-F0-9]{20}$/.test(c.orderId) ||
         !/^[a-f0-9]{24}$/.test(c.nonce) ||
@@ -60,6 +65,11 @@ export function readGate3Attempt(token, config, now = Date.now()) {
         !Number.isSafeInteger(c.readyAt) ||
         !Number.isSafeInteger(c.expiresAt) ||
         c.readyAt < c.initiatedAt || c.readyAt > c.initiatedAt + 60000 ||
+        (GATE4_SCENARIOS.includes(c.scenario)
+          ? (!Number.isSafeInteger(c.reconcileAt) ||
+             c.reconcileAt !== c.initiatedAt + 15000 ||
+             config.branch !== GATE4_BRANCH)
+          : c.reconcileAt !== null) ||
         c.initiatedAt > now + 30000 ||
         c.expiresAt > c.initiatedAt + GATE3_TTL_MS ||
         c.expiresAt <= now) return null;
@@ -67,7 +77,9 @@ export function readGate3Attempt(token, config, now = Date.now()) {
   } catch { return null; }
 }
 export function startGate3Attempt(reviewSession, rail, scenario, config, now = Date.now()) {
-  if (!GATE3_RAILS.includes(rail) || !GATE3_SCENARIOS.includes(scenario) ||
+  if (!GATE3_RAILS.includes(rail) ||
+      !(GATE3_SCENARIOS.includes(scenario) ||
+        (config.branch===GATE4_BRANCH && GATE4_SCENARIOS.includes(scenario))) ||
       typeof reviewSession !== 'string') return null;
   const reviewed = readGate2Sandbox(reviewSession, config.gate2, now);
   if (!reviewed || reviewed.claims.stage !== 'TERMS_REVIEWED') return null;
@@ -80,7 +92,9 @@ export function startGate3Attempt(reviewSession, rail, scenario, config, now = D
     rail,scenario,
     attemptId:'SIM-PAY-'+randomBytes(12).toString('hex').toUpperCase(),
     nonce:randomBytes(12).toString('hex'),
-    initiatedAt:now,readyAt:now+delay,expiresAt:Math.min(claims.expiresAt,now+GATE3_TTL_MS)
+    initiatedAt:now,readyAt:now+delay,
+    reconcileAt:GATE4_SCENARIOS.includes(scenario)?now+15000:null,
+    expiresAt:Math.min(claims.expiresAt,now+GATE3_TTL_MS)
   },config);
   // Note: expiresAt must equal initiatedAt+TTL for independently signed
   // attempt tokens. The originating Gate 2 review may expire sooner; cap
@@ -100,6 +114,10 @@ export function gate3AttemptStatus(token, config, now = Date.now()) {
     claims.scenario === 'SUCCESS' ? 'SIMULATED_CONFIRMED' :
     claims.scenario === 'FAILURE' ? 'SIMULATED_FAILED' :
     claims.scenario === 'UNKNOWN' ? 'SIMULATED_UNKNOWN' :
+    claims.scenario === 'UNKNOWN_THEN_CONFIRMED' ?
+      (now < claims.reconcileAt ? 'SIMULATED_UNKNOWN' : 'SIMULATED_CONFIRMED') :
+    claims.scenario === 'UNKNOWN_THEN_FAILED' ?
+      (now < claims.reconcileAt ? 'SIMULATED_UNKNOWN' : 'SIMULATED_FAILED') :
     'SIMULATED_CONFIRMED';
   return {
     attemptId:claims.attemptId,orderId:claims.orderId,
