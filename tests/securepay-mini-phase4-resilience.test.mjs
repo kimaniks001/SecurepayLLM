@@ -38,6 +38,7 @@ function browserHost(source='STORE'){
         setAttribute(){},focus(){},addEventListener(type,fn){this.listeners[type]=fn}};
     }
     const globals={
+      Date:{now:()=>now},
       window:{location:{origin,pathname:path},addEventListener(k,fn){listeners[k]=fn},
         setTimeout(){return 0},setInterval(){return 0}},
       document:{querySelector:q=>q==='[data-gate4-host]'?
@@ -213,4 +214,57 @@ test('after verified failure, cross-order retry is rejected and genuine retry is
   deliver(host,genuine.attempt,b.fixture,'STORE');await tick();
   assert.equal(storedAttempt(b),genuine.attempt,'same-order signed retry is accepted');
   assert.match(host.elements['demo-status'].textContent,/NOT PAID/);
+});
+
+
+test('Gate 3: after a status outage, explicit Check adopts only the original server-matched attempt',async()=>{
+  for(const source of ['STORE','SHORTSTAYS']){
+    const b=browserHost(source),host=b.mount();
+    host.elements['demo-pay'].listeners.click();await tick();
+    const checkout=reference(host);
+    const reviewed=progressGate2Sandbox(checkout,g2,b.now()).session;
+    const genuine=startGate3Attempt(reviewed,'MPESA','UNKNOWN_THEN_CONFIRMED',g3,b.now());
+    b.offline(true);
+    deliver(host,genuine.attempt,b.fixture,source);
+    await tick();
+    assert.equal(storedAttempt(b),null,'no unverified attempt may be stored');
+    assert.match(host.elements['demo-status'].textContent,/unverified|Cannot verify/);
+    assert.equal(host.elements['demo-check-status'].hidden,false,
+      'Check original must remain available during outage');
+    host.elements['demo-close'].listeners.click();await tick();
+    assert.match(host.elements['demo-status'].textContent,/unverified.*NOT PAID/,
+      'closing Mini must not erase knowledge of unresolved attempt');
+    b.offline(false);
+    host.elements['demo-check-status'].listeners.click();await tick();
+    assert.equal(storedAttempt(b),genuine.attempt,
+      'explicit server recheck restores original attempt without a new POST');
+    assert.match(host.elements['demo-status'].textContent,/pending.*NOT PAID/);
+    const secondOpen=b.mount();await tick();
+    assert.equal(storedAttempt(b),genuine.attempt);
+    assert.match(secondOpen.elements['demo-status'].textContent,/NOT PAID/);
+    assert.equal(b.calls.filter(c=>c.opts.method==='POST').length,1,
+      'recovery must not create a second checkout');
+  }
+});
+
+test('Gate 3: active checkout expiry fails closed without reusing an old attempt',async()=>{
+  for(const source of ['STORE','SHORTSTAYS']){
+    const b=browserHost(source),host=b.mount();
+    host.elements['demo-pay'].listeners.click();await tick();
+    const checkout=reference(host);
+    const reviewed=progressGate2Sandbox(checkout,g2,b.now()).session;
+    const attempt=startGate3Attempt(reviewed,'MPESA','UNKNOWN',g3,b.now());
+    deliver(host,attempt.attempt,b.fixture,source);await tick();
+    assert.equal(storedAttempt(b),attempt.attempt);
+    b.advance(600001);
+    const before=b.calls.length;
+    host.elements['demo-check-status'].listeners.click();await tick();
+    assert.equal(storedAttempt(b),null,'original expired checkout must be cleared');
+    assert.match(host.elements['demo-status'].textContent,/expired.*NOT PAID/);
+    assert.equal(b.calls.length,before,'expired attempt must not be queried or retried');
+    const beforePost=b.calls.filter(c=>c.opts.method==='POST').length;
+    host.elements['demo-pay'].listeners.click();await tick();
+    assert.equal(b.calls.filter(c=>c.opts.method==='POST').length,beforePost+1,
+      'only a new explicit customer action issues a fresh fictional checkout');
+  }
 });
