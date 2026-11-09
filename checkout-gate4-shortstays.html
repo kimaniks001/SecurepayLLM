@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="robots" content="noindex,nofollow"/>
+  <meta name="theme-color" content="#f7f6f0"/>
+  <title>ShortStays — SecurePay Mini Gate 4 sandbox</title>
+  <link rel="stylesheet" href="/checkout-demo.css"/>
+</head>
+<body>
+  <header class="demo-header">
+    <div class="demo-brand">ShortStays sample host</div>
+    <nav class="demo-switch" aria-label="Switch checkout examples">
+      <a href="/checkout-gate4-store.html">Store</a>
+      <a href="/checkout-gate4-shortstays.html" aria-current="page">ShortStays</a>
+    </nav>
+  </header>
+  <main class="demo-main" data-gate4-host="SHORTSTAYS" data-checkout-fixture="STAY-DEMO-01">
+    <div class="demo-kicker">SecurePay Mini · Phase 3 Gate 4 sandbox</div>
+    <h1>Your next stay, one simple checkout.</h1>
+    <p class="demo-intro">An illustrative accommodation booking using the same SecurePay Mini as the Digital Store example. Nothing is booked, reserved or paid on this test site.</p>
+    <div class="demo-grid">
+      <article class="demo-card">
+        <div class="demo-visual"><svg viewBox="0 0 64 64" width="74" height="74" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M8 34 32 12l24 22M13 30v26h38V30M27 56V39h10v17M5 56h54M8 18h11M48 18h8"/></svg><span>Cabin retreat</span></div>
+        <h2>Cabin stay</h2>
+        <p class="demo-meta">4–6 Dec 2026 · 2 guests · No real room held</p>
+        <div class="demo-order-line"><span>2 nights · illustrative price</span><strong>KSh 9,000</strong></div>
+        <div class="demo-order-line"><span>Test order reference</span><strong>DEMO-STAY-2001</strong></div>
+        <span class="demo-badge">Sample only · not reserved</span>
+        <button id="demo-pay" class="demo-pay" type="button" aria-expanded="false" aria-controls="demo-popup">Book / Pay with SecurePay</button>
+        <p class="demo-keep-note">The same Mini reviews sample terms while this website independently checks the simulated result with the server. No signature, booking or money.</p>
+      </article>
+      <aside class="demo-card demo-aside">
+        <h3>Your booking status</h3>
+        <div id="demo-status" class="demo-status" role="status" aria-live="polite">Payment not started (test only)</div>
+        <button type="button" id="demo-check-status" class="demo-check" hidden>Check original test attempt</button>
+        <p style="margin-top:14px">This is a sandbox order and agreement review, not a real booking. A real ShortStays must verify the room hold and payment on SecurePayAPI.</p>
+        <p class="demo-note">Choice Bank, M-Pesa and PesaLink here are simulated selections—not enabled bank rails.</p>
+      </aside>
+    </div>
+  </main>
+
+  <div id="demo-overlay" class="demo-overlay" hidden></div>
+  <section id="demo-popup" class="demo-popup" aria-label="SecurePay Mini sample agreement and checkout" hidden>
+    <div class="demo-popup-header">
+      <span>SecurePay Mini · agreement sandbox</span>
+      <button type="button" id="demo-close" aria-label="Close checkout window">×</button>
+    </div>
+    <!-- Same-origin owner test ONLY. Do not copy this iframe or its sandbox model into a real external site. -->
+    <iframe id="demo-frame" title="SecurePay Mini simulated agreement and checkout" sandbox="allow-scripts allow-same-origin allow-forms" src="about:blank" referrerpolicy="no-referrer"></iframe>
+    <div id="demo-fallback" class="demo-fallback" role="alert" hidden>
+      <strong>Checkout did not load in this window.</strong>
+      <p>Open the sample Mini separately.</p>
+      <a href="/checkout-gate4-shortstays.html">Restart test checkout</a>
+    </div>
+  </section>
+  <script defer src="/checkout-gate4-host.js"></script>
+</body>
+</html>
