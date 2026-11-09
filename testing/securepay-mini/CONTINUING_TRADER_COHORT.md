@@ -15,8 +15,8 @@ This is the permanent, version-controlled **test population**, not an applicatio
 Run only the cheap fixture checks:
 
 ```sh
-npm run test:mini-cohort
-npm run report:mini-cohort
+node --test tests/securepay-mini-trader-cohort.test.mjs
+node scripts/securepay-mini-cohort-report.mjs
 ```
 
 A green fixture validation proves that the permanent cohort is *well formed*, **not** that the live customer journey passed. Live test cases must invoke the real staging UI and matching API when those paths are ready, and record separately scoped evidence.
