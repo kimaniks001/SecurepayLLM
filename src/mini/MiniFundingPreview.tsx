@@ -1,7 +1,7 @@
 import { useReducer } from 'react';
 import {
   ArrowLeft, ArrowLeftRight, CircleAlert, CircleCheck, Clock3,
-  Landmark, RotateCcw, ShieldAlert, ShieldCheck, Smartphone, TestTube2
+  Landmark, RotateCcw, ShieldCheck, Smartphone, TestTube2
 } from 'lucide-react';
 import {
   INITIAL_MINI_FUNDING_TEST, MINI_TEST_RAILS,
@@ -11,11 +11,8 @@ import {
 import type { MiniDraft, MiniLanguage } from './miniModel';
 
 /**
- * This is a DEMONSTRATION ONLY. This component does not import an API gateway
- * or acquire permissions to create Agreement/payment intentions.
- *
- * Live rail discovery, version-bound quote, payer authentication, custody,
- * funding confirmation and reconciliation must be SecurePayAPI-owned.
+ * OWNER TEST ONLY: the following controls simulate three rail responses locally.
+ * Real payment options, quotes, provider status and release belong to SecurePayAPI.
  */
 export function MiniFundingPreview({ draft, language, onBack }: {
   draft: MiniDraft;
@@ -32,42 +29,40 @@ export function MiniFundingPreview({ draft, language, onBack }: {
   const unknown = demo.status === 'SIMULATED_UNKNOWN';
   const failed = demo.status === 'SIMULATED_FAILED';
   const confirmed = demo.status === 'SIMULATED_CONFIRMED';
-  const canStart = Boolean(amount && demo.method && (canSelect || failed));
+  const canStart = Boolean(amount && demo.method && canSelect);
 
-  const selectMethod = (method: MiniTestRailId) =>
-    dispatch({ type: 'SELECT_METHOD', method });
+  const selectMethod = (method: MiniTestRailId) => dispatch({ type: 'SELECT_METHOD', method });
+  const statusLine = sw
+    ? pending ? 'Inasubiri jibu la jaribio' : unknown ? 'Haijulikani — usijaribu tena' :
+      failed ? 'Jaribio limeshindwa' : 'Imethibitishwa kwenye jaribio tu'
+    : pending ? 'Waiting for test result' : unknown ? 'Unknown — do not retry' :
+      failed ? 'Test failed' : 'Confirmed in simulation';
+  const statusSubline = sw
+    ? confirmed ? 'Hakuna pesa iliyotumwa.' : pending ? 'Hakuna malipo yaliyotumwa.' :
+      failed ? 'Hakuna malipo yaliyofanyika.' : 'Subiri jibu la awali.'
+    : confirmed ? 'No money moved.' : pending ? 'No payment sent.' :
+      failed ? 'No payment made.' : 'The original result must be checked.';
 
-  return <section className="spm-content spm-money-demo" data-simulation="true" aria-label="Simulated funding preview">
+  return <section className="spm-content spm-money-demo spm-demo-concise"
+    data-simulation="true" aria-label="Simulated funding preview">
     <button className="spm-back" type="button" onClick={onBack}>
-      <ArrowLeft size={18}/>{sw ? 'Rudi kwenye rasimu' : 'Back to draft'}
+      <ArrowLeft size={18}/>{sw ? 'Rudi' : 'Back'}
     </button>
-    <div className="spm-demo-flag"><TestTube2 size={17}/>
-      {sw ? 'JARIBIO TU · Hakuna pesa halisi' : 'SIMULATION ONLY · No real money'}
-    </div>
-    <h1 className="spm-question">{sw ? 'Ungelipaje?' : 'How would you pay?'}</h1>
-    <p className="spm-support-text">
-      {sw
-        ? 'Chagua moja ya njia tatu, kisha uone jinsi Mini ingeonyesha hali ya malipo. Haya si malipo ya kweli.'
-        : 'Choose one of the three methods, then explore how Mini would explain a payment. Nothing is actually sent.'}
-    </p>
 
-    <div className="spm-demo-context">
-      <span>{sw ? 'Rasimu unayoijaribu' : 'Local draft under discussion'}</span>
-      <strong>{draft.description}</strong>
-      <div className="spm-demo-amount">{amount ? amount.formatted : (sw ? 'Kiasi hakijawekwa' : 'Amount not specified')}</div>
-      <small>{sw
-        ? 'Hii si mkataba uliokubaliwa; mlipaji, mpokeaji na masharti bado havijathibitishwa.'
-        : 'Not an accepted Agreement. Payer, recipient, version and funding authority have not been verified.'}</small>
+    <div className="spm-demo-flag"><TestTube2 size={16}/>
+      {sw ? 'JARIBIO TU · Hakuna pesa' : 'SIMULATION ONLY · No real money'}
+    </div>
+    <div className="spm-demo-topsum">
+      <h1 className="spm-question">{amount ? amount.formatted :
+        (sw ? 'Kiasi hakijawekwa' : 'Amount not set')}</h1>
+      <p title={draft.description}>{draft.description}</p>
     </div>
 
-    {!amount && <div className="spm-guest-warning" role="alert">
-      <CircleAlert size={18}/>
-      <div><strong>{sw ? 'Weka kiasi kwenye rasimu kwanza.' : 'Enter an amount in the draft first.'}</strong>
-        <p>{sw ? 'Mini haitabuni kiasi cha malipo.' : 'Mini will not invent an amount for a trade or contribution.'}</p>
-      </div>
-    </div>}
+    {!amount && <p className="spm-error" role="alert">
+      {sw ? 'Weka kiasi kwenye rasimu kwanza.' : 'Enter an amount in your draft first.'}
+    </p>}
 
-    <h2 className="spm-demo-section-heading">{sw ? 'Njia za kulipia (za majaribio)' : 'Choose a test payment method'}</h2>
+    <h2 className="spm-demo-section-heading">{sw ? 'Lipa kwa' : 'Pay with'}</h2>
     <div role="radiogroup" aria-label="Simulated payment method" className="spm-demo-rails">
       {MINI_TEST_RAILS.map(item => {
         const active = demo.method === item.id;
@@ -83,9 +78,57 @@ export function MiniFundingPreview({ draft, language, onBack }: {
       })}
     </div>
 
-    {selected && <div className="spm-demo-selection" role="status">
-      <strong>{selected.name} · {sw ? 'jaribio' : 'test route'}</strong>
-      <p>{sw ? selected.swDetail : selected.detail}</p>
+    {demo.status === 'SELECT_METHOD' && <button type="button" className="spm-primary"
+      disabled={!canStart} onClick={() => dispatch({ type: 'START_ATTEMPT' })}>
+      <TestTube2 size={18}/>{sw ? 'Jaribu' : 'Try'} {selected?.name || (sw ? 'njia hii' : 'this method')}
+    </button>}
+
+    {(pending || unknown || confirmed || failed) &&
+      <div className={'spm-demo-result spm-demo-result-' + demo.status.toLowerCase()}
+        role="status" aria-live="polite">
+        {confirmed ? <CircleCheck size={21}/> : pending ? <Clock3 size={21}/> : <CircleAlert size={21}/>}
+        <div>
+          <strong>{statusLine}</strong>
+          <p>{statusSubline}</p>
+          <small>{sw ? 'Jaribio' : 'Test'} #{demo.attemptNumber} · {selected?.name}</small>
+        </div>
+      </div>}
+
+    {(pending || unknown) && <details className="spm-demo-controls">
+      <summary><TestTube2 size={17}/>{sw ? 'Badili matokeo ya jaribio' : 'Test a result'}</summary>
+      <div className="spm-demo-control-grid">
+        <button type="button" className="spm-secondary"
+          onClick={() => dispatch({type:'SIMULATE_CONFIRMED'})}>
+          <CircleCheck size={16}/>{sw ? 'Thibitisha (jaribio)' : 'Confirm (test)'}
+        </button>
+        <button type="button" className="spm-secondary"
+          onClick={() => dispatch({type:'SIMULATE_FAILED'})}>
+          <CircleAlert size={16}/>{sw ? 'Imeshindwa (jaribio)' : 'Fail (test)'}
+        </button>
+        {pending && <button type="button" className="spm-secondary"
+          onClick={() => dispatch({type:'SIMULATE_UNKNOWN'})}>
+          <Clock3 size={16}/>{sw ? 'Haijulikani (jaribio)' : 'Unknown (test)'}
+        </button>}
+        {unknown && <button type="button" className="spm-secondary"
+          onClick={() => dispatch({type:'RESOLVE_PENDING'})}>
+          <RotateCcw size={16}/>{sw ? 'Subiri tena' : 'Keep waiting'}
+        </button>}
+      </div>
+    </details>}
+
+    {failed && <button type="button" className="spm-primary" disabled={!canStart}
+      onClick={() => dispatch({type:'START_ATTEMPT'})}>
+      <RotateCcw size={18}/>{sw ? 'Jaribu tena' : 'Try again'}
+    </button>}
+
+    {(confirmed || failed) && <button className="spm-quiet-button" type="button"
+      onClick={() => dispatch({type:'RESET'})}>
+      <RotateCcw size={16}/>{sw ? 'Chagua njia nyingine' : 'Compare another method'}
+    </button>}
+
+    <details className="spm-demo-explain">
+      <summary>{sw ? 'Ada na maelezo ya usalama' : 'Fees & payment details'}</summary>
+      {selected && <p>{sw ? selected.swDetail : selected.detail}</p>}
       <div className="spm-demo-fees">
         <span>{sw ? 'Ada ya SecurePay' : 'SecurePay fee'}</span>
         <strong>{sw ? 'Haijanukuliwa' : 'Not quoted'}</strong>
@@ -94,81 +137,13 @@ export function MiniFundingPreview({ draft, language, onBack }: {
         <span>{sw ? 'Jumla ya kulipa' : 'Final amount to pay'}</span>
         <strong>{sw ? 'Haijathibitishwa' : 'Not authorised'}</strong>
       </div>
-    </div>}
-
-    {!selected && <div className="spm-demo-neutral" role="status">
-      {sw ? 'Chagua benki, M-Pesa au PesaLink kuendelea.' : 'Choose Choice Bank, M-Pesa or PesaLink to continue.'}
-    </div>}
-
-    {demo.status === 'SELECT_METHOD' && <button type="button" className="spm-primary"
-      disabled={!canStart} onClick={() => dispatch({type:'START_ATTEMPT'})}>
-      <TestTube2 size={18}/>{sw ? 'Jaribu malipo (si halisi)' : 'Start simulated payment'}
-    </button>}
-
-    {(pending || unknown || confirmed || failed) && <div className={'spm-demo-result spm-demo-result-'+demo.status.toLowerCase()}
-      role="status" aria-live="polite">
-      {confirmed ? <CircleCheck size={22}/> : pending ? <Clock3 size={22}/> : <CircleAlert size={22}/>}
-      <div>
-        <strong>{stage.title}</strong>
-        <p>{stage.detail}</p>
-        <small>{sw ? 'Jaribio namba' : 'Test attempt'} {demo.attemptNumber} · {selected?.name}</small>
-      </div>
-    </div>}
-
-    {(pending || unknown) && <details className="spm-demo-controls">
-      <summary><TestTube2 size={17}/>{sw ? 'Udhibiti wa jaribio' : 'Testing controls — choose fictional provider response'}</summary>
       <p>{sw
-        ? 'Hizi si hatua ambazo mteja anaweza kudhibiti katika malipo ya kweli.'
-        : 'These controls belong to the owner test only. An actual customer cannot decide whether a provider confirms their payment.'}</p>
-      <div className="spm-demo-control-grid">
-        <button type="button" className="spm-secondary"
-          onClick={() => dispatch({type:'SIMULATE_CONFIRMED'})}>
-          <CircleCheck size={16}/>{sw ? 'Jibu: imethibitishwa' : 'Simulate confirmed'}
-        </button>
-        <button type="button" className="spm-secondary"
-          onClick={() => dispatch({type:'SIMULATE_FAILED'})}>
-          <CircleAlert size={16}/>{sw ? 'Jibu: imeshindikana' : 'Simulate failed'}
-        </button>
-        {pending && <button type="button" className="spm-secondary"
-          onClick={() => dispatch({type:'SIMULATE_UNKNOWN'})}>
-          <Clock3 size={16}/>{sw ? 'Jibu halijulikani' : 'Simulate unknown'}
-        </button>}
-        {unknown && <button type="button" className="spm-secondary"
-          onClick={() => dispatch({type:'RESOLVE_PENDING'})}>
-          <RotateCcw size={16}/>{sw ? 'Endelea kusubiri' : 'Continue waiting'}
-        </button>}
-      </div>
-    </details>}
-
-    {unknown && <p className="spm-demo-unknown">
-      <ShieldAlert size={17}/>
-      {sw
-        ? 'Usifanye jaribio jingine mpaka hali ya malipo ijulikane.'
-        : 'Do not start a second payment while the outcome is unknown. An authorised provider must resolve the original attempt.'}
-    </p>}
-
-    {failed && <button type="button" className="spm-primary" disabled={!canStart}
-      onClick={() => dispatch({type:'START_ATTEMPT'})}>
-      <RotateCcw size={18}/>{sw ? 'Anza jaribio jipya' : 'Start a new simulated attempt'}
-    </button>}
-
-    {confirmed && <p className="spm-demo-unknown">
-      <ShieldAlert size={17}/>
-      {sw
-        ? 'Jibu la mtoa huduma ni la majaribio tu. Hakuna pesa iliyohifadhiwa, kupokewa au kutolewa.'
-        : 'This is only a fictional provider reply. SecurePayAPI has not verified or safeguarded funds, credited a ledger or permitted release.'}
-    </p>}
-
-    {(confirmed || failed) && <button className="spm-quiet-button" type="button"
-      onClick={() => dispatch({type:'RESET'})}>
-      <RotateCcw size={16}/>{sw ? 'Anza mfano mwingine' : 'Reset and compare another method'}
-    </button>}
-
-    <div className="spm-guest-identity spm-demo-bottom">
-      <ShieldCheck size={17}/>
-      <p>{sw
-        ? 'Katika SecurePay halisi, ni API pekee inayoruhusu njia zilizopo, nukuu, hali ya pesa na uhamisho.'
-        : 'Real funding will use SecurePayAPI for available rails, authenticated authority, exact-version quotes, payment status and reconciliation. This preview makes no financial request.'}</p>
+        ? 'Rasimu hii haijakubaliwa. Hakuna malipo yaliyofanyika. Kwa malipo halisi, SecurePayAPI itathibitisha watu, makubaliano, njia na kiasi.'
+        : 'Not an accepted Agreement. The payer, recipient and funding authority have not been verified. Real funding must use SecurePayAPI to check the agreement, available methods, fees and payment status.'}</p>
+      {(pending || unknown || confirmed || failed) && <p>{stage.detail} This is only a fictional provider reply.</p>}
+    </details>
+    <div className="spm-demo-footnote"><ShieldCheck size={15}/>
+      {sw ? 'Jaribio tu · Hakuna malipo halisi' : 'Preview only · No real payment'}
     </div>
   </section>;
 }
