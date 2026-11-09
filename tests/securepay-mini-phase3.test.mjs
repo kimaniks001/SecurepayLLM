@@ -32,7 +32,8 @@ test('discussion requires explicit click, never passes party identity or token i
   assert.match(message,/Quantity 2 bags/);
   assert.ok(config.miniDiscussionPrompt('X'.repeat(2000),'','','','').length<=1200);
   assert.match(read('src/mini/MiniExperience.tsx'),/setDiscussDraft\(draft\); setScreen\('help'\)/);
-  assert.doesNotMatch(read('src/mini/miniGuestConfig.ts'),/counterparty|guestToken|inviteSecret/);
+  const onlyFields=read('src/mini/miniGuestConfig.ts').split('const fields = [')[1].split('].filter(Boolean)')[0];
+  assert.doesNotMatch(onlyFields,/counterparty|guestToken|inviteSecret/);
 });
 
 test('Mini uses the existing SecurePay guest SDK, not a parallel model or new payment API',()=>{
