@@ -92,8 +92,7 @@ export function MiniRealStoreOffer({session,language}:{
         <small>{r.sellerKsNumber} · {r.offerId.slice(0,8)}</small>
         <strong>{r.itemDescription}</strong>
         <span>{r.merchant}</span>
-        <div className="spm-hosted-price">{(r.amountMinor/100).toLocaleString('en-KE',{
-          style:'currency',currency:'KES',maximumFractionDigits:2})}</div>
+        <div className="spm-hosted-price">{'KSh ' + (r.amountMinor / 100).toLocaleString('en-KE', {maximumFractionDigits:2})}</div>
         <span>{r.details}</span>
         <div className="spm-hosted-rule">
           {sw?'Bei iliyochapishwa, si oda au mkataba.':'Published price, not a reserved order or agreed quote.'}
