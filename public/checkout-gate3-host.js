@@ -104,7 +104,7 @@
     }
     if(data.type!=='SECUREPAY_MINI_OWNER_DEMO_RETURN_V1'||
       data.version!==1||data.fixtureId!==item.id||
-      data.simulated!==true||data.sandboxGate!==2||
+      data.simulated!==true||data.sandboxGate!==3||
       data.agreementAccepted!==false||data.orderCreated!==false||
       !Object.prototype.hasOwnProperty.call(statuses,data.result))return;
     status.textContent=statuses[data.result];
