@@ -8,6 +8,7 @@ import {
   miniStorableDraft, type MiniDraft, type MiniIntent, type MiniLanguage, type MiniScreen
 } from './miniModel';
 import { MiniCaptureTools } from './MiniCaptureTools';
+import { MiniGuestChat } from './MiniGuestChat';
 import { miniMergeUserDescription, miniCaptureText, type MiniCaptureSource, type MiniCaptureKind } from './miniCapture';
 import './mini.css';
 
@@ -42,6 +43,7 @@ const words = {
     needDescription: 'What is this for?', needAmount: 'How much is it?', invalidAmount: 'Please enter a valid amount in shillings.',
     captured: 'Photo selected, not uploaded', remove: 'Remove photo', privacy: 'Local preview only',
     seller: 'What it is', value: 'Proposed amount', party: 'Person', terms: 'Extra details',
+    discuss: 'Discuss this with KS001',
     extra: 'Quantity, person and other details (optional)', quantity: 'Quantity (optional)', unit: 'Unit (optional)', unitHint: 'pieces, kg, bags, hours…', invalidQuantity: 'Please check the quantity.', capturedSources: 'Details you reviewed', sourceCaution: 'Selected locally, not independently verified', noSourceSaved: 'Attachments stay only on this page and are not saved.',
   },
   sw: {
@@ -70,6 +72,7 @@ const words = {
     needDescription: 'Ni ya nini?', needAmount: 'Kiasi gani?', invalidAmount: 'Weka kiasi sahihi kwa shilingi.',
     captured: 'Picha imechaguliwa, haijatumwa', remove: 'Ondoa picha', privacy: 'Jaribio la hapa tu',
     seller: 'Maelezo', value: 'Kiasi', party: 'Mtu', terms: 'Maelezo zaidi',
+    discuss: 'Jadili na KS001',
     extra: 'Idadi, mtu na maelezo mengine (si lazima)', quantity: 'Idadi (si lazima)', unit: 'Kipimo (si lazima)', unitHint: 'vipande, kilo, mifuko, saa…', invalidQuantity: 'Kagua idadi uliyoandika.', capturedSources: 'Maelezo uliyokagua', sourceCaution: 'Yamechaguliwa hapa tu; hayajathibitishwa', noSourceSaved: 'Viambatisho havijahifadhiwa.',
   },
 } as const;
@@ -88,6 +91,7 @@ export function MiniExperience() {
   const t = words[lang];
   const [screen, setScreen] = useState<View>('home');
   const [opening, setOpening] = useState('');
+  const [discussDraft, setDiscussDraft] = useState<MiniDraft | null>(null);
   const [draft, setDraft] = useState<MiniDraft>(emptyMiniDraft());
   const [error, setError] = useState('');
   const [photo, setPhoto] = useState<string | null>(null);
@@ -126,6 +130,7 @@ export function MiniExperience() {
     try { sessionStorage.removeItem(STORE_KEY); } catch { /* storage denied */ }
     setHasSaved(false);
     setOpening('');
+    setDiscussDraft(null);
     setPhoto(null);
     setPhotoName('');
     setSources([]);
@@ -243,7 +248,7 @@ export function MiniExperience() {
               <span className="spm-option-text"><strong>{t.collect}</strong><small>{t.collectHint}</small></span><ArrowRight size={18}/></button>
           </div>
           <div className="spm-foot-row">
-            <button type="button" className="spm-text-btn" onClick={() => setScreen('help')}><MessageCircle size={17}/>{t.ask}</button>
+            <button type="button" className="spm-text-btn" onClick={() => { setDiscussDraft(null); setScreen('help'); }}><MessageCircle size={17}/>{t.ask}</button>
             {hasSaved && <button type="button" className="spm-text-btn" onClick={resume}><RotateCcw size={17}/>{t.resume}</button>}
           </div>
         </section>}
@@ -333,6 +338,7 @@ export function MiniExperience() {
             {photo && <div className="spm-review-photo"><img src={photo} alt={t.captured}/><span>{t.captured}</span></div>}
           </div>
           <p className="spm-support-text">{t.reviewText} {t.noSourceSaved}</p>
+          <button className="spm-secondary spm-guest-launch" type="button" onClick={() => { setDiscussDraft(draft); setScreen('help'); }}><MessageCircle size={17}/>{t.discuss}</button>
           <button className="spm-primary" type="button" onClick={keepDraft}>{t.save}<CheckCircle2 size={19}/></button>
           <button className="spm-quiet-button" type="button" onClick={() => setScreen('describe')}><Pencil size={16}/>{t.edit}</button>
         </section>}
@@ -347,19 +353,14 @@ export function MiniExperience() {
           <p className="spm-disclaimer">{t.fullDisclaimer}</p>
         </section>}
 
-        {screen === 'help' && <section className="spm-content spm-help">
-          <button type="button" className="spm-back" onClick={() => setScreen('home')}><ArrowLeft size={18}/>{t.back}</button>
-          <div className="spm-finish-icon"><MessageCircle size={26}/></div>
-          <h1 className="spm-question">{t.helpTitle}</h1>
-          <p className="spm-lead">{t.helpDetail}</p>
-          <a className="spm-primary spm-link-primary" href="https://securepay.ke/" target="_blank" rel="noopener noreferrer">{t.helpAction}<ArrowRight size={19}/></a>
-        </section>}
+        {screen === 'help' && <MiniGuestChat draft={discussDraft} language={lang}
+          onBack={() => setScreen(discussDraft ? 'review' : 'home')}/>} 
       </div>
 
       <footer className="spm-footer">
         <ShieldCheck size={16} aria-hidden="true"/>
         <span>{t.boundary}</span>
-        <span className="spm-footer-dash">·</span><span>Phase 2</span>
+        <span className="spm-footer-dash">·</span><span>Phase 3</span>
       </footer>
     </div>
   </main>;

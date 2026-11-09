@@ -6,11 +6,14 @@
     <link rel="icon" type="image/png" href="/brand/securepay-mark-green.png" />
     <meta name="robots" content="noindex,nofollow" />
     <meta name="theme-color" content="#285d41" />
-    <title>SecurePay Mini — Phase 1 experience preview</title>
+    <title>SecurePay Mini — Phase 3 KS001 & Agreement preview</title>
     <meta name="description" content="Isolated SecurePay Mini owner-experience preview. No invitations, financial actions or real payments." />
   </head>
   <body>
     <div id="mini-root"></div>
+    <!-- Reuse the existing canonical guest-agent SDK from the SecurePay embed pilot.
+         This script never authorises identity, payments, invitations or release. -->
+    <script src="/embed/securepay-guest-agent.js"></script>
     <script type="module" src="/src/mini/main.tsx"></script>
   </body>
 </html>
