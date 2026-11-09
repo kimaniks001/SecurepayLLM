@@ -38,6 +38,11 @@ const PREVIEW_ORDERS = Object.freeze({
   }),
 });
 
+/** Canonical fictional fixtures reused by Phase 3 Gate 2; never public Store orders. */
+export function getMiniSandboxFixture(source) {
+  return Object.prototype.hasOwnProperty.call(PREVIEW_ORDERS, source) ? {...PREVIEW_ORDERS[source]} : null;
+}
+
 function hasOwn(object, key) {
   return Object.prototype.hasOwnProperty.call(object, key);
 }
