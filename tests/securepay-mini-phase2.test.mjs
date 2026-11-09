@@ -103,3 +103,17 @@ test('existing full SecurePay and authority APIs remain unchanged in the Phase 2
   assert.match(html, /src\/mini\/main\.tsx/);
   assert.doesNotMatch(apiRefs, /createSecurePayApi|moneyGateway|ledger|bankGateway|Authorization:/);
 });
+
+test('same-origin owner frame loads Vite modules and exposes a visible failure fallback', () => {
+  const host = read('mini-host-preview.html');
+  const vercel = JSON.parse(read('vercel.json'));
+  assert.match(host, /id="mini-frame"[^>]*sandbox="allow-scripts allow-same-origin/);
+  assert.match(host, /src="\/mini\.html\?embedded=1"/);
+  assert.match(host, /id="mini-load-fallback"/);
+  assert.match(host, /querySelector\('\.spm-root'\)/);
+  assert.match(host, /mini could not open inside this window/i);
+  assert.match(host, /same-origin sample/i);
+  assert.ok(vercel.headers.some(rule => rule.source === '/mini.html' &&
+    rule.headers.some(h => h.key === 'Content-Security-Policy' && h.value === "frame-ancestors 'self'")));
+  assert.doesNotMatch(host, /src="https?:\/\//);
+});
