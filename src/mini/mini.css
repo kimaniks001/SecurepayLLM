@@ -123,3 +123,36 @@ textarea.spm-field { resize:vertical; }
 .spm-embedded .spm-question { font-size:24px; margin-bottom:13px; }
 .spm-embedded .spm-lead { font-size:13px; margin-bottom:10px; }
 .spm-embedded .spm-footer { padding:8px 10px; }
+
+/* Phase 2 source tray stays folded until requested: compact Mini is still one small tool. */
+.spm-extra { margin-top:12px; border-top:1px solid #ecede6; }
+.spm-extra summary { min-height:44px; display:flex; align-items:center; cursor:pointer; color:#306449; font-size:12px; font-weight:700; user-select:none; }
+.spm-extra[open] summary { border-bottom:1px solid #edf0e8; margin-bottom:5px; }
+.spm-quantity-row { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:10px; }
+.spm-quantity-row .spm-label { margin:9px 0 0; min-width:0; }
+.spm-quantity-row .spm-field { margin-top:6px; }
+.spm-capture-tools { margin-top:10px; }
+.spm-capture-trigger { display:flex; align-items:center; gap:8px; width:100%; min-height:44px; border:1px dashed #b9cbbb; background:#f8faf5; color:#36684c; border-radius:12px; padding:9px 12px; font-size:12px; font-weight:700; text-align:left; }
+.spm-capture-trigger:hover { background:#f1f7ee; }
+.spm-capture-card { padding:11px; background:#f8faf5; border:1px solid #e1eadd; border-radius:14px; }
+.spm-capture-head { display:flex; justify-content:space-between; align-items:center; }
+.spm-capture-head .spm-back { min-height:44px; margin:0; }
+.spm-capture-intro { margin:3px 0 12px; font-size:12px; color:#637666; }
+.spm-capture-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; }
+.spm-capture-list button { display:flex; align-items:center; gap:7px; min-height:48px; border-radius:11px; border:1px solid #dce6da; background:#fff; color:#27583e; padding:8px; font-size:12px; font-weight:650; text-align:left; }
+.spm-capture-list button:hover { border-color:#92b99c; }
+.spm-capture-list button svg { flex:none; }
+.spm-capture-title { margin:5px 0 13px; font-size:15px; font-weight:700; }
+.spm-file-hidden { position:absolute; width:1px; height:1px; opacity:0; overflow:hidden; pointer-events:none; }
+.spm-capture-use { margin-top:9px; width:100%; }
+.spm-capture-note { font-size:11px; line-height:1.55; color:#6d8270; margin:11px 0 0; }
+.spm-capture-selected { display:grid; gap:5px; font-size:12px; margin-top:12px; overflow-wrap:anywhere; }
+.spm-capture-selected small { color:#6b7d6e; line-height:1.5; }
+.spm-capture-snippet { border:1px solid #dce6da; border-radius:9px; padding:10px; background:#fff; font-size:12px; max-height:100px; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; margin-top:9px; }
+.spm-source-list { margin:10px 0 0; padding:11px; border-radius:12px; border:1px solid #e1eadd; font-size:12px; }
+.spm-source-list > strong { display:block; margin-bottom:8px; }
+.spm-source-row { display:flex; align-items:center; justify-content:space-between; gap:8px; border-top:1px solid #eef0eb; padding:5px 0; overflow-wrap:anywhere; }
+.spm-source-row span { display:grid; gap:2px; min-width:0; }
+.spm-source-row small { font-size:10px; font-weight:400; color:#738477; }
+.spm-source-row button { display:grid; place-items:center; min-width:44px; min-height:44px; border:0; background:transparent; border-radius:8px; color:#6a756b; }
+.spm-capture-card button:focus-visible, .spm-source-row button:focus-visible, .spm-extra summary:focus-visible { outline:3px solid #cf9a54; outline-offset:2px; }

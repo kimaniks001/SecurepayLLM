@@ -7,6 +7,8 @@ import {
   emptyMiniDraft, formatMiniAmount, miniDraftIssue, miniRestoreDraft, miniReviewSummary,
   miniStorableDraft, type MiniDraft, type MiniIntent, type MiniLanguage, type MiniScreen
 } from './miniModel';
+import { MiniCaptureTools } from './MiniCaptureTools';
+import { miniMergeUserDescription, miniCaptureText, type MiniCaptureSource, type MiniCaptureKind } from './miniCapture';
 import './mini.css';
 
 type View = MiniScreen | 'choose';
@@ -40,6 +42,7 @@ const words = {
     needDescription: 'What is this for?', needAmount: 'How much is it?', invalidAmount: 'Please enter a valid amount in shillings.',
     captured: 'Photo selected, not uploaded', remove: 'Remove photo', privacy: 'Local preview only',
     seller: 'What it is', value: 'Proposed amount', party: 'Person', terms: 'Extra details',
+    extra: 'Quantity, person and other details (optional)', quantity: 'Quantity (optional)', unit: 'Unit (optional)', unitHint: 'pieces, kg, bags, hours…', invalidQuantity: 'Please check the quantity.', capturedSources: 'Details you reviewed', sourceCaution: 'Selected locally, not independently verified', noSourceSaved: 'Attachments stay only on this page and are not saved.',
   },
   sw: {
     hello: 'Habari. Nikusaidie na nini?', intro: 'Niambie kwa maneno yako, au chagua unachohitaji.',
@@ -67,6 +70,7 @@ const words = {
     needDescription: 'Ni ya nini?', needAmount: 'Kiasi gani?', invalidAmount: 'Weka kiasi sahihi kwa shilingi.',
     captured: 'Picha imechaguliwa, haijatumwa', remove: 'Ondoa picha', privacy: 'Jaribio la hapa tu',
     seller: 'Maelezo', value: 'Kiasi', party: 'Mtu', terms: 'Maelezo zaidi',
+    extra: 'Idadi, mtu na maelezo mengine (si lazima)', quantity: 'Idadi (si lazima)', unit: 'Kipimo (si lazima)', unitHint: 'vipande, kilo, mifuko, saa…', invalidQuantity: 'Kagua idadi uliyoandika.', capturedSources: 'Maelezo uliyokagua', sourceCaution: 'Yamechaguliwa hapa tu; hayajathibitishwa', noSourceSaved: 'Viambatisho havijahifadhiwa.',
   },
 } as const;
 
@@ -88,6 +92,8 @@ export function MiniExperience() {
   const [error, setError] = useState('');
   const [photo, setPhoto] = useState<string | null>(null);
   const [photoName, setPhotoName] = useState('');
+  const [sources, setSources] = useState<MiniCaptureSource[]>([]);
+  const nextSourceId = useRef(0);
   const [hasSaved, setHasSaved] = useState(() => readSavedMiniDraft() !== null);
   const [persisted, setPersisted] = useState(false);
   const [imageLoading, setImageLoading] = useState(false);
@@ -95,6 +101,7 @@ export function MiniExperience() {
   const firstField = useRef<HTMLTextAreaElement | null>(null);
   const nextBtn = useRef<HTMLButtonElement | null>(null);
   const amountField = useRef<HTMLInputElement | null>(null);
+  const quantityField = useRef<HTMLInputElement | null>(null);
   const compact = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('embedded') === '1';
 
   useEffect(() => {
@@ -108,6 +115,7 @@ export function MiniExperience() {
     setError('');
     setPhoto(null);
     setPhotoName('');
+    setSources([]);
     setScreen('describe');
   };
   const update = (field: keyof MiniDraft, value: string) => {
@@ -120,6 +128,7 @@ export function MiniExperience() {
     setOpening('');
     setPhoto(null);
     setPhotoName('');
+    setSources([]);
     setError('');
     setDraft(emptyMiniDraft());
     setScreen('home');
@@ -131,6 +140,7 @@ export function MiniExperience() {
     setError('');
     setPhoto(null);
     setPhotoName('');
+    setSources([]);
     setScreen('describe');
   };
   const choosePhoto = (file?: File) => {
@@ -150,12 +160,30 @@ export function MiniExperience() {
     reader.onerror = () => { setImageLoading(false); setError(t.noImage); };
     reader.readAsDataURL(file);
   };
+  const addCapturedSource = (kind: MiniCaptureKind, label: string, description?: string) => {
+    nextSourceId.current += 1;
+    const source: MiniCaptureSource = {
+      id: String(nextSourceId.current), kind,
+      label: miniCaptureText(label, 120),
+      detail: description ? 'User-reviewed local text' : 'Reference only; contents not verified',
+      confirmedByUser: true, authority: 'LOCAL_UNVERIFIED',
+    };
+    setSources(old => [...old, source].slice(-5));
+    if (description?.trim()) {
+      setDraft(old => ({ ...old, description: miniMergeUserDescription(old.description, description) }));
+    }
+    setError('');
+  };
+  const removeSource = (id: string) => setSources(old => old.filter(source => source.id !== id));
   const review = () => {
     const issue = miniDraftIssue(draft);
     if (issue) {
-      setError(issue === 'description' ? t.needDescription : issue === 'amount' ? t.needAmount : t.invalidAmount);
+      setError(issue === 'description' ? t.needDescription : issue === 'amount' ? t.needAmount : issue === 'quantity' ? t.invalidQuantity : t.invalidAmount);
       if (issue === 'description') firstField.current?.focus();
-      else amountField.current?.focus();
+      else if (issue === 'quantity') {
+        quantityField.current?.closest('details')?.setAttribute('open', '');
+        quantityField.current?.focus();
+      } else amountField.current?.focus();
       return;
     }
     setScreen('review');
@@ -171,6 +199,7 @@ export function MiniExperience() {
     setPersisted(saved);
     setPhoto(null);
     setPhotoName('');
+    setSources([]);
     setScreen('saved');
     nextBtn.current?.focus();
   };
@@ -241,6 +270,18 @@ export function MiniExperience() {
           <input className="spm-field" id="spm-amount" ref={amountField} type="text" inputMode="decimal" maxLength={30}
             placeholder={draft.intent === 'collect' ? t.optionalAmountHint : t.amountHint}
             value={draft.amount} onChange={e => update('amount', e.target.value)}/>
+          <details className="spm-extra">
+            <summary>{t.extra}</summary>
+            <div className="spm-quantity-row">
+              <label className="spm-label" htmlFor="spm-quantity">{t.quantity}
+                <input className="spm-field" id="spm-quantity" ref={quantityField} inputMode="decimal" maxLength={15}
+                  value={draft.quantity} onChange={e => update('quantity', e.target.value)} placeholder="1"/>
+              </label>
+              <label className="spm-label" htmlFor="spm-unit">{t.unit}
+                <input className="spm-field" id="spm-unit" maxLength={30}
+                  value={draft.unit} onChange={e => update('unit', e.target.value)} placeholder={t.unitHint}/>
+              </label>
+            </div>
           <div className="spm-details">
             <label className="spm-label" htmlFor="spm-person">{t.person}</label>
             <input className="spm-field" id="spm-person" maxLength={80} placeholder={t.personHint}
@@ -249,6 +290,7 @@ export function MiniExperience() {
             <textarea className="spm-field" id="spm-note" rows={2} maxLength={400}
               placeholder={t.noteHint} value={draft.note} onChange={e => update('note', e.target.value)}/>
           </div>
+          </details>
           <div className="spm-photo-row">
             <input aria-label={t.photo} id="spm-photo-file" type="file" accept="image/png,image/jpeg,image/webp" capture="environment"
               ref={imageInput} onChange={e => choosePhoto(e.target.files?.[0])}/>
@@ -261,6 +303,14 @@ export function MiniExperience() {
             <figcaption>{t.captured}</figcaption>
             <button type="button" onClick={() => {setPhoto(null);setPhotoName('');if(imageInput.current)imageInput.current.value='';}}>{t.remove}</button>
           </figure>}
+          <MiniCaptureTools language={lang} onCapture={addCapturedSource}/>
+          {sources.length > 0 && <div className="spm-source-list" aria-label={t.capturedSources}>
+            <strong>{t.capturedSources}</strong>
+            {sources.map(source => <div key={source.id} className="spm-source-row">
+              <span>{source.label}<small>{t.sourceCaution}</small></span>
+              <button type="button" onClick={() => removeSource(source.id)} aria-label={'Remove ' + source.label}><X size={16}/></button>
+            </div>)}
+          </div>}
           {error && <p className="spm-error" role="alert">{error}</p>}
           <button type="button" className="spm-primary" onClick={review}>{t.review}<ArrowRight size={19}/></button>
         </section>}
@@ -274,10 +324,15 @@ export function MiniExperience() {
             <div className="spm-draft-title">{summary.description}</div>
             <div className="spm-draft-amount">{summary.amount === 'Amount not set' ? t.optionalAmountHint : summary.amount}</div>
             {summary.party && <div className="spm-draft-detail"><span>{t.party}</span><strong>{summary.party}</strong></div>}
+            {summary.quantity && <div className="spm-draft-detail"><span>{t.quantity}</span><strong>{summary.quantity} {summary.unit || ''}</strong></div>}
             {summary.note && <div className="spm-draft-detail"><span>{t.terms}</span><strong>{summary.note}</strong></div>}
+            {sources.length > 0 && <div className="spm-draft-detail">
+              <span>{t.capturedSources}</span>
+              {sources.map(source => <strong key={source.id}>{source.label} · {t.sourceCaution}</strong>)}
+            </div>}
             {photo && <div className="spm-review-photo"><img src={photo} alt={t.captured}/><span>{t.captured}</span></div>}
           </div>
-          <p className="spm-support-text">{t.reviewText}</p>
+          <p className="spm-support-text">{t.reviewText} {t.noSourceSaved}</p>
           <button className="spm-primary" type="button" onClick={keepDraft}>{t.save}<CheckCircle2 size={19}/></button>
           <button className="spm-quiet-button" type="button" onClick={() => setScreen('describe')}><Pencil size={16}/>{t.edit}</button>
         </section>}
@@ -304,7 +359,7 @@ export function MiniExperience() {
       <footer className="spm-footer">
         <ShieldCheck size={16} aria-hidden="true"/>
         <span>{t.boundary}</span>
-        <span className="spm-footer-dash">·</span><span>Phase 1</span>
+        <span className="spm-footer-dash">·</span><span>Phase 2</span>
       </footer>
     </div>
   </main>;

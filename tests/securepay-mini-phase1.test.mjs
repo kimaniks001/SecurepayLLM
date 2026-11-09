@@ -72,7 +72,7 @@ test('Phase 1 is a separate multi-page preview, never a replaced main applicatio
   assert.match(app, /No invitation, payment or fund release happens here/);
   assert.doesNotMatch(app, /createPaymentIntent|settleAndRelease|fetch\(|window\.postMessage|trade\.ksNumber\s*=/);
   assert.doesNotMatch(app, /kenyan-trader-cohort|F01|TR-001|tomato|charger/i);
-  assert.match(host, /iframe[^>]+sandbox="allow-scripts allow-forms/);
+  assert.match(host, /iframe[^>]+sandbox="allow-scripts allow-same-origin allow-forms/);
   assert.match(host, /src="\/mini\.html\?embedded=1"/);
   const csp = JSON.parse(read('vercel.json'));
   assert.ok(csp.headers.some(h => h.source === '/mini.html' &&
