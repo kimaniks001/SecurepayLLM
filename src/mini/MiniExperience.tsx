@@ -9,10 +9,11 @@ import {
 } from './miniModel';
 import { MiniCaptureTools } from './MiniCaptureTools';
 import { MiniGuestChat } from './MiniGuestChat';
+import { MiniFundingPreview } from './MiniFundingPreview';
 import { miniMergeUserDescription, miniCaptureText, type MiniCaptureSource, type MiniCaptureKind } from './miniCapture';
 import './mini.css';
 
-type View = MiniScreen | 'choose';
+type View = MiniScreen | 'choose' | 'funding';
 const STORE_KEY = 'securepay-mini-phase1-local-draft-v1';
 const words = {
   en: {
@@ -44,6 +45,8 @@ const words = {
     captured: 'Photo selected, not uploaded', remove: 'Remove photo', privacy: 'Local preview only',
     seller: 'What it is', value: 'Proposed amount', party: 'Person', terms: 'Extra details',
     discuss: 'Discuss this with KS001',
+    testFunding: 'Explore funding options (simulation)',
+    phase4: 'Funding simulation',
     extra: 'Quantity, person and other details (optional)', quantity: 'Quantity (optional)', unit: 'Unit (optional)', unitHint: 'pieces, kg, bags, hours…', invalidQuantity: 'Please check the quantity.', capturedSources: 'Details you reviewed', sourceCaution: 'Selected locally, not independently verified', noSourceSaved: 'Attachments stay only on this page and are not saved.',
   },
   sw: {
@@ -73,6 +76,8 @@ const words = {
     captured: 'Picha imechaguliwa, haijatumwa', remove: 'Ondoa picha', privacy: 'Jaribio la hapa tu',
     seller: 'Maelezo', value: 'Kiasi', party: 'Mtu', terms: 'Maelezo zaidi',
     discuss: 'Jadili na KS001',
+    testFunding: 'Jaribu njia za malipo (majaribio)',
+    phase4: 'Jaribio la malipo',
     extra: 'Idadi, mtu na maelezo mengine (si lazima)', quantity: 'Idadi (si lazima)', unit: 'Kipimo (si lazima)', unitHint: 'vipande, kilo, mifuko, saa…', invalidQuantity: 'Kagua idadi uliyoandika.', capturedSources: 'Maelezo uliyokagua', sourceCaution: 'Yamechaguliwa hapa tu; hayajathibitishwa', noSourceSaved: 'Viambatisho havijahifadhiwa.',
   },
 } as const;
@@ -225,7 +230,7 @@ export function MiniExperience() {
 
       <div className="spm-main" aria-live="polite">
         {screen === 'home' && <section className="spm-entrance">
-          <div className="spm-persona"><Sparkles size={16}/><span>KS001</span><span className="spm-dot"/><span>{t.phase1}</span></div>
+          <div className="spm-persona"><Sparkles size={16}/><span>KS001</span><span className="spm-dot"/><span>{t.phase4}</span></div>
           <h1 className="spm-hero">{t.hello}</h1>
           <p className="spm-lead">{t.intro}</p>
           <label className="spm-label" htmlFor="spm-words">{t.start}</label>
@@ -339,6 +344,7 @@ export function MiniExperience() {
           </div>
           <p className="spm-support-text">{t.reviewText} {t.noSourceSaved}</p>
           <button className="spm-secondary spm-guest-launch" type="button" onClick={() => { setDiscussDraft(draft); setScreen('help'); }}><MessageCircle size={17}/>{t.discuss}</button>
+          <button className="spm-secondary spm-guest-launch" type="button" onClick={() => setScreen('funding')}><HandCoins size={17}/>{t.testFunding}</button>
           <button className="spm-primary" type="button" onClick={keepDraft}>{t.save}<CheckCircle2 size={19}/></button>
           <button className="spm-quiet-button" type="button" onClick={() => setScreen('describe')}><Pencil size={16}/>{t.edit}</button>
         </section>}
@@ -353,6 +359,7 @@ export function MiniExperience() {
           <p className="spm-disclaimer">{t.fullDisclaimer}</p>
         </section>}
 
+        {screen === 'funding' && <MiniFundingPreview draft={draft} language={lang} onBack={() => setScreen('review')}/>}
         {screen === 'help' && <MiniGuestChat draft={discussDraft} language={lang}
           onBack={() => setScreen(discussDraft ? 'review' : 'home')}/>} 
       </div>
@@ -360,7 +367,7 @@ export function MiniExperience() {
       <footer className="spm-footer">
         <ShieldCheck size={16} aria-hidden="true"/>
         <span>{t.boundary}</span>
-        <span className="spm-footer-dash">·</span><span>Phase 3</span>
+        <span className="spm-footer-dash">·</span><span>Phase 4</span>
       </footer>
     </div>
   </main>;
