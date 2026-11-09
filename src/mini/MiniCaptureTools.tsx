@@ -44,11 +44,13 @@ export function MiniCaptureTools({ onCapture, language }: {
   }, []);
 
   const open = (newTool: Tool) => {
+    if (listening) { speech.current?.stop(); setListening(false); }
     setTool(newTool);
     setError('');
     setExpanded(true);
   };
   const finish = (kind: MiniCaptureKind, label: string, description?: string) => {
+    if (listening) { speech.current?.stop(); setListening(false); }
     onCapture(kind, label, description);
     setTool(null);
     setExpanded(false);
