@@ -95,23 +95,17 @@ Parallel/exception states: rejected, expired, amended, charge/quote expired, fun
 - Cost controls: site and visitor usage budgets, AI-credit abuse protection, quotas and throttles; charge only the appropriate agreed fees. An exhausted sponsored AI budget cannot lock a person out of money records or prevent legitimate fulfilment/dispute actions.
 - False claims and failures must be obvious: "Invitation sent" != "accepted"; "payment initiated" != "funded"; "funded" != "released"; "release instructed" != "settled"; "product photo detected" != "verified product"; "contribution pledged" != "received".
 
-## 7. Phase 0 acceptance corpus
+## 7. Real-world trading coverage — illustrations are not the test plan
 
-Before Phase 1 code, preserve six human journeys and cross-check them against the real compatible backend:
+**Owner correction (2026-11-09):** The previously listed charger, school-fees, wedding, Store, contractor and cross-site journeys were examples used to uncover requirements; they are **not** the locked six-journey acceptance suite or instructions to hardcode specific trades.
 
-**C1 Counter charger:** merchant photographs or selects charger, corrects attributes and quantity, enters invited KS, buyer reviews/asks/accepts/funds, provider confirms, merchant hands over, correct party authorises release, verified settlement, stock and receipts reconcile. Test handover before funding, wrong KS, duplicate provider webhook, seller absent, buyer disputes.
+The primary test strategy is now documented in [SECUREPAY_MINI_REAL_WORLD_SCENARIO_COVERAGE_20261109.md](SECUREPAY_MINI_REAL_WORLD_SCENARIO_COVERAGE_20261109.md).
 
-**C2 School fees:** authenticated school/parent/learner association with explicit privacy, exact term/installment obligation and receipt, correct beneficiary, no public disclosure. Distinguish fees already due from a conditional future service. School funds and release authority not inferred from payer identity.
+It requires real merchant/buyer observation and a representative matrix spanning everyday in-person sales, negotiated/quantity retail, multibaskets, stock, remote orders, services, recurring supply, secondhand goods, transportation/accommodation/storage, fees, group contributions, milestone work and cross-cutting exceptions. It specifically requires uncoached older users and people with low confidence, vision, language or network constraints, without stereotyping.
 
-**C3 Wedding contribution QR:** verified organiser, current purpose/target/progress, consented contribution, real confirmed receipt, transparent disbursements. Separate public campaign story from contributor-private details; do not portray reported expenditure as audited without proof.
+Select automated regression cases by **general behavioural class and state/authority boundary**, not nouns or rehearsed prompts; rotate goods, actor roles, input sources, money conditions and settlement outcomes. Keep holdout trades unseen in development; no illustrative example gets automatic priority solely because it appeared in the product discussion.
 
-**C4 Digital Store shopper:** customer sees seller-confirmed offer, discusses selection with KS001, checks seller/price/quantity, invites/accepts/funds, completes same trade without jumping between new apps. Multi-shop cart must retain individual seller/Agreement allocation and not pool trading principal incorrectly.
-
-**C5 Milestone service:** contractor scope, evidence, authorised partial release, future milestone, dispute hold, balance reconciliation; expand to full workspace without loss of state.
-
-**C6 Cross-site continuity:** start guest Mini on approved Estate/ShortStays site; authenticated claim of same work on securepay.ke; return to source status; attempt wrong-site, expired ticket and untrusted host. No automatic contract signature or payment.
-
-Counterperformance measures: first useful action time, assisted transaction completion, number of questions, mistaken/false funding claims (target zero), duplicate financial effects (zero), unauthorised releases (zero), mobile responsiveness, abandonment, per-transaction net contribution after provider fees, and merchant repeat use. Set quantitative thresholds based on observed sandbox/human tests, not invented forecasts.
+**Phase 0 is not fully field-certified:** external discovery and representative human testing remain open, and their results should determine the test cohort before Phase 1 is considered ready for human acceptance.
 
 ## 8. Phase 0 unresolved decisions (not implementation permission)
 
@@ -134,9 +128,9 @@ Phase 0 audit/blueprint -> 1 Mini interface -> 2 capture/trade -> 3 KS identity/
 - locked main three-panel UI and host UIs baseline/screenshots recorded;
 - agreed miniature mobile shell and non-destructive entry/exit/handoff;
 - staged money disabled, real/fixture labels unmistakable;
-- focused human protocol C1–C6 recorded, with no broad wasteful test sweep.
+- representative non-scripted trading coverage and human research protocol recorded, with no broad wasteful test sweep.
 
-**Phase 0 done condition:** source evidence and missing authorities are documented, owner can review the blueprint, and a **draft documentation-only PR** exists. Phase 0 does **not** claim completed production testing, partner certification, a real integrated Mini or live financial enablement.
+**Phase 0 document-review checkpoint:** source evidence and missing authorities are documented, owner can review the blueprint, and a **draft documentation-only PR** exists. Actual trader observation and uncoached human evidence are still needed before signing off the representative acceptance corpus. Phase 0 does **not** claim completed production testing, partner certification, a real integrated Mini or live financial enablement.
 
 ## 10. Source references
 
