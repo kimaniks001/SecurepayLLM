@@ -279,7 +279,7 @@ test('Mini requires explicit mock review before the existing three-rail simulato
   assert.match(mini,/SECUREPAY_MINI_GATE2_CANCEL/);
   const app=read('src/mini/MiniExperience.tsx');
   assert.match(app,/sandboxAgreement/);
-  assert.match(app,/<MiniGate2Sandbox session=\{gate2Session\}/);
+  assert.match(app,/<MiniGate2Sandbox session=\{gate2Session\} language=/);
   assert.match(read('src/mini/MiniFundingPreview.tsx'),/SIMULATION ONLY · No real money/);
 });
 
