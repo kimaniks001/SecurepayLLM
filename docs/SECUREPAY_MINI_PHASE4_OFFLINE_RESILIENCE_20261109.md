@@ -47,6 +47,34 @@ host scripts with simulated DOM, signed encrypted Gate 2/3 tokens, Gate 4 server
 readbacks, offline errors and expired saved sessions. The existing Gate 2/3/4 regression
 tests still execute; TypeScript and Vite build remain mandatory.
 
+## Gate 2 — untrusted iframe reference containment (same offline lane)
+
+The browser postMessage reference is now treated as **untrusted even after origin and
+iframe checks**. Previously the host temporarily persisted an incoming token before
+calling GET; a tampered, expired, cross-order or network-unverifiable token could
+occupy the current checkout slot, preventing the real attempt from being restored.
+
+The host now performs a read-only, same-origin
+`GET /api/mini-gate4-return?checkout=ORIGINAL&attempt=CANDIDATE` **before
+accepting or persisting a candidate**. It checks the server-proven matching source,
+fixture, original amount/order, false real-money authority flags and exact status.
+On 403/409/503/mismatch or when the checkout changed during the request, the
+existing reference remains unchanged; the host still shows NOT PAID. Only a
+server-matched candidate may enter sessionStorage.
+
+New executable cases test cross-order injection, a deliberately unavailable
+status read, false PAID message hints, and valid same-order recovery on both
+Store and ShortStays. Existing Gate 4 tests were adjusted to assert the shared
+verification function, not weakened or bypassed.
+
+### Verification record
+
+- GitHub branch `feat/mini-phase4-offline-resilience-20261109`, stacked draft PR #256.
+- Vercel Preview exact candidate `2ef82e79c4369e55c85c4fb7a9ac53d3f1694cc1`:
+  **READY**, build-gated focused suites and TypeScript passed; Vite compiled.
+- Owner independent browser acceptance of this Gate 2 change is still open.
+- **No real provider, legal acceptance, financial activation or production deployment.**
+
 ## Owner acceptance (each host)
 
 1. Open sample Store Pay. Click rapidly twice: exactly one checkout opens.
