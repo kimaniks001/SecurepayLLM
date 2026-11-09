@@ -51,7 +51,7 @@ export async function fetchMiniPreviewCheckout(token: string, signal?: AbortSign
       token.length > 1024) return { status: 'expired' };
   try {
     const response = await fetch('/api/mini-checkout-preview?session=' + encodeURIComponent(token), {
-      method: 'GET', credentials: 'omit', redirect: 'error', cache: 'no-store',
+      method: 'GET', credentials: 'same-origin', redirect: 'error', cache: 'no-store',
       headers: { Accept: 'application/json' }, signal,
     });
     if (!response.ok) return { status: response.status === 410 ? 'expired' : 'unavailable' };
