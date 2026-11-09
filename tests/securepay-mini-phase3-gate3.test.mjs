@@ -46,7 +46,7 @@ test('exact Gate 3 preview and independently signed Gate 2 review prerequisite',
   ])assert.equal(gate3Config({...env,...override}),null);
 });
 
-test('never start fictional rail without a reviewed sample agreement',()=>{
+test('never start fictional rail without a reviewed sample agreement',async()=>{
   const {unreviewed,reviewed}=sample();
   assert.equal(startGate3Attempt(unreviewed,'MPESA','SUCCESS',conf,t),null);
   assert.equal(startGate3Attempt(reviewed,'MPESA','INVALID',conf,t),null);
@@ -105,7 +105,7 @@ test('server handles failed, unknown, delayed statuses separately; unknown has n
     'SIMULATED_UNKNOWN','unknown never silently becomes confirmed');
 });
 
-test('tamper, expiry, wrong secret, cross-origin and changed fixture fail closed',()=>{
+test('tamper, expiry, wrong secret, cross-origin and changed fixture fail closed',async()=>{
   const issued=startGate3Attempt(sample().reviewed,'MPESA','SUCCESS',conf,t);
   assert.ok(readGate3Attempt(issued.attempt,conf,t));
   assert.equal(readGate3Attempt(issued.attempt,conf,t+GATE3_TTL_MS),null);
