@@ -18,6 +18,7 @@ import { getMiniSandboxFixture } from './mini-checkout-preview.js';
 export const GATE3_BRANCH = 'feat/mini-phase3-gate3-sandbox-payment-status-20261109';
 export const GATE4_BRANCH = 'feat/mini-phase3-gate4-verified-return-20261109';
 export const PHASE3_API_CLIENT_BRANCH = 'feat/mini-phase3-real-store-authority-client-20261109';
+export const PHASE4_RESILIENCE_BRANCH = 'feat/mini-phase4-offline-resilience-20261109';
 export const GATE3_RAILS = Object.freeze(['CHOICE_BANK', 'MPESA', 'PESALINK']);
 export const GATE3_SCENARIOS = Object.freeze(['SUCCESS', 'FAILURE', 'UNKNOWN', 'SLOW']);
 /** Only Gate 4 may exercise a deliberately delayed mock reconciliation. */
@@ -26,7 +27,7 @@ export const GATE3_TTL_MS = 10 * 60 * 1000;
 const tokenPattern = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
 
 export function gate3Config(env = process.env) {
-  if (env.VERCEL_ENV !== 'preview' || ![GATE3_BRANCH,GATE4_BRANCH,PHASE3_API_CLIENT_BRANCH].includes(env.VERCEL_GIT_COMMIT_REF))
+  if (env.VERCEL_ENV !== 'preview' || ![GATE3_BRANCH,GATE4_BRANCH,PHASE3_API_CLIENT_BRANCH,PHASE4_RESILIENCE_BRANCH].includes(env.VERCEL_GIT_COMMIT_REF))
     return null;
   const secret = String(env.MINI_GATE3_SANDBOX_SECRET || '');
   const host = String(env.VERCEL_URL || '');
@@ -69,7 +70,7 @@ export function readGate3Attempt(token, config, now = Date.now()) {
         (GATE4_SCENARIOS.includes(c.scenario)
           ? (!Number.isSafeInteger(c.reconcileAt) ||
              c.reconcileAt !== c.initiatedAt + 15000 ||
-             ![GATE4_BRANCH,PHASE3_API_CLIENT_BRANCH].includes(config.branch))
+             ![GATE4_BRANCH,PHASE3_API_CLIENT_BRANCH,PHASE4_RESILIENCE_BRANCH].includes(config.branch))
           : c.reconcileAt !== null) ||
         c.initiatedAt > now + 30000 ||
         c.expiresAt > c.initiatedAt + GATE3_TTL_MS ||
@@ -80,7 +81,7 @@ export function readGate3Attempt(token, config, now = Date.now()) {
 export function startGate3Attempt(reviewSession, rail, scenario, config, now = Date.now()) {
   if (!GATE3_RAILS.includes(rail) ||
       !(GATE3_SCENARIOS.includes(scenario) ||
-        (config.branch===GATE4_BRANCH && GATE4_SCENARIOS.includes(scenario))) ||
+        ([GATE4_BRANCH,PHASE4_RESILIENCE_BRANCH].includes(config.branch) && GATE4_SCENARIOS.includes(scenario))) ||
       typeof reviewSession !== 'string') return null;
   const reviewed = readGate2Sandbox(reviewSession, config.gate2, now);
   if (!reviewed || reviewed.claims.stage !== 'TERMS_REVIEWED') return null;

@@ -32,6 +32,11 @@
     SIMULATED_FAILED:'Test failure reconciled — NOT PAID'
   });
   let checkout=null,attempt=null,activeUntil=0,opening=false,checking=false;
+  // A later attempt may replace the original ONLY after the host independently
+  // verifies that original as failed. Unknown/pending/confirmed are never retryable.
+  let verifiedAttempt=null,verifiedStatus=null,validatingAttempt=false;
+  // Preview-only, in-memory retry hint. An unverified token is NEVER persisted.
+  let unverifiedCandidate=null;
   const label=pay.textContent;
   function persist(){
     try{
@@ -53,9 +58,51 @@
   }
   function clearExpired(){
     checkout=null;attempt=null;activeUntil=0;
+    verifiedAttempt=null;verifiedStatus=null;unverifiedCandidate=null;
     persist();
   }
+  // Every iframe-supplied attempt token is just an untrusted lookup hint.
+  // Confirm it against the ORIGINAL encrypted checkout before persisting it.
+  async function verifiedSnapshot(checkoutRef,attemptRef){
+    const url='/api/mini-gate4-return?checkout='+encodeURIComponent(checkoutRef)+
+      (attemptRef?'&attempt='+encodeURIComponent(attemptRef):'');
+    const response=await fetch(url,{
+      method:'GET',credentials:'same-origin',redirect:'error',cache:'no-store',
+      headers:{Accept:'application/json'}
+    });
+    if(!response.ok)throw Error('NOT_VERIFIED');
+    const data=await response.json();
+    if(!data||data.source!=='SERVER_MATCHED_SANDBOX_ORDER_AND_ATTEMPT'||
+      data.simulationOnly!==true||data.fixtureId!==current.id||
+      data.hostReturnPath!==current.path||
+      data.realPaymentVerified!==false||data.providerVerified!==false||
+      data.acceptedAgreement!==false||data.orderCreated!==false||
+      data.bookingConfirmed!==false||data.inventoryReserved!==false||
+      data.accommodationHeld!==false||data.moneyMoved!==false||
+      data.mayFulfil!==false||data.paymentReceipt!==null||
+      data.matchedAgainstOriginalOrder!==Boolean(attemptRef)||
+      !Object.prototype.hasOwnProperty.call(safeStatuses,data.status)||
+      !Number.isSafeInteger(data.amountMinor)||data.amountMinor<=0||
+      (attemptRef&&(!/^SIM-PAY-[A-F0-9]{24}$/.test(data.attemptId)||
+        data.status==='NO_SIMULATED_ATTEMPT'))||
+      (!attemptRef&&data.status!=='NO_SIMULATED_ATTEMPT'))
+      throw Error('UNTRUSTED_STATE');
+    return data;
+  }
   async function reconcile(){
+    if(checkout&&activeUntil<=Date.now()){
+      clearExpired();
+      status.textContent='Original sample checkout expired — NOT PAID. No result can be inferred.';
+      checkButton.hidden=true;
+      return;
+    }
+    // A new attempt reported during an outage cannot be mistaken for "no attempt".
+    // Keep the hint in memory only; explicit Check must first verify it on server.
+    if(unverifiedCandidate){
+      status.textContent='Original test attempt still unverified — NOT PAID. Check when connected.';
+      checkButton.hidden=false;
+      return;
+    }
     if(!checkout){
       status.textContent='No test checkout started — NOT PAID';
       checkButton.hidden=true;
@@ -63,34 +110,20 @@
     }
     if(checking)return;
     checking=true;
+    const checkedCheckout=checkout,checkedAttempt=attempt;
     checkButton.disabled=true;
     status.textContent='Checking original test attempt with server — NOT PAID';
     try{
-      const url='/api/mini-gate4-return?checkout='+encodeURIComponent(checkout)+
-        (attempt?'&attempt='+encodeURIComponent(attempt):'');
-      const response=await fetch(url,{
-        method:'GET',credentials:'same-origin',redirect:'error',cache:'no-store',
-        headers:{Accept:'application/json'}
-      });
-      if(!response.ok)throw Error('NOT_VERIFIED');
-      const data=await response.json();
-      if(!data||data.source!=='SERVER_MATCHED_SANDBOX_ORDER_AND_ATTEMPT'||
-        data.simulationOnly!==true||data.fixtureId!==current.id||
-        data.hostReturnPath!==current.path||
-        data.realPaymentVerified!==false||data.providerVerified!==false||
-        data.acceptedAgreement!==false||data.orderCreated!==false||
-        data.bookingConfirmed!==false||data.inventoryReserved!==false||
-        data.accommodationHeld!==false||data.moneyMoved!==false||
-        data.mayFulfil!==false||data.paymentReceipt!==null||
-        data.matchedAgainstOriginalOrder!==Boolean(attempt)||
-        !Object.prototype.hasOwnProperty.call(safeStatuses,data.status)||
-        !Number.isSafeInteger(data.amountMinor)||data.amountMinor<=0||
-        (attempt&&(!/^SIM-PAY-[A-F0-9]{24}$/.test(data.attemptId)||
-          data.status==='NO_SIMULATED_ATTEMPT')))
-        throw Error('UNTRUSTED_STATE');
+      const data=await verifiedSnapshot(checkedCheckout,checkedAttempt);
+      // A late read from the preceding attempt must not overwrite a newer one.
+      if(checkedCheckout!==checkout||checkedAttempt!==attempt)return;
+      verifiedAttempt=checkedAttempt;
+      verifiedStatus=data.status;
       status.textContent=safeStatuses[data.status];
       checkButton.hidden=false;
     }catch{
+      if(checkedCheckout!==checkout||checkedAttempt!==attempt)return;
+      verifiedAttempt=null;verifiedStatus=null;
       status.textContent='Cannot independently verify this test attempt — NOT PAID';
       checkButton.hidden=false;
     }finally{
@@ -98,14 +131,64 @@
       checkButton.disabled=false;
     }
   }
+  async function adoptAttempt(candidate){
+    if(!checkout||activeUntil<=Date.now())return;
+    if(candidate===attempt){void reconcile();return;}
+    if(attempt&&
+        !(verifiedAttempt===attempt&&verifiedStatus==='SIMULATED_FAILED')){
+      status.textContent='Original test attempt must be resolved before another — NOT PAID';
+      return;
+    }
+    // The host never writes an unverified message reference to sessionStorage.
+    if(validatingAttempt)return;
+    validatingAttempt=true;
+    unverifiedCandidate=candidate;
+    const originalCheckout=checkout,originalAttempt=attempt;
+    try{
+      const data=await verifiedSnapshot(originalCheckout,candidate);
+      if(originalCheckout!==checkout||originalAttempt!==attempt||
+          activeUntil<=Date.now())return;
+      if(attempt&&
+          !(verifiedAttempt===attempt&&verifiedStatus==='SIMULATED_FAILED'))return;
+      attempt=candidate;
+      unverifiedCandidate=null;
+      verifiedAttempt=candidate;
+      verifiedStatus=data.status;
+      persist();
+      status.textContent=safeStatuses[data.status];
+      checkButton.hidden=false;
+    }catch{
+      if(originalCheckout!==checkout||originalAttempt!==attempt)return;
+      status.textContent='Cannot verify this new test attempt — NOT PAID. Check original attempt when connected.';
+      checkButton.hidden=false;
+      // Preserve previous independently established state; candidate remains only
+      // in ephemeral tab memory, never browser storage or payment authority.
+    }finally{
+      validatingAttempt=false;
+    }
+  }
   function restore(){
     try{
       const raw=JSON.parse(sessionStorage.getItem(key)||'null');
-      if(!raw||raw.fixtureId!==current.id||!goodToken(raw.checkout,100,1200)||
-        !Number.isSafeInteger(raw.expiresAt)||raw.expiresAt<=Date.now())return;
+      if(!raw)return;
+      if(raw.fixtureId!==current.id||!goodToken(raw.checkout,100,1200)||
+        !Number.isSafeInteger(raw.expiresAt)){
+        clearExpired();return;
+      }
+      if(raw.expiresAt<=Date.now()){
+        clearExpired();
+        status.textContent='Previous sample checkout expired — NOT PAID. A new test needs a fresh checkout.';
+        return;
+      }
+      if(raw.attempt!==null&&raw.attempt!==undefined&&
+        !goodToken(raw.attempt,95,1500)){
+        clearExpired();
+        status.textContent='Saved test reference invalid — NOT PAID. Start a new test.';
+        return;
+      }
       checkout=raw.checkout;
       activeUntil=raw.expiresAt;
-      attempt=goodToken(raw.attempt,95,1500)?raw.attempt:null;
+      attempt=raw.attempt||null;
       void reconcile();
     }catch{/* storage optional */}
   }
@@ -133,6 +216,7 @@
         !Number.isSafeInteger(data.expiresAt)||data.expiresAt<=Date.now())
         throw Error('UNSAFE_SESSION');
       checkout=data.session;attempt=null;activeUntil=data.expiresAt;
+      verifiedAttempt=null;verifiedStatus=null;unverifiedCandidate=null;
       persist();
       frame.hidden=false;fallback.hidden=true;
       frame.src='/mini.html?embedded=1&sandboxReconcile='+encodeURIComponent(checkout);
@@ -155,11 +239,9 @@
     if(msg.type==='SECUREPAY_MINI_GATE4_ATTEMPT_REF_V1'){
       if(msg.fixtureId!==current.id||!goodToken(msg.attempt,95,1500)||
         !checkout||activeUntil<=Date.now())return;
-      // Reference is only a lookup key. Always re-check against the original
-      // checkout via server before treating ANY status as meaningful.
-      attempt=msg.attempt;
-      persist();
-      void reconcile();
+      // A same-origin iframe message is NOT evidence of an original attempt.
+      // Independently verify before changing the selected/stored reference.
+      void adoptAttempt(msg.attempt);
       return;
     }
     if(msg.type==='SECUREPAY_MINI_GATE4_RETURN_V1'){
@@ -171,7 +253,10 @@
   pay.addEventListener('click',()=>{void open();});
   closeButton.addEventListener('click',()=>{close();void reconcile();});
   overlay.addEventListener('click',()=>{close();void reconcile();});
-  checkButton.addEventListener('click',()=>{void reconcile();});
+  checkButton.addEventListener('click',()=>{
+    if(unverifiedCandidate&&!validatingAttempt)void adoptAttempt(unverifiedCandidate);
+    else void reconcile();
+  });
   window.addEventListener('message',receive);
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!popup.hidden){
     close();void reconcile();

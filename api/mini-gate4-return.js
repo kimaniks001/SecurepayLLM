@@ -66,7 +66,7 @@ function respond(res,status,data){
 }
 export function handleGate4Host(req,res,env=process.env,now=Date.now()){
   const config=gate3Config(env);
-  if(!config||![GATE4_BRANCH, 'feat/mini-phase3-real-store-authority-client-20261109'].includes(config.branch))
+  if(!config||![GATE4_BRANCH, 'feat/mini-phase3-real-store-authority-client-20261109', 'feat/mini-phase4-offline-resilience-20261109'].includes(config.branch))
     return respond(res,503,{code:'GATE4_PREVIEW_DISABLED'});
   if(req.headers?.host!==config.origin.slice(8) ||
       (req.headers?.origin && req.headers.origin!==config.origin))

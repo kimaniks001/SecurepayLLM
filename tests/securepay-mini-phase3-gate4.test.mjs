@@ -185,7 +185,8 @@ test('host event cannot claim paid: it only triggers a server-side matched statu
   assert.match(host,/event\.origin!==window\.location\.origin/);
   assert.match(host,/event\.source!==frame\.contentWindow/);
   assert.match(host,/fetch\(url,\{/);
-  assert.match(host,/matchedAgainstOriginalOrder!==Boolean\(attempt\)/);
+  assert.match(host,/matchedAgainstOriginalOrder!==Boolean\(attemptRef\)/);
+  assert.match(host,/void adoptAttempt\(msg\.attempt\)/);
   assert.match(host,/realPaymentVerified!==false/);
   assert.match(host,/mayFulfil!==false/);
   assert.match(host,/paymentReceipt!==null/);

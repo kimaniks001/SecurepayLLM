@@ -15,6 +15,7 @@ export const GATE2_BRANCH = 'feat/mini-phase3-gate2-sandbox-order-agreement-2026
 export const GATE3_BRANCH = 'feat/mini-phase3-gate3-sandbox-payment-status-20261109';
 export const GATE4_BRANCH = 'feat/mini-phase3-gate4-verified-return-20261109';
 export const PHASE3_API_CLIENT_BRANCH = 'feat/mini-phase3-real-store-authority-client-20261109';
+export const PHASE4_RESILIENCE_BRANCH = 'feat/mini-phase4-offline-resilience-20261109';
 export const GATE2_TTL_MS = 10 * 60 * 1000;
 const STAGES = new Set(['REVIEW', 'TERMS_REVIEWED']);
 const FORMAT = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
@@ -24,7 +25,7 @@ function hasOwn(value, key) {
 }
 export function gate2Config(env = process.env) {
   if (env.VERCEL_ENV !== 'preview' ||
-      ![GATE2_BRANCH, GATE3_BRANCH, GATE4_BRANCH, PHASE3_API_CLIENT_BRANCH].includes(env.VERCEL_GIT_COMMIT_REF)) return null;
+      ![GATE2_BRANCH, GATE3_BRANCH, GATE4_BRANCH, PHASE3_API_CLIENT_BRANCH, PHASE4_RESILIENCE_BRANCH].includes(env.VERCEL_GIT_COMMIT_REF)) return null;
   const secret = String(env.MINI_GATE2_SANDBOX_SECRET || '');
   const host = String(env.VERCEL_URL || '');
   if (!/^[A-Za-z0-9_-]{43,128}$/.test(secret) ||

@@ -38,6 +38,8 @@ export function MiniGate3Funding({reviewSession, expected, description,
   const [error,setError]=useState('');
   const [refresh,setRefresh]=useState(0);
   const firstAttempt=useRef(false);
+  // Immediate synchronous lock prevents rapid double clicks before React rerenders.
+  const startInFlight=useRef(false);
   const storageKey='spm-gate3-mock-attempt-'+expected.orderId;
   const status=snapshot?.status||'SELECT_METHOD';
   useEffect(()=>{
@@ -100,7 +102,9 @@ export function MiniGate3Funding({reviewSession, expected, description,
   },[status,rail,onDemoStateChange]);
 
   async function start() {
-    if(busy||!rail||(!mayChange&&attempt)||terminal==='unavailable')return;
+    if(startInFlight.current||busy||!rail||(!mayChange&&attempt)||
+      terminal==='unavailable'||terminal==='expired')return;
+    startInFlight.current=true;
     setBusy(true);setError('');setSnapshot(null);setTerminal('none');
     try{
       const result=await startGate3Simulation(reviewSession,rail,scenario);
@@ -112,7 +116,7 @@ export function MiniGate3Funding({reviewSession, expected, description,
       }
       setAttempt(result.attempt);
       try{sessionStorage.setItem(storageKey,result.attempt);}catch{/* optional */}
-    }finally{setBusy(false);}
+    }finally{startInFlight.current=false;setBusy(false);}
   }
   const current=MINI_TEST_RAILS.find(x=>x.id===rail);
   return <section className="spm-content spm-money-demo spm-gate3-funding"
@@ -128,7 +132,7 @@ export function MiniGate3Funding({reviewSession, expected, description,
       <p title={description}>{description}</p>
     </div>
 
-    {(!attempt || failed || terminal==='expired')&&<>
+    {terminal!=='expired'&&(!attempt || failed)&&<>
       <h2 className="spm-demo-section-heading">Pay with (simulation)</h2>
       <div role="radiogroup" aria-label="Simulated payment rail" className="spm-demo-rails">
         {MINI_TEST_RAILS.map(item=>{
@@ -197,7 +201,7 @@ export function MiniGate3Funding({reviewSession, expected, description,
     </button>}
     {error&&<p role="alert" className="spm-error">{error}</p>}
     {terminal==='expired'&&<p className="spm-error">
-      Sample attempt expired. This does not authorise a payment or retry.
+      Sample attempt expired. Do not retry from this expired review. Return to the website and start a new test checkout.
     </p>}
 
     <button className={confirmed?'spm-primary spm-demo-return':'spm-secondary spm-demo-return'}
