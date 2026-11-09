@@ -117,6 +117,12 @@ export function MiniExperience() {
     if (screen === 'describe') firstField.current?.focus({ preventScroll: true });
   }, [screen]);
   useEffect(() => { document.documentElement.lang = lang === 'sw' ? 'sw' : 'en'; }, [lang]);
+  // A new Mini task must start at its top, not retain the scroll position
+  // from the longer review screen (also applies inside the owner iframe).
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    document.querySelector<HTMLElement>('.spm-frame')?.scrollTo(0, 0);
+  }, [screen]);
 
   const begin = (intent: MiniIntent) => {
     setDraft({ ...emptyMiniDraft(intent), description: opening.trim().slice(0, 400) });
