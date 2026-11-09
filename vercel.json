@@ -94,6 +94,32 @@
           "value": "no-referrer"
         }
       ]
+    },
+    {
+      "source": "/checkout-gate3-store.html",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
+        }
+      ]
+    },
+    {
+      "source": "/checkout-gate3-shortstays.html",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
+        }
+      ]
     }
   ],
   "buildCommand": "node scripts/securepay-mini-preview-checks.mjs && npm run build"
