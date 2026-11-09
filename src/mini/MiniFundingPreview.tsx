@@ -49,7 +49,7 @@ export function MiniFundingPreview({ draft, language, onBack, onDemoStateChange,
   const statusLine = sw
     ? guidedDemo && confirmed ? 'Jaribio limekamilika' : pending ? 'Inasubiri jibu la jaribio' : unknown ? 'Haijulikani — usijaribu tena' :
       failed ? 'Jaribio limeshindwa' : 'Imethibitishwa kwenye jaribio tu'
-    : guidedDemo && confirmed ? 'Test complete' : pending ? 'Checking test result…' : unknown ? 'Unknown — do not retry' :
+    : guidedDemo && confirmed ? 'Test complete — not paid' : pending ? 'Checking test result…' : unknown ? 'Unknown — do not retry' :
       failed ? 'Test failed' : 'Confirmed in simulation';
   const statusSubline = sw
     ? confirmed ? 'Hakuna pesa iliyotumwa.' : pending ? 'Hakuna malipo yaliyotumwa.' :
@@ -76,8 +76,8 @@ export function MiniFundingPreview({ draft, language, onBack, onDemoStateChange,
       {sw ? 'Weka kiasi kwenye rasimu kwanza.' : 'Enter an amount in your draft first.'}
     </p>}
 
-    <h2 className="spm-demo-section-heading">{sw ? 'Lipa kwa' : 'Pay with'}</h2>
-    <div role="radiogroup" aria-label="Simulated payment method" className="spm-demo-rails">
+    {(!guidedDemo || demo.status === 'SELECT_METHOD') && <h2 className="spm-demo-section-heading">{sw ? 'Lipa kwa' : 'Pay with'}</h2>}
+    {(!guidedDemo || demo.status === 'SELECT_METHOD') && <div role="radiogroup" aria-label="Simulated payment method" className="spm-demo-rails">
       {MINI_TEST_RAILS.map(item => {
         const active = demo.method === item.id;
         const Icon = item.id === 'CHOICE_BANK' ? Landmark : item.id === 'MPESA' ? Smartphone : ArrowLeftRight;
@@ -90,7 +90,7 @@ export function MiniFundingPreview({ draft, language, onBack, onDemoStateChange,
           <span className="spm-demo-rail-choice" aria-hidden="true">{active ? <CircleCheck size={18}/> : <span/>}</span>
         </button>;
       })}
-    </div>
+    </div>}
 
     {demo.status === 'SELECT_METHOD' && <button type="button" className="spm-primary"
       disabled={!canStart} onClick={() => dispatch({ type: 'START_ATTEMPT' })}>
