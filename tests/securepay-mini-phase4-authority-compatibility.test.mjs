@@ -33,7 +33,7 @@ test('provider-driven funding stays on the EXISTING authenticated Payment Intent
 test('Hosted Money Sessions remain a distinct, authority-bound interface—not a provider adapter',()=>{
   assert.match(moneySessions,/create: \(request/);
   assert.match(moneySessions,/resolve: \(token/);
-  assert.match(moneySessions,/redeem: \(token, idempotencyKey/);
+  assert.match(moneySessions,/redeem: \\(token: string, idempotencyKey: string\\)/);
   assert.match(moneySessions,/money-sessions\/\$\{segment\(token\)\}\/redeem/);
   assert.doesNotMatch(moneySessions,/createPaymentIntentGateway|createVersionBoundQuote|providerIdentifier/);
   assert.doesNotMatch(providerIntents,/money-sessions|HostedMoneySession|fundFromSelf/);
