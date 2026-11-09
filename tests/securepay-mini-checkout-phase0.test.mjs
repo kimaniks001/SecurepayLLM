@@ -78,7 +78,7 @@ test('roadmap treats hosted Money Sessions as an existing candidate, not a new p
   assert.match(audit, /DeveloperMoneySessionController/);
   assert.match(audit, /HostedMoneySessionService/);
   assert.match(audit, /PaymentIntent/);
-  assert.match(audit, /not automatically/i);
+  assert.match(audit, /No inspected source establishes that redeeming/i);
   assert.match(roadmap, /one checkout/i);
   assert.match(contract, /server/i);
   assert.match(contract, /fundingOptions/);
