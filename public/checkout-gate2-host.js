@@ -85,6 +85,13 @@
       event.source!==frame.contentWindow||
       !event.data||typeof event.data!=='object')return;
     const data=event.data;
+    if(data.type==='SECUREPAY_MINI_GATE2_CANCEL'&&data.sandboxGate===2&&
+        data.simulated===true) {
+      status.dataset.demoReturned='yes';
+      status.textContent='Sample checkout closed — NOT PAID';
+      close();
+      return;
+    }
     if(data.type!=='SECUREPAY_MINI_OWNER_DEMO_RETURN_V1'||
       data.version!==1||data.fixtureId!==item.id||
       data.simulated!==true||data.sandboxGate!==2||
