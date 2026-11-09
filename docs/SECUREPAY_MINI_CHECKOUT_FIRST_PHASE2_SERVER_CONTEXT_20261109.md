@@ -74,3 +74,18 @@ The new focused Phase 2 tests validate protocol and runtime server function **in
 5. Certify each actually available Choice/M-Pesa/PesaLink partner rail and economic fees before enabling it, alongside independent release/refund policies.
 
 **Gate:** Phase 2 owner-preview code is ready for synthetic testing when deployment is READY, but **real checkout authority and ShortStays booking confirmation remain NO-GO**.
+
+
+## Owner recording blocker — launch request omitted preview sign-in cookie (9 Nov 2026)
+
+**Observed in owner video:** ShortStays' Pay button remained on the host page and displayed "Checkout unavailable. Nothing paid. Please try again." The modal never opened. **Phase 2 was not owner-accepted.**
+
+**Likely cause found:** the client launched \`POST /api/mini-checkout-preview\` with browser \`credentials: 'omit'\`; the Mini resolver \`GET\` also used \`omit\`. Vercel's owner Preview is Deployment Protected: opening the site in a logged-in browser can succeed, while credentialless fetch loses the same-origin Preview authentication cookie and is denied before reaching the backend. That explains why protected Vercel-authenticated GET verification succeeded but the user's POST failed. Runtime logs from the blocked attempt did not supply a definitive request trace, so this remains a strongly supported diagnosis rather than a proven historical HTTP status.
+
+**Correction on this same draft Phase 2 branch:**
+- Both host issuer POST and Mini resolver GET now use **\`credentials: 'same-origin'\`**. Same-origin Vercel preview login can travel to the same-origin endpoint; no cookie is sent to a bank/third-party domain. Keep \`redirect: 'error'\`, scoped relative endpoint path, strict origin, server-owned amount/version, and fail-closed server conditions.
+- Added \`tests/securepay-mini-checkout-launcher-auth.test.mjs\` with three **executing** regressions. It evaluates the real browser launcher JavaScript and actual preview server handler in a protected-deployment simulation that rejects omitted cookies. Both Store and ShortStays must reach a server-issued URL using \`credentials: 'same-origin'\`, preserve the iframe on reopen, and never send amount/merchant from the browser. Also tests denied login leaves NOT PAID, and that Mini's real client resolver GET includes the same-origin cookie and reads server-authorised fictional context.
+- All existing tests remain; new suite is part of \`scripts/securepay-mini-preview-checks.mjs\`. These simulated HTTP/DOM tests are *not* the same as an owner-browser run.
+- Deployed fresh preview after changes and verified through Vercel protected authenticated fetch: both host pages **HTTP 200** and use the revised launcher, launcher JS **HTTP 200** includes \`credentials: 'same-origin'\`, session endpoint returns **410** for invalid reference, and the deployed build is **READY**.
+
+**Acceptance remains open:** owner must click Pay/Book in the new browser preview and confirm that Mini opens, retrieves the server snapshot, completes the three-rail *simulation*, returns to the correct page and never marks paid. Do not promote to production while that experience is unverified or if another failure remains.
