@@ -48,7 +48,7 @@ const records: Readonly<Record<MiniCheckoutDemoId, Readonly<MiniCheckoutDemoReco
   'STAY-DEMO-01': Object.freeze({
     id: 'STAY-DEMO-01', fixtureOnly: true, source: 'SHORTSTAYS',
     title: 'ShortStays booking', merchant: 'Sample Stay Host',
-    itemDescription: 'Cabin stay · 2 nights', details: '2 guests · illustration only; no dates or room held',
+    itemDescription: 'Cabin stay · 2 nights', details: '4–6 Dec 2026 · 2 guests · sample dates only; no room held',
     quantity: '2', unit: 'nights', amountMinor: 900000, currency: 'KES',
     orderVersion: 'fixture-stay-v1', terms: 'Illustrative booking only. Availability, cancellations and check-in are not confirmed.',
     hostReturnPath: '/checkout-demo-shortstays.html', reference: 'DEMO-STAY-2001',
