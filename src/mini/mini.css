@@ -291,3 +291,11 @@ textarea.spm-field { resize:vertical; }
  .spm-hosted-demo .spm-question {font-size:24px}
  .spm-hosted-price {font-size:26px}
 }
+
+/* Gate 2: fit a short sample agreement inside the original compact Mini. */
+.spm-gate2-agreement{display:grid;gap:7px;border-top:1px solid var(--spm-border,#d9e4d7);padding-top:11px;margin-top:7px}
+.spm-gate2-agreement strong{font-size:13px;color:inherit}
+.spm-gate2-agreement span{font-size:12px;line-height:1.4;color:inherit}
+.spm-gate2-agreement small{font-size:11px;line-height:1.35}
+.spm-gate2-reviewed{font-size:11px;line-height:1.4;padding:8px 10px;margin:0 0 8px;border-radius:10px;background:#eef4e7;color:#48634a;font-weight:650}
+.spm-gate2 .spm-hosted-review .spm-primary[disabled]{opacity:.6;cursor:wait}
