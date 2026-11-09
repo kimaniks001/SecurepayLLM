@@ -59,6 +59,12 @@ export function MiniGate2Sandbox({session, language}: {session:string;language:M
   const returnPath = snapshot?.order.hostReturnPath || '/checkout-gate2-store.html';
   const backToHost = () => {
     if(window.parent!==window) {
+      if(!snapshot) {
+        window.parent.postMessage({
+          type:'SECUREPAY_MINI_GATE2_CANCEL',sandboxGate:2,simulated:true
+        },window.location.origin);
+        return;
+      }
       window.parent.postMessage({
         type:'SECUREPAY_MINI_OWNER_DEMO_RETURN_V1',version:1,
         fixtureId:snapshot?.order.fixtureId,
@@ -67,7 +73,7 @@ export function MiniGate2Sandbox({session, language}: {session:string;language:M
       },window.location.origin);
       return;
     }
-    window.location.assign(returnPath);
+    window.location.assign(snapshot ? returnPath : '/checkout-store-offer-preview.html');
   };
   const onDemoStateChange = useCallback((status:MiniFundingTestStatus, method:MiniTestRailId|null)=>{
     setSimulatedStatus(status==='SELECT_METHOD'&&!method?'NOT_STARTED':status);
