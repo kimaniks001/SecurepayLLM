@@ -1,5 +1,5 @@
 /**
- * Run the existing Mini cohort and phase 1–4 focused test gates sequentially.
+ * Run checkout Phase 0 fixture validation plus existing Mini cohort/phase 1–4 gates.
  * Vercel limits vercel.json buildCommand to 256 characters; keep this file
  * and the checks rather than silently dropping tests.
  */
@@ -7,6 +7,7 @@ import { spawnSync } from 'node:child_process';
 
 const suites = [
   'tests/securepay-mini-trader-cohort.test.mjs',
+  'tests/securepay-mini-checkout-phase0.test.mjs',
   'tests/securepay-mini-phase1.test.mjs',
   'tests/securepay-mini-phase2.test.mjs',
   'tests/securepay-mini-phase3.test.mjs',
