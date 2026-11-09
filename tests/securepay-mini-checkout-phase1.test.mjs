@@ -91,7 +91,7 @@ test('both websites launch the exact same Mini entry with only a synthetic refer
     assert.match(html, new RegExp('data-demo-host="'+kind+'"'));
     assert.match(html,new RegExp('data-checkout-fixture="'+id+'"'));
     assert.match(html,/id="demo-pay"/);
-    assert.match(html,/src="\/checkout-demo-host.js"/);
+    assert.match(html,/src="\/checkout-demo-server-host.js"/);
     assert.match(html,/id="demo-frame"/);
     assert.match(html,/id="demo-status"/);
     assert.match(html,/NOT PAID|not paid|Payment not started/);
