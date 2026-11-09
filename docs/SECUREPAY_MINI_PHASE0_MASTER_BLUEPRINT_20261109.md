@@ -3,7 +3,7 @@
 **Date:** 2026-11-09  
 **Scope:** Documents and audit only. No product-code, financial-authority, UI, deployment or production changes.  
 **Status:** Phase 0 working specification for owner review; no new protected financial doctrine approved or implemented by this document.  
-**Repository:** \`kimaniks001/SecurepayLLM\`. Backend authority: \`kimaniks001/SecurePayAPI\`.
+**Repository:** `kimaniks001/SecurepayLLM`. Backend authority: `kimaniks001/SecurePayAPI`.
 
 ## 1. Product north star — owner direction
 
@@ -36,9 +36,9 @@ Do not damage the locked SecurePay 3-panel Living Workspace, the approved Store 
 | Capability | Source inspected | Phase 0 classification | Next action |
 |---|---|---|---|
 | Canonical KS001 conversation and Agreement progression | SecurePayAPI and SecurepayLLM main doctrines; existing Agent/Agreement programmes | Reuse existing authority; integration certification required | Contract-and-runtime audit against exact deployment pair |
-| Store offer with quantity | \`docs/operations/MW_03B_STORE_DOMAIN_COMPLETION_REPORT.md\` | Existing non-financial offer semantics; no sale/reservation guarantee | Design order allocation, merchant corrections and stock movement |
-| Agreement Money and safeguarded allocation | \`docs/PHASE_2_MONEY_AUTHORITY_ARCHITECTURE.md\`; Phase 35/36 completion | Reuse core money model; live rail enablement unproven | Partner certification and negative financial tests |
-| Three rail adapters | API \`application.yml\` on main: Choice, M-Pesa, PesaLink \`enabled: false\`, sandbox defaults | Source has adapters, **not proof of live payment services** | Authoritative runtime-capability feed; operator/partner certification |
+| Store offer with quantity | `docs/operations/MW_03B_STORE_DOMAIN_COMPLETION_REPORT.md` | Existing non-financial offer semantics; no sale/reservation guarantee | Design order allocation, merchant corrections and stock movement |
+| Agreement Money and safeguarded allocation | `docs/PHASE_2_MONEY_AUTHORITY_ARCHITECTURE.md`; Phase 35/36 completion | Reuse core money model; live rail enablement unproven | Partner certification and negative financial tests |
+| Three rail adapters | API `application.yml` on main: Choice, M-Pesa, PesaLink `enabled: false`, sandbox defaults | Source has adapters, **not proof of live payment services** | Authoritative runtime-capability feed; operator/partner certification |
 | Embedded guest discovery + sponsor budgets | API draft stacked PRs #395-#397 | Built as draft/staging pilot; not general availability | Reconcile branches; exact-site and budget tests |
 | Guest review + saved-work continuity | API draft stacked PRs #398-#399; UI draft #219 | Source-only, unmerged/uncertified | Two-origin authenticated staging review |
 | Cross-product one KS001 assist | UI draft PR #221 | Reuse shared assistant; no second AI brain | Test context-isolated common adapter |
@@ -72,15 +72,15 @@ Note: branch stacks differ. Never assume drafts are merged, compatible or presen
 
 Baseline proposal for ordinary physical goods, subject to owner/financial-authority review:
 
-1. \`PROPOSED\` — seller-reviewed item, amount, quantity, conditions and source.
-2. \`INVITED\` — scoped buyer invitation; notification is not consent.
-3. \`ACCEPTED\` — authenticated, exact-version participant acceptance; neither acceptance nor seller notification proves funding.
-4. \`FUNDING_PENDING\` — authorised provider processing or unknown; no false "paid" status.
-5. \`FUNDED_HELD\` — backend reconciles confirmed provider evidence to Agreement/KS allocation; customer principal is safeguarded by an appropriate authorised provider, not operational company funds.
-6. \`FULFILMENT_RECORDED\` — seller handover/evidence event, which is not itself permission to release.
-7. \`RELEASE_AUTHORISED\` — required named party/parties independently authenticated and authorised for this exact Agreement/version/amount and release policy; backend checks restrictions/disputes. A seller may acknowledge handover **before** funding, but that event must never create funding or trigger release.
-8. \`SETTLEMENT_PENDING\` — backend issues approved rail instruction; ambiguity remains pending/held, never presumed settled.
-9. \`SETTLED\` — authoritative provider plus reconciliation evidence of completion, not merely an instruction submitted.
+1. `PROPOSED` — seller-reviewed item, amount, quantity, conditions and source.
+2. `INVITED` — scoped buyer invitation; notification is not consent.
+3. `ACCEPTED` — authenticated, exact-version participant acceptance; neither acceptance nor seller notification proves funding.
+4. `FUNDING_PENDING` — authorised provider processing or unknown; no false "paid" status.
+5. `FUNDED_HELD` — backend reconciles confirmed provider evidence to Agreement/KS allocation; customer principal is safeguarded by an appropriate authorised provider, not operational company funds.
+6. `FULFILMENT_RECORDED` — seller handover/evidence event, which is not itself permission to release.
+7. `RELEASE_AUTHORISED` — required named party/parties independently authenticated and authorised for this exact Agreement/version/amount and release policy; backend checks restrictions/disputes. A seller may acknowledge handover **before** funding, but that event must never create funding or trigger release.
+8. `SETTLEMENT_PENDING` — backend issues approved rail instruction; ambiguity remains pending/held, never presumed settled.
+9. `SETTLED` — authoritative provider plus reconciliation evidence of completion, not merely an instruction submitted.
 
 Parallel/exception states: rejected, expired, amended, charge/quote expired, funding failed, duplicate notification, dispute hold, part-fulfilled, partial release, refund/reversal/compensation, mistaken beneficiary, lost network, provider unknown, destination change cooling-off, reconciliation mismatch. No irreversible action solely from a host button/notification. Terms of release vary by trade class; do not invent a blanket rule that seller, buyer or AI can unilaterally settle.
 
