@@ -222,8 +222,8 @@ export function MiniGuestChat({ draft, language, onBack }: {
           disabled={busy} onClick={prepare}>
           <CheckCircle2 size={17}/>{sw ? 'Andaa kwa ukaguzi' : 'Prepare for review (not acceptance)'}
         </button>}
-        {snapshot?.agreementError && <p className="spm-error">{snapshot.agreementError}</p>}
       </div>}
+      {snapshot?.agreementError && <p className="spm-error" role="alert">{snapshot.agreementError}</p>}
       {snapshot?.preparedReview && <div className="spm-guest-prepared" role="status">
         <CheckCircle2 size={20}/>
         <div><strong>{sw ? 'Maandalizi ya ukaguzi yamefanyika' : 'Review preparation acknowledged by SecurePay'}</strong>
@@ -236,7 +236,7 @@ export function MiniGuestChat({ draft, language, onBack }: {
       </button>
     </>}
 
-    {!ready && status !== 'not-configured' && <button type="button" className="spm-secondary spm-guest-retry"
+    {!ready && status !== 'not-configured' && status !== 'client-missing' && <button type="button" className="spm-secondary spm-guest-retry"
       onClick={refresh} disabled={busy || status === 'checking'}><RefreshCcw size={17}/>Recheck approved connection</button>}
 
     <div className="spm-guest-identity">
