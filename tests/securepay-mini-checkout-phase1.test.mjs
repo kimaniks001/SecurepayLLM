@@ -194,3 +194,35 @@ test('checkout-first API compatibility is explicitly unresolved, never a fabrica
   const fixturePack=JSON.parse(read('tests/fixtures/securepay-mini/checkout-acceptance.v1.json'));
   assert.deepEqual(fixturePack.verticalSlices.map(v=>v.status),['NOT_TESTED','NOT_TESTED']);
 });
+
+
+test('hosted checkout is self-guided; KS001 is optional and never a prerequisite',()=>{
+  const view=read('src/mini/MiniHostedCheckoutDemo.tsx');
+  assert.match(view,/Continue to payment/);
+  assert.match(view,/onClick=\{\(\) => setStep\('funding'\)\}/);
+  assert.match(view,/<MiniFundingPreview/);
+  assert.match(view,/guidedDemo/);
+  assert.match(view,/Need help\? Ask KS001/);
+  assert.match(view,/returnLabel=\{sw/);
+  assert.match(view,/Return to Store/);
+  assert.match(view,/Return to ShortStays/);
+  assert.match(view,/\.spm-frame'\)\?\.scrollTo\(0, 0\)/);
+  const review=view.slice(view.indexOf("step === 'review'"),view.indexOf('<div className="spm-hosted-finance"'));
+  assert.ok(review.indexOf('setStep(\'funding\')') < review.indexOf('onClick={showChat}'),
+    'primary payment choice comes before optional Ask KS001');
+  assert.doesNotMatch(review,/onClick=\{showChat\}[^]*setStep\('funding'\)/);
+});
+
+test('guided test result does not require hidden manual controls, and cannot be treated as real funding',()=>{
+  const funding=read('src/mini/MiniFundingPreview.tsx');
+  assert.match(funding,/guidedDemo = false/);
+  assert.match(funding,/const pendingReply = window\.setTimeout\(\(\) => dispatch\(\{ type: 'SIMULATE_CONFIRMED' \}\), 1100\)/);
+  assert.match(funding,/window\.clearTimeout\(pendingReply\)/);
+  assert.match(funding,/\(pending \|\| unknown\) && !guidedDemo && <details className="spm-demo-controls">/);
+  assert.match(funding,/confirmed && guidedDemo \? 'spm-primary spm-demo-return'/);
+  assert.match(funding,/Test complete — not paid/);
+  assert.match(funding,/SIMULATION ONLY · No real money/);
+  assert.match(funding,/No money moved\. This was only a demonstration/);
+  assert.match(funding,/onReturnToHost/);
+  assert.doesNotMatch(funding,/fetch\(|createIntent\(|redeem\(|fundFromSelf\(/);
+});
