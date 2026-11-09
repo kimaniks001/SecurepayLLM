@@ -5,7 +5,9 @@
 **Related:** `docs/SECUREPAY_MINI_PHASE0_MASTER_BLUEPRINT_20261109.md`
 **Scope:** Documentation only. No production code, UI, tariff, rail or financial-authority modifications.
 
-**Concrete candidate test set:** [SECUREPAY_MINI_KENYAN_MARKET_TEST_PACK_V1_20261109.md](SECUREPAY_MINI_KENYAN_MARKET_TEST_PACK_V1_20261109.md) proposes 10 everyday focused jobs, 10 broader market jobs, 10 cross-cutting financial/security checks and blinded scenario substitutions. Sample products and prices are replaceable fixture data; no field tests have been executed.\n\n## 0. Why this correction exists
+**Concrete candidate test set:** [SECUREPAY_MINI_KENYAN_MARKET_TEST_PACK_V1_20261109.md](SECUREPAY_MINI_KENYAN_MARKET_TEST_PACK_V1_20261109.md) proposes 10 everyday focused jobs, 10 broader market jobs, 10 cross-cutting financial/security checks and blinded scenario substitutions. Sample products and prices are replaceable fixture data; no field tests have been executed.
+
+## 0. Why this correction exists
 
 Owner correction: the charger, school-fees and wedding-contribution examples were **illustrations to discover the product**, not an authorised fixed feature checklist or privileged regression corpus. This programme must **not** optimise the model, interface or APIs for those three illustrated scripts. We need broad, evidence-led coverage of the most common real-world trading *behaviours* and the exceptional states that cause loss or distrust.
 
@@ -113,15 +115,16 @@ Use a seeded, representative pilot corpus and **separate previously unseen holdo
 
 ## 7. Scope and approval
 
-This document refines the six **illustrative** journeys in the Phase 0 master blueprint. They remain examples, not an approved prioritised six-case suite. Real scenario priority, human acceptance protocol and financial authority decisions still require owner review and actual field evidence. The updated Phase 0 working branch is docs-only; it **must not be merged or treated as deployment approval**.
+This document refines the six **illustrative** journeys in the Phase 0 master blueprint. They remain examples, not an approved prioritised six-case suite. The owner can test a real staged Mini through the fictional cohort immediately when a compatible preview exists, without claiming those simulations represent real-world human evidence. Broader merchant research and representative user validation remain mandatory before claiming general-market acceptance. The updated Phase 0 working branch is docs-only; it **must not be merged or treated as deployment approval**.
 
 ### Phase 0 completion evidence
 
 - [x] Establish independent scenario selection rules and realistic provisional trading families.
 - [x] Separate user-research cases, automated behavioural invariants and adversarial/financial tests.
 - [x] Include older/new/inexperienced users without stereotyping them.
-- [ ] Actual trader observation/sample and evidence-backed priority weights.
-- [ ] First uncoached accessibility/usability sessions.
-- [ ] Owner-approved focused acceptance cohort and Phase 1 entry decision.
+- [ ] Owner hands-on, uncoached preview testing recorded against nominated fictional cohort jobs when a compatible preview is available.
+- [ ] Owner-approved initial focused acceptance cohort and Phase 1 entry decision.
+- [ ] Actual trader observation/sample and evidence-backed priority weights before scaled public-market claims.
+- [ ] Independent participant accessibility/usability sessions before general rollout.
 
-**Consequence:** Audit specification may be ready for review; *customer research is not yet completed*. No claim of test pass or field validation.
+**Consequence:** Phase 1 UX development and owner-first testing may proceed with honest staging labels. *Independent customer research is not yet completed*. No claim of real-person acceptance, production proof, or live-money certification.
