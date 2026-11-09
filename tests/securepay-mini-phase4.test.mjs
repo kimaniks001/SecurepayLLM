@@ -88,7 +88,7 @@ test('never infer a real financial state or fee from a demo outcome', () => {
   assert.match(ui,/Provider charge/);
   assert.match(ui,/Not quoted/);
   assert.match(ui,/Not an accepted Agreement/);
-  assert.match(ui,/No STK prompt/);
+  assert.match(model,/No STK prompt/);
   assert.match(ui,/provider reply/);
   assert.doesNotMatch(model+ui,/createPaymentIntentGateway|createQuote\(|createIntent\(|\.initiate\(|authorization:\s*bearer|fetch\(|postMessage\(/i);
   assert.doesNotMatch(model,/FUNDED_HELD|PAYMENT_READY|SETTLED/);
