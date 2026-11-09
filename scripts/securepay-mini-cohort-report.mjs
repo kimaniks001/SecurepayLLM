@@ -7,7 +7,6 @@ const root = new URL('../tests/fixtures/securepay-mini/', import.meta.url);
 const load = (name) => JSON.parse(readFileSync(new URL(name, root), 'utf8'));
 const cohort = load('kenyan-trader-cohort.v1.json');
 const log = load('cohort-runlog.v1.json');
-const stageLabels = { first_use: 'First use', repeat_use: 'Repeat use', business_evolution: 'Evolving needs' };
 const latestFor = (actorId, checkpoint) => log.runEntries
   .filter(r => r.actorId === actorId && r.checkpoint === checkpoint)
   .sort((a, b) => a.observedAt.localeCompare(b.observedAt) || a.runId.localeCompare(b.runId))
