@@ -67,7 +67,7 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ source: hostSource }),
-        credentials: 'omit', cache: 'no-store', redirect: 'error',
+        credentials: 'same-origin', cache: 'no-store', redirect: 'error',
       });
       if (!response.ok) throw new Error('checkout_preview_unavailable');
       const payload = await response.json();
