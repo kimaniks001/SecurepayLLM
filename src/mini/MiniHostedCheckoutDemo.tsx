@@ -131,7 +131,7 @@ export function MiniHostedCheckoutDemo({ record, language }: {
       <MiniGuestChat draft={draft} language={language} onBack={() => setStep(cameFrom)}/>
     </div>}
 
-    {step !== 'chat' && <div className="spm-hosted-mini-status">
+    {step === 'review' && <div className="spm-hosted-mini-status">
       <CircleAlert size={14}/>
       <span>{simulatedStatus === 'NOT_STARTED'
         ? (sw ? 'Hakuna pesa zilizotumwa' : 'No money sent')
