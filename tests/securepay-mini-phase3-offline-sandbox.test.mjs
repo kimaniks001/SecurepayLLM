@@ -82,7 +82,8 @@ test('live-source lookup does not silently substitute fictional Store offers dur
   assert.match(page,/While the Store API is unavailable/);
   assert.match(page,/fictional transactions/);
   assert.match(page,/href="\/checkout-demo-store\.html"/);
-  assert.match(page,/href="\/checkout-demo-shortstays\.html"/);
+  assert.match(page,/href="\/checkout-gate2-store\.html"/);
+  assert.match(page,/href="\/checkout-gate2-shortstays\.html"/);
   assert.match(page,/The live Store source stays separate and fails closed/);
   const launcher=read('public/mini-store-offer-launcher.js');
   assert.doesNotMatch(launcher,/checkout-demo-store\.html|checkout-demo-shortstays\.html/);
