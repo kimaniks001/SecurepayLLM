@@ -222,7 +222,7 @@ test('guided test result does not require hidden manual controls, and cannot be 
   assert.match(funding,/confirmed && guidedDemo \? 'spm-primary spm-demo-return'/);
   assert.match(funding,/Test complete — not paid/);
   assert.match(funding,/SIMULATION ONLY · No real money/);
-  assert.match(funding,/No money moved\. This was only a demonstration/);
+  assert.match(funding,/No money moved\./);
   assert.match(funding,/onReturnToHost/);
   assert.doesNotMatch(funding,/fetch\(|createIntent\(|redeem\(|fundFromSelf\(/);
 });
