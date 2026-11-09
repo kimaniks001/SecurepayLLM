@@ -81,6 +81,7 @@
     frame.hidden = true;
   });
   frame.addEventListener('load', () => {
+    if (!initialized) return;
     // The iframe loaded but React may still fail; a visible manual fallback
     // must remain reachable if the exact same-origin test frame is blank.
     setTimeout(() => {
