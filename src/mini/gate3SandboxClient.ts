@@ -3,7 +3,8 @@
  * No real provider event, payment intent, account debit or funds.
  */
 import type {MiniTestRailId} from './miniFundingSimulator';
-export type Gate3Scenario = 'SUCCESS' | 'FAILURE' | 'UNKNOWN' | 'SLOW';
+export type Gate3Scenario = 'SUCCESS' | 'FAILURE' | 'UNKNOWN' | 'SLOW' |
+  'UNKNOWN_THEN_CONFIRMED' | 'UNKNOWN_THEN_FAILED';
 export type Gate3Status = 'SIMULATED_PENDING' | 'SIMULATED_CONFIRMED' |
   'SIMULATED_FAILED' | 'SIMULATED_UNKNOWN';
 export interface Gate3Result {
