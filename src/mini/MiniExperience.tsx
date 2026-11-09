@@ -13,6 +13,7 @@ import { MiniFundingPreview } from './MiniFundingPreview';
 import { getMiniDemoCheckout } from './checkoutDemoFixtures';
 import { MiniHostedCheckoutDemo } from './MiniHostedCheckoutDemo';
 import { MiniServerCheckout } from './MiniServerCheckout';
+import { MiniRealStoreOffer } from './MiniRealStoreOffer';
 import { miniMergeUserDescription, miniCaptureText, type MiniCaptureSource, type MiniCaptureKind } from './miniCapture';
 import './mini.css';
 
@@ -116,6 +117,7 @@ export function MiniExperience() {
   const quantityField = useRef<HTMLInputElement | null>(null);
   const urlParams = typeof window === 'undefined' ? null : new URLSearchParams(window.location.search);
   const compact = urlParams?.get('embedded') === '1';
+  const storeOfferSession = urlParams?.get('storeOfferSession') ?? null;
   const checkoutSession = urlParams?.get('checkoutSession') ?? null;
   const demoRequest = urlParams?.get('demoCheckout') ?? null;
   const demoRecord = getMiniDemoCheckout(demoRequest);
@@ -237,12 +239,13 @@ export function MiniExperience() {
         <div className="spm-head-actions">
           <button className="spm-lang" type="button" onClick={() => setLang(lang === 'en' ? 'sw' : 'en')}
             aria-label={lang === 'en' ? 'Badili kwa Kiswahili' : 'Switch to English'}>{lang === 'en' ? 'Kiswahili' : 'English'}</button>
-          {!checkoutSession && !demoRequest && screen !== 'home' && <button type="button" className="spm-icon-btn" aria-label={t.clear} onClick={reset}><X size={19}/></button>}
+          {!storeOfferSession && !checkoutSession && !demoRequest && screen !== 'home' && <button type="button" className="spm-icon-btn" aria-label={t.clear} onClick={reset}><X size={19}/></button>}
         </div>
       </header>
 
       <div className="spm-main" aria-live="polite">
-        {checkoutSession ? <MiniServerCheckout session={checkoutSession} language={lang}/> :
+        {storeOfferSession ? <MiniRealStoreOffer session={storeOfferSession} language={lang}/> :
+          checkoutSession ? <MiniServerCheckout session={checkoutSession} language={lang}/> :
           demoRequest ? (demoRecord
           ? <MiniHostedCheckoutDemo record={demoRecord} language={lang}/>
           : <section className="spm-content" role="alert"><h1 className="spm-question">Checkout unavailable</h1>
@@ -388,7 +391,7 @@ export function MiniExperience() {
       <footer className="spm-footer">
         <ShieldCheck size={16} aria-hidden="true"/>
         <span>{t.boundary}</span>
-        <span className="spm-footer-dash">·</span><span>{checkoutSession || demoRequest ? 'Checkout test' : 'Phase 4'}</span>
+        <span className="spm-footer-dash">·</span><span>{storeOfferSession ? 'Store offer review' : checkoutSession || demoRequest ? 'Checkout test' : 'Phase 4'}</span>
       </footer>
     </div>
   </main>;
