@@ -204,3 +204,114 @@ test('Gate 4 sandbox remains view-only; real API and provider status cannot be i
   assert.match(read('vite.config.ts'),/gate4Stays: fileURLToPath/);
   assert.match(read('checkout-store-offer-preview.html'),/href="\/checkout-gate4-store.html"/);
 });
+
+
+test('executing both host launchers reconcile only via GET, reject forged messages and resume after refresh',async()=>{
+  for(const source of ['STORE','SHORTSTAYS']){
+    let now=Date.now();
+    const fixture=source==='STORE'?'STORE-DEMO-01':'STAY-DEMO-01';
+    const path=source==='STORE'?'/checkout-gate4-store.html':'/checkout-gate4-shortstays.html';
+    const storage=new Map();
+    const calls=[];
+    function init(){
+      const listeners={},elements={};
+      for(const id of ['demo-pay','demo-popup','demo-overlay','demo-frame',
+        'demo-close','demo-fallback','demo-status','demo-check-status']){
+        elements[id]={
+          textContent:id==='demo-pay'?'Pay with SecurePay':'Not started',
+          hidden:['demo-popup','demo-overlay','demo-fallback','demo-check-status'].includes(id),
+          disabled:false,dataset:{},listeners:{},
+          src:id==='demo-frame'?'about:blank':undefined,
+          contentWindow:id==='demo-frame'?{}:undefined,
+          setAttribute(){},focus(){},
+          addEventListener(type,fn){this.listeners[type]=fn}
+        };
+      }
+      const browser={
+        window:{
+          location:{pathname:path,origin},
+          addEventListener(name,fn){listeners[name]=fn},
+          setTimeout(){return 0},
+          setInterval(){return 0}
+        },
+        document:{
+          querySelector:q=>q==='[data-gate4-host]'?
+            {dataset:{gate4Host:source,checkoutFixture:fixture}}:null,
+          getElementById:id=>elements[id],
+          addEventListener(name,fn){listeners[name]=fn}
+        },
+        sessionStorage:{
+          getItem:k=>storage.get(k)||null,
+          setItem:(k,v)=>storage.set(k,String(v)),
+          removeItem:k=>storage.delete(k)
+        },
+        fetch:async(url,opts)=>{
+          calls.push({url,options:opts});
+          if(opts.credentials!=='same-origin')return {ok:false,status:401,json:async()=>({})};
+          const res=response();
+          if(opts.method==='POST'){
+            await handleGate2Sandbox({method:'POST',url,
+              headers:{host:env.VERCEL_URL,origin,'content-type':'application/json'},
+              body:JSON.parse(opts.body)},res,env,now);
+          }else{
+            handleGate4Host({method:'GET',url,
+              headers:{host:env.VERCEL_URL,origin}},res,env,now);
+          }
+          return {ok:res.statusCode>=200&&res.statusCode<300,
+            status:res.statusCode,json:async()=>res.body};
+        }
+      };
+      runInNewContext(read('public/checkout-gate4-host.js'),browser);
+      return {elements,listeners};
+    }
+    const host=init();
+    host.elements['demo-pay'].listeners.click();
+    await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(host.elements['demo-popup'].hidden,false);
+    assert.match(host.elements['demo-frame'].src,/sandboxReconcile=/);
+    const created=calls.find(x=>x.options.method==='POST');
+    assert.ok(created);
+    assert.deepEqual(JSON.parse(created.options.body),{action:'BEGIN',source});
+    const checkout=new URL(host.elements['demo-frame'].src,origin).searchParams.get('sandboxReconcile');
+    const reviewed=progressGate2Sandbox(checkout,g2,now).session;
+    const issued=startGate3Attempt(reviewed,'CHOICE_BANK','UNKNOWN_THEN_CONFIRMED',conf,now);
+    assert.ok(issued);
+    const frame=host.elements['demo-frame'].contentWindow;
+    const message={type:'SECUREPAY_MINI_GATE4_ATTEMPT_REF_V1',sandboxGate:4,
+      fixtureId:fixture,simulated:true,orderCreated:false,
+      agreementAccepted:false,attempt:issued.attempt};
+    host.listeners.message({origin:'https://evil.example',source:frame,data:message});
+    assert.equal(calls.filter(x=>x.options.method==='GET').length,1,
+      'forged origin cannot trigger additional server request');
+    host.listeners.message({origin,source:{},data:message});
+    assert.equal(calls.filter(x=>x.options.method==='GET').length,1,
+      'wrong iframe cannot trigger another request');
+    host.listeners.message({origin,source:frame,data:{...message,agreementAccepted:true}});
+    assert.equal(calls.filter(x=>x.options.method==='GET').length,1,
+      'false acceptance cannot trigger status');
+    host.listeners.message({origin,source:frame,data:message});
+    await new Promise(resolve=>setImmediate(resolve));
+    assert.match(host.elements['demo-status'].textContent,/NOT PAID/);
+    now+=4500;
+    host.elements['demo-check-status'].listeners.click();
+    await new Promise(resolve=>setImmediate(resolve));
+    assert.match(host.elements['demo-status'].textContent,/unresolved.*NOT PAID/);
+    now+=12000;
+    host.elements['demo-check-status'].listeners.click();
+    await new Promise(resolve=>setImmediate(resolve));
+    assert.match(host.elements['demo-status'].textContent,/Test confirmation reconciled — NOT PAID/);
+    const returnMsg={type:'SECUREPAY_MINI_GATE4_RETURN_V1',sandboxGate:4,
+      fixtureId:fixture,simulated:true,orderCreated:false,agreementAccepted:false,
+      result:'PAID'};
+    host.listeners.message({origin,source:frame,data:returnMsg});
+    await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(host.elements['demo-popup'].hidden,true);
+    assert.match(host.elements['demo-status'].textContent,/NOT PAID/);
+    const refreshed=init();
+    await new Promise(resolve=>setImmediate(resolve));
+    assert.match(refreshed.elements['demo-status'].textContent,/NOT PAID/);
+    assert.match(refreshed.elements['demo-status'].textContent,/Test confirmation reconciled/);
+    assert.equal(calls.filter(x=>x.options.method==='POST').length,1,
+      'page refresh must not initiate another sample order');
+  }
+});
