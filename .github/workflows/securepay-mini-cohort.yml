@@ -1,0 +1,31 @@
+name: SecurePay Mini continuing trader cohort
+on:
+  pull_request:
+    paths:
+      - 'tests/fixtures/securepay-mini/**'
+      - 'tests/securepay-mini-trader-cohort.test.mjs'
+      - 'scripts/securepay-mini-cohort-report.mjs'
+      - 'package.json'
+      - '.github/workflows/securepay-mini-cohort.yml'
+  push:
+    branches:
+      - 'docs/day8-securepay-mini-phase0-blueprint-20261109'
+    paths:
+      - 'tests/fixtures/securepay-mini/**'
+      - 'tests/securepay-mini-trader-cohort.test.mjs'
+      - 'scripts/securepay-mini-cohort-report.mjs'
+      - '.github/workflows/securepay-mini-cohort.yml'
+jobs:
+  verify-cohort-fixture:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate only Mini cohort fixture and longitudinal mappings
+        run: npm run test:mini-cohort
+      - name: Show cohort progress without fabricating results
+        run: npm run report:mini-cohort
