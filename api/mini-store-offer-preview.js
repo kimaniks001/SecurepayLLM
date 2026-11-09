@@ -206,7 +206,14 @@ export async function handleOfferReview(req,res,env=process.env,now=Date.now(),f
       return respond(res,201,{offerSession:issueOfferReview(found,conf,now),
         expiresAt:now+STORE_OFFER_PREVIEW_TTL_MS,
         simulationOnly:true,orderCreated:false,paymentEnabled:false});
-    } catch {return respond(res,503,{code:'STORE_API_UNAVAILABLE'});}
+    } catch (error) {
+      // Preview operator signal only; never log seller data, tokens or secrets.
+      console.warn('mini-store-offer-preview: upstream request failed', {
+        errorType: error?.name || 'unknown',
+        causeCode: error?.cause?.code || 'none',
+      });
+      return respond(res,503,{code:'STORE_API_UNAVAILABLE'});
+    }
   }
   if (req.method === 'GET') {
     const q=new URL(req.url||'/',conf.origin).searchParams;
@@ -230,7 +237,14 @@ export async function handleOfferReview(req,res,env=process.env,now=Date.now(),f
         simulationOnly:true,orderCreated:false,
         agreementAccepted:false,inventoryReserved:false,paymentEnabled:false,
       });
-    } catch {return respond(res,503,{code:'STORE_API_UNAVAILABLE'});}
+    } catch (error) {
+      // Preview operator signal only; never log seller data, tokens or secrets.
+      console.warn('mini-store-offer-preview: upstream request failed', {
+        errorType: error?.name || 'unknown',
+        causeCode: error?.cause?.code || 'none',
+      });
+      return respond(res,503,{code:'STORE_API_UNAVAILABLE'});
+    }
   }
   res.setHeader('Allow','GET, POST');
   return respond(res,405,{code:'METHOD_NOT_ALLOWED'});
