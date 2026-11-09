@@ -1,0 +1,381 @@
+{
+  "schemaVersion": 1,
+  "testPackId": "securepay-mini-checkout-first-v1",
+  "createdOn": "2026-11-09",
+  "nature": "synthetic-test-specification",
+  "productionUse": "NEVER_SEED_AS_ACCOUNTS_OR_ENABLE_MONEY",
+  "status": "NO_CHECKOUT_TESTS_EXECUTED",
+  "cohortId": "securepay-mini-kenyan-traders-v1",
+  "sourceContract": "docs/SECUREPAY_MINI_CHECKOUT_CONTRACT_V1_20261109.md",
+  "sourceAudit": "docs/SECUREPAY_MINI_PHASE0_CHECKOUT_FOUNDATION_AUDIT_20261109.md",
+  "scenarioFamilies": [
+    {
+      "id": "C01",
+      "domain": "DIRECT_MINI",
+      "title": "Direct Mini-initiated trade to buyer funding",
+      "actorIds": [
+        "TR-002",
+        "TR-020"
+      ],
+      "criticalInvariant": "Same authenticated agreement ID/version, participant and obligation; no local draft as funds",
+      "implementationGate": "4B",
+      "status": "NOT_TESTED",
+      "checkpoints": [
+        "first_use",
+        "repeat_use",
+        "business_evolution"
+      ]
+    },
+    {
+      "id": "C02",
+      "domain": "STORE_PAY",
+      "title": "Store Pay button opens SecurePay and returns safely",
+      "actorIds": [
+        "TR-003",
+        "TR-017"
+      ],
+      "criticalInvariant": "Server-owned order/seller/quantity/amount/version; return alone never confirms funding",
+      "implementationGate": "4B+5",
+      "status": "NOT_TESTED",
+      "checkpoints": [
+        "first_use",
+        "repeat_use",
+        "business_evolution"
+      ]
+    },
+    {
+      "id": "C03",
+      "domain": "SHORTSTAYS_BOOK_PAY",
+      "title": "Accommodation booking opens the same SecurePay checkout",
+      "actorIds": [
+        "TR-014",
+        "TR-017"
+      ],
+      "criticalInvariant": "Host-held room/dates, cancellation terms and expiry independently valid before confirmation",
+      "implementationGate": "4B+5",
+      "status": "NOT_TESTED",
+      "checkpoints": [
+        "first_use",
+        "repeat_use",
+        "business_evolution"
+      ]
+    },
+    {
+      "id": "C04",
+      "domain": "RAIL",
+      "title": "M-Pesa pending customer/provider action",
+      "actorIds": [
+        "TR-002",
+        "TR-020"
+      ],
+      "criticalInvariant": "No invented STK and no provider-pending state treated as verified funded",
+      "implementationGate": "4C",
+      "status": "NOT_TESTED",
+      "checkpoints": [
+        "first_use",
+        "repeat_use",
+        "business_evolution"
+      ]
+    },
+    {
+      "id": "C05",
+      "domain": "RAIL",
+      "title": "Choice Bank simulated funding branch",
+      "actorIds": [
+        "TR-010",
+        "TR-017"
+      ],
+      "criticalInvariant": "Only simulated bank option until provider/authorised backend eligibility confirmed",
+      "implementationGate": "4C",
+      "status": "NOT_TESTED",
+      "checkpoints": [
+        "first_use",
+        "repeat_use",
+        "business_evolution"
+      ]
+    },
+    {
+      "id": "C06",
+      "domain": "RAIL",
+      "title": "PesaLink simulated funding branch",
+      "actorIds": [
+        "TR-011",
+        "TR-020"
+      ],
+      "criticalInvariant": "Only simulated bank transfer until provider/authorised backend eligibility confirmed",
+      "implementationGate": "4C",
+      "status": "NOT_TESTED",
+      "checkpoints": [
+        "first_use",
+        "repeat_use",
+        "business_evolution"
+      ]
+    },
+    {
+      "id": "C07",
+      "domain": "CROSS_CUTTING",
+      "title": "Price, dates, quantity or Agreement version changed",
+      "actorIds": [
+        "TR-003",
+        "TR-014"
+      ],
+      "criticalInvariant": "Stale agreement/quote rejected; fresh explicit review; no trust in browser price",
+      "implementationGate": "4B+5",
+      "status": "NOT_TESTED",
+      "checkpoints": [
+        "first_use",
+        "repeat_use",
+        "business_evolution"
+      ]
+    },
+    {
+      "id": "C08",
+      "domain": "CROSS_CUTTING",
+      "title": "Duplicate clicks, weak network and unknown provider result",
+      "actorIds": [
+        "TR-002",
+        "TR-018"
+      ],
+      "criticalInvariant": "One intent/effect per idempotency key; unknown blocks blind duplicate charging",
+      "implementationGate": "4D",
+      "status": "NOT_TESTED",
+      "checkpoints": [
+        "first_use",
+        "repeat_use",
+        "business_evolution"
+      ]
+    },
+    {
+      "id": "C09",
+      "domain": "CROSS_CUTTING",
+      "title": "Close, reopen or resume same checkout",
+      "actorIds": [
+        "TR-014",
+        "TR-017"
+      ],
+      "criticalInvariant": "Canonical status restored from API; popup close or URL cannot mark paid",
+      "implementationGate": "4D+5",
+      "status": "NOT_TESTED",
+      "checkpoints": [
+        "first_use",
+        "repeat_use",
+        "business_evolution"
+      ]
+    },
+    {
+      "id": "C10",
+      "domain": "STORE_PAY",
+      "title": "One cart spans multiple independent merchants",
+      "actorIds": [
+        "TR-003",
+        "TR-006"
+      ],
+      "criticalInvariant": "Distinct seller obligations and allocations, no release crossing merchant lines",
+      "implementationGate": "6",
+      "status": "NOT_TESTED",
+      "checkpoints": [
+        "first_use",
+        "repeat_use",
+        "business_evolution"
+      ]
+    },
+    {
+      "id": "C11",
+      "domain": "FULFILMENT",
+      "title": "Partial or delayed service/delivery",
+      "actorIds": [
+        "TR-007",
+        "TR-016"
+      ],
+      "criticalInvariant": "Provider-confirmed funding differs from fulfilment and release or settlement",
+      "implementationGate": "6",
+      "status": "NOT_TESTED",
+      "checkpoints": [
+        "first_use",
+        "repeat_use",
+        "business_evolution"
+      ]
+    },
+    {
+      "id": "C12",
+      "domain": "HOST_RETURN",
+      "title": "Cancellation, refund or expiry after checkout",
+      "actorIds": [
+        "TR-014",
+        "TR-019"
+      ],
+      "criticalInvariant": "Return/refund status requires genuine authorised backend evidence",
+      "implementationGate": "6",
+      "status": "NOT_TESTED",
+      "checkpoints": [
+        "first_use",
+        "repeat_use",
+        "business_evolution"
+      ]
+    },
+    {
+      "id": "C13",
+      "domain": "SECURITY",
+      "title": "Forged host, spoofed return, reused session and cross-site attempt",
+      "actorIds": [
+        "TR-006",
+        "TR-018"
+      ],
+      "criticalInvariant": "Fail closed on unregistered host, expired token and forged callback; no data leakage",
+      "implementationGate": "4B+5",
+      "status": "NOT_TESTED",
+      "checkpoints": [
+        "first_use",
+        "repeat_use",
+        "business_evolution"
+      ]
+    },
+    {
+      "id": "C14",
+      "domain": "FEE",
+      "title": "Small-value trade economic viability and clear charge",
+      "actorIds": [
+        "TR-001",
+        "TR-002"
+      ],
+      "criticalInvariant": "Actual server quote/eligible fees visible before authorisation; no hidden surcharge",
+      "implementationGate": "4C",
+      "status": "NOT_TESTED",
+      "checkpoints": [
+        "first_use",
+        "repeat_use",
+        "business_evolution"
+      ]
+    },
+    {
+      "id": "C15",
+      "domain": "ACCESSIBILITY",
+      "title": "First-time older/lower confidence user completes checkout",
+      "actorIds": [
+        "TR-018",
+        "TR-020"
+      ],
+      "criticalInvariant": "Uncoached action, readable labels, safe back/error states, no forced KS001 chat",
+      "implementationGate": "8",
+      "status": "NOT_TESTED",
+      "checkpoints": [
+        "first_use",
+        "repeat_use",
+        "business_evolution"
+      ]
+    },
+    {
+      "id": "C16",
+      "domain": "CONTINUITY",
+      "title": "Same trader returns as needs evolve",
+      "actorIds": [
+        "TR-002",
+        "TR-014"
+      ],
+      "criticalInvariant": "No duplicate accounts or wallets; preserve canonical work and historic results",
+      "implementationGate": "7",
+      "status": "NOT_TESTED",
+      "checkpoints": [
+        "first_use",
+        "repeat_use",
+        "business_evolution"
+      ]
+    }
+  ],
+  "verticalSlices": [
+    {
+      "id": "V-STORE",
+      "trigger": "STORE_PAY",
+      "actorIds": [
+        "TR-003",
+        "TR-017"
+      ],
+      "requirements": [
+        "Host server owns price, offer, exact seller and version; never price authority from Mini URL",
+        "Mini opens from a host Pay action into the same canonical Agreement context",
+        "Three rail simulations can be compared; none constitutes bank or mobile payment",
+        "Close/pending/failed/unknown returns to exactly that Store order without fabricated paid status",
+        "Stale offer or unregistered host is rejected"
+      ],
+      "scenarioIds": [
+        "C02",
+        "C04",
+        "C05",
+        "C06",
+        "C07",
+        "C08",
+        "C09",
+        "C13",
+        "C14"
+      ],
+      "status": "NOT_TESTED"
+    },
+    {
+      "id": "V-STAY",
+      "trigger": "SHORTSTAYS_BOOK_PAY",
+      "actorIds": [
+        "TR-014",
+        "TR-017"
+      ],
+      "requirements": [
+        "ShortStays server controls date/room availability, reservation expiry and cancellation conditions",
+        "Mini opens from Book/Pay into the same canonical Agreement context",
+        "Three rail simulations can be compared; no funds or accommodation reservation falsely confirmed",
+        "Unknown/close/reopen returns to the same booking request and respected hold expiry",
+        "Expired stay hold or unregistered host is rejected"
+      ],
+      "scenarioIds": [
+        "C03",
+        "C04",
+        "C05",
+        "C06",
+        "C07",
+        "C08",
+        "C09",
+        "C12",
+        "C13"
+      ],
+      "status": "NOT_TESTED"
+    }
+  ],
+  "evidenceLog": {
+    "state": "EMPTY_NO_CHECKOUT_OBSERVATIONS",
+    "entries": []
+  },
+  "mandatorySeparations": [
+    "draft_vs_accepted_agreement",
+    "host_order_vs_payment_intent",
+    "provider_confirmation_vs_protected_money",
+    "funding_vs_fulfilment",
+    "release_authority_vs_settled",
+    "simulated_vs_live_rails",
+    "host_return_vs_signed_server_evidence"
+  ],
+  "blockers": [
+    {
+      "id": "B01",
+      "status": "OPEN",
+      "title": "Hosted Money Session FUND semantics versus provider PaymentIntent compatibility"
+    },
+    {
+      "id": "B02",
+      "status": "OPEN",
+      "title": "Canonical Store order and ShortStays booking → Agreement binding"
+    },
+    {
+      "id": "B03",
+      "status": "OPEN",
+      "title": "Merchant organization/independent seller authority path"
+    },
+    {
+      "id": "B04",
+      "status": "OPEN",
+      "title": "End-to-end enabled KS001, authenticated agreement acceptance and return evidence"
+    },
+    {
+      "id": "B05",
+      "status": "OPEN",
+      "title": "Exact host events and provider rails independently certified"
+    }
+  ]
+}

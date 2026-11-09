@@ -1,5 +1,7 @@
 # SecurePay Mini — Phase 4 Three-Rail Funding Simulator
 
+> **Revised master roadmap — 9 November 2026:** This Phase 4 file documents the **three-rail simulator only (Phase 4A)**. It does **not** establish checkout readiness. Phase 4B–4D must cover verified host/order checkout, reviewed agreement/authorisation, server-owned quote, payment status and return. See [Checkout-First Master Plan](SECUREPAY_MINI_CHECKOUT_FIRST_MASTER_PLAN_20261109.md) and [Shared Checkout Contract](SECUREPAY_MINI_CHECKOUT_CONTRACT_V1_20261109.md). Prior simulated tests remain valid in their limited scope.
+
 **Date:** 9 November 2026
 **Scope:** Owner-only, nonfinancial test experience. No authorised customer funds, bank API, ledger, fees, identity, signed agreement or real KS001 model execution added.
 **Dependency:** Phase 3 frontend source and Phase 0 continuing fictional trader cohort. Stacked development PR; do not merge or deploy over live SecurePay without full gate review.
