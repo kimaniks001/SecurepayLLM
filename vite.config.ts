@@ -22,6 +22,7 @@ export default defineConfig({
         miniHostPreview: fileURLToPath(new URL('./mini-host-preview.html', import.meta.url)),
         demoStore: fileURLToPath(new URL('./checkout-demo-store.html', import.meta.url)),
         demoShortStays: fileURLToPath(new URL('./checkout-demo-shortstays.html', import.meta.url)),
+        storeOfferReview: fileURLToPath(new URL('./checkout-store-offer-preview.html', import.meta.url)),
       },
     },
   },
