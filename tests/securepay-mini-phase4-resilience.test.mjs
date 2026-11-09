@@ -169,3 +169,48 @@ test('expired stored checkout never silently resumes a previous order',async()=>
   assert.equal(b.calls.filter(c=>c.opts.method==='POST').length,1,
     'new sandbox session requires explicit new Pay click');
 });
+
+
+test('unverified or cross-order iframe attempt cannot poison saved host checkout',async()=>{
+  for(const source of ['STORE','SHORTSTAYS']){
+    const b=browserHost(source),host=b.mount();
+    host.elements['demo-pay'].listeners.click();await tick();
+    const checkout=reference(host);
+    const reviewed=progressGate2Sandbox(checkout,g2,b.now()).session;
+    const other=issueGate2Sandbox(source,g2,b.now());
+    const otherReviewed=progressGate2Sandbox(other.session,g2,b.now()).session;
+    const unrelated=startGate3Attempt(otherReviewed,'MPESA','SUCCESS',g3,b.now());
+    deliver(host,unrelated.attempt,b.fixture,source,'PAID');await tick();
+    assert.equal(storedAttempt(b),null,'unrelated same-source order cannot occupy active slot');
+    assert.match(host.elements['demo-status'].textContent,/Cannot verify.*NOT PAID/);
+    assert.equal(b.calls.filter(c=>c.opts.method==='POST').length,1);
+    b.offline(true);
+    const genuine=startGate3Attempt(reviewed,'CHOICE_BANK','UNKNOWN',g3,b.now());
+    deliver(host,genuine.attempt,b.fixture,source);await tick();
+    assert.equal(storedAttempt(b),null,'503 cannot persist a provider-looking token');
+    b.offline(false);
+    deliver(host,genuine.attempt,b.fixture,source,'SIMULATED_CONFIRMED');
+    await tick();
+    assert.equal(storedAttempt(b),genuine.attempt,'only the verified original may persist');
+    assert.match(host.elements['demo-status'].textContent,/pending.*NOT PAID/);
+  }
+});
+
+test('after verified failure, cross-order retry is rejected and genuine retry is permitted',async()=>{
+  const b=browserHost(),host=b.mount();
+  host.elements['demo-pay'].listeners.click();await tick();
+  const checkout=reference(host),reviewed=progressGate2Sandbox(checkout,g2,b.now()).session;
+  const initial=startGate3Attempt(reviewed,'CHOICE_BANK','FAILURE',g3,b.now());
+  deliver(host,initial.attempt,b.fixture,'STORE');await tick();
+  b.advance(2600);
+  host.elements['demo-check-status'].listeners.click();await tick();
+  assert.match(host.elements['demo-status'].textContent,/failure reconciled.*NOT PAID/);
+  const other=issueGate2Sandbox('STORE',g2,b.now());
+  const wrong=startGate3Attempt(progressGate2Sandbox(other.session,g2,b.now()).session,'MPESA','SUCCESS',g3,b.now());
+  deliver(host,wrong.attempt,b.fixture,'STORE');await tick();
+  assert.equal(storedAttempt(b),initial.attempt,'cross-order failure retry cannot replace reference');
+  const genuine=startGate3Attempt(reviewed,'MPESA','SUCCESS',g3,b.now());
+  deliver(host,genuine.attempt,b.fixture,'STORE');await tick();
+  assert.equal(storedAttempt(b),genuine.attempt,'same-order signed retry is accepted');
+  assert.match(host.elements['demo-status'].textContent,/NOT PAID/);
+});
