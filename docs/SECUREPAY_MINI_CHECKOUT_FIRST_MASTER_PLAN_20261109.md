@@ -4,6 +4,8 @@
 **Status:** Revised owner-directed build programme for review. **Documentation only**; no payment integration, live money activation or deployment changes.  
 **Baseline:** Existing stacked Mini Phase 0–4 branches, approved SecurePay three-panel workspace and canonical SecurePayAPI.
 
+**Phase 0 audit correction:** The backend already has `DeveloperMoneySessionController`, `MoneySessionController` and `HostedMoneySessionService`. These are first-choice foundations for hosted checkout, not a reason to build a parallel checkout session service. Their `FUND` redemption path must be explicitly reconciled with the existing provider-driven Payment Intent flow; **we have not confirmed equivalence**. See [Phase 0 Checkout Foundation Audit](SECUREPAY_MINI_PHASE0_CHECKOUT_FOUNDATION_AUDIT_20261109.md).
+
 ## Executive direction
 
 **One Mini. One KS001. One agreement. One checkout. One ongoing trade.**
@@ -143,7 +145,7 @@ Detailed contract and host acceptance table: [SECUREPAY_MINI_CHECKOUT_CONTRACT_V
 
 ## What's next — controlled vertical slice, not another unrelated feature
 
-**Start at Phase 4B checkout session contract and the Phase 5 launch/return bridge together**, in **sandbox** using one Store order and one ShortStays booking. Run owner tests across different unscripted jobs. Complete real Phase 3 backend authority in parallel but do not fake or bypass it.
+**Start by resolving Phase 0's existing Hosted Money Session / provider Payment Intent compatibility gate**, then implement only the missing Phase 4B checkout context and Phase 5 launch/return bridge together, in **sandbox** using one Store order and one ShortStays booking. Run owner tests across different unscripted jobs. Complete real Phase 3 backend authority in parallel but do not fake or bypass it.
 
 The implementation should carry **one canonical cross-site contract** through those vertical slices before broad Store/ShortStays/Ride/Storage rollout. Only widen after the complete journey works with clear evidence and no duplicated payment architecture.
 
