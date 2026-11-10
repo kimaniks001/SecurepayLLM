@@ -309,3 +309,23 @@ textarea.spm-field { resize:vertical; }
 .spm-gate3-scenario-list select{display:block;width:100%;padding:9px 10px;border:1px solid #d2dfd1;border-radius:9px;background:#fffdf8;color:#244f32;font:inherit}
 .spm-gate3-funding .spm-demo-result{margin:14px 0}
 .spm-gate3-funding .spm-secondary{margin-top:7px}
+
+/* Canonical SecurePay imprint — shared by ALL Mini checkout/review screens.
+   Brand mark is the unmodified supplied PNG, never a redrawn shield. */
+.spm-brand-link { text-decoration:none; color:inherit; border-radius:9px; }
+.spm-brand-link:hover .spm-name { text-decoration:underline; text-underline-offset:2px; }
+.spm-brand-link > span { display:flex; flex-direction:column; min-width:0; }
+.spm-canonical-mark { display:block; width:34px; height:34px; object-fit:contain; flex:none; }
+.spm-footer { flex-direction:column; gap:5px; padding:7px 10px 9px; }
+.spm-footer-status { display:flex; justify-content:center; align-items:center; gap:5px; flex-wrap:wrap; line-height:1.35; }
+.spm-footer-status svg { flex:none; }
+.spm-checkout-imprint { display:inline-flex; align-items:center; justify-content:center;
+  gap:5px; min-height:28px; padding:2px 9px; border-radius:9px;
+  border:1px solid #dce8db; background:#f3f8f0; color:#275741;
+  font-size:10px; font-weight:500; text-decoration:none; }
+.spm-checkout-imprint img { display:block; width:18px; height:18px; object-fit:contain; }
+.spm-checkout-imprint strong { font-weight:750; }
+.spm-checkout-imprint:hover { border-color:#8fb79c; text-decoration:underline; text-underline-offset:2px; }
+.spm-imprint-visit { font-size:11px; font-weight:800; }
+.spm-brand-link:focus-visible,.spm-checkout-imprint:focus-visible {
+  outline:3px solid #cf9a54; outline-offset:2px; }
