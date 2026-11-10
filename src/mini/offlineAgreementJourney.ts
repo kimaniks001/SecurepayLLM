@@ -56,7 +56,7 @@ export function offlineObligations(
     (plan!=='FULL'&&plan!=='STAGED'))throw Error('Invalid sample schedule');
   if(plan==='FULL')return [{
     index:0,id:'FULL',label:'Full amount · single payment',
-    amountMinor:totalMinor,dueDay:0,kind:'FULL'
+    amountMinor:totalMinor,dueDay:1,kind:'FULL'
   }];
   if(totalMinor<3)throw Error('Amount too small to split');
   const first=Number(BigInt(totalMinor)*30n/100n);
@@ -64,7 +64,7 @@ export function offlineObligations(
   const third=totalMinor-first-second;
   if(first<=0||second<=0||third<=0)throw Error('Invalid split');
   return [
-    {index:0,id:'DEPOSIT',label:'Deposit · before work begins',amountMinor:first,dueDay:0,kind:'DEPOSIT'},
+    {index:0,id:'DEPOSIT',label:'Deposit · before work begins',amountMinor:first,dueDay:1,kind:'DEPOSIT'},
     {index:1,id:'STAGE_1',label:source==='STORE'?'Goods ready':'Check-in milestone',
       amountMinor:second,dueDay:7,kind:'MILESTONE'},
     {index:2,id:'STAGE_2',label:source==='STORE'?'Goods handed over':'Stay handover',
@@ -123,7 +123,7 @@ export function nextOfflineAction(
   }
   const stageDue=state.stage==='FUNDING_PREVIEW'||state.stage==='EVIDENCE_DUE'||
     state.stage==='CONCERN_OPEN'||state.stage==='BUYER_REVIEW';
-  const dueAt=stageDue?state.createdAt+([0,7,14][state.obligationIndex]??14)*DAY:null;
+  const dueAt=stageDue?state.createdAt+([1,7,14][state.obligationIndex]??14)*DAY:null;
   return {
     participant,title,description,dueAt,overdue:dueAt!==null&&asOf>dueAt,
     delivery:'IN_APP_PREVIEW_ONLY',simulatedOnly:true,
