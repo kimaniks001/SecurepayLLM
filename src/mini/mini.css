@@ -385,3 +385,53 @@ textarea.spm-field { resize:vertical; }
   padding:12px;background:#f5faf3;display:grid;gap:7px;font-size:12px;line-height:1.5;}
 .spm-journey-funding-next p {margin:0;color:#5c6c5e;font-size:11px;}
 .spm-journey-funding-next .spm-primary {margin:0;}
+
+
+/* Phase 4 — compact add-payment-method action inside the existing Mini.
+   Fictional labels ONLY, not a provider registration or a money-control UI. */
+.spm-methods {display:grid;gap:7px;margin:7px 0 12px;min-width:0;}
+.spm-add-method-launch {display:flex;align-items:center;justify-content:center;gap:7px;
+  width:100%;min-height:40px;padding:8px 11px;border:1px dashed #89b292;
+  border-radius:10px;background:#f4f9f2;color:#2b6847;font:inherit;
+  font-size:12px;font-weight:700;cursor:pointer;}
+.spm-add-method-launch:hover:not(:disabled) {background:#eaf3e8;border-style:solid;}
+.spm-add-method-launch:disabled {opacity:.55;cursor:not-allowed;}
+.spm-added-method-list {display:grid;gap:5px;}
+.spm-added-method {display:flex;align-items:stretch;border:1px solid #e1e8dd;
+  border-radius:10px;overflow:hidden;background:#fff;}
+.spm-added-method-choice {flex:1;min-width:0;min-height:48px;display:flex;
+  align-items:center;gap:9px;text-align:left;padding:8px 11px;border:0;
+  background:transparent;color:#2e573e;cursor:pointer;font:inherit;}
+.spm-added-method-choice:disabled,.spm-added-method-remove:disabled {
+  cursor:not-allowed;opacity:.55;}
+.spm-added-method-choice>svg,.spm-added-method-circle {flex:none;}
+.spm-added-method-circle {width:16px;height:16px;border-radius:50%;
+  border:1.5px solid #a1b7a7;}
+.spm-added-method-choice>span:last-child {min-width:0;display:flex;flex-direction:column;gap:3px;}
+.spm-added-method-choice strong {font-size:12px;overflow-wrap:anywhere;}
+.spm-added-method-choice small {font-size:10px;line-height:1.35;color:#687e6d;}
+.spm-added-method-selected {background:#eff6ec;color:#1b5d3a;}
+.spm-added-method-remove {flex:0 0 36px;display:flex;align-items:center;
+  justify-content:center;background:transparent;border:0;
+  border-left:1px solid #e8eee6;color:#697b6a;cursor:pointer;}
+.spm-added-method-remove:hover:not(:disabled) {background:#f8eeea;color:#9b5b47;}
+.spm-add-method-form {display:grid;gap:7px;padding:11px;border:1px solid #d5e2d3;
+  border-radius:11px;background:#fcfdf9;}
+.spm-added-form-title {display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.spm-added-form-title strong {font-size:12px;}
+.spm-added-form-title button {border:0;background:transparent;color:#48694b;
+  display:grid;place-items:center;min-width:30px;min-height:30px;cursor:pointer;}
+.spm-add-method-form label {font-size:11px;font-weight:650;color:#3b6444;}
+.spm-added-method-input,.spm-add-method-form select {width:100%;min-height:39px;
+  box-sizing:border-box;font:inherit;font-size:12px;padding:8px;
+  background:#fff;border:1px solid #cbd8ca;border-radius:9px;color:#294c36;}
+.spm-added-method-caution,.spm-method-not-connected {font-size:10px;line-height:1.5;
+  color:#8c6637;margin:0;}
+.spm-method-not-connected {background:#fff5e5;border:1px solid #edddc2;
+  border-radius:9px;padding:8px;}
+.spm-add-method-form .spm-secondary {width:100%;margin:0;}
+.spm-added-method-foot {font-size:10px;line-height:1.4;color:#829080;}
+.spm-added-method-choice:focus-visible,.spm-added-method-remove:focus-visible,
+.spm-add-method-launch:focus-visible,.spm-add-method-form button:focus-visible,
+.spm-added-method-input:focus-visible,.spm-add-method-form select:focus-visible{
+  outline:3px solid #bf9155;outline-offset:2px;}
