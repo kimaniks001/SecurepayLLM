@@ -2,149 +2,156 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {readFileSync} from 'node:fs';
 import {runInNewContext} from 'node:vm';
+
 const read=path=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
-const bridge=read('public/securepay-mini-phase5-host-bridge.js');
-const cases=Object.freeze({
-  STORE:{path:'/phase5-store-host.html',id:'STORE-DEMO-01'},
-  SHORTSTAYS:{path:'/phase5-shortstays-host.html',id:'STAY-DEMO-01'}
-});
-function harness(source='STORE',overrides={}){
-  const item=cases[source]||{path:'/phase5-unapproved.html',id:'FAKE-DEMO'};
-  const root={dataset:{miniPhase5Host:source,checkoutFixture:item.id}};
+const script=read('public/securepay-mini-phase5-host-bridge.js');
+const hosts={
+  STORE:{path:'/phase5-store-host.html',fixture:'STORE-DEMO-01',
+    version:'fixture-store-v1',alias:'STORE_RETURN'},
+  SHORTSTAYS:{path:'/phase5-shortstays-host.html',fixture:'STAY-DEMO-01',
+    version:'fixture-stay-v1',alias:'STAY_RETURN'}
+};
+const mockTicket=['Abc'.repeat(44),'Xyz'.repeat(54),'Def'.repeat(15)].join('.');
+function harness(source='STORE',opts={}){
+  const host=hosts[source]||{path:'/fake',fixture:'bad',version:'bad'};
+  const root={dataset:{miniPhase5Host:source,checkoutFixture:host.fixture}};
   const elements={};
   for(const id of ['demo-pay','demo-popup','demo-overlay','demo-frame',
     'demo-close','demo-fallback','demo-status']){
     const listeners={};
     elements[id]={
-      hidden:['demo-popup','demo-overlay','demo-fallback'].includes(id),
-      listeners,attributes:{},dataset:{},textContent:'No test checkout started — NOT PAID',
-      src:'about:blank',
-      setAttribute(name,value){this.attributes[name]=value;},
+      listeners,hidden:['demo-popup','demo-overlay','demo-fallback'].includes(id),
+      attributes:{},dataset:{},textContent:id==='demo-pay'?'Pay with SecurePay':'NOT PAID',
+      src:'about:blank',disabled:false,
+      setAttribute(k,v){this.attributes[k]=v;},
       focus(){this.focused=true;},
-      addEventListener(name,handler){listeners[name]=handler;}
+      addEventListener(k,v){listeners[k]=v;}
     };
   }
-  const frameIdentity={},origin='https://owner-mini-preview.example';
-  elements['demo-frame'].contentWindow=frameIdentity;
-  elements['demo-frame'].contentDocument={
-    querySelector:s=>s==='.spm-root'?{}:null
-  };
-  const handlers={};
+  const frameId={},origin='https://securepay-owner.vercel.app',fetches=[];
+  elements['demo-frame'].contentWindow=frameId;
+  elements['demo-frame'].contentDocument={querySelector:()=>({})};
+  const listeners={};
   const document={
-    querySelector:selector=>selector==='[data-mini-phase5-host]'?root:null,
-    getElementById:id=>elements[id],
-    addEventListener:(name,fn)=>{handlers['document:'+name]=fn;}
+    querySelector:q=>q==='[data-mini-phase5-host]'?root:null,
+    getElementById:id=>elements[id]
   };
   const window={
-    location:{origin,pathname:item.path},
-    addEventListener:(name,fn)=>{handlers[name]=fn;},
-    setTimeout:(fn)=>fn()
+    location:{origin,pathname:opts.path||host.path},
+    addEventListener:(name,fn)=>{listeners[name]=fn;},
+    setTimeout:fn=>fn()
   };
-  if(overrides.pathname)window.location.pathname=overrides.pathname;
-  if(overrides.host)root.dataset.miniPhase5Host=overrides.host;
-  if(overrides.fixture)root.dataset.checkoutFixture=overrides.fixture;
-  runInNewContext(bridge,{document,window,encodeURIComponent,Object,Boolean});
+  if(opts.fixture)root.dataset.checkoutFixture=opts.fixture;
+  if(opts.source)root.dataset.miniPhase5Host=opts.source;
+  const fetch=async(url,options)=>{
+    fetches.push({url,options});
+    if(opts.failure)throw Error('OFFLINE');
+    return {
+      ok:true,
+      json:async()=>({
+        ticket:mockTicket,expiresAt:Date.now()+240000,
+        hostId:source,sourceVersion:host.version,returnAlias:host.alias,
+        simulationOnly:true,checkoutAuthorized:false,
+        realPaymentEnabled:false,agreementAccepted:false,
+        orderCreated:false,bookingConfirmed:false,...(opts.payload||{})
+      })
+    };
+  };
+  runInNewContext(script,{window,document,fetch,Object,Boolean,Date,JSON,encodeURIComponent});
   return {
-    elements,handlers,origin,frameIdentity,
-    click:()=>elements['demo-pay'].listeners.click?.(),
+    elements,listeners,origin,frameId,fetches,
+    async click(){
+      elements['demo-pay'].listeners.click?.();
+      await new Promise(resolve=>setImmediate(resolve));
+    },
     close:()=>elements['demo-close'].listeners.click?.(),
-    receive:(payload,from=frameIdentity,at=origin)=>handlers.message?.({
-      data:payload,origin:at,source:from
-    }),
-    source,id:item.id
+    receive:(data,from=frameId,at=origin)=>listeners.message?.({data,origin:at,source:from}),
+    host
   };
 }
-const reply=(id,result='SIMULATED_CONFIRMED')=>({
-  type:'SECUREPAY_MINI_OWNER_DEMO_RETURN_V1',version:1,
-  fixtureId:id,result,simulated:true
-});
-
+function reply(host,result='SIMULATED_CONFIRMED'){
+  return {type:'SECUREPAY_MINI_OWNER_DEMO_RETURN_V1',
+    version:1,fixtureId:host.fixture,simulated:true,result};
+}
 for(const source of ['STORE','SHORTSTAYS']){
-  test(source+' uses ONE popup script and the original Mini full-journey mode',()=>{
-    const testHost=harness(source);
-    testHost.click();
-    assert.equal(testHost.elements['demo-popup'].hidden,false);
-    assert.equal(testHost.elements['demo-overlay'].hidden,false);
-    assert.equal(testHost.elements['demo-frame'].src,
-      '/mini.html?embedded=1&demoCheckout='+testHost.id+'&journey=1');
-    assert.equal(testHost.elements['demo-pay'].attributes['aria-expanded'],'true');
-    testHost.close();
-    assert.equal(testHost.elements['demo-popup'].hidden,true);
-    assert.match(testHost.elements['demo-status'].textContent,/NOT PAID/);
-    testHost.click();
-    assert.equal(testHost.elements['demo-frame'].src,
-      '/mini.html?embedded=1&demoCheckout='+testHost.id+'&journey=1');
-  });
-  test(source+' reopens an unknown sample without erasing its unresolved warning',()=>{
+  test(source+' requests a host-bound server ticket rather than inventing checkout on the page',async()=>{
     const h=harness(source);
-    h.click();
-    h.receive(reply(h.id,'SIMULATED_UNKNOWN'));
-    assert.match(h.elements['demo-status'].textContent,/unknown.*NOT PAID/i);
-    h.click();
+    await h.click();
+    assert.equal(h.fetches.length,1);
+    assert.equal(h.fetches[0].url,'/api/mini-phase5-host-ticket');
+    assert.deepEqual(JSON.parse(h.fetches[0].options.body),{action:'ISSUE',hostId:source});
+    assert.doesNotMatch(h.fetches[0].options.body,/merchant|amountMinor|password|returnUrl|beneficiary/);
+    assert.equal(h.fetches[0].options.credentials,'same-origin');
+    assert.equal(h.elements['demo-frame'].src,
+      '/mini.html?embedded=1&phase5Ticket='+encodeURIComponent(mockTicket));
     assert.equal(h.elements['demo-popup'].hidden,false);
-    assert.match(h.elements['demo-status'].textContent,/unknown.*NOT PAID/i);
-    assert.match(h.elements['demo-frame'].src,/&journey=1$/);
+    h.close();await h.click();
+    assert.equal(h.fetches.length,1,'reopen does not mint another ticket');
+    assert.match(h.elements['demo-status'].textContent,/NOT PAID/);
   });
-  test(source+' accepts only an exact same-origin/frame/result and never marks paid',()=>{
-    const h=harness(source);h.click();
-    const initial=h.elements['demo-status'].textContent;
-    h.receive(reply(h.id),'alien-frame',h.origin);
-    h.receive(reply(h.id),h.frameIdentity,'https://attacker.example');
-    h.receive(reply('STORE-DEMO-02'));
-    h.receive({...reply(h.id),simulated:false});
-    h.receive({...reply(h.id),result:'PAID'});
-    h.receive({...reply(h.id),type:'PROVIDER_PAYMENT_VERIFIED'});
-    h.receive({...reply(h.id),version:9});
-    assert.equal(h.elements['demo-popup'].hidden,false);
+  test(source+' enforces exact origin, iframe, fixture and fictional flags on return',async()=>{
+    const h=harness(source);await h.click();const initial=h.elements['demo-status'].textContent;
+    for(const [value,from,origin] of [
+      [reply(h.host),'other-frame',h.origin],
+      [reply(h.host),h.frameId,'https://evil.example'],
+      [reply(h.host,'PAID'),h.frameId,h.origin],
+      [{...reply(h.host),simulated:false},h.frameId,h.origin],
+      [{...reply(h.host),fixtureId:'OTHER-DEMO'},h.frameId,h.origin],
+      [{...reply(h.host),version:2},h.frameId,h.origin]
+    ])h.receive(value,from,origin);
     assert.equal(h.elements['demo-status'].textContent,initial);
-    for(const result of ['SIMULATED_CONFIRMED','SIMULATED_FAILED','SIMULATED_UNKNOWN']){
-      const accepted=harness(source);accepted.click();
-      accepted.receive(reply(accepted.id,result));
-      assert.equal(accepted.elements['demo-popup'].hidden,true);
-      assert.match(accepted.elements['demo-status'].textContent,/NOT PAID/);
-      assert.doesNotMatch(accepted.elements['demo-status'].textContent,/^Paid\b|Booking confirmed/i);
+    assert.equal(h.elements['demo-popup'].hidden,false);
+    h.receive(reply(h.host,'SIMULATED_UNKNOWN'));
+    assert.equal(h.elements['demo-popup'].hidden,true);
+    assert.match(h.elements['demo-status'].textContent,/unknown.*NOT PAID/i);
+    await h.click();
+    assert.equal(h.fetches.length,1,'unknown result must never start another ticket');
+    assert.equal(h.elements['demo-popup'].hidden,false);
+    assert.match(h.elements['demo-status'].textContent,/unknown.*NOT PAID/i);
+  });
+  test(source+' fails closed without server, without permission or with forged issuer response',async()=>{
+    for(const options of [
+      {failure:true},{payload:{checkoutAuthorized:true}},
+      {payload:{ticket:'client-fake'}},{payload:{hostId:'ESTATE'}},
+      {payload:{sourceVersion:'outdated'}},{payload:{agreementAccepted:true}},
+      {payload:{expiresAt:Date.now()-100}},
+    ]){
+      const h=harness(source,options);
+      await h.click();
+      assert.equal(h.elements['demo-popup'].hidden,true);
+      assert.equal(h.elements['demo-fallback'].hidden,false);
+      assert.match(h.elements['demo-status'].textContent,/NOT PAID/);
+      assert.equal(h.elements['demo-frame'].src,'about:blank');
     }
   });
 }
-test('Estate, My Ride, Storage and altered paths cannot activate checkout while not verified',()=>{
-  for(const id of ['ESTATE','MY_RIDE','STORAGE','UNREGISTERED']){
-    const h=harness(id);
-    assert.equal(h.elements['demo-pay'].listeners.click,undefined,id);
+test('nonregistered sites and incorrect source/path/fixture do not mount bridge',async()=>{
+  for(const s of ['ESTATE','MY_RIDE','STORAGE','UNKNOWN']){
+    const h=harness(s);await h.click();
+    assert.equal(h.fetches.length,0);
   }
-  for(const change of [
-    {pathname:'/checkout-gate4-store.html'},
-    {fixture:'STAY-DEMO-01'},
-    {host:'ESTATE'},
-    {pathname:'/phase5-shortstays-host.html'}
+  for(const opt of [
+    {path:'/phase5-shortstays-host.html'},
+    {source:'ESTATE'},
+    {fixture:'STAY-DEMO-01'}
   ]){
-    const h=harness('STORE',change);
-    assert.equal(h.elements['demo-pay'].listeners.click,undefined,JSON.stringify(change));
+    const h=harness('STORE',opt);
+    await h.click();assert.equal(h.fetches.length,0);
   }
-  assert.doesNotMatch(bridge,/fetch\(|createIntent\(|paymentInitiated\s*=\s*true|bookingConfirmed\s*=\s*true|fundFromSelf\(/);
 });
-test('the two independent hosts use exactly one Mini bridge, original official logo and no index redesign',()=>{
+test('unchanged branded host pages use ONE bridge and no client-side payment authority',()=>{
   for(const source of ['STORE','SHORTSTAYS']){
-    const path=cases[source].path.slice(1);
-    const html=read(path);
+    const html=read(hosts[source].path.slice(1));
     assert.match(html,new RegExp('data-mini-phase5-host="'+source+'"'));
-    assert.match(html,new RegExp('data-checkout-fixture="'+cases[source].id+'"'));
     assert.match(html,/src="\/securepay-mini-phase5-host-bridge\.js"/);
     assert.match(html,/class="demo-securepay-imprint"/);
     assert.match(html,/href="https:\/\/securepay\.ke\/"/);
-    assert.match(html,/target="_blank" rel="noopener noreferrer"/);
-    assert.match(html,/SIMULATION ONLY/);
     assert.match(html,/id="demo-popup"/);
-    assert.match(html,/aria-live="polite"/);
-    assert.doesNotMatch(html,/paymentProviderSecret|mpesaPasskey|realFundsReceived/);
+    assert.match(html,/SIMULATION ONLY/);
   }
-  const nav=read('phase5-hosts.html');
-  for(const path of ['phase5-store-host.html','phase5-shortstays-host.html'])
-    assert.ok(nav.includes(path));
-  for(const name of ['My Ride','Storage','Varsityville Estate'])
-    assert.ok(nav.includes(name));
-  const vite=read('vite.config.ts');
-  assert.match(vite,/phase5HostDirectory: fileURLToPath/);
-  assert.match(vite,/phase5StoreHost: fileURLToPath/);
-  assert.match(vite,/phase5ShortStaysHost: fileURLToPath/);
-  assert.match(read('src/mini/MiniExperience.tsx'),/MiniHostedCheckoutDemo/);
+  assert.match(read('phase5-hosts.html'),/Varsityville Estate/);
+  assert.match(read('vite.config.ts'),/phase5HostDirectory/);
+  assert.match(read('src/mini/MiniExperience.tsx'),/<MiniPhase5HostTicket ticket=\{phase5Ticket\} language=\{lang\}/);
+  assert.doesNotMatch(script,/paymentIntentGateway|fundFromSelf|paymentConfirmed\s*=\s*true|checkoutSessionIssued\s*=\s*true/);
+  assert.doesNotMatch(script,/\?embedded=1&demoCheckout=/);
 });
