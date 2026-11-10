@@ -20,6 +20,8 @@ interface StoreHomeProps {
   onJourneyNavigate?: (view: AppView) => void;
   onAskKs001?: () => void;
   contextLabel?: string | null;
+  /** Owner-only test link; never an offer-specific checkout or financial reference. */
+  ownerMiniTestUrl?: string | null;
 }
 
 /**
@@ -30,7 +32,7 @@ interface StoreHomeProps {
  * Spine E applied to AgreementDetail/moneyData.ts. There is no backend "list all stores" endpoint, so
  * real mode always passes `stores={[]}` and that section is hidden rather than fabricated.
  */
-export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOffer, onStartConversation, offers, stores, query, onQueryChange, searchStatus, searchErrorText, onAskKs001, contextLabel }: StoreHomeProps) {
+export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOffer, onStartConversation, offers, stores, query, onQueryChange, searchStatus, searchErrorText, onAskKs001, contextLabel, ownerMiniTestUrl }: StoreHomeProps) {
   return (
     <div className="flex-1 overflow-y-auto scrollbar-thin">
       <div className="max-w-2xl mx-auto px-4 md:px-6 py-6">
@@ -51,6 +53,22 @@ export function StoreHome({ onOpenOffer, onOpenStore, onManageStore, onCreateOff
             </button>
           </div>
         </section>
+
+        {ownerMiniTestUrl && (
+          <aside className="mb-4 rounded-xl border border-dashed border-forest-200 bg-forest-50/60 p-3"
+            data-phase5-store-host-app-link="owner-simulation-only">
+            <p className="text-xs font-semibold text-forest-800">Test SecurePay Mini checkout</p>
+            <p className="mt-1 text-xs leading-5 text-sand-700">
+              Owner simulation: opens a separate fictional Store order in the shared Mini.
+              No offer on this page is purchased, reserved, accepted or sent.
+            </p>
+            <a href={ownerMiniTestUrl} target="_blank" rel="noopener noreferrer"
+              className="mt-2 inline-flex min-h-11 items-center rounded-xl bg-forest-800 px-4
+                text-xs font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2">
+              Open sample Store checkout ↗
+            </a>
+          </aside>
+        )}
 
         {/* Search */}
         <div className="relative mb-3">
