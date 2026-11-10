@@ -138,7 +138,6 @@ function respond(res,code,data){
   res.setHeader('Referrer-Policy','no-referrer');
   res.setHeader('X-Content-Type-Options','nosniff');
   res.setHeader('X-Robots-Tag','noindex, nofollow');
-  res.setHeader('Access-Control-Allow-Origin',''); // NEVER credentialed cross-origin
   res.end(JSON.stringify(data));
 }
 export function handlePhase5HostTicket(req,res,env=process.env,now=Date.now()){
