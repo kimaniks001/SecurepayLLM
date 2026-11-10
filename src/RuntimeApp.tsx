@@ -23,21 +23,25 @@ import { MONEY_AUTHENTICATED_METHODS } from './api/securepay/money-refresh';
 import { REVIEW_AUTHENTICATED_METHODS } from './api/securepay/agreement-review/refresh';
 import { AUTHENTICATED_AGREEMENT_METHODS } from './api/securepay/agreements/refresh';
 import { runtimeMode } from './config/securepay';
+import { createSameOriginStagingFetch } from './features/living-workspace/previewApiOrigin';
+import { livingWorkspaceHash, parseLivingWorkspaceMode } from './features/living-workspace/routes';
 import type { AppView } from './types';
 
 const session = createSessionStore();
 let api: ReturnType<typeof createSecurePayApi> | undefined;
-try { api = createSecurePayApi(import.meta.env.VITE_SECUREPAY_API_BASE_URL, session.getAccessToken); } catch { /* Missing configuration fails closed. */ }
+try { api = createSecurePayApi(import.meta.env.VITE_SECUREPAY_API_BASE_URL, session.getAccessToken, import.meta.env.VITE_SECUREPAY_API_BASE_URL ? createSameOriginStagingFetch(import.meta.env.VITE_SECUREPAY_API_BASE_URL) ?? undefined : undefined); }
+catch { /* Missing or unsafe configuration fails closed. */ }
 // The CORS-safe relay exists only on Vercel preview hosts and only for Work's opt-in smoke test.
 let previewAgentGateway: ReturnType<typeof createPreviewAgentGateway> | undefined;
 if (api && typeof window !== 'undefined' && window.location.hostname.endsWith('.vercel.app')) {
   try { previewAgentGateway = createPreviewAgentGateway(api.baseUrl, session.getAccessToken); }
   catch { /* An unsupported API origin never falls back to a cross-origin unsafe fetch. */ }
 }
-// Structural workspace: existing SecurePay auth, saved builds, Dreams, Circles and Community
-// are reached through a narrow preview relay. No second identity store or permanent API proxy.
+// Structural workspace uses the narrow Vercel relay in previews, and the isolated
+// same-origin API on the protected staging droplet.
 let previewWorkspaceGateways: ReturnType<typeof createPreviewWorkspaceGateways> | undefined;
-if (api && typeof window !== 'undefined' && window.location.hostname.endsWith('.vercel.app')) {
+if (api && typeof window !== 'undefined' &&
+    (window.location.hostname.endsWith('.vercel.app') || window.location.hostname === 'staging.securepay.ke')) {
   try { previewWorkspaceGateways = createPreviewWorkspaceGateways(api.baseUrl, session.getAccessToken); }
   catch { /* Fail closed if the approved upstream cannot be resolved. */ }
 }
@@ -319,21 +323,19 @@ function useMoneySessionRoute(): string | null {
 }
 
 /**
- * This *draft preview deployment* must open the approved Living Workspace as its
- * home, not the retired AgentExperience homepage. Production remains routed by
- * existing rules until real API/identity integration is independently certified.
+ * Protected previews and the isolated staging droplet open the Living Workspace
+ * by default. Production remains on its current route until independently certified.
  * Explicit invitation, activation, recovery, and regulated-money routes are never
  * captured by this rule. No token-bearing route is inspected or rewritten.
  */
 export function isCandidateWorkspaceEntry(hash:string,hostname:string):boolean {
-  return hostname.endsWith('.vercel.app') && (hash==='' || hash==='#' || hash==='#/' || /^#\/?sign-(?:in|up)\/?$/.test(hash));
+  return parseLivingWorkspaceMode(hash, hostname) !== null;
 }
 export default function RuntimeApp() {
   const [phase1Preview, setPhase1Preview] = useState(() => typeof window !== 'undefined' &&
-    (/^#\/?preview\/living-workspace(?:\/(?:work|vision|circle|community))?\/?$/.test(window.location.hash) ||
-      isCandidateWorkspaceEntry(window.location.hash,window.location.hostname)));
+    isCandidateWorkspaceEntry(window.location.hash,window.location.hostname));
   useEffect(() => {
-    const syncPreview = () => setPhase1Preview(/^#\/?preview\/living-workspace(?:\/(?:work|vision|circle|community))?\/?$/.test(window.location.hash) || isCandidateWorkspaceEntry(window.location.hash,window.location.hostname));
+    const syncPreview = () => setPhase1Preview(isCandidateWorkspaceEntry(window.location.hash,window.location.hostname));
     window.addEventListener('hashchange', syncPreview);
     return () => window.removeEventListener('hashchange', syncPreview);
   }, []);
@@ -362,7 +364,8 @@ export default function RuntimeApp() {
     return host.endsWith('.securepay.ke') && /(?:^|[.-])(?:staging|sandbox|qa|test)(?:[.-]|$)/.test(host);
   })();
   if (phase1Preview) return <Phase1LivingWorkspacePreview
-    gateway={previewAgentGateway} workspaceGateways={previewWorkspaceGateways}
+    gateway={previewAgentGateway ?? (typeof window !== 'undefined' && window.location.hostname === 'staging.securepay.ke' ? agentGateway : undefined)}
+    workspaceGateways={previewWorkspaceGateways}
     identityStagingReady={identityStagingReady} session={session} />;
   if (mode === 'fixture' && FixtureApp) {
     return <Suspense fallback={<p role="status">Loading preview…</p>}><FixtureApp /></Suspense>;
@@ -418,7 +421,7 @@ export default function RuntimeApp() {
           session={session}
           onLeave={() => {
              if(hasWorkspaceMoneyReturn()){
-               window.location.hash='#/preview/living-workspace/work';
+               window.location.hash=livingWorkspaceHash('work',window.location.hostname);
                return;
              }
              clearMoneyRoute();
