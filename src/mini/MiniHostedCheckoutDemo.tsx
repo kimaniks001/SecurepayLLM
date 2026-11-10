@@ -6,8 +6,8 @@ import { MiniGuestChat } from './MiniGuestChat';
 import type { MiniDraft, MiniLanguage } from './miniModel';
 import type { MiniFundingTestStatus, MiniTestRailId } from './miniFundingSimulator';
 import {
-  createOfflineJourney,moveOfflineJourney,nextOfflineAction,
-  type OfflineParticipant,type OfflineAction
+  createOfflineJourney,moveOfflineJourney,nextOfflineAction,offlineObligations,
+  type OfflineParticipant,type OfflineAction,type OfflineSimResult
 } from './offlineAgreementJourney';
 
 type Step = 'review' | 'funding' | 'chat';
@@ -33,17 +33,32 @@ export function MiniHostedCheckoutDemo({ record, language, sessionExpiresAt, jou
   const [step, setStep] = useState<Step>('review');
   const [participant,setParticipant] = useState<OfflineParticipant>('CUSTOMER');
   const [journey,setJourney] = useState(()=>createOfflineJourney(record.orderVersion));
-  const nextAction=nextOfflineAction(journey,record.source);
+  const [actionText,setActionText]=useState('');
+  const [previewOverdue,setPreviewOverdue]=useState(false);
+  const obligations=offlineObligations(record.amountMinor,record.source,journey.plan);
+  const currentObligation=obligations[journey.obligationIndex];
+  const nextAction=nextOfflineAction(journey,record.source,
+    previewOverdue?journey.createdAt+25*86400000:Date.now());
+  const money=(minor:number)=>'KSh '+(minor/100).toLocaleString('en-KE',
+    {maximumFractionDigits:2});
   const switchSource = () => {
     const revised=moveOfflineJourney(journey,participant,'SOURCE_CHANGED');
     if(!revised)return;
     setJourney(revised);setStep('review');setParticipant('PROVIDER');
+    setActionText('');setPreviewOverdue(false);setSimulatedStatus('NOT_STARTED');
   };
-  const takeOfflineAction=(action:OfflineAction) => {
-    const updated=moveOfflineJourney(journey,participant,action);
+  const takeOfflineAction=(action:OfflineAction,detail='') => {
+    const updated=moveOfflineJourney(journey,participant,action,detail,obligations.length);
     if(!updated)return;
-    setJourney(updated);
+    setJourney(updated);setActionText('');
+    if(action==='SELECT_PLAN'||action==='SOURCE_CHANGED')setSimulatedStatus('NOT_STARTED');
     if(action==='CONTINUE_SIMULATION')setStep('funding');
+    if(action==='ACK_FICTIONAL_RESULT'){
+      setStep('review');setParticipant('PROVIDER');
+    }
+    if(action==='SUBMIT_EVIDENCE')setParticipant('CUSTOMER');
+    if(action==='RAISE_CONCERN')setParticipant('PROVIDER');
+    if(action==='APPROVE_STAGE'){setStep('review');setParticipant('CUSTOMER');}
   };
   const [cameFrom, setCameFrom] = useState<'review' | 'funding'>('review');
   const [chatStarted, setChatStarted] = useState(false);
@@ -64,8 +79,9 @@ export function MiniHostedCheckoutDemo({ record, language, sessionExpiresAt, jou
 
   const draft: MiniDraft = {
     intent: 'pay',
-    description: record.itemDescription,
-    amount: getMiniDemoAmount(record),
+    description:journeyMode ?
+      record.itemDescription+' · '+currentObligation.label : record.itemDescription,
+    amount:journeyMode?(currentObligation.amountMinor/100).toFixed(2):getMiniDemoAmount(record),
     quantity: record.quantity,
     unit: record.unit,
     note: record.terms,
@@ -73,12 +89,21 @@ export function MiniHostedCheckoutDemo({ record, language, sessionExpiresAt, jou
   };
 
   const onStatusChange = useCallback((status: MiniFundingTestStatus, method: MiniTestRailId | null) => {
-    // SELECT_METHOD is not proof a test attempt occurred. No financial
-    // outcome is ever inferred from a radio button.
-    setSimulatedStatus(current =>
-      status === 'SELECT_METHOD' && !method ? 'NOT_STARTED' : status
-    );
-  }, []);
+    // A client-side fictional outcome is NOT actual funding or provider truth.
+    const sampleStatus=status === 'SELECT_METHOD' && !method ? 'NOT_STARTED' : status;
+    setSimulatedStatus(current=>current===sampleStatus?current:sampleStatus);
+    if(journeyMode && sampleStatus!=='NOT_STARTED') {
+      const capturedRevision=journey.revision;
+      const capturedIndex=journey.obligationIndex;
+      setJourney(current=>{
+        if(current.revision!==capturedRevision||
+          current.obligationIndex!==capturedIndex||current.stage!=='FUNDING_PREVIEW')
+          return current;
+        return moveOfflineJourney(current,'CUSTOMER','RECORD_SIMULATION',
+          sampleStatus as OfflineSimResult,obligations.length)??current;
+      });
+    }
+  }, [journeyMode,journey.revision,journey.obligationIndex,journey.stage,obligations.length]);
 
   const returnToHost = () => {
     if (window.parent !== window) {
@@ -140,6 +165,27 @@ export function MiniHostedCheckoutDemo({ record, language, sessionExpiresAt, jou
 
       {journeyMode ? <div className="spm-journey" data-simulation-journey={record.source}>
         <div className="spm-journey-label">FULL-JOURNEY SIMULATION · no API</div>
+        <div className="spm-journey-schedule" aria-label="Illustrative payment obligations">
+          <div className="spm-journey-schedule-head">
+            <strong>Payment schedule</strong>
+            <span>{journey.plan==='FULL'?'Pay once':'Deposit + 2 milestones'}</span>
+          </div>
+          {journey.stage==='TERMS_REVIEW'&&participant==='CUSTOMER'&&
+            <div className="spm-journey-plan" role="group" aria-label="Test a payment schedule">
+              <button type="button" aria-pressed={journey.plan==='FULL'}
+                onClick={()=>takeOfflineAction('SELECT_PLAN','FULL')}
+                className={journey.plan==='FULL'?'spm-journey-selected':''}>Pay once</button>
+              <button type="button" aria-pressed={journey.plan==='STAGED'}
+                onClick={()=>takeOfflineAction('SELECT_PLAN','STAGED')}
+                className={journey.plan==='STAGED'?'spm-journey-selected':''}>Deposit + stages</button>
+            </div>}
+          {obligations.map(o=><div className={'spm-journey-obligation'+
+            (o.index===journey.obligationIndex?' spm-journey-current':'')} key={o.id}>
+            <span>{o.index+1}. {o.label}</span><strong>{money(o.amountMinor)}</strong>
+          </div>)}
+          <small>Illustration only. Changing the schedule resets both sample reviews.
+            No money or real due-date obligation is created.</small>
+        </div>
         <div className="spm-journey-roles" role="group" aria-label="Participant for this sample">
           <button type="button" aria-pressed={participant==='CUSTOMER'}
             onClick={()=>setParticipant('CUSTOMER')}
@@ -155,7 +201,17 @@ export function MiniHostedCheckoutDemo({ record, language, sessionExpiresAt, jou
           <p>{nextAction.description}</p>
           <small>For: {nextAction.participant==='CUSTOMER'?'Buyer / guest':
             record.source==='STORE'?'Seller':'Stay host'} · No notification sent</small>
+          {nextAction.dueAt!==null&&<small>
+            Sample due: {new Date(nextAction.dueAt).toLocaleDateString('en-KE',
+              {day:'numeric',month:'short'})}
+            {nextAction.overdue?' · OVERDUE PREVIEW':''}
+          </small>}
         </div>
+        <label className="spm-journey-overdue">
+          <input type="checkbox" checked={previewOverdue}
+            onChange={e=>setPreviewOverdue(e.target.checked)}/>
+          Show overdue action reminder (sample only)
+        </label>
         {journey.stage==='SOURCE_REVIEW'&&participant==='PROVIDER'&&
           <button type="button" className="spm-primary"
             onClick={()=>takeOfflineAction('REVIEW_SOURCE')}>
@@ -179,9 +235,53 @@ export function MiniHostedCheckoutDemo({ record, language, sessionExpiresAt, jou
           </button>}
         {journey.stage==='FUNDING_PREVIEW'&&participant==='CUSTOMER'&&
           <button type="button" className="spm-primary" onClick={()=>setStep('funding')}>
-            Return to payment simulation <ArrowRight size={17}/>
+            {journey.simulatedResult==='SIMULATED_CONFIRMED'?
+              'Check fictional result':'Return to payment simulation'}
+            <ArrowRight size={17}/>
           </button>}
+        {(journey.stage==='EVIDENCE_DUE'||journey.stage==='CONCERN_OPEN')&&
+          participant==='PROVIDER'&&<>
+            {journey.concern&&<p className="spm-journey-evidence">
+              Buyer concern: {journey.concern}</p>}
+            <label className="spm-label" htmlFor="spm-offline-evidence">
+              {journey.stage==='CONCERN_OPEN'?'Describe the correction':'Evidence caption (sample)'}
+            </label>
+            <textarea id="spm-offline-evidence" className="spm-field" rows={2}
+              maxLength={200} value={actionText}
+              onChange={e=>setActionText(e.target.value)}
+              placeholder="What has been completed or corrected?"/>
+            <button type="button" className="spm-primary"
+              disabled={actionText.trim().length<3}
+              onClick={()=>takeOfflineAction('SUBMIT_EVIDENCE',actionText)}>
+              Submit sample evidence <ArrowRight size={17}/>
+            </button>
+          </>}
+        {journey.stage==='BUYER_REVIEW'&&<>
+          <p className="spm-journey-evidence"><strong>Example evidence:</strong> {journey.evidence}</p>
+          {participant==='CUSTOMER'&&<>
+            <button type="button" className="spm-primary"
+              onClick={()=>takeOfflineAction('APPROVE_STAGE')}>
+              Approve example stage <ArrowRight size={17}/>
+            </button>
+            <label className="spm-label" htmlFor="spm-offline-concern">
+              Need a correction?
+            </label>
+            <textarea id="spm-offline-concern" className="spm-field"
+              rows={2} maxLength={200} value={actionText}
+              onChange={e=>setActionText(e.target.value)}
+              placeholder="Describe the concern"/>
+            <button type="button" className="spm-secondary"
+              disabled={actionText.trim().length<3}
+              onClick={()=>takeOfflineAction('RAISE_CONCERN',actionText)}>
+              Raise a sample concern
+            </button>
+          </>}
+        </>}
+        {journey.stage==='DONE'&&<p className="spm-journey-complete">
+          All sample obligations explored. NOT PAID · Not signed · No fulfilment.
+        </p>}
         {nextAction.participant!==participant&&journey.stage!=='FUNDING_PREVIEW'&&
+          journey.stage!=='DONE'&&
           <button className="spm-secondary" type="button"
             onClick={()=>setParticipant(nextAction.participant)}>
             Switch to next participant
@@ -190,8 +290,8 @@ export function MiniHostedCheckoutDemo({ record, language, sessionExpiresAt, jou
           Test changed source / revised terms
         </button>
         <p className="spm-journey-warning">
-          These clicks are NOT signatures, order acceptance, room holds, deposits,
-          payments or real notifications. Changing the source resets both reviews.
+          No signatures, inventory or room holds, actual deposits, releases, payments
+          or notifications. The entire journey is simulated.
         </p>
       </div> :
       <button type="button" className="spm-primary" onClick={() => setStep('funding')}>
@@ -209,7 +309,8 @@ export function MiniHostedCheckoutDemo({ record, language, sessionExpiresAt, jou
         the local pending/unknown attempt when the owner reopens it. */}
     <div className="spm-hosted-finance" hidden={step !== 'funding'}>
       <MiniFundingPreview
-        key={journeyMode ? 'offline-'+record.id+'-'+journey.revision : 'original'}
+        key={journeyMode ? 'offline-'+record.id+'-'+journey.revision+'-'+
+          journey.obligationIndex+'-'+journey.stage : 'original'}
         draft={draft} language={language}
         onBack={() => setStep('review')}
         onDemoStateChange={onStatusChange}
@@ -218,6 +319,17 @@ export function MiniHostedCheckoutDemo({ record, language, sessionExpiresAt, jou
         returnLabel={sw ? (record.source === 'STORE' ? 'Rudi dukani' : 'Rudi ShortStays') :
           (record.source === 'STORE' ? 'Return to Store' : 'Return to ShortStays')}
       />
+      {journeyMode&&journey.stage==='FUNDING_PREVIEW'&&
+        journey.simulatedResult==='SIMULATED_CONFIRMED'&&
+        <div className="spm-journey-funding-next">
+          <strong>Next action · fictional payment only</strong>
+          <p>This is NOT a funded deposit or milestone. Continue only to
+            rehearse the provider’s completion evidence and buyer inspection.</p>
+          <button type="button" className="spm-primary"
+            onClick={()=>takeOfflineAction('ACK_FICTIONAL_RESULT')}>
+            Continue sample work step <ArrowRight size={16}/>
+          </button>
+        </div>}
       <button type="button" className="spm-quiet-button" onClick={showChat}>
         <MessageCircle size={16}/>{sw ? 'Unahitaji msaada? Uliza KS001' : 'Need help? Ask KS001'}
       </button>
