@@ -12,6 +12,7 @@ import { MiniGuestChat } from './MiniGuestChat';
 import { MiniFundingPreview } from './MiniFundingPreview';
 import { getMiniDemoCheckout } from './checkoutDemoFixtures';
 import { MiniHostedCheckoutDemo } from './MiniHostedCheckoutDemo';
+import { MiniPhase5HostTicket } from './MiniPhase5HostTicket';
 import { MiniServerCheckout } from './MiniServerCheckout';
 import { MiniRealStoreOffer } from './MiniRealStoreOffer';
 import { MiniGate2Sandbox } from './MiniGate2Sandbox';
@@ -123,6 +124,7 @@ export function MiniExperience() {
   const gate2Session = urlParams?.get('sandboxAgreement') ?? null;
   const storeOfferSession = urlParams?.get('storeOfferSession') ?? null;
   const checkoutSession = urlParams?.get('checkoutSession') ?? null;
+  const phase5Ticket = urlParams?.get('phase5Ticket') ?? null;
   const demoRequest = urlParams?.get('demoCheckout') ?? null;
   const journeyMode = urlParams?.get('journey') === '1';
   const demoRecord = getMiniDemoCheckout(demoRequest);
@@ -258,6 +260,7 @@ export function MiniExperience() {
           gate2Session ? <MiniGate2Sandbox session={gate2Session} language={lang}/> :
           storeOfferSession ? <MiniRealStoreOffer session={storeOfferSession} language={lang}/> :
           checkoutSession ? <MiniServerCheckout session={checkoutSession} language={lang}/> :
+          phase5Ticket ? <MiniPhase5HostTicket ticket={phase5Ticket} language={lang}/> :
           demoRequest ? (demoRecord
           ? <MiniHostedCheckoutDemo record={demoRecord} language={lang} journeyMode={journeyMode}/>
           : <section className="spm-content" role="alert"><h1 className="spm-question">Checkout unavailable</h1>
