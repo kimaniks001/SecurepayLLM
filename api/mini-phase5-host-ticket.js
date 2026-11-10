@@ -13,6 +13,7 @@ import {createHash,createHmac,randomBytes,timingSafeEqual} from 'node:crypto';
 import {getMiniSandboxFixture} from './mini-checkout-preview.js';
 
 export const PHASE5_GATE2_BRANCH='feat/mini-phase5-gate2-host-registry-20261110';
+export const PHASE5_GATE3_BRANCH='feat/mini-phase5-gate3-store-app-adapter-20261110';
 export const PHASE5_TICKET_TTL_MS=5*60*1000;
 export const PHASE5_HOST_REGISTRY=Object.freeze({
   STORE:Object.freeze({
@@ -31,7 +32,8 @@ const TOKEN=/^([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]+)$/;
 const has=(o,k)=>Object.prototype.hasOwnProperty.call(o,k);
 
 export function phase5Gate2Config(env=process.env){
-  if(env.VERCEL_ENV!=='preview'||env.VERCEL_GIT_COMMIT_REF!==PHASE5_GATE2_BRANCH)return null;
+  if(env.VERCEL_ENV!=='preview'||
+    ![PHASE5_GATE2_BRANCH,PHASE5_GATE3_BRANCH].includes(env.VERCEL_GIT_COMMIT_REF))return null;
   const host=String(env.VERCEL_URL||'');
   const secret=String(env.MINI_PHASE5_HOST_PREVIEW_SECRET||'');
   if(!/^[a-z0-9-]+\.vercel\.app$/.test(host)||
