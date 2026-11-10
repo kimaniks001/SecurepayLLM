@@ -3,6 +3,8 @@ import { ArrowLeft, ArrowLeftRight, CheckCircle2, CircleAlert, Clock3,
   Landmark, RotateCcw, ShieldCheck, Smartphone, TestTube2 } from 'lucide-react';
 import { MINI_TEST_RAILS, type MiniTestRailId, type MiniFundingTestStatus } from './miniFundingSimulator';
 import type { MiniLanguage } from './miniModel';
+import { MiniAddedPaymentMethods } from './MiniAddedPaymentMethods';
+import { miniAddedMethodRoute,type MiniAddedMethod } from './miniAddedPaymentMethods';
 import {
   getGate3Simulation, startGate3Simulation, type Gate3Scenario, type Gate3Result
 } from './gate3SandboxClient';
@@ -30,6 +32,7 @@ export function MiniGate3Funding({reviewSession, expected, description,
 }) {
   const sw=language==='sw';
   const [rail,setRail]=useState<MiniTestRailId|null>(null);
+  const [savedMethod,setSavedMethod]=useState<MiniAddedMethod|null>(null);
   const [scenario,setScenario]=useState<Gate3Scenario>('SUCCESS');
   const [attempt,setAttempt]=useState<string|null>(null);
   const [snapshot,setSnapshot]=useState<Gate3Result|null>(null);
@@ -68,6 +71,8 @@ export function MiniGate3Funding({reviewSession, expected, description,
     if(result.kind==='ready'){
       setSnapshot(result.data);
       setRail(result.data.rail);
+      setSavedMethod(previous=>previous&&miniAddedMethodRoute(previous)===result.data.rail?
+        previous:null);
       setTerminal('none');
       setError('');
     }else{
@@ -102,7 +107,8 @@ export function MiniGate3Funding({reviewSession, expected, description,
   },[status,rail,onDemoStateChange]);
 
   async function start() {
-    if(startInFlight.current||busy||!rail||(!mayChange&&attempt)||
+    if(startInFlight.current||busy||!rail||
+      (savedMethod&&miniAddedMethodRoute(savedMethod)===null)||(!mayChange&&attempt)||
       terminal==='unavailable'||terminal==='expired')return;
     startInFlight.current=true;
     setBusy(true);setError('');setSnapshot(null);setTerminal('none');
@@ -119,6 +125,12 @@ export function MiniGate3Funding({reviewSession, expected, description,
     }finally{startInFlight.current=false;setBusy(false);}
   }
   const current=MINI_TEST_RAILS.find(x=>x.id===rail);
+  const selectSavedMethod=(method:MiniAddedMethod)=>{
+    if(!mayChange||busy||terminal==='unavailable'||terminal==='expired')return;
+    setSavedMethod(method);
+    const mapped=miniAddedMethodRoute(method);
+    if(mapped)setRail(mapped);
+  };
   return <section className="spm-content spm-money-demo spm-gate3-funding"
     aria-label="Server-simulated payment status" data-simulation="true">
     <button type="button" className="spm-back" onClick={onBack}>
@@ -139,17 +151,21 @@ export function MiniGate3Funding({reviewSession, expected, description,
           const Icon=item.id==='CHOICE_BANK'?Landmark:
             item.id==='MPESA'?Smartphone:ArrowLeftRight;
           return <button type="button" role="radio" key={item.id}
-            aria-checked={rail===item.id} disabled={busy}
-            className={'spm-demo-rail'+(rail===item.id?' spm-demo-rail-active':'')}
-            onClick={()=>setRail(item.id)}>
+            aria-checked={!savedMethod&&rail===item.id} disabled={busy}
+            className={'spm-demo-rail'+(!savedMethod&&rail===item.id?' spm-demo-rail-active':'')}
+            onClick={()=>{setSavedMethod(null);setRail(item.id);}}>
             <span className="spm-demo-rail-icon"><Icon size={19}/></span>
             <span className="spm-demo-rail-name"><strong>{item.name}</strong><small>{item.category}</small></span>
             <span className="spm-demo-rail-choice" aria-hidden="true">
-              {rail===item.id?<CheckCircle2 size={18}/>:<span/>}
+              {!savedMethod&&rail===item.id?<CheckCircle2 size={18}/>:<span/>}
             </span>
           </button>;
         })}
       </div>
+      <MiniAddedPaymentMethods language={language}
+        disabled={!mayChange||busy||terminal==='unavailable'}
+        selectedId={savedMethod?.id||null}
+        onSelect={selectSavedMethod} onRemoveSelected={()=>setSavedMethod(null)}/>
       <details className="spm-gate3-scenarios">
         <summary>Other test outcomes</summary>
         <div className="spm-gate3-scenario-list">
@@ -166,10 +182,11 @@ export function MiniGate3Funding({reviewSession, expected, description,
         </div>
       </details>
       <button className="spm-primary" type="button"
-        disabled={!rail||busy} onClick={()=>void start()}>
+        disabled={!rail||busy||Boolean(savedMethod&&!miniAddedMethodRoute(savedMethod))}
+        onClick={()=>void start()}>
         <TestTube2 size={18}/>
         {busy?'Starting test…':failed?'Try another simulated attempt':
-          'Continue with '+(current?.name||'this method')}
+          'Continue with '+(savedMethod?.alias||current?.name||'this method')}
       </button>
     </>}
 
