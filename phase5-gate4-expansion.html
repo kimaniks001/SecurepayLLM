@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="robots" content="noindex,nofollow"/>
+  <title>Phase 5 Gate 4 — My Ride, Storage &amp; Estate readiness</title>
+  <link rel="stylesheet" href="/checkout-demo.css"/>
+  <link rel="stylesheet" href="/securepay-mini-phase5-gate4.css"/>
+</head>
+<body>
+  <header class="demo-header">
+    <div class="demo-brand">SecurePay Mini <span class="p5g4-header-muted">/ Expansion</span></div>
+    <nav class="demo-switch" aria-label="Owner preview links">
+      <a href="/phase5-hosts.html">All hosts</a>
+      <a href="/mini.html">Mini</a>
+    </nav>
+  </header>
+  <main class="demo-main p5g4-main" data-phase5-gate4="offline-shape-only">
+    <div class="demo-kicker">Phase 5 · Gate 4 · Owner-only offline simulation</div>
+    <h1>Make the source ready before asking for money.</h1>
+    <p class="demo-intro">
+      Three different businesses, the same SecurePay principle.
+      Explore what a Ride, Storage booking or Estate bill would have to prove
+      before the shared Mini could prepare a real Agreement. Nothing here uses
+      real trip, room, resident, gate or bank information.
+    </p>
+    <div class="p5g4-hosts" role="group" aria-label="Choose the host application">
+      <button type="button" data-host="MY_RIDE" aria-pressed="true">
+        <span class="p5g4-host-symbol" aria-hidden="true">🚙</span>
+        <strong>My Ride</strong>
+        <small>Trip · Driver · Fare</small>
+      </button>
+      <button type="button" data-host="STORAGE" aria-pressed="false">
+        <span class="p5g4-host-symbol" aria-hidden="true">📦</span>
+        <strong>Storage</strong>
+        <small>Space · Term · Access</small>
+      </button>
+      <button type="button" data-host="ESTATE" aria-pressed="false">
+        <span class="p5g4-host-symbol" aria-hidden="true">🏡</span>
+        <strong>Varsityville Estate</strong>
+        <small>Bill · Household · Privacy</small>
+      </button>
+    </div>
+    <div class="demo-grid p5g4-columns">
+      <section class="demo-card" aria-labelledby="p5g4-title">
+        <div class="p5g4-intro">
+          <span class="demo-badge">Simulated evidence · no connected API</span>
+          <h2 id="p5g4-title">My Ride</h2>
+          <p id="p5g4-subtitle" class="demo-meta">
+            Before the buyer can pay, confirm the trip and the driver.
+          </p>
+        </div>
+        <label for="p5g4-scenario" class="p5g4-label">Try a source condition</label>
+        <select id="p5g4-scenario" aria-describedby="p5g4-disclaimer">
+          <option value="complete">Locally complete sample</option>
+          <option value="missing">Missing domain approval</option>
+          <option value="expired">Expired source or hold</option>
+          <option value="wrong_person">Wrong person / scope</option>
+        </select>
+        <div id="p5g4-sample" class="p5g4-sample"></div>
+        <div id="p5g4-verdict" class="demo-status" role="status" aria-live="polite">
+          Reading local sample conditions…
+        </div>
+        <h3 class="p5g4-check-title">Source checks</h3>
+        <ul id="p5g4-checks" class="p5g4-checks"></ul>
+        <p id="p5g4-next" class="p5g4-next"></p>
+        <div class="p5g4-pay-boundary">
+          <div class="p5g4-section-note">Financial authority remains unavailable.</div>
+          <button type="button" disabled aria-disabled="true"
+            aria-label="Cannot begin checkout until a registered host and SecurePayAPI confirm authority">
+            Checkout unavailable · server verification required
+          </button>
+          <div class="p5g4-brand">
+            <a class="demo-securepay-imprint" href="https://securepay.ke/"
+              target="_blank" rel="noopener noreferrer"
+              aria-label="Visit SecurePay official website (new tab)">
+              <img src="/brand/securepay-mark-green.png" alt="" aria-hidden="true" width="21" height="21"/>
+              <span>Future checkout by <strong>SecurePay</strong></span>
+              <span aria-hidden="true">↗</span>
+            </a>
+          </div>
+        </div>
+      </section>
+      <aside class="demo-card demo-aside">
+        <h3>The independent host stays in charge</h3>
+        <p id="p5g4-host-authority">My Ride must own trip, rider, driver and fare facts.</p>
+        <p>SecurePay owns the Agreement and verified funding only after a
+           registered host proves its source and the parties give informed consent.</p>
+        <div class="p5g4-guard">
+          <strong>Always blocked in this gate</strong>
+          <ul>
+            <li>Host payment registration</li>
+            <li>Source signature or real Agreement</li>
+            <li>Money movement or settlement</li>
+            <li>Release, reservation or gate access</li>
+          </ul>
+        </div>
+        <p id="p5g4-disclaimer">
+          The examples are created on this page in memory. Nothing is posted
+          to the Estate, Ride, Storage, SecurePayAPI or a financial provider.
+          A locally complete example is <strong>not</strong> a verified transaction.
+        </p>
+        <p class="demo-note">The live Varsityville website, its gate checks and resident
+          records are not connected or modified.</p>
+        <a class="p5g4-back" href="/phase5-hosts.html">Back to all host previews</a>
+      </aside>
+    </div>
+  </main>
+  <script type="module" src="/securepay-mini-phase5-gate4-lab.js"></script>
+</body>
+</html>
