@@ -32,6 +32,7 @@ export default defineConfig({
         phase5HostDirectory: fileURLToPath(new URL('./phase5-hosts.html', import.meta.url)),
         phase5StoreHost: fileURLToPath(new URL('./phase5-store-host.html', import.meta.url)),
         phase5ShortStaysHost: fileURLToPath(new URL('./phase5-shortstays-host.html', import.meta.url)),
+        phase5ExpansionReadiness: fileURLToPath(new URL('./phase5-gate4-expansion.html', import.meta.url)),
       },
     },
   },
