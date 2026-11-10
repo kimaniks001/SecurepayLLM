@@ -38,7 +38,7 @@ function harness(source='STORE',opts={}){
     addEventListener:(name,fn)=>{listeners['document:'+name]=fn;}
   };
   const window={
-    location:{origin,pathname:opts.path||host.path},
+    location:{origin,pathname:opts.path||host.path,hash:opts.hash||''},
     addEventListener:(name,fn)=>{listeners[name]=fn;},
     setTimeout:fn=>fn()
   };
@@ -75,6 +75,18 @@ function reply(host,result='SIMULATED_CONFIRMED'){
     version:1,fixtureId:host.fixture,simulated:true,result};
 }
 for(const source of ['STORE','SHORTSTAYS']){
+  test(source+' one-click owner link opens sample without a second host Pay click',async()=>{
+    const h=harness(source,{hash:'#owner-sample'});
+    await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(h.fetches.length,1);
+    assert.equal(h.elements['demo-popup'].hidden,false);
+    assert.match(h.elements['demo-frame'].src,/phase5Ticket=/);
+    assert.match(h.elements['demo-status'].textContent,/NOT PAID/);
+    const unknown=harness(source,{hash:'#anything-else'});
+    await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(unknown.fetches.length,0);
+    assert.equal(unknown.elements['demo-popup'].hidden,true);
+  });
   test(source+' requests a host-bound server ticket rather than inventing checkout on the page',async()=>{
     const h=harness(source);
     await h.click();
