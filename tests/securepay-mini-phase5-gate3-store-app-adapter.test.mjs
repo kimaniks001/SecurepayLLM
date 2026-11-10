@@ -12,11 +12,11 @@ const m=await import('data:text/javascript;base64,'+
 test('real Store screen can offer only the registered fictional Store launch in owner preview',()=>{
   const target=m.phase5OwnerHostTestLink('STORE','phase5-gate3-owner-test');
   assert.equal(target,
-    'https://securepay-e0dkcl10i-james-8078.vercel.app/phase5-store-host.html');
+    'https://securepay-5khxd36cz-james-8078.vercel.app/phase5-store-host.html#owner-sample');
   const url=new URL(target);
   assert.equal(url.protocol,'https:');
   assert.equal(url.search,'');
-  assert.equal(url.hash,'');
+  assert.equal(url.hash,'#owner-sample');
   assert.equal(m.phase5OwnerHostTestLink('STORE','true'),null);
   assert.equal(m.phase5OwnerHostTestLink('STORE',null),null);
   assert.equal(m.phase5OwnerHostTestLink('ESTATE','phase5-gate3-owner-test'),null);
@@ -44,5 +44,5 @@ test('both host-specific URLs remain identical to existing registered Gate 2 pre
   assert.match(source,/MY_RIDE:Object\.freeze\(\{hostId:'MY_RIDE'.*enabled:false/);
   assert.match(source,/STORAGE:Object\.freeze\(\{hostId:'STORAGE'.*enabled:false/);
   assert.equal(m.phase5OwnerHostTestLink('SHORTSTAYS','phase5-gate3-owner-test'),
-    'https://securepay-e0dkcl10i-james-8078.vercel.app/phase5-shortstays-host.html');
+    'https://securepay-5khxd36cz-james-8078.vercel.app/phase5-shortstays-host.html#owner-sample');
 });
