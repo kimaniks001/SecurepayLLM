@@ -75,6 +75,16 @@ for(const source of ['STORE','SHORTSTAYS']){
     assert.equal(testHost.elements['demo-frame'].src,
       '/mini.html?embedded=1&demoCheckout='+testHost.id+'&journey=1');
   });
+  test(source+' reopens an unknown sample without erasing its unresolved warning',()=>{
+    const h=harness(source);
+    h.click();
+    h.receive(reply(h.id,'SIMULATED_UNKNOWN'));
+    assert.match(h.elements['demo-status'].textContent,/unknown.*NOT PAID/i);
+    h.click();
+    assert.equal(h.elements['demo-popup'].hidden,false);
+    assert.match(h.elements['demo-status'].textContent,/unknown.*NOT PAID/i);
+    assert.match(h.elements['demo-frame'].src,/&journey=1$/);
+  });
   test(source+' accepts only an exact same-origin/frame/result and never marks paid',()=>{
     const h=harness(source);h.click();
     const initial=h.elements['demo-status'].textContent;
