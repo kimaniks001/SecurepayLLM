@@ -351,3 +351,37 @@ textarea.spm-field { resize:vertical; }
 .spm-journey .spm-primary {margin:0;}
 .spm-journey .spm-secondary {width:100%;margin:0;}
 .spm-journey .spm-quiet-button {margin:0;}
+
+
+/* Phase 4: same Mini, same agreement; only optional offline obligations UI. */
+.spm-journey-schedule { display:grid;gap:5px;border:1px solid #dae5d9;
+  background:#fffdf9;padding:9px 10px;border-radius:10px; }
+.spm-journey-schedule-head { display:flex;align-items:center;justify-content:space-between;
+  gap:7px;flex-wrap:wrap;color:#284e36;font-size:11px; }
+.spm-journey-schedule-head span {font-size:10px;color:#5a7a5e;}
+.spm-journey-schedule>small {font-size:10px;color:#69766c;line-height:1.4;}
+.spm-journey-plan {display:flex;align-items:center;border-radius:9px;
+  border:1px solid #d4e0d2;overflow:hidden;margin:4px 0;}
+.spm-journey-plan button {flex:1;font-size:11px;min-height:40px;border:0;background:#fff;
+  color:#2a5940;padding:6px 7px;font-weight:600;}
+.spm-journey-plan button+button {border-left:1px solid #d4e0d2;}
+.spm-journey-plan button.spm-journey-selected {background:#285d41;color:#fff;}
+.spm-journey-obligation {display:flex;justify-content:space-between;align-items:flex-start;
+  gap:9px;font-size:11px;line-height:1.35;padding:5px 2px;}
+.spm-journey-obligation+.spm-journey-obligation {border-top:1px solid #edf1e9;}
+.spm-journey-obligation strong {white-space:nowrap;font-size:11px;color:#31533a;}
+.spm-journey-current {font-weight:650;color:#1c6b3f;}
+.spm-journey-overdue {display:flex;gap:7px;align-items:center;font-size:10px;
+  line-height:1.5;color:#5b725d;cursor:pointer;}
+.spm-journey-overdue input {width:15px;height:15px;accent-color:#285d41;flex:none;}
+.spm-journey-evidence {margin:0;padding:9px;font-size:11px;line-height:1.5;
+  border:1px solid #e4e8da;background:#f7f7f0;border-radius:10px;overflow-wrap:anywhere;}
+.spm-journey .spm-field {width:100%;box-sizing:border-box;min-height:58px;
+  border:1px solid #cbdccc;border-radius:9px;font:inherit;color:#244b35;background:#fff;padding:9px;
+  font-size:12px;resize:vertical;}
+.spm-journey-complete {margin:0;background:#ecf4e9;border-radius:9px;padding:10px;
+  color:#315a3e;font-size:11px;font-weight:650;line-height:1.5;}
+.spm-journey-funding-next {margin:8px 0 12px;border:1px solid #c7dcc7;border-radius:12px;
+  padding:12px;background:#f5faf3;display:grid;gap:7px;font-size:12px;line-height:1.5;}
+.spm-journey-funding-next p {margin:0;color:#5c6c5e;font-size:11px;}
+.spm-journey-funding-next .spm-primary {margin:0;}
