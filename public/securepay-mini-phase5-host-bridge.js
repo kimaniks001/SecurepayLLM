@@ -57,7 +57,7 @@
     }
     fallback.hidden=true;frame.hidden=false;
     setOpen(true);
-    status.textContent='Sample checkout open — NOT PAID';
+    if(!received)status.textContent='Sample checkout open — NOT PAID';
   };
   const close=()=>{
     setOpen(false);
