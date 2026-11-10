@@ -24,6 +24,7 @@ const suites = [
   'tests/securepay-mini-phase4-full-journey-offline.test.mjs',
   'tests/securepay-mini-phase4-integrated-milestones.test.mjs',
   'tests/securepay-mini-phase4-add-payment-method.test.mjs',
+  'tests/securepay-mini-phase5-shared-host-bridge.test.mjs',
   'tests/securepay-mini-phase1.test.mjs',
   'tests/securepay-mini-phase2.test.mjs',
   'tests/securepay-mini-phase3.test.mjs',
