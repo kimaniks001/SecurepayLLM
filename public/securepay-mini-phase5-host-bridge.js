@@ -1,9 +1,7 @@
-/* SecurePay Mini Phase 5 Gate 1 — reusable SAME-ORIGIN OWNER PREVIEW launcher.
- *
- * One launcher for two independent host pages, ONE existing Mini experience.
- * Never use this client-side fixture bridge as a public cross-origin SDK.
- * Merchant-hosted production integration REQUIRES registered origin, signed
- * server-created source/Agreement capability and authenticated money status.
+/* SecurePay Mini Phase 5 Gate 2 — same reusable owner-preview launcher.
+ * Requests a preview-server-signed, source/version/origin-bound READ-ONLY ticket.
+ * NO direct fixture launch, client-authored price or financial authority.
+ * NOT a production cross-origin SDK, merchant authentication or payment rail.
  */
 (()=>{
   'use strict';
@@ -41,44 +39,85 @@
     SIMULATED_CONFIRMED:'Fictional confirmation — NOT PAID',
     SIMULATED_FAILED:'Fictional failure — NOT PAID'
   });
-  let mounted=false,received=false;
+  let mounted=false,received=false,ticket=null,expiresAt=0,opening=false;
+  let unresolved=false;
+  const validTicket=value=>typeof value==='string'&&
+    value.length>=160&&value.length<=1100&&
+    /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(value);
+
   const setOpen=open=>{
     popup.hidden=!open;overlay.hidden=!open;
     pay.setAttribute('aria-expanded',String(open));
     if(open)closeBtn.focus();else pay.focus();
   };
-  const open=()=>{
-    if(!mounted){
-      // The original canonical Mini, no per-site payment or KS001 engine.
-      // Source/order details are immutable fictional fixtures only.
-      frame.src='/mini.html?embedded=1&demoCheckout='+
-        encodeURIComponent(entry.fixtureId)+'&journey=1';
-      mounted=true;
+  const open=async()=>{
+    if(opening||unresolved)return; // never create a new attempt from an unknown result
+    if(ticket&&expiresAt>Date.now()&&mounted){
+      fallback.hidden=true;frame.hidden=false;setOpen(true);
+      return; // reopen the SAME verified fictional source, not issue a new ticket
     }
-    fallback.hidden=true;frame.hidden=false;
-    setOpen(true);
-    if(!received)status.textContent='Sample checkout open — NOT PAID';
+    opening=true;
+    pay.disabled=true;
+    const label=pay.textContent;
+    pay.textContent='Preparing SecurePay…';
+    status.textContent='Checking registered host — NOT PAID';
+    try{
+      // No amount, return URL, merchant or fixture from browser is trusted.
+      const response=await fetch('/api/mini-phase5-host-ticket',{
+        method:'POST',credentials:'same-origin',redirect:'error',cache:'no-store',
+        headers:{'Content-Type':'application/json',Accept:'application/json'},
+        body:JSON.stringify({action:'ISSUE',hostId:site})
+      });
+      if(!response.ok)throw Error('HOST_TICKET_UNAVAILABLE');
+      const issued=await response.json();
+      if(!issued||issued.simulationOnly!==true||
+         issued.checkoutAuthorized!==false||issued.realPaymentEnabled!==false||
+         issued.agreementAccepted!==false||issued.orderCreated!==false||
+         issued.bookingConfirmed!==false||
+         issued.hostId!==site||issued.sourceVersion!==
+           (site==='STORE'?'fixture-store-v1':'fixture-stay-v1')||
+         issued.returnAlias!==(site==='STORE'?'STORE_RETURN':'STAY_RETURN')||
+         !validTicket(issued.ticket)||!Number.isSafeInteger(issued.expiresAt)||
+         issued.expiresAt<=Date.now()||issued.expiresAt>Date.now()+300000)
+         throw Error('INVALID_ISSUER_RESPONSE');
+      ticket=issued.ticket;expiresAt=issued.expiresAt;
+      mounted=true;received=false;unresolved=false;
+      fallback.hidden=true;frame.hidden=false;
+      frame.src='/mini.html?embedded=1&phase5Ticket='+encodeURIComponent(ticket);
+      setOpen(true);
+      status.textContent='Signed sample source opened — NOT PAID';
+    }catch{
+      // Fail closed. NEVER fall back to ?demoCheckout= or unverified payment.
+      ticket=null;expiresAt=0;mounted=false;
+      status.textContent='Registered-host check unavailable — NOT PAID. No checkout issued.';
+      fallback.hidden=false;
+      frame.hidden=true;
+    }finally{
+      opening=false;pay.disabled=false;pay.textContent=label;
+    }
   };
   const close=()=>{
     setOpen(false);
-    if(!received)status.textContent='Checkout closed — NOT PAID';
-    // Retain iframe and fictional pending/unknown state on reopen.
+    if(!received&&!opening)status.textContent='Checkout closed — NOT PAID';
+    // Keep the signed preview ticket, iframe and unknown warning for owner review.
   };
   const receive=event=>{
     if(event.origin!==window.location.origin||
        event.source!==frame.contentWindow||
        !event.data||typeof event.data!=='object')return;
     const msg=event.data;
+    if(!ticket||expiresAt<=Date.now())return;
     if(msg.type!=='SECUREPAY_MINI_OWNER_DEMO_RETURN_V1'||
        msg.version!==1||msg.fixtureId!==entry.fixtureId||
        msg.simulated!==true||
        !Object.prototype.hasOwnProperty.call(captions,msg.result))return;
     received=true;
+    unresolved=msg.result==='SIMULATED_UNKNOWN';
     status.textContent=captions[msg.result];
     // A browser return is never authoritative. No host booking/order mutation.
     setOpen(false);
   };
-  pay.addEventListener('click',open);
+  pay.addEventListener('click',()=>{void open();});
   closeBtn.addEventListener('click',close);
   overlay.addEventListener('click',close);
   window.addEventListener('message',receive);
