@@ -1,4 +1,4 @@
-import { useEffect, useReducer } from 'react';
+import { useEffect, useReducer, useState } from 'react';
 import {
   ArrowLeft, ArrowLeftRight, CircleAlert, CircleCheck, Clock3,
   Landmark, RotateCcw, ShieldCheck, Smartphone, TestTube2
@@ -9,6 +9,8 @@ import {
   type MiniTestRailId, type MiniFundingTestStatus
 } from './miniFundingSimulator';
 import type { MiniDraft, MiniLanguage } from './miniModel';
+import { MiniAddedPaymentMethods } from './MiniAddedPaymentMethods';
+import { miniAddedMethodRoute,type MiniAddedMethod } from './miniAddedPaymentMethods';
 
 /**
  * OWNER TEST ONLY: the following controls simulate three rail responses locally.
@@ -26,6 +28,7 @@ export function MiniFundingPreview({ draft, language, onBack, onDemoStateChange,
   returnLabel?: string;
 }) {
   const [demo, dispatch] = useReducer(miniFundingTestTransition, INITIAL_MINI_FUNDING_TEST);
+  const [savedMethod,setSavedMethod]=useState<MiniAddedMethod|null>(null);
   const sw = language === 'sw';
   const amount = miniTestAmount(draft.amount);
   const selected = MINI_TEST_RAILS.find(item => item.id === demo.method);
@@ -43,9 +46,20 @@ export function MiniFundingPreview({ draft, language, onBack, onDemoStateChange,
   const unknown = demo.status === 'SIMULATED_UNKNOWN';
   const failed = demo.status === 'SIMULATED_FAILED';
   const confirmed = demo.status === 'SIMULATED_CONFIRMED';
-  const canStart = Boolean(amount && demo.method && canSelect);
+  const canStart = Boolean(amount && demo.method && canSelect &&
+    (!savedMethod || miniAddedMethodRoute(savedMethod)!==null));
 
-  const selectMethod = (method: MiniTestRailId) => dispatch({ type: 'SELECT_METHOD', method });
+  const selectMethod = (method: MiniTestRailId) => {
+    if(!canSelect)return;
+    setSavedMethod(null);
+    dispatch({ type: 'SELECT_METHOD', method });
+  };
+  const selectSavedMethod=(method:MiniAddedMethod)=>{
+    if(!canSelect)return;
+    setSavedMethod(method);
+    const supported=miniAddedMethodRoute(method);
+    if(supported)dispatch({type:'SELECT_METHOD',method:supported});
+  };
   const statusLine = sw
     ? guidedDemo && confirmed ? 'Jaribio limekamilika' : pending ? 'Inasubiri jibu la jaribio' : unknown ? 'Haijulikani — usijaribu tena' :
       failed ? 'Jaribio limeshindwa' : 'Imethibitishwa kwenye jaribio tu'
@@ -79,7 +93,7 @@ export function MiniFundingPreview({ draft, language, onBack, onDemoStateChange,
     {(!guidedDemo || demo.status === 'SELECT_METHOD') && <h2 className="spm-demo-section-heading">{sw ? 'Lipa kwa' : 'Pay with'}</h2>}
     {(!guidedDemo || demo.status === 'SELECT_METHOD') && <div role="radiogroup" aria-label="Simulated payment method" className="spm-demo-rails">
       {MINI_TEST_RAILS.map(item => {
-        const active = demo.method === item.id;
+        const active = !savedMethod && demo.method === item.id;
         const Icon = item.id === 'CHOICE_BANK' ? Landmark : item.id === 'MPESA' ? Smartphone : ArrowLeftRight;
         return <button key={item.id} type="button" role="radio" aria-checked={active}
           disabled={!canSelect || !amount}
@@ -91,10 +105,13 @@ export function MiniFundingPreview({ draft, language, onBack, onDemoStateChange,
         </button>;
       })}
     </div>}
+    {canSelect && <MiniAddedPaymentMethods language={language}
+      disabled={!canSelect||!amount} selectedId={savedMethod?.id||null}
+      onSelect={selectSavedMethod} onRemoveSelected={()=>setSavedMethod(null)}/>}
 
     {demo.status === 'SELECT_METHOD' && <button type="button" className="spm-primary"
       disabled={!canStart} onClick={() => dispatch({ type: 'START_ATTEMPT' })}>
-      <TestTube2 size={18}/>{guidedDemo ? (sw ? 'Endelea na ' : 'Continue with ') : (sw ? 'Jaribu ' : 'Try ')}{selected?.name || (sw ? 'njia hii' : 'this method')}
+      <TestTube2 size={18}/>{guidedDemo ? (sw ? 'Endelea na ' : 'Continue with ') : (sw ? 'Jaribu ' : 'Try ')}{savedMethod?.alias||selected?.name || (sw ? 'njia hii' : 'this method')}
     </button>}
 
     {(pending || unknown || confirmed || failed) &&
@@ -104,7 +121,7 @@ export function MiniFundingPreview({ draft, language, onBack, onDemoStateChange,
         <div>
           <strong>{statusLine}</strong>
           <p>{statusSubline}</p>
-          <small>{sw ? 'Jaribio' : 'Test'} #{demo.attemptNumber} · {selected?.name}</small>
+          <small>{sw ? 'Jaribio' : 'Test'} #{demo.attemptNumber} · {savedMethod?.alias||selected?.name}</small>
         </div>
       </div>}
 
@@ -136,7 +153,7 @@ export function MiniFundingPreview({ draft, language, onBack, onDemoStateChange,
     </button>}
 
     {(confirmed || failed) && !guidedDemo && <button className="spm-quiet-button" type="button"
-      onClick={() => dispatch({type:'RESET'})}>
+      onClick={() => {setSavedMethod(null);dispatch({type:'RESET'});}}>
       <RotateCcw size={16}/>{sw ? 'Chagua njia nyingine' : 'Compare another method'}
     </button>}
 
