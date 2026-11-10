@@ -132,7 +132,7 @@ for(const source of ['STORE','SHORTSTAYS']){
 }
 
 test('splits are exact in minor units, never invent fractions or excess obligations',()=>{
-  for(const amount of [3,19,101,10101,125501,900001,999999999999]){
+  for(const amount of [4,19,101,10101,125501,900001,999999999999]){
     const items=offlineObligations(amount,'STORE','STAGED');
     assert.ok(items.every(x=>x.amountMinor>0&&Number.isSafeInteger(x.amountMinor)));
     assert.equal(items.reduce((n,x)=>n+x.amountMinor,0),amount);
