@@ -58,7 +58,7 @@ export function offlineObligations(
     index:0,id:'FULL',label:'Full amount · single payment',
     amountMinor:totalMinor,dueDay:1,kind:'FULL'
   }];
-  if(totalMinor<3)throw Error('Amount too small to split');
+  if(totalMinor<4)throw Error('Amount too small to split');
   const first=Number(BigInt(totalMinor)*30n/100n);
   const second=Number(BigInt(totalMinor)*40n/100n);
   const third=totalMinor-first-second;
