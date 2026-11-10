@@ -152,18 +152,18 @@ export function MiniGate3Funding({reviewSession, expected, description,
             item.id==='MPESA'?Smartphone:ArrowLeftRight;
           return <button type="button" role="radio" key={item.id}
             aria-checked={!savedMethod&&rail===item.id} disabled={busy}
-            className={'spm-demo-rail'+(rail===item.id?' spm-demo-rail-active':'')}
+            className={'spm-demo-rail'+(!savedMethod&&rail===item.id?' spm-demo-rail-active':'')}
             onClick={()=>{setSavedMethod(null);setRail(item.id);}}>
             <span className="spm-demo-rail-icon"><Icon size={19}/></span>
             <span className="spm-demo-rail-name"><strong>{item.name}</strong><small>{item.category}</small></span>
             <span className="spm-demo-rail-choice" aria-hidden="true">
-              {rail===item.id?<CheckCircle2 size={18}/>:<span/>}
+              {!savedMethod&&rail===item.id?<CheckCircle2 size={18}/>:<span/>}
             </span>
           </button>;
         })}
       </div>
       <MiniAddedPaymentMethods language={language}
-        disabled={!mayChange||busy||terminal==='unavailable'||terminal==='expired'}
+        disabled={!mayChange||busy||terminal==='unavailable'}
         selectedId={savedMethod?.id||null}
         onSelect={selectSavedMethod} onRemoveSelected={()=>setSavedMethod(null)}/>
       <details className="spm-gate3-scenarios">
