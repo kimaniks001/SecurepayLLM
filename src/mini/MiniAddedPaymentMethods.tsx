@@ -19,14 +19,18 @@ export function MiniAddedPaymentMethods({language,disabled,selectedId,onSelect,o
   onRemoveSelected:()=>void;
 }){
   const sw=language==='sw';
+  const storage=()=>{
+    try{return typeof window!=='undefined'?window.sessionStorage:undefined;}
+    catch{return undefined;}
+  };
   const [methods,setMethods]=useState<MiniAddedMethod[]>(()=>
-    miniReadAddedMethods(typeof window!=='undefined'?window.sessionStorage:undefined));
+    miniReadAddedMethods(storage()));
   const [editing,setEditing]=useState(false);
   const [alias,setAlias]=useState('');
   const [route,setRoute]=useState<MiniAddedRoute>('MPESA');
   const [error,setError]=useState('');
   useEffect(()=>{
-    miniWriteAddedMethods(methods,typeof window!=='undefined'?window.sessionStorage:undefined);
+    miniWriteAddedMethods(methods,storage());
   },[methods]);
 
   const save=()=>{
