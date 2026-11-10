@@ -19,9 +19,8 @@ export function MiniAddedPaymentMethods({language,disabled,selectedId,onSelect,o
   onRemoveSelected:()=>void;
 }){
   const sw=language==='sw';
-  const [methods,setMethods]=useState<MiniAddedMethod[]>(()=>{
-    miniReadAddedMethods(typeof window!=='undefined'?window.sessionStorage:undefined)
-  });
+  const [methods,setMethods]=useState<MiniAddedMethod[]>(()=>
+    miniReadAddedMethods(typeof window!=='undefined'?window.sessionStorage:undefined));
   const [editing,setEditing]=useState(false);
   const [alias,setAlias]=useState('');
   const [route,setRoute]=useState<MiniAddedRoute>('MPESA');
