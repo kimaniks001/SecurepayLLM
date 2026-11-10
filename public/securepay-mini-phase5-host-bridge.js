@@ -145,4 +145,8 @@
       }
     },900);
   });
+  // Preview-only direct entry from approved application pages. A URL hash
+  // selects the convenience action; it conveys NO order, identity, price,
+  // payment outcome, host credentials or privileged signed reference.
+  if(window.location.hash==='#owner-sample')void open();
 })();
