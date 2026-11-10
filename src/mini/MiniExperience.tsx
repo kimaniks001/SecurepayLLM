@@ -237,9 +237,13 @@ export function MiniExperience() {
   return <main className={'spm-root' + (compact ? ' spm-embedded' : '')}>
     <div className="spm-frame">
       <header className="spm-head">
-        <div className="spm-brand"><div className="spm-mark" aria-hidden="true"><ShieldCheck size={21}/></div>
-          <div><div className="spm-name">SecurePay <span>mini</span></div><div className="spm-brand-sub">Trust is the currency</div></div>
-        </div>
+        <a className="spm-brand spm-brand-link" href="https://securepay.ke/"
+          target="_blank" rel="noopener noreferrer"
+          aria-label="SecurePay Mini — visit the official SecurePay website (opens in a new tab)">
+          <img className="spm-canonical-mark" src="/brand/securepay-mark-green.png"
+            alt="" aria-hidden="true" width={34} height={34}/>
+          <span><span className="spm-name">SecurePay <span>mini</span></span><span className="spm-brand-sub">Trust is the currency</span></span>
+        </a>
         <div className="spm-head-actions">
           <button className="spm-lang" type="button" onClick={() => setLang(lang === 'en' ? 'sw' : 'en')}
             aria-label={lang === 'en' ? 'Badili kwa Kiswahili' : 'Switch to English'}>{lang === 'en' ? 'Kiswahili' : 'English'}</button>
@@ -396,9 +400,19 @@ export function MiniExperience() {
       </div>
 
       <footer className="spm-footer">
-        <ShieldCheck size={16} aria-hidden="true"/>
-        <span>{t.boundary}</span>
-        <span className="spm-footer-dash">·</span><span>{gate4Session ? 'Host reconciliation test' : gate3Session ? 'Payment status test' : gate2Session ? 'Order & agreement test' : storeOfferSession ? 'Store offer review' : checkoutSession || demoRequest ? 'Checkout test' : 'Phase 4'}</span>
+        <div className="spm-footer-status">
+          <ShieldCheck size={15} aria-hidden="true"/>
+          <span>{t.boundary}</span>
+          <span className="spm-footer-dash">·</span><span>{gate4Session ? 'Host reconciliation test' : gate3Session ? 'Payment status test' : gate2Session ? 'Order & agreement test' : storeOfferSession ? 'Store offer review' : checkoutSession || demoRequest ? 'Checkout test' : 'Phase 4'}</span>
+        </div>
+        <a className="spm-checkout-imprint" href="https://securepay.ke/"
+          target="_blank" rel="noopener noreferrer"
+          aria-label="Checkout by SecurePay — official website (opens in a new tab)">
+          <img src="/brand/securepay-mark-green.png" alt="" aria-hidden="true"
+            width={18} height={18}/>
+          <span>Checkout by <strong>SecurePay</strong></span>
+          <span className="spm-imprint-visit" aria-hidden="true">↗</span>
+        </a>
       </footer>
     </div>
   </main>;
