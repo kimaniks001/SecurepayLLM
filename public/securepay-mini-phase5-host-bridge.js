@@ -51,10 +51,14 @@
     if(open)closeBtn.focus();else pay.focus();
   };
   const open=async()=>{
-    if(opening||unresolved)return; // never create a new attempt from an unknown result
+    if(opening)return;
     if(ticket&&expiresAt>Date.now()&&mounted){
       fallback.hidden=true;frame.hidden=false;setOpen(true);
       return; // reopen the SAME verified fictional source, not issue a new ticket
+    }
+    if(unresolved){
+      status.textContent='Original test status unknown — NOT PAID. No automatic new ticket.';
+      return;
     }
     opening=true;
     pay.disabled=true;
