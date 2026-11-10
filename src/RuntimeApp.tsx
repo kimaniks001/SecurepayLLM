@@ -28,10 +28,8 @@ import type { AppView } from './types';
 
 const session = createSessionStore();
 let api: ReturnType<typeof createSecurePayApi> | undefined;
-try {
-  const stagingFetch = createSameOriginStagingFetch(import.meta.env.VITE_SECUREPAY_API_BASE_URL ?? '');
-  api = createSecurePayApi(import.meta.env.VITE_SECUREPAY_API_BASE_URL, session.getAccessToken, stagingFetch ?? undefined);
-} catch { /* Missing or unsafe configuration fails closed. */ }
+try { api = createSecurePayApi(import.meta.env.VITE_SECUREPAY_API_BASE_URL, session.getAccessToken, import.meta.env.VITE_SECUREPAY_API_BASE_URL ? createSameOriginStagingFetch(import.meta.env.VITE_SECUREPAY_API_BASE_URL) ?? undefined : undefined); }
+catch { /* Missing or unsafe configuration fails closed. */ }
 // The CORS-safe relay exists only on Vercel preview hosts and only for Work's opt-in smoke test.
 let previewAgentGateway: ReturnType<typeof createPreviewAgentGateway> | undefined;
 if (api && typeof window !== 'undefined' && window.location.hostname.endsWith('.vercel.app')) {
