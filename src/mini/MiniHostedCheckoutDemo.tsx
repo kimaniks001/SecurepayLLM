@@ -5,6 +5,10 @@ import { MiniFundingPreview } from './MiniFundingPreview';
 import { MiniGuestChat } from './MiniGuestChat';
 import type { MiniDraft, MiniLanguage } from './miniModel';
 import type { MiniFundingTestStatus, MiniTestRailId } from './miniFundingSimulator';
+import {
+  createOfflineJourney,moveOfflineJourney,nextOfflineAction,
+  type OfflineParticipant,type OfflineAction
+} from './offlineAgreementJourney';
 
 type Step = 'review' | 'funding' | 'chat';
 const RETURN_EVENT = 'SECUREPAY_MINI_OWNER_DEMO_RETURN_V1';
@@ -17,14 +21,30 @@ const RETURN_EVENT = 'SECUREPAY_MINI_OWNER_DEMO_RETURN_V1';
  * The synthetic postMessage is only an owner UX notification; a real host MUST
  * await authenticated server evidence and not derive paid/confirmed from it.
  */
-export function MiniHostedCheckoutDemo({ record, language, sessionExpiresAt }: {
+export function MiniHostedCheckoutDemo({ record, language, sessionExpiresAt, journeyMode = false }: {
   record: MiniCheckoutDemoRecord;
   language: MiniLanguage;
   /** Expiring preview-server display session; never payment authority. */
   sessionExpiresAt?: number;
+  /** Source-to-Agreement owner rehearsal inside existing Mini, entirely offline. */
+  journeyMode?: boolean;
 }) {
   const sw = language === 'sw';
   const [step, setStep] = useState<Step>('review');
+  const [participant,setParticipant] = useState<OfflineParticipant>('CUSTOMER');
+  const [journey,setJourney] = useState(()=>createOfflineJourney(record.orderVersion));
+  const nextAction=nextOfflineAction(journey,record.source);
+  const switchSource = () => {
+    const revised=moveOfflineJourney(journey,participant,'SOURCE_CHANGED');
+    if(!revised)return;
+    setJourney(revised);setStep('review');setParticipant('PROVIDER');
+  };
+  const takeOfflineAction=(action:OfflineAction) => {
+    const updated=moveOfflineJourney(journey,participant,action);
+    if(!updated)return;
+    setJourney(updated);
+    if(action==='CONTINUE_SIMULATION')setStep('funding');
+  };
   const [cameFrom, setCameFrom] = useState<'review' | 'funding'>('review');
   const [chatStarted, setChatStarted] = useState(false);
   const [simulatedStatus, setSimulatedStatus] = useState<MiniDemoStatus>('NOT_STARTED');
@@ -118,9 +138,65 @@ export function MiniHostedCheckoutDemo({ record, language, sessionExpiresAt }: {
           'Test order only. No accepted agreement, reserved stock or booking.'}
       </p>
 
+      {journeyMode ? <div className="spm-journey" data-simulation-journey={record.source}>
+        <div className="spm-journey-label">FULL-JOURNEY SIMULATION · no API</div>
+        <div className="spm-journey-roles" role="group" aria-label="Participant for this sample">
+          <button type="button" aria-pressed={participant==='CUSTOMER'}
+            onClick={()=>setParticipant('CUSTOMER')}
+            className={participant==='CUSTOMER'?'spm-journey-selected':''}>Buyer / guest</button>
+          <button type="button" aria-pressed={participant==='PROVIDER'}
+            onClick={()=>setParticipant('PROVIDER')}
+            className={participant==='PROVIDER'?'spm-journey-selected':''}>
+            {record.source==='STORE'?'Seller':'Stay host'}</button>
+        </div>
+        <div className="spm-journey-next" role="status" aria-live="polite">
+          <span className="spm-journey-kicker">Next-action prompt · in-app preview only</span>
+          <strong>{nextAction.title}</strong>
+          <p>{nextAction.description}</p>
+          <small>For: {nextAction.participant==='CUSTOMER'?'Buyer / guest':
+            record.source==='STORE'?'Seller':'Stay host'} · No notification sent</small>
+        </div>
+        {journey.stage==='SOURCE_REVIEW'&&participant==='PROVIDER'&&
+          <button type="button" className="spm-primary"
+            onClick={()=>takeOfflineAction('REVIEW_SOURCE')}>
+            Review sample source <ArrowRight size={17}/>
+          </button>}
+        {journey.stage==='TERMS_REVIEW'&&!journey.reviewed[participant]&&
+          <button type="button" className="spm-primary"
+            onClick={()=>takeOfflineAction('REVIEW_TERMS')}>
+            I have reviewed these sample terms <ArrowRight size={17}/>
+          </button>}
+        {journey.stage==='TERMS_REVIEW'&&<p className="spm-journey-progress">
+          Buyer / guest {journey.reviewed.CUSTOMER?'reviewed':'pending'} ·
+          {record.source==='STORE'?' Seller ':' Host '}
+          {journey.reviewed.PROVIDER?'reviewed':'pending'} · NOT SIGNED
+        </p>}
+        {journey.stage==='TERMS_REVIEW'&&journey.reviewed.CUSTOMER&&
+          journey.reviewed.PROVIDER&&participant==='CUSTOMER'&&
+          <button type="button" className="spm-primary"
+            onClick={()=>takeOfflineAction('CONTINUE_SIMULATION')}>
+            Continue to simulated payment <ArrowRight size={17}/>
+          </button>}
+        {journey.stage==='FUNDING_PREVIEW'&&participant==='CUSTOMER'&&
+          <button type="button" className="spm-primary" onClick={()=>setStep('funding')}>
+            Return to payment simulation <ArrowRight size={17}/>
+          </button>}
+        {nextAction.participant!==participant&&journey.stage!=='FUNDING_PREVIEW'&&
+          <button className="spm-secondary" type="button"
+            onClick={()=>setParticipant(nextAction.participant)}>
+            Switch to next participant
+          </button>}
+        <button className="spm-quiet-button" type="button" onClick={switchSource}>
+          Test changed source / revised terms
+        </button>
+        <p className="spm-journey-warning">
+          These clicks are NOT signatures, order acceptance, room holds, deposits,
+          payments or real notifications. Changing the source resets both reviews.
+        </p>
+      </div> :
       <button type="button" className="spm-primary" onClick={() => setStep('funding')}>
         {sw ? 'Endelea kulipa' : 'Continue to payment'}<ArrowRight size={18}/>
-      </button>
+      </button>}
       <button className="spm-quiet-button" type="button" onClick={showChat}>
         <MessageCircle size={16}/>{sw ? 'Unahitaji msaada? Uliza KS001' : 'Need help? Ask KS001'}
       </button>
@@ -133,11 +209,12 @@ export function MiniHostedCheckoutDemo({ record, language, sessionExpiresAt }: {
         the local pending/unknown attempt when the owner reopens it. */}
     <div className="spm-hosted-finance" hidden={step !== 'funding'}>
       <MiniFundingPreview
+        key={journeyMode ? 'offline-'+record.id+'-'+journey.revision : 'original'}
         draft={draft} language={language}
         onBack={() => setStep('review')}
         onDemoStateChange={onStatusChange}
         onReturnToHost={returnToHost}
-        guidedDemo
+        guidedDemo={!journeyMode}
         returnLabel={sw ? (record.source === 'STORE' ? 'Rudi dukani' : 'Rudi ShortStays') :
           (record.source === 'STORE' ? 'Return to Store' : 'Return to ShortStays')}
       />

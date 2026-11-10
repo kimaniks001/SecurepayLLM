@@ -124,6 +124,7 @@ export function MiniExperience() {
   const storeOfferSession = urlParams?.get('storeOfferSession') ?? null;
   const checkoutSession = urlParams?.get('checkoutSession') ?? null;
   const demoRequest = urlParams?.get('demoCheckout') ?? null;
+  const journeyMode = urlParams?.get('journey') === '1';
   const demoRecord = getMiniDemoCheckout(demoRequest);
 
   useEffect(() => {
@@ -258,7 +259,7 @@ export function MiniExperience() {
           storeOfferSession ? <MiniRealStoreOffer session={storeOfferSession} language={lang}/> :
           checkoutSession ? <MiniServerCheckout session={checkoutSession} language={lang}/> :
           demoRequest ? (demoRecord
-          ? <MiniHostedCheckoutDemo record={demoRecord} language={lang}/>
+          ? <MiniHostedCheckoutDemo record={demoRecord} language={lang} journeyMode={journeyMode}/>
           : <section className="spm-content" role="alert"><h1 className="spm-question">Checkout unavailable</h1>
               <p className="spm-lead">That test order was not found. No payment was started.</p>
               <a className="spm-quiet-link" href="/mini.html">Open Mini</a>
