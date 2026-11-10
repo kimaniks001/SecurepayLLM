@@ -50,6 +50,7 @@ import { BusinessFxConversionSection } from './BusinessFxConversionSection';
 import { MoneySnapshotPanel } from './MoneySnapshotPanel';
 import { moneyText } from './amount';
 import { SimpleMoneyDashboard } from './SimpleMoneyDashboard';
+import { SamplePaymentMethodsPanel } from './SamplePaymentMethodsPanel';
 import { Ks001SurfaceGuide } from '../experience/Ks001SurfaceGuide';
 import type { AppView } from '../../types';
 
@@ -161,6 +162,16 @@ export function MoneyExperience({ gateways, auth, session, onLeave, onNavigate, 
           onNavigate={onNavigate}
           onOpenAgreement={onOpenAgreement}
         />
+
+        <details className="max-w-2xl rounded-2xl border border-cream-200 bg-white/70"
+          data-securepay-money-payment-methods="simulation-only">
+          <summary className="min-h-12 cursor-pointer px-4 py-3 text-sm font-semibold text-forest-800">
+            Payment methods · practise adding a method
+          </summary>
+          <div className="border-t border-cream-200 p-4">
+            <SamplePaymentMethodsPanel/>
+          </div>
+        </details>
 
         <div className="max-w-2xl">
           <Ks001SurfaceGuide surface="money" onAsk={onAskKs001} />
