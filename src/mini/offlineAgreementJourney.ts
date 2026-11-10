@@ -43,6 +43,11 @@ export function nextOfflineAction(state:OfflineJourney,source:'STORE'|'SHORTSTAY
     simulatedOnly:true,notificationSent:false,agreementAccepted:false,paymentEnabled:false
   };
   if(state.stage==='TERMS_REVIEW'){
+    if(state.reviewed.CUSTOMER&&state.reviewed.PROVIDER)return {
+      participant:'CUSTOMER',title:'Ready to explore simulated payment',
+      description:'Both people reviewed the sample terms. This did not create a signed or accepted Agreement.',
+      simulatedOnly:true,notificationSent:false,agreementAccepted:false,paymentEnabled:false
+    };
     const participant:OfflineParticipant=state.reviewed.CUSTOMER?'PROVIDER':'CUSTOMER';
     return {participant,title:'Review sample Agreement terms',
       description:'Each person checks the same version in this rehearsal. This is NOT a legal signature or acceptance.',
