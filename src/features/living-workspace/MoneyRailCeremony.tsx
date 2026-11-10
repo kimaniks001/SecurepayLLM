@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ArrowRight, CheckCircle2, CircleHelp, Landmark, ShieldCheck, Smartphone } from 'lucide-react';
 import type { AgreementFundingOptionResponse } from '../../api/securepay/payment-intent';
 import { groupedSettlementOptions, settlementFamily, settlementFamilyTitle } from './settlementRailFamily';
+import { SamplePaymentMethodsPanel } from '../money/SamplePaymentMethodsPanel';
 
 const examples:AgreementFundingOptionResponse[]=[
   {railCode:'SAMPLE_MPESA',displayName:'M-PESA',currency:'KES',minimumAmountMinor:null,maximumAmountMinor:null,quoteAvailable:false},
@@ -66,6 +67,13 @@ export function MoneyRailCeremony({
     {!sample&&!quoteAllowed&&<p className="text-xs text-sand-600">SecurePay has not authorised quotation for this Agreement version. You can inspect options but cannot continue to quotation yet.</p>}
     {!sample&&!selected.quoteAvailable&&<p className="text-xs text-sand-600">This rail has no authoritative quote step at present. You can compare other eligible options instead.</p>}
   </div>}
+  {sample&&<details className="rounded-xl border border-cream-200 bg-cream-50"
+    data-money-rail-added-methods="simulation-only">
+    <summary className="cursor-pointer px-3 py-3 text-xs font-semibold text-forest-800">
+      + Add or manage a payment method (sample)
+    </summary>
+    <div className="border-t border-cream-200 p-3"><SamplePaymentMethodsPanel/></div>
+  </details>}
   <div className="flex items-start gap-2 border-t border-cream-200 pt-3 text-xs text-sand-600"><ShieldCheck size={17} className="mt-0.5 shrink-0"/><p>Selection → verify provider and quote → examine other options → explicitly authorise. No payment occurs in this preview.</p></div>
  </section>;
 }
