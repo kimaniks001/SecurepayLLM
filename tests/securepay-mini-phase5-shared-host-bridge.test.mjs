@@ -34,7 +34,8 @@ function harness(source='STORE',opts={}){
   const listeners={};
   const document={
     querySelector:q=>q==='[data-mini-phase5-host]'?root:null,
-    getElementById:id=>elements[id]
+    getElementById:id=>elements[id],
+    addEventListener:(name,fn)=>{listeners['document:'+name]=fn;}
   };
   const window={
     location:{origin,pathname:opts.path||host.path},
