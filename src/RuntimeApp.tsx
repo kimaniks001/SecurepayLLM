@@ -24,6 +24,7 @@ import { REVIEW_AUTHENTICATED_METHODS } from './api/securepay/agreement-review/r
 import { AUTHENTICATED_AGREEMENT_METHODS } from './api/securepay/agreements/refresh';
 import { runtimeMode } from './config/securepay';
 import { createSameOriginStagingFetch } from './features/living-workspace/previewApiOrigin';
+import { livingWorkspaceHash, parseLivingWorkspaceMode } from './features/living-workspace/routes';
 import type { AppView } from './types';
 
 const session = createSessionStore();
@@ -328,15 +329,13 @@ function useMoneySessionRoute(): string | null {
  * captured by this rule. No token-bearing route is inspected or rewritten.
  */
 export function isCandidateWorkspaceEntry(hash:string,hostname:string):boolean {
-  const defaultEntry = hash==='' || hash==='#' || hash==='#/' || /^#\/?sign-(?:in|up)\/?$/.test(hash);
-  return (hostname.endsWith('.vercel.app') || hostname === 'staging.securepay.ke') && defaultEntry;
+  return parseLivingWorkspaceMode(hash, hostname) !== null;
 }
 export default function RuntimeApp() {
   const [phase1Preview, setPhase1Preview] = useState(() => typeof window !== 'undefined' &&
-    (/^#\/?preview\/living-workspace(?:\/(?:work|vision|circle|community))?\/?$/.test(window.location.hash) ||
-      isCandidateWorkspaceEntry(window.location.hash,window.location.hostname)));
+    isCandidateWorkspaceEntry(window.location.hash,window.location.hostname));
   useEffect(() => {
-    const syncPreview = () => setPhase1Preview(/^#\/?preview\/living-workspace(?:\/(?:work|vision|circle|community))?\/?$/.test(window.location.hash) || isCandidateWorkspaceEntry(window.location.hash,window.location.hostname));
+    const syncPreview = () => setPhase1Preview(isCandidateWorkspaceEntry(window.location.hash,window.location.hostname));
     window.addEventListener('hashchange', syncPreview);
     return () => window.removeEventListener('hashchange', syncPreview);
   }, []);
@@ -422,7 +421,7 @@ export default function RuntimeApp() {
           session={session}
           onLeave={() => {
              if(hasWorkspaceMoneyReturn()){
-               window.location.hash='#/preview/living-workspace/work';
+               window.location.hash=livingWorkspaceHash('work',window.location.hostname);
                return;
              }
              clearMoneyRoute();

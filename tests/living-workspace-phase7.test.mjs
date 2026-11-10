@@ -196,8 +196,12 @@ test('Structural workspace: real private records use the existing SecurePay sess
 });
 test('Structural workspace: routes preserve chosen mode and have one sign-in session',()=>{
  const runtime=source('src/RuntimeApp.tsx');
- assert.match(runtime,/living-workspace\(\?:\\\/\(\?:work\|vision\|circle\|community\)\)/);
- assert.match(shell,/location\.hash=\x27#\/preview\/living-workspace\/\x27\+next/);
+ const routes=source('src/features/living-workspace/routes.ts');
+ assert.match(routes,/preview\\\/living-workspace/);
+ assert.match(routes,/hostname === 'staging\.securepay\.ke'/);
+ assert.match(routes,/return mode === 'work' \? '' : `#\//);
+ assert.match(shell,/livingWorkspaceHash\(next,window\.location\.hostname\)/);
+ assert.match(runtime,/isCandidateWorkspaceEntry\(window\.location\.hash,window\.location\.hostname\)/);
  assert.match(shell,/<WorkspaceIdentityOverlay/);
  assert.match(identityOverlay,/<SignInExperience/);
  assert.match(identityOverlay,/<SignupForm/);

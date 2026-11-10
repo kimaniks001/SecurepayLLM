@@ -6,14 +6,15 @@ const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const shell=read('src/features/living-workspace/Phase1LivingWorkspacePreview.tsx');
 const overlay=read('src/features/living-workspace/WorkspaceIdentityOverlay.tsx');
 const runtime=read('src/RuntimeApp.tsx');
+const routes=read('src/features/living-workspace/routes.ts');
 const signup=read('src/features/signup/controller.ts');
 const welcome=read('src/features/join/SignupIssuedWelcome.tsx');
 const preflight=read('scripts/day1-gate-d-certify.mjs');
 
 test('Gate D: preview root and explicit identity deep-links retain the masterpiece',()=>{
  assert.match(runtime,/isCandidateWorkspaceEntry/);
- assert.match(runtime,/hash==='' \|\| hash==='#' \|\| hash==='#\/'/);
- assert.match(runtime,/sign-\(\?:in\|up\)/);
+ assert.match(routes,/defaultEntry/);
+ assert.match(routes,/sign-\(\?:in\|up\)/);
  assert.match(runtime,/if \(phase1Preview\) return <Phase1LivingWorkspacePreview/);
  assert.match(runtime,/identityStagingReady=\{identityStagingReady\}/);
  assert.match(shell,/data-workspace-shell/);
