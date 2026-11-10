@@ -329,3 +329,25 @@ textarea.spm-field { resize:vertical; }
 .spm-imprint-visit { font-size:11px; font-weight:800; }
 .spm-brand-link:focus-visible,.spm-checkout-imprint:focus-visible {
   outline:3px solid #cf9a54; outline-offset:2px; }
+
+/* Same SecurePay Mini — optional full source-to-Agreement owner rehearsal.
+   No additional checkout component or financial authority. */
+.spm-journey { display:grid;gap:9px;margin:12px 0 7px;padding:12px;
+  border:1px solid #c9dfcb;border-radius:13px;background:#fbfdf8; }
+.spm-journey-label { font-size:10px;letter-spacing:.04em;color:#795b2c;font-weight:800; }
+.spm-journey-roles { display:flex;border-radius:10px;border:1px solid #c6dbc8;overflow:hidden; }
+.spm-journey-roles button { flex:1;background:#fff;border:0;min-height:42px;
+  padding:8px;font:inherit;font-size:12px;font-weight:650;color:#2b6645; }
+.spm-journey-roles button + button {border-left:1px solid #c6dbc8;}
+.spm-journey-roles .spm-journey-selected { background:#285d41;color:#fff; }
+.spm-journey-next { display:flex;flex-direction:column;gap:5px;border:1px solid #e4e9d8;
+  background:#f3f7ee;border-radius:10px;padding:10px;color:#294d36; }
+.spm-journey-next strong {font-size:12px;}
+.spm-journey-next p {font-size:11px;line-height:1.5;margin:0;}
+.spm-journey-next small {font-size:10px;line-height:1.4;color:#5f775f;}
+.spm-journey-kicker {font-weight:700;font-size:10px;color:#477651;}
+.spm-journey-progress { margin:0;font-size:11px;line-height:1.5;color:#5c785f; }
+.spm-journey-warning { font-size:10px;line-height:1.5;color:#8a693e;margin:1px 0; }
+.spm-journey .spm-primary {margin:0;}
+.spm-journey .spm-secondary {width:100%;margin:0;}
+.spm-journey .spm-quiet-button {margin:0;}
