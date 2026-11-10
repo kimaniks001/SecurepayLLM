@@ -70,3 +70,16 @@
   border-radius:9px;cursor:pointer}
 .demo-check[hidden]{display:none}
 .demo-check:disabled{opacity:.6;cursor:wait}
+
+/* SecurePay checkout attribution: preserved on partner-style sample checkout surfaces.
+   This is a brand link, not payment verification, escrow or a trust certificate. */
+.demo-securepay-imprint { display:inline-flex;align-items:center;justify-content:center;
+  flex-wrap:wrap;gap:6px;margin:9px auto 3px;min-height:32px;padding:4px 9px;
+  background:#f3f8ef;border:1px solid #d4e5d3;border-radius:10px;
+  color:#28563f;text-decoration:none;font-size:11px;line-height:1.35;
+  max-width:100%; }
+.demo-securepay-imprint img { display:block;width:21px;height:21px;object-fit:contain;flex:none; }
+.demo-securepay-imprint strong { font-weight:750; }
+.demo-securepay-imprint:hover { border-color:#80ad8b;text-decoration:underline;text-underline-offset:2px; }
+.demo-securepay-imprint:focus-visible { outline:3px solid #bd9556;outline-offset:3px; }
+.demo-imprint-external { font-weight:800;font-size:12px; }
