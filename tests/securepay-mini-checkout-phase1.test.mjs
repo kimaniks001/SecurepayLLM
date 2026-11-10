@@ -157,7 +157,8 @@ test('Mini checkout is a reference-only mode of the same React shell and same fu
   const view=read('src/mini/MiniHostedCheckoutDemo.tsx');
   const funding=read('src/mini/MiniFundingPreview.tsx');
   assert.match(mini,/getMiniDemoCheckout\(demoRequest\)/);
-  assert.match(mini,/<MiniHostedCheckoutDemo record=\{demoRecord\} language=\{lang\}\/>/);
+  assert.match(mini,/<MiniHostedCheckoutDemo record=\{demoRecord\} language=\{lang\} journeyMode=\{journeyMode\}\/>/);
+  assert.match(mini,/journeyMode = urlParams\?\.get\('journey'\) === '1'/);
   assert.match(mini,/Checkout unavailable/);
   assert.match(view,/<MiniFundingPreview/);
   assert.match(view,/<MiniGuestChat/);
