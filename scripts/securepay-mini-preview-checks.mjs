@@ -26,6 +26,7 @@ const suites = [
   'tests/securepay-mini-phase4-add-payment-method.test.mjs',
   'tests/securepay-mini-phase5-shared-host-bridge.test.mjs',
   'tests/securepay-mini-phase5-gate2-host-ticket.test.mjs',
+  'tests/securepay-mini-phase5-gate3-store-app-adapter.test.mjs',
   'tests/securepay-mini-phase1.test.mjs',
   'tests/securepay-mini-phase2.test.mjs',
   'tests/securepay-mini-phase3.test.mjs',
