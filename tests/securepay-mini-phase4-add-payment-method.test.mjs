@@ -119,3 +119,24 @@ test('both existing Mini rail pickers include Add payment method without changin
     assert.doesNotMatch(s,/fetch\(|\.initiate\(|STKPush|postMessage|fundFromSelf|sendWhatsApp|bankAccountNumber/);
   }
 });
+
+test('main SecurePay Money and Living Workspace sample rails reuse the exact Mini method model',()=>{
+  const moneyPage=read('src/features/money/MoneyExperience.tsx');
+  const railCeremony=read('src/features/living-workspace/MoneyRailCeremony.tsx');
+  const manager=read('src/features/money/SamplePaymentMethodsPanel.tsx');
+  assert.match(moneyPage,/<SamplePaymentMethodsPanel\/>/);
+  assert.match(moneyPage,/data-securepay-money-payment-methods="simulation-only"/);
+  assert.match(railCeremony,/\{sample&&<details/);
+  assert.match(railCeremony,/data-money-rail-added-methods="simulation-only"/);
+  assert.match(railCeremony,/<SamplePaymentMethodsPanel\/>/);
+  assert.match(manager,/from '\.\.\/\.\.\/mini\/miniAddedPaymentMethods'/);
+  assert.match(manager,/miniMethodAdd\(/);
+  assert.match(manager,/miniMethodRemove\(/);
+  assert.match(manager,/miniReadAddedMethods\(/);
+  assert.match(manager,/miniWriteAddedMethods\(/);
+  assert.match(manager,/No bank or mobile-money account is connected/);
+  assert.match(manager,/This provider is not connected/);
+  assert.doesNotMatch(manager,/\.initiate\(|fetch\(|createIntent\(|fundFromSelf\(|sendWhatsApp\(/);
+  assert.match(railCeremony,/onProceed\(selected\.railCode\)/);
+  assert.match(railCeremony,/disabled=\{!selected\.quoteAvailable\|\|!quoteAllowed\}/);
+});
