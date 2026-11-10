@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="robots" content="noindex,nofollow"/>
+  <title>Sample ShortStays — Phase 5 shared SecurePay Mini bridge</title>
+  <link rel="stylesheet" href="/checkout-demo.css"/>
+</head>
+<body>
+  <header class="demo-header">
+    <div class="demo-brand">Sample ShortStays</div>
+    <nav class="demo-switch" aria-label="Preview host navigation">
+      <a href="/phase5-hosts.html">All hosts</a>
+      <a href="/phase5-store-host.html">Digital Store</a>
+    </nav>
+  </header>
+  <main class="demo-main" data-mini-phase5-host="SHORTSTAYS" data-checkout-fixture="STAY-DEMO-01">
+    <div class="demo-kicker">Phase 5 · one shared Mini launcher · owner simulation</div>
+    <h1>A cabin stay checkout</h1>
+    <p class="demo-intro">An illustrative stay, not a held room, confirmed booking or actual payment. This example opens the same Mini used by the other site, with KS001 optional and no live payments.</p>
+    <div class="demo-grid">
+      <article class="demo-card">
+        <div class="demo-visual"><span>Your sample booking</span></div>
+        <h2>Your sample booking</h2>
+        <p class="demo-meta">Two nights · two guests · sample dates only</p>
+        <div class="demo-order-line"><span>Sample total</span><strong>KSh 9,000</strong></div>
+        <div class="demo-order-line"><span>Fictional reference</span><strong>DEMO-STAY-2001</strong></div>
+        <span class="demo-badge">SIMULATION ONLY · Not ordered, booked or funded</span>
+        <button id="demo-pay" type="button" class="demo-pay"
+          aria-controls="demo-popup" aria-expanded="false">Book / Pay with SecurePay</button>
+        <a class="demo-securepay-imprint" data-securepay-logo-imprint="official"
+          href="https://securepay.ke/" target="_blank" rel="noopener noreferrer"
+          aria-label="Checkout by SecurePay — official website (opens in a new tab)">
+          <img src="/brand/securepay-mark-green.png" alt="" aria-hidden="true" width="21" height="21"/>
+          <span>Checkout by <strong>SecurePay</strong></span>
+          <span class="demo-imprint-external" aria-hidden="true">↗</span>
+        </a>
+        <p class="demo-keep-note">Your existing website remains in place. The popup is a shared test interface, not a second store, booking engine or payment platform.</p>
+      </article>
+      <aside class="demo-card demo-aside">
+        <h3>Checkout return status</h3>
+        <div id="demo-status" class="demo-status" role="status" aria-live="polite">No test checkout started — NOT PAID</div>
+        <p style="margin-top:14px">Only the real host server and SecurePayAPI can independently establish an accepted order, valid Agreement, verified payment and eligible fulfilment.</p>
+        <p class="demo-note">Choice Bank, M-Pesa and PesaLink are fictional methods here. No money, SMS or bank account is involved.</p>
+      </aside>
+    </div>
+  </main>
+  <div id="demo-overlay" class="demo-overlay" hidden></div>
+  <section id="demo-popup" class="demo-popup" hidden aria-label="SecurePay Mini checkout simulation">
+    <div class="demo-popup-header"><span>SecurePay Mini · shared host test</span>
+      <button type="button" id="demo-close" aria-label="Close simulated checkout">×</button>
+    </div>
+    <!-- Same-origin TEST ONLY. Do not use allow-same-origin+sandbox as a production trust boundary. -->
+    <iframe id="demo-frame" src="about:blank" title="SecurePay Mini offline Agreement checkout"
+      sandbox="allow-scripts allow-same-origin allow-forms" referrerpolicy="no-referrer"></iframe>
+    <div id="demo-fallback" class="demo-fallback" hidden role="alert">
+      <strong>The checkout preview did not load.</strong>
+      <p>Nothing was paid or booked. Return to your sample website to retry.</p>
+      <a href="/phase5-shortstays-host.html">Restart sample</a>
+    </div>
+  </section>
+  <script defer src="/securepay-mini-phase5-host-bridge.js"></script>
+</body>
+</html>
