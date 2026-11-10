@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<meta name="robots" content="noindex,nofollow"/>
+<title>SecurePay Mini — Phase 5 shared host integration preview</title>
+<link rel="stylesheet" href="/checkout-demo.css"/>
+</head>
+<body>
+<header class="demo-header"><div class="demo-brand">SecurePay Mini · Phase 5</div>
+<nav class="demo-switch"><a href="/mini.html">Mini</a></nav></header>
+<main class="demo-main">
+  <div class="demo-kicker">ONE LAUNCHER · ONE MINI · MULTIPLE SITES</div>
+  <h1>The same SecurePay checkout, wherever you start</h1>
+  <p class="demo-intro">These are fictional owner-only integration test surfaces. They are not replicas or deployments of any existing host. SecurePayAPI, identity, payment provider and live site integrations remain disabled.</p>
+  <div class="demo-grid">
+    <article class="demo-card">
+      <h2>First two test integrations</h2>
+      <p class="demo-meta">Both use <code>/securepay-mini-phase5-host-bridge.js</code> and the original Mini checkout, with one simulation-only return policy.</p>
+      <div class="demo-sandbox-options">
+        <a class="demo-sandbox-link" href="/phase5-store-host.html">
+          <strong>Digital Store</strong><span>Fictional goods · checkout popup</span>
+        </a>
+        <a class="demo-sandbox-link" href="/phase5-shortstays-host.html">
+          <strong>ShortStays</strong><span>Fictional accommodation · checkout popup</span>
+        </a>
+      </div>
+      <h2>Next host adapters — not enabled</h2>
+      <p class="demo-intro" style="margin-bottom:10px">These must retain their own interfaces. Their business authority must exist before a checkout reference can be issued.</p>
+      <div class="demo-order-line"><span>My Ride</span><strong>Trip, driver &amp; fare checks pending</strong></div>
+      <div class="demo-order-line"><span>Storage</span><strong>Space, duration &amp; access rules pending</strong></div>
+      <div class="demo-order-line"><span>Varsityville Estate</span><strong>Estate invoice / gate authority pending</strong></div>
+      <p class="demo-keep-note">No live Estate UI, product catalog, rent, account, visitor or gate operations are modified by this owner preview.</p>
+    </article>
+    <aside class="demo-card demo-aside">
+      <h3>Why the host cannot mark itself paid</h3>
+      <p>Opening, closing, returning from, or receiving a simulated response from Mini is not evidence of bank funding, Agreement acceptance, a room hold, stock reservation or release eligibility.</p>
+      <p>When SecurePayAPI is restored, actual host servers must verify the same registered-origin, server-issued checkout and money authority.</p>
+      <a class="demo-securepay-imprint" data-securepay-logo-imprint="official"
+        href="https://securepay.ke/" target="_blank" rel="noopener noreferrer"
+        aria-label="Visit official SecurePay website (new tab)">
+        <img src="/brand/securepay-mark-green.png" alt="" aria-hidden="true" width="21" height="21"/>
+        <span>Powered by <strong>SecurePay</strong></span><span aria-hidden="true">↗</span>
+      </a>
+    </aside>
+  </div>
+</main>
+</body>
+</html>
