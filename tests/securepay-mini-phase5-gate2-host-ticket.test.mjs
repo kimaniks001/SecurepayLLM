@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  PHASE5_GATE2_BRANCH,PHASE5_TICKET_TTL_MS,PHASE5_HOST_REGISTRY,
+  PHASE5_GATE2_BRANCH,PHASE5_GATE3_BRANCH,PHASE5_TICKET_TTL_MS,PHASE5_HOST_REGISTRY,
   phase5Gate2Config,phase5HostRegistration,phase5IssueHostTicket,
   phase5ResolveHostTicket,handlePhase5HostTicket
 } from '../api/mini-phase5-host-ticket.js';
@@ -44,6 +44,9 @@ function call(method,body,opts={}){
 }
 test('Gate2 sandbox disabled unless exact branch, preview environment, host and dedicated secret',()=>{
   assert.equal(config.branch,PHASE5_GATE2_BRANCH);
+  const gate3=phase5Gate2Config({...env,VERCEL_GIT_COMMIT_REF:PHASE5_GATE3_BRANCH});
+  assert.ok(gate3);
+  assert.equal(gate3.origin,config.origin);
   assert.equal(config.origin,'https://securepay-phase5-test.vercel.app');
   for(const changes of [
     {VERCEL_ENV:'production'},{VERCEL_ENV:'development'},
