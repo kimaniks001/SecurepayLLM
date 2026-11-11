@@ -36,18 +36,18 @@ function parseBill(value: unknown): BillSnapshot | null {
   const b = value as Record<string, unknown>;
   if (b.version !== 1 || b.source !== 'ESTATE_BILL' || b.currency !== 'KES' ||
       !['pending', 'overdue'].includes(String(b.status)) ||
-      !Number.isSafeInteger(b.amountMinor) || Number(b.amountMinor) < 1 ||
+      typeof b.amountMinor !== 'number' || !Number.isSafeInteger(b.amountMinor) || Number(b.amountMinor) < 1 ||
       Number(b.amountMinor) > 10000000000 ||
       typeof b.billNumber !== 'string' || !/^[a-zA-Z0-9._/-]{1,72}$/.test(b.billNumber) ||
       typeof b.description !== 'string' || b.description.length > 200 ||
       typeof b.attemptId !== 'string' || !/^[a-zA-Z0-9-]{12,80}$/.test(b.attemptId)) return null;
-  return b as BillSnapshot;
+  return b as unknown as BillSnapshot;
 }
 
 export function MiniEstateBillSandbox({ language }: { language: MiniLanguage }) {
   const [bill, setBill] = useState<BillSnapshot | null>(null);
   const [stage, setStage] = useState<Stage>('review');
-  const [status, setStatus] = useState<MiniFundingTestStatus>('NOT_STARTED');
+  const [status, setStatus] = useState<MiniFundingTestStatus | 'NOT_STARTED'>('NOT_STARTED');
   const [failure, setFailure] = useState('Connecting to the Estate development page…');
   const [parentOrigin, setParentOrigin] = useState<string | null>(null);
 
