@@ -12,6 +12,7 @@ import { MiniGuestChat } from './MiniGuestChat';
 import { MiniFundingPreview } from './MiniFundingPreview';
 import { getMiniDemoCheckout } from './checkoutDemoFixtures';
 import { MiniHostedCheckoutDemo } from './MiniHostedCheckoutDemo';
+import { MiniEstateBillSandbox } from './MiniEstateBillSandbox';
 import { MiniServerCheckout } from './MiniServerCheckout';
 import { MiniRealStoreOffer } from './MiniRealStoreOffer';
 import { MiniGate2Sandbox } from './MiniGate2Sandbox';
@@ -118,6 +119,7 @@ export function MiniExperience() {
   const quantityField = useRef<HTMLInputElement | null>(null);
   const urlParams = typeof window === 'undefined' ? null : new URLSearchParams(window.location.search);
   const compact = urlParams?.get('embedded') === '1';
+  const estateBillPreview = urlParams?.get('estateBillPreview') === '1';
   const gate4Session = urlParams?.get('sandboxReconcile') ?? null;
   const gate3Session = urlParams?.get('sandboxPayment') ?? null;
   const gate2Session = urlParams?.get('sandboxAgreement') ?? null;
@@ -248,12 +250,13 @@ export function MiniExperience() {
         <div className="spm-head-actions">
           <button className="spm-lang" type="button" onClick={() => setLang(lang === 'en' ? 'sw' : 'en')}
             aria-label={lang === 'en' ? 'Badili kwa Kiswahili' : 'Switch to English'}>{lang === 'en' ? 'Kiswahili' : 'English'}</button>
-          {!gate4Session && !gate3Session && !gate2Session && !storeOfferSession && !checkoutSession && !demoRequest && screen !== 'home' && <button type="button" className="spm-icon-btn" aria-label={t.clear} onClick={reset}><X size={19}/></button>}
+          {!gate4Session && !gate3Session && !gate2Session && !storeOfferSession && !checkoutSession && !demoRequest && !estateBillPreview && screen !== 'home' && <button type="button" className="spm-icon-btn" aria-label={t.clear} onClick={reset}><X size={19}/></button>}
         </div>
       </header>
 
       <div className="spm-main" aria-live="polite">
-        {gate4Session ? <MiniGate2Sandbox session={gate4Session} language={lang} gate3Enabled gate4Enabled/> :
+        {estateBillPreview ? <MiniEstateBillSandbox language={lang}/> :
+          gate4Session ? <MiniGate2Sandbox session={gate4Session} language={lang} gate3Enabled gate4Enabled/> :
           gate3Session ? <MiniGate2Sandbox session={gate3Session} language={lang} gate3Enabled/> :
           gate2Session ? <MiniGate2Sandbox session={gate2Session} language={lang}/> :
           storeOfferSession ? <MiniRealStoreOffer session={storeOfferSession} language={lang}/> :
