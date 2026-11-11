@@ -801,7 +801,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
         {uiOnlyPreview && mode==='work' && <PreviewWorkComposer notes={activePreviewNotes} exampleId={phase2ExampleId} onAdd={addPreviewNote} onOpenTools={openToolPicker}
           onSelectExample={id=>setPhase2ExampleId(id)}/>}
         {mode==='community' && (!signedIn || workspaceGateways) && <div data-phase6-community-main
-          className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5">
+          className="min-h-0 min-w-0 flex-1 overflow-y-auto p-4 sm:p-5">
           <InlineCommunityHub gateways={workspaceGateways} session={session}
             previewOnly={!signedIn}
             onPlanWithKs001={continueCircleToWork}

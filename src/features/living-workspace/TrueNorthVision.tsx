@@ -198,7 +198,7 @@ export function TrueNorthVisionChat({journey,onAdd}:{journey:VisionNorthJourney;
   const busyNow=busy||!!agentState?.busy;
   const lastResponse=messages[messages.length-1]?.sender==='guide'?messages[messages.length-1].text:'';
   return <div data-true-north-vision-chat className="flex min-h-0 flex-1 flex-col">
-    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 pt-5 sm:px-6">
+    <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-5 sm:px-6">
       {messages.length===0&&<div className="mx-auto max-w-xl py-5 sm:py-10">
         <p className="mb-3 flex items-center gap-2 text-xs font-semibold tracking-[.16em] text-forest-700"><Sparkles size={16}/> VISION · DREAM COMPANION</p>
         <h1 className="sp-type-display text-[2.15rem] leading-tight tracking-tight text-forest-900 sm:text-[2.65rem]">What are you imagining?</h1>
