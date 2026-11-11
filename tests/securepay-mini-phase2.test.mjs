@@ -113,7 +113,13 @@ test('same-origin owner frame loads Vite modules and exposes a visible failure f
   assert.match(host, /querySelector\('\.spm-root'\)/);
   assert.match(host, /mini could not open inside this window/i);
   assert.match(host, /same-origin sample/i);
-  assert.ok(vercel.headers.some(rule => rule.source === '/mini.html' &&
-    rule.headers.some(h => h.key === 'Content-Security-Policy' && h.value === "frame-ancestors 'self'")));
+  const miniFramePolicy = vercel.headers.find(rule => rule.source === '/mini.html')
+    ?.headers.find(h => h.key === 'Content-Security-Policy')?.value;
+  assert.ok(miniFramePolicy?.startsWith("frame-ancestors 'self'"));
+  // Day 10 is an explicitly isolated branch for the named Estate development site.
+  assert.ok(miniFramePolicy?.includes(' https://varsity-dev.estate.ke'));
+  assert.ok(!miniFramePolicy?.includes(' https://varsity.estate.ke'));
+  assert.ok(!miniFramePolicy?.includes(' https://securepay.ke'));
+  assert.ok(!miniFramePolicy?.includes(' *'));
   assert.doesNotMatch(host, /src="https?:\/\//);
 });
