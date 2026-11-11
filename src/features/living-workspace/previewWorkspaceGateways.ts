@@ -19,9 +19,9 @@ export type StagingEvidenceGateway = Pick<AgreementGateway,
   'submitVerifiedMediaEvidence' | 'readVerifiedMedia'>;
 
 export function createStagingEvidenceGateway(
-  baseUrl: string, getAccessToken: AccessTokenProvider,
+  baseUrl: string, getAccessToken: AccessTokenProvider, allowPublicStagingHost = false,
 ): StagingEvidenceGateway | null {
-  const origin = requireApprovedPreviewApiOrigin(baseUrl);
+  const origin = requireApprovedPreviewApiOrigin(baseUrl, allowPublicStagingHost);
   if (origin === 'https://securepay.ke') return null;
   const uuid = String.raw`[0-9a-fA-F-]{36}`;
   const agreementPath = String.raw`/api/v1/agreements/` + uuid;
@@ -31,7 +31,7 @@ export function createStagingEvidenceGateway(
     '/obligations/' + uuid + '/(?:evidence-media|verified-media-evidence)$');
   const permittedQuery = new RegExp('^\\?expectedAgreementVersionId=' + uuid +
     '&expectedObligationVersion=[0-9]{1,16}$');
-  const sameOriginStagingFetch = createSameOriginStagingFetch(baseUrl);
+  const sameOriginStagingFetch = createSameOriginStagingFetch(baseUrl, allowPublicStagingHost);
   const stagingFetch: typeof fetch = (input, init) => {
     const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url);
     const method = (init?.method ?? 'GET').toUpperCase();
@@ -58,10 +58,10 @@ export function createStagingEvidenceGateway(
  * One preview-only transport for existing SecurePay authorities.
  * Not a second database, token store, membership grant, or generic API proxy.
  */
-export function createPreviewWorkspaceGateways(baseUrl: string, getAccessToken: AccessTokenProvider) {
-  const approvedOrigin = requireApprovedPreviewApiOrigin(baseUrl);
-  const media = createStagingEvidenceGateway(baseUrl, getAccessToken);
-  const sameOriginStagingFetch = createSameOriginStagingFetch(baseUrl);
+export function createPreviewWorkspaceGateways(baseUrl: string, getAccessToken: AccessTokenProvider, allowPublicStagingHost = false) {
+  const approvedOrigin = requireApprovedPreviewApiOrigin(baseUrl, allowPublicStagingHost);
+  const media = createStagingEvidenceGateway(baseUrl, getAccessToken, allowPublicStagingHost);
+  const sameOriginStagingFetch = createSameOriginStagingFetch(baseUrl, allowPublicStagingHost);
   const previewFetch: typeof fetch = sameOriginStagingFetch ?? ((input, init) => {
     const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url);
     if (url.origin !== approvedOrigin || !url.pathname.startsWith('/api/')) {

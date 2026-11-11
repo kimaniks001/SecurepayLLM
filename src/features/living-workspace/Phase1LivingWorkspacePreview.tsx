@@ -68,26 +68,29 @@ const subscribeNever = (_listener: () => void) => () => {};
 const noLiveState = (): AgentState | null => null;
 const noFormationState = (): FormationState | null => null;
 
-export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, session, identityStagingReady=false }: {
+export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, session, identityStagingReady=false, publicStagingHostEnabled=false }: {
   gateway?: AgentGateway;
   workspaceGateways?: PreviewWorkspaceGateways;
   session: SessionStore;
   /** Identity write operations must be backed by isolated, configured staging. */
   identityStagingReady?: boolean;
+  /** Only enabled in the separately built www sandbox snapshot. */
+  publicStagingHostEnabled?: boolean;
 }) {
   const initialMode=():Mode=>{
     if(typeof window==='undefined')return 'work';
-    return parseLivingWorkspaceMode(window.location.hash,window.location.hostname)??'work';
+    return parseLivingWorkspaceMode(window.location.hash,window.location.hostname,publicStagingHostEnabled)??'work';
   };
   const [mode, setMode] = useState<Mode>(initialMode);
   const [signInOpen,setSignInOpen]=useState(()=>typeof window!=='undefined' && /^#\/?sign-(?:in|up)\/?$/.test(window.location.hash));
   const [identityIntent,setIdentityIntent]=useState<'signin'|'signup'>(()=>typeof window!=='undefined' && /^#\/?sign-up\/?$/.test(window.location.hash)?'signup':'signin');
   const openIdentity=(intent:'signin'|'signup'='signin')=>{setIdentityIntent(intent);setSignInOpen(true);};
   useEffect(()=>{
-    if(typeof window==='undefined' || window.location.hostname!=='staging.securepay.ke')return;
-    const mode=parseLivingWorkspaceMode(window.location.hash,window.location.hostname);
+    if(typeof window==='undefined' || (window.location.hostname!=='staging.securepay.ke'
+      && !(publicStagingHostEnabled && window.location.hostname==='www.securepay.ke')))return;
+    const mode=parseLivingWorkspaceMode(window.location.hash,window.location.hostname,publicStagingHostEnabled);
     if(!mode || !/^#\/?preview\/living-workspace(?:\/|$)/.test(window.location.hash))return;
-    const cleanHash=livingWorkspaceHash(mode,window.location.hostname);
+    const cleanHash=livingWorkspaceHash(mode,window.location.hostname,publicStagingHostEnabled);
     window.history.replaceState(window.history.state,'',window.location.pathname+window.location.search+cleanHash);
   },[]);
   // Pure client-side illustration, intentionally separate from the real SessionStore.
@@ -158,7 +161,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     const sync=()=>{
       const next=initialMode();
       if(next!==mode && !mayLeaveDream()){
-        window.location.hash=livingWorkspaceHash(mode,window.location.hostname);
+        window.location.hash=livingWorkspaceHash(mode,window.location.hostname,publicStagingHostEnabled);
         return;
       }
       if(next!==mode){
@@ -174,7 +177,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     if(next!=='work')setOpenedAgreementId(null);
     if(next!==mode){setEditingDreamId(null);setWorkingCircleId(null);setDreamUnsaved(false);}
     setMode(next);setScreen('chat');setToolSelected(false);setToolsOpen(shelfPinned);
-    window.location.hash=livingWorkspaceHash(next,window.location.hostname);
+    window.location.hash=livingWorkspaceHash(next,window.location.hostname,publicStagingHostEnabled);
   };
   // Start in the real KS001 Work conversation when a verified gateway is available.
   // No mock conversation is presented as a successful human turn.
@@ -469,7 +472,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     setSignInOpen(false);
     // A direct identity deep-link returns to the same masterpiece, not the retired homepage.
     if(typeof window!=='undefined' && /^#\/?sign-(?:in|up)\/?$/.test(window.location.hash))
-      window.location.hash=livingWorkspaceHash('work',window.location.hostname);
+      window.location.hash=livingWorkspaceHash('work',window.location.hostname,publicStagingHostEnabled);
   };
   return <main className="sp-type-signature sp-brand-shell min-h-screen bg-gradient-to-br from-[#fbfaf5] via-[#f7f7f1] to-[#eef2eb] text-forest-800" data-sp-area={mode} data-typography-study="Afacad-Flux-and-Bricolage" data-workspace-frozen-layout>
     <header className="sp-brand-header border-b border-cream-200/80 bg-white/95 px-4 py-3 sm:px-7">

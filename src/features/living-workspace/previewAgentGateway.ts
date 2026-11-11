@@ -10,8 +10,8 @@ import { requireApprovedPreviewApiOrigin } from './previewApiOrigin';
  * Only the few conversation endpoints used by the Work smoke test can travel
  * through the same-origin relay; no blanket rewrite of other SecurePay APIs.
  */
-export function createPreviewAgentGateway(baseUrl: string, getAccessToken: AccessTokenProvider) {
-  const approvedOrigin = requireApprovedPreviewApiOrigin(baseUrl);
+export function createPreviewAgentGateway(baseUrl: string, getAccessToken: AccessTokenProvider, allowPublicStagingHost = false) {
+  const approvedOrigin = requireApprovedPreviewApiOrigin(baseUrl, allowPublicStagingHost);
   const previewFetch: typeof fetch = async (input, init) => {
     const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url);
     if (url.origin !== approvedOrigin || !/^\/api\/agent\/conversations(?:\/|$)/.test(url.pathname)) {

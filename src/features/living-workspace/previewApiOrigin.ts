@@ -3,7 +3,7 @@
  * This does NOT grant write authority; the Vercel server-side relay independently
  * checks the staging project, explicit operator confirmation and upstream host.
  */
-export function requireApprovedPreviewApiOrigin(raw: string): string {
+export function requireApprovedPreviewApiOrigin(raw: string, allowPublicStagingHost = false): string {
   let url: URL;
   try { url = new URL(raw); } catch {
     throw new Error('A valid SecurePay API origin is required');
@@ -13,24 +13,27 @@ export function requireApprovedPreviewApiOrigin(raw: string): string {
   const isStaging = url.protocol === 'https:' && !url.port &&
     host.endsWith('.securepay.ke') &&
     /(?:^|[.-])(?:staging|sandbox|qa|test)(?:[.-]|$)/.test(host);
-  if (!isProduction && !isStaging) {
+  const isExplicitPublicStaging = allowPublicStagingHost && url.origin === 'https://www.securepay.ke';
+  if (!isProduction && !isStaging && !isExplicitPublicStaging) {
     throw new Error('Unknown SecurePay API origin; preview transport is unavailable');
   }
   return url.origin;
 }
 
 /**
- * The droplet serves the UI and isolated staging API on one origin behind Nginx
- * Basic Auth. Browser Basic Auth occupies Authorization, so move only this
- * app's bearer token to a private header that the staging Nginx maps back to
- * Authorization after it has checked Basic Auth. Nginx must clear cookies and
- * the private header before proxying. Never use this transport off staging.
+ * The protected staging host and the separately built public sandbox host use
+ * same-origin API requests. Browser Basic Auth occupies Authorization on staging,
+ * so move only this app's bearer token to a private header that Nginx maps back
+ * after its staging password check. The public build opts in only for www and
+ * uses the same isolated SANDBOX API; the ordinary production build cannot opt in.
  */
-export function createSameOriginStagingFetch(raw: string): typeof fetch | null {
+export function createSameOriginStagingFetch(raw: string, allowPublicStagingHost = false): typeof fetch | null {
   if (typeof window === 'undefined') return null;
-  const origin = requireApprovedPreviewApiOrigin(raw);
+  const origin = requireApprovedPreviewApiOrigin(raw, allowPublicStagingHost);
   const url = new URL(origin);
-  if (origin !== window.location.origin || url.hostname !== 'staging.securepay.ke') return null;
+  const isStagingHost = url.hostname === 'staging.securepay.ke';
+  const isExplicitPublicHost = allowPublicStagingHost && url.hostname === 'www.securepay.ke';
+  if (origin !== window.location.origin || (!isStagingHost && !isExplicitPublicHost)) return null;
   return (input, init) => {
     const requestUrl = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url);
     if (requestUrl.origin !== origin || !requestUrl.pathname.startsWith('/api/')) {
