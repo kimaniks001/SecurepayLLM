@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, Search, ShoppingBag, Store, CheckCircle2 } from 'lucide-react';
 import { createHttpClient } from '../api/securepay/http';
 import { createStoreGateway } from '../api/securepay/store';
@@ -38,9 +38,13 @@ type View = 'search' | 'store' | 'plan';
 export function MiniBuyStore({ language, onBack, initialQuery = '' }: {language: MiniLanguage; onBack: () => void; initialQuery?: string}) {
   const sw = language === 'sw';
   const [view, setView] = useState<View>('search');
-  const [term, setTerm] = useState(() => initialQuery.trim()
+  const asSearchTerm = (phrase: string) => phrase.trim()
     .replace(/^(?:i (?:want|need|would like) to (?:buy|get|find)|(?:i'm|i am) looking for|buy|find)\s+/i, '')
-    .replace(/[?.!]+$/, '').slice(0, 100));
+    .replace(/[?.!]+$/, '').slice(0, 100);
+  const [term, setTerm] = useState(() => asSearchTerm(initialQuery));
+  useEffect(() => {
+    if (initialQuery.trim()) setTerm(asSearchTerm(initialQuery));
+  }, [initialQuery]);
   const [kind, setKind] = useState<'PRODUCT' | 'SERVICE'>('PRODUCT');
   const [results, setResults] = useState<PublicSearchResultView[]>([]);
   const [chosenStore, setChosenStore] = useState<PublicStoreView | null>(null);
