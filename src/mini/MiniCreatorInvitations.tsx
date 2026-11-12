@@ -26,7 +26,7 @@ export function MiniCreatorInvitations({gateway,onBack}:{
         throw Error('Invalid owner-scoped Agreements');
       setList(page.items.filter(x=>x && typeof x.agreementId==='string' &&
         typeof x.title==='string' && x.currentActor &&
-        ['DRAFT',...INVITABLE_STATUSES].includes(x.status)));
+        (['DRAFT',...INVITABLE_STATUSES] as readonly string[]).includes(x.status)));
     }catch{
       setList([]);setError('SecurePay could not verify the Agreements accessible to this account.');
     }finally{setLoading(false);}
