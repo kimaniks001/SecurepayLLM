@@ -71,8 +71,8 @@
       "gate": "Parties independently approve same version with cross-identity privacy",
       "order": 3,
       "owner": "To be assigned at M0",
-      "lastEvidence": "2026-11-12: M3A compact canonical KSNumber/OTP in Mini, server-owned Save/List/Resume with strict original-conversation restoration, memory-only auth/owned-list and explicit signout; focused Node mocked-gateway checks and preview build. See docs/mini/M3_OWNER_SAVED_WORK_SOURCE_GATE_20261112.md.",
-      "ownerDecision": "M3A CODE CANDIDATE; LIVE NO-GO: isolated staging absent and M1 model not certified. M3B invitation/party authority/independent acceptance and 2-person backend negative tests NOT DONE.",
+      "lastEvidence": "2026-11-12: M3A owner Save/List/Resume 50 focused tests passed. M3B source candidate: canonical InviteController, InvitationInboxController, RecipientController inside first-party Mini; 60 focused M1–M3B tests passed and TypeScript/Vercel READY at source commit 6c9bd398. Includes explicit creator invite, recipient review, separate Join/current-version confirm, 403/expired/version/idempotency checks; no live staging acceptance.",
+      "ownerDecision": "M3A + M3B CODE CANDIDATES, NOT LIVE M3 PASS. Isolated staging required; established Agreement setup from KS001 handoff, two-account invitation/confirm gate and recipient change/decline REST operations still outstanding. No unapproved customer notifications or Money.",
       "marketingLawAssessment": "Pending"
     },
     {
@@ -222,7 +222,7 @@
     "Financial status never inferred from a draft or client-only simulation.",
     "New development PRs do not modify production without separate GO."
   ],
-  "currentWorkBranch": "feat/mini-m3-owned-saved-work-20261112",
+  "currentWorkBranch": "feat/mini-m3b-participant-authority-20261112",
   "lastAudited": "2026-11-12",
   "liveMoneyApproved": false,
   "criticalNextGate": "Verify isolated staging backend and configured matching stage API origin; activate first-party Mini for real KS001 12-turn and mother synthetic acceptance only after operator sign-off."
