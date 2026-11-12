@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import { ArrowLeft, ArrowRight, BookmarkPlus, CircleAlert, FolderOpen, LogOut, Mail, MessageCircle, RefreshCcw, Send, ShieldCheck, Users } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BookmarkPlus, CircleAlert, ClipboardList, FolderOpen, LogOut, Mail, MessageCircle, RefreshCcw, Send, ShieldCheck, Users } from 'lucide-react';
 import { createHttpClient } from '../api/securepay/http';
 import { createAgentGateway } from '../api/securepay/agent';
 import { createAuthGateway } from '../api/securepay/auth';
 import { createAgreementGateway } from '../api/securepay/agreements';
 import { MiniParticipantInvitations } from './MiniParticipantInvitations';
 import { MiniCreatorInvitations } from './MiniCreatorInvitations';
+import { MiniMyAgreements } from './MiniMyAgreements';
 import { createSessionStore, ensureFreshSession } from '../api/securepay/session';
 import { createAgentController } from '../features/agent/controller';
 import type { AgreementFormationDto } from '../api/securepay/agent/dto';
@@ -66,8 +67,9 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack }: {
   const [reviewError,setReviewError] = useState('');
   const [recoveryAttempt,setRecoveryAttempt] = useState(0);
   const [identityOpen,setIdentityOpen] = useState(false);
-  const [identityGoal,setIdentityGoal] = useState<'saved'|'inbox'|'creator'>('saved');
+  const [identityGoal,setIdentityGoal] = useState<'saved'|'inbox'|'creator'|'agreements'>('saved');
   const [peopleOpen,setPeopleOpen] = useState<'inbox'|'creator'|null>(null);
+  const [agreementsOpen,setAgreementsOpen] = useState(false);
   const [ownedOpen,setOwnedOpen] = useState(false);
   const [ownedStatus,setOwnedStatus] = useState<'idle'|'loading'|'ready'|'error'>('idle');
   const [ownedList,setOwnedList] = useState<MiniSavedWorkItem[]>([]);
@@ -216,8 +218,24 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack }: {
     setOwnedOpen(next);
     if (next) void loadOwned();
   };
+  const openAgreements = () => {
+    setOwnedOpen(false);setOwnedList([]);setOwnedStatus('idle');
+    setPeopleOpen(null);
+    if(!signedIn){
+      setIdentityGoal('agreements');setIdentityOpen(true);return;
+    }
+    setAgreementsOpen(true);
+  };
+  const reauthenticateAgreements = () => {
+    session.clear();setAgreementsOpen(false);
+    setPeopleOpen(null);setOwnedOpen(false);setOwnedList([]);
+    setReview(null);setSavedNotice('');setOwnedError('');
+    setIdentityGoal('agreements');setIdentityOpen(true);
+    setEpoch(n=>n+1);
+  };
   const openPeople = (kind:'inbox'|'creator') => {
     setOwnedOpen(false);setOwnedList([]);setOwnedStatus('idle');
+    setAgreementsOpen(false);
     if(!signedIn){
       setIdentityGoal(kind);setIdentityOpen(true);return;
     }
@@ -235,6 +253,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack }: {
   const afterMiniIdentity = () => {
     setIdentityOpen(false);
     if(identityGoal==='saved'){setOwnedOpen(true);void loadOwned();}
+    else if(identityGoal==='agreements'){setAgreementsOpen(true);}
     else {setPeopleOpen(identityGoal);}
   };
   const signOut = () => {
@@ -242,7 +261,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack }: {
     // transcript or account list visible after their token is dropped.
     session.clear();
     pair.gateway.forgetResumableConversation();
-    setOwnedList([]);setOwnedOpen(false);setPeopleOpen(null);setIdentityOpen(false);
+    setOwnedList([]);setOwnedOpen(false);setPeopleOpen(null);setAgreementsOpen(false);setIdentityOpen(false);
     setOwnedStatus('idle');setOwnedError('');setSavedNotice('');
     setFailedResumeId(null);setReview(null);setMessage('');
     setSignOutAsked(false);
@@ -253,7 +272,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack }: {
     pair.gateway.forgetResumableConversation();
     try {sessionStorage.removeItem(expiredKey);} catch { /* blocked storage */ }
     setMessage('');setResetAsked(false);setReview(null);setReviewError('');
-    setOwnedOpen(false);setPeopleOpen(null);setOwnedError('');setSavedNotice('');
+    setOwnedOpen(false);setPeopleOpen(null);setAgreementsOpen(false);setOwnedError('');setSavedNotice('');
     setFailedResumeId(null);
     setEpoch(n=>n+1);
   };
@@ -296,7 +315,13 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack }: {
     {status==='ready' && !identityOpen && peopleOpen==='creator' &&
       <MiniCreatorInvitations gateway={agreements}
         onBack={()=>setPeopleOpen(null)}/>}
-    {status==='ready' && !identityOpen && !peopleOpen && <>
+    {status==='ready' && !identityOpen && agreementsOpen &&
+      <MiniMyAgreements gateway={agreements}
+        prepare={()=>ensureFreshSession(session,auth)}
+        onBack={()=>setAgreementsOpen(false)}
+        onReauthenticate={reauthenticateAgreements}
+      />}
+    {status==='ready' && !identityOpen && !peopleOpen && !agreementsOpen && <>
       {!state.conversationId && <p className="spm-capture-note">
         This preview uses the existing SecurePay Agent API. A conversation will only be created when you send a message.
       </p>}
@@ -332,21 +357,28 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack }: {
           onClick={()=>void saveOwned()} disabled={state.busy||!!state.pending||saveBusy}>
           <BookmarkPlus size={16}/>{saveBusy?'Checking…':signedIn?'Save for later':'Sign in to save'}
         </button>}
-        <button type="button" className="spm-quiet-button"
-          onClick={openOwned} disabled={saveBusy}><FolderOpen size={16}/>My saved work</button>
-        <button type="button" className="spm-quiet-button"
-          onClick={()=>openPeople('inbox')} disabled={saveBusy}>
-          <Mail size={16}/>Invitations for me
-        </button>
-        <button type="button" className="spm-quiet-button"
-          onClick={()=>openPeople('creator')} disabled={saveBusy}>
-          <Users size={16}/>Invite someone
-        </button>
-        {signedIn && <button type="button" className="spm-quiet-button"
-          onClick={()=>{if (!signOutAsked){setSignOutAsked(true);return;}signOut();}}
-          aria-label={signOutAsked?'Confirm sign out; unsaved work may be lost':'Sign out of SecurePay Mini'}>
-          <LogOut size={15}/>{signOutAsked?'Confirm sign out':'Sign out'}
-        </button>}
+        <details className="spm-mini-account-menu">
+          <summary><FolderOpen size={16}/>My SecurePay <ArrowRight size={14}/></summary>
+          <div className="spm-mini-account-options">
+            <button type="button" className="spm-quiet-button"
+              onClick={openOwned} disabled={saveBusy}>My saved work</button>
+            <button type="button" className="spm-quiet-button" onClick={openAgreements}
+              disabled={saveBusy}><ClipboardList size={15}/>My Agreements</button>
+            <button type="button" className="spm-quiet-button"
+              onClick={()=>openPeople('inbox')} disabled={saveBusy}>
+              <Mail size={15}/>Invitations for me
+            </button>
+            <button type="button" className="spm-quiet-button"
+              onClick={()=>openPeople('creator')} disabled={saveBusy}>
+              <Users size={15}/>Invite someone
+            </button>
+            {signedIn && <button type="button" className="spm-quiet-button"
+              onClick={()=>{if (!signOutAsked){setSignOutAsked(true);return;}signOut();}}
+              aria-label={signOutAsked?'Confirm sign out; unsaved work may be lost':'Sign out of SecurePay Mini'}>
+              <LogOut size={15}/>{signOutAsked?'Confirm sign out':'Sign out'}
+            </button>}
+          </div>
+        </details>
       </div>
       {signOutAsked && <p className="spm-mini-owned-note" role="status">
         Unsaved work may be lost when you sign out. Press Confirm sign out, or continue working.

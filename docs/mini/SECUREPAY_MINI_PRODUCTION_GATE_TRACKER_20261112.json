@@ -78,13 +78,13 @@
     {
       "id": "M4",
       "title": "My Agreements speaks",
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "gate": "Next-action server truth and continuous records; full Workspace optional",
       "order": 4,
       "owner": "To be assigned at M0",
-      "lastEvidence": "None entered in programme tracker",
-      "ownerDecision": "Pending",
-      "marketingLawAssessment": "Pending"
+      "lastEvidence": "2026-11-12: M4 owner-scoped My Agreements and server-reported next-action summaries added to approved Mini. Existing SecurePay AgreementGateway currentUserAgreements(0,20) + authorised exact-version detail; 12 new focused cases, 72 total Node focused checks green, TypeScript and preview Vercel READY at commit b016e8aa. Secondary account actions grouped behind My SecurePay menu; no production changes.",
+      "ownerDecision": "M4 READ-ONLY CODE CANDIDATE; LIVE NO-GO. Isolated SecurePayAPI staging, actor-scoped live tests, stale version, KS001 M1 conversation, and real confirmed finance all unverified. Next-action commands and evidence/milestone writes remain separate canonical backend instruments.",
+      "marketingLawAssessment": "Focus: only My SecurePay doorway; Sacrifice: no duplicate workspace or editable Money; Candor: no inferred action or production acceptance; Perspective: owner-specific next action."
     },
     {
       "id": "M5",
@@ -222,7 +222,7 @@
     "Financial status never inferred from a draft or client-only simulation.",
     "New development PRs do not modify production without separate GO."
   ],
-  "currentWorkBranch": "feat/mini-m3b-participant-authority-20261112",
+  "currentWorkBranch": "feat/mini-m4-living-my-agreements-20261112",
   "lastAudited": "2026-11-12",
   "liveMoneyApproved": false,
   "criticalNextGate": "Verify isolated staging backend and configured matching stage API origin; activate first-party Mini for real KS001 12-turn and mother synthetic acceptance only after operator sign-off."
