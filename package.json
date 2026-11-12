@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "node --test tests/day11-mini-beneficiary-collection.test.mjs",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
@@ -32,7 +33,8 @@
     "test:ui-phase1": "node --test tests/ui-phase1.test.mjs",
     "test:vision-money-gap": "node --test tests/vision-money-gap.test.mjs",
     "test:trust-project-redo": "node --test tests/trust-project-community-redo.test.mjs tests/trust-project-programmes.test.mjs",
-    "test:final-convergence": "node --test tests/*.test.mjs"
+    "test:final-convergence": "node --test tests/*.test.mjs",
+    "test:mini-beneficiary": "node --test tests/day11-mini-beneficiary-collection.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
