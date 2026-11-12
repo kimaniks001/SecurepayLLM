@@ -1,9 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, ArrowRight, CircleAlert, MessageCircle, RefreshCcw, Send, ShieldCheck } from 'lucide-react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { ArrowLeft, ArrowRight, BookmarkPlus, CircleAlert, FolderOpen, LogOut, MessageCircle, RefreshCcw, Send, ShieldCheck } from 'lucide-react';
 import { createHttpClient } from '../api/securepay/http';
 import { createAgentGateway } from '../api/securepay/agent';
+import { createAuthGateway } from '../api/securepay/auth';
+import { createSessionStore, ensureFreshSession } from '../api/securepay/session';
 import { createAgentController } from '../features/agent/controller';
 import type { AgreementFormationDto } from '../api/securepay/agent/dto';
+import { MiniIdentityStep } from './MiniIdentityStep';
+import { miniOwnedBuildConfirmed, miniOwnedBuildList, miniOwnedResumeConfirmed } from './miniOwnedWork.mjs';
 import { miniDiscussionPrompt } from './miniGuestConfig';
 import { miniHistoryRestored } from './miniHistoryProof.mjs';
 import { MiniAgreementSlots } from './MiniAgreementSlots';
@@ -33,11 +37,19 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack }: {
   const expiredWasAcknowledged = () => {
     try { return sessionStorage.getItem(expiredKey)==='1'; } catch { return false; }
   };
+  // Use SecurePay's canonical, memory-only session store; never write identity
+  // tokens or account listings into Mini's local browser draft storage.
+  const [session] = useState(() => createSessionStore());
+  const sessionState = useSyncExternalStore(session.subscribe,session.getSnapshot,session.getSnapshot);
+  const signedIn = sessionState.status === 'signed-in';
+  const auth = useMemo(() => createAuthGateway(
+    createHttpClient(apiOrigin,session.getAccessToken)
+  ),[apiOrigin,session]);
   const [epoch,setEpoch] = useState(0);
   const pair = useMemo(() => {
-    const gateway = createAgentGateway(createHttpClient(apiOrigin, () => null));
+    const gateway = createAgentGateway(createHttpClient(apiOrigin,session.getAccessToken));
     return { gateway, controller: createAgentController(gateway) };
-  },[apiOrigin,epoch]);
+  },[apiOrigin,epoch,session]);
   const [state,setState] = useState(pair.controller.getSnapshot());
   const [status,setStatus] = useState<'checking'|'ready'|'continuity-unavailable'|'expired'>('checking');
   const [message,setMessage] = useState(() => draft
@@ -46,8 +58,19 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack }: {
   const [review,setReview] = useState<AgreementFormationDto|null>(null);
   const [reviewError,setReviewError] = useState('');
   const [recoveryAttempt,setRecoveryAttempt] = useState(0);
+  const [identityOpen,setIdentityOpen] = useState(false);
+  const [ownedOpen,setOwnedOpen] = useState(false);
+  const [ownedStatus,setOwnedStatus] = useState<'idle'|'loading'|'ready'|'error'>('idle');
+  const [ownedList,setOwnedList] = useState<ReturnType<typeof miniOwnedBuildList>>([]);
+  const [saveBusy,setSaveBusy] = useState(false);
+  const [savedNotice,setSavedNotice] = useState('');
+  const [ownedError,setOwnedError] = useState('');
+  const [failedResumeId,setFailedResumeId] = useState<string|null>(null);
 
-  useEffect(() => pair.controller.subscribe(() => setState(pair.controller.getSnapshot())),[pair]);
+  useEffect(() => {
+    setState(pair.controller.getSnapshot());
+    return pair.controller.subscribe(() => setState(pair.controller.getSnapshot()));
+  },[pair]);
   useEffect(() => {
     let alive = true;
     setStatus('checking');
@@ -124,11 +147,87 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack }: {
       setReviewError('Cannot verify this Agreement review right now. Nothing has been accepted or sent.');
     }
   };
+  // Authenticated M3 Save/Return is explicitly separate from the anonymous
+  // short-term tab continuation and Mini's local, unsigned form preview.
+  // Backend owns account rights and idempotency; the frontend never stores an
+  // Agreement/KSNumber or creates a synthetic owner ID.
+  const loadOwned = async () => {
+    if (session.getSnapshot().status !== 'signed-in') {
+      setOwnedError('Sign in with your KS Number to see your own saved work.');
+      return;
+    }
+    setOwnedStatus('loading');setOwnedError('');
+    try {
+      await ensureFreshSession(session,auth);
+      const items = await pair.gateway.listSavedBuilds(20,0);
+      const safe = miniOwnedBuildList(items);
+      if (!safe) throw new Error('Could not verify saved work');
+      setOwnedList(safe);setOwnedStatus('ready');
+    } catch {
+      setOwnedList([]);setOwnedStatus('error');
+      setOwnedError('Saved work is unavailable. No Agreement has been changed.');
+    }
+  };
+  const saveOwned = async () => {
+    if (!signedIn){setIdentityOpen(true);return;}
+    const conversationId = state.conversationId;
+    if (!conversationId || status!=='ready' || state.pending || state.busy || saveBusy) return;
+    setSaveBusy(true);setOwnedError('');setSavedNotice('');
+    try {
+      await ensureFreshSession(session,auth);
+      const saved = await pair.gateway.saveBuild(conversationId);
+      if (!miniOwnedBuildConfirmed(saved,conversationId))
+        throw new Error('Unverified saved build');
+      setSavedNotice('Saved to your SecurePay account. It is still an unfinished Agreement, not accepted or funded.');
+      setOwnedOpen(true);
+      await loadOwned();
+    } catch {
+      setOwnedError('SecurePay could not confirm this save. Check your connection or sign in again before relying on it.');
+    } finally {setSaveBusy(false);}
+  };
+  const resumeOwned = async (savedBuildId: string) => {
+    if (session.getSnapshot().status!=='signed-in' || saveBusy || state.busy || state.pending) return;
+    setSaveBusy(true);setOwnedError('');setSavedNotice('');setStatus('checking');
+    setFailedResumeId(savedBuildId);
+    try {
+      await ensureFreshSession(session,auth);
+      // A signed-in, server-authorised owner receives the original conversation
+      // ID, never a new transcript or Agreement clone.
+      const saved = await pair.gateway.resumeSavedBuild(savedBuildId);
+      const original = miniOwnedResumeConfirmed(saved,savedBuildId);
+      if (!original) throw new Error('Unverified resume');
+      const history = await pair.gateway.conversationHistory(original);
+      if (!history || !Array.isArray(history.entries)) throw new Error('Missing history');
+      await pair.controller.resumeConversation(original,history);
+      if (!miniHistoryRestored(history,pair.controller.getSnapshot(),original))
+        throw new Error('Cannot restore authenticated work');
+      setReview(null);setMessage('');setStatus('ready');
+      setFailedResumeId(null);setOwnedOpen(false);
+      setSavedNotice('Your original SecurePay conversation has been restored.');
+    } catch {
+      // Stay blocked. In particular, do NOT show a healthy empty conversation
+      // or start a second Agreement after an authorised resume read fails.
+      setStatus('continuity-unavailable');
+      setOwnedError('SecurePay could not safely restore this saved conversation. Recheck it; nothing was accepted or paid.');
+    } finally {setSaveBusy(false);}
+  };
+  const signOut = () => {
+    // Explicit privacy boundary: never leave one signed-in person's saved
+    // transcript or account list visible after their token is dropped.
+    session.clear();
+    pair.gateway.forgetResumableConversation();
+    setOwnedList([]);setOwnedOpen(false);setIdentityOpen(false);
+    setOwnedStatus('idle');setOwnedError('');setSavedNotice('');
+    setFailedResumeId(null);setReview(null);setMessage('');
+    setStatus('checking');setEpoch(n=>n+1);
+  };
   const reset = () => {
     if (!resetAsked) {setResetAsked(true);return;}
     pair.gateway.forgetResumableConversation();
     try {sessionStorage.removeItem(expiredKey);} catch { /* blocked storage */ }
     setMessage('');setResetAsked(false);setReview(null);setReviewError('');
+    setOwnedOpen(false);setOwnedError('');setSavedNotice('');
+    setFailedResumeId(null);
     setEpoch(n=>n+1);
   };
   return <section className="spm-guest spm-content" data-mini-first-party-ks001="staging">
@@ -146,12 +245,20 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack }: {
     </div>}
     {status!=='ready' && <div className="spm-actions">
       <button type="button" className="spm-secondary spm-guest-retry"
-        onClick={()=>setRecoveryAttempt(n=>n+1)} disabled={status==='checking'}>
+        onClick={()=>failedResumeId?void resumeOwned(failedResumeId):setRecoveryAttempt(n=>n+1)}
+        disabled={status==='checking'||saveBusy}>
         <RefreshCcw size={17}/>Recheck existing conversation</button>
+      {failedResumeId && signedIn && <button type="button" className="spm-quiet-button"
+        onClick={()=>{setFailedResumeId(null);setStatus('ready');setOwnedOpen(true);void loadOwned();}}>
+        Return to my saved work
+      </button>}
       {(status==='expired') && <button type="button" className="spm-quiet-button" onClick={reset}>
         {resetAsked?'Confirm: clear the previous conversation':'Clear and start a new conversation'}</button>}
     </div>}
-    {status==='ready' && <>
+    {identityOpen && <MiniIdentityStep auth={auth} session={session}
+      onDone={()=>{setIdentityOpen(false);setOwnedOpen(true);void loadOwned();}}
+      onCancel={()=>setIdentityOpen(false)}/>}
+    {status==='ready' && !identityOpen && <>
       {!state.conversationId && <p className="spm-capture-note">
         This preview uses the existing SecurePay Agent API. A conversation will only be created when you send a message.
       </p>}
@@ -182,6 +289,38 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack }: {
         <ShieldCheck size={17}/>Review what SecurePay understands</button>}
       {reviewError && <p className="spm-error" role="alert">{reviewError}</p>}
       {review && <MiniAgreementSlots formation={review}/>}
+      <div className="spm-mini-owned-actions" aria-label="Save and return to SecurePay work">
+        {state.conversationId && <button type="button" className="spm-secondary"
+          onClick={()=>void saveOwned()} disabled={state.busy||!!state.pending||saveBusy}>
+          <BookmarkPlus size={16}/>{saveBusy?'Checking…':signedIn?'Save for later':'Sign in to save'}
+        </button>}
+        <button type="button" className="spm-quiet-button"
+          onClick={()=>signedIn?(setOwnedOpen(!ownedOpen),!ownedOpen&&void loadOwned()):setIdentityOpen(true)}
+          disabled={saveBusy}><FolderOpen size={16}/>My saved work</button>
+        {signedIn && <button type="button" className="spm-quiet-button" onClick={signOut}
+          aria-label="Sign out of SecurePay Mini"><LogOut size={15}/>Sign out</button>}
+      </div>
+      {savedNotice && <p className="spm-mini-owned-note" role="status">{savedNotice}</p>}
+      {ownedError && <p className="spm-error" role="alert">{ownedError}</p>}
+      {ownedOpen && signedIn && <section className="spm-mini-owned-list"
+        aria-label="Saved unfinished SecurePay work">
+        <strong>My saved work</strong>
+        <p>Only your server-authorised drafts appear here. Saving does not accept an Agreement.</p>
+        {ownedStatus==='loading' && <p role="status">Checking your saved work…</p>}
+        {ownedStatus==='ready' && ownedList?.length===0 && <p>No saved work yet.</p>}
+        {ownedStatus==='ready' && ownedList?.map(item=>
+          <div key={item.savedBuildId} className="spm-mini-owned-item">
+            <div><strong>{item.title}</strong>
+              <small>{item.openMatterCount} open {item.openMatterCount===1?'matter':'matters'} · Unfinished</small>
+            </div>
+            <button type="button" className="spm-secondary" onClick={()=>void resumeOwned(item.savedBuildId)}
+              disabled={saveBusy||state.busy||!!state.pending}>
+              Continue
+            </button>
+          </div>)}
+        {ownedStatus==='error' && <button type="button" className="spm-quiet-button"
+          onClick={()=>void loadOwned()}>Recheck saved work</button>}
+      </section>}
     </>}
     <p className="spm-disclaimer">Staging-only Agent conversation; no automatic agreement, participant invitation or payment.</p>
   </section>;
