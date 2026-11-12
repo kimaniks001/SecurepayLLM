@@ -53,6 +53,32 @@ Default: show ordinary shopping, seller operations or agreement status. Then **o
 - Do not use age, education, poverty, disability or assumed competence as automatic triggers; honor expressed preferences.
 - Source truth only: avoid invented availability, credentials, status, prices or saved money. KS001 explains the choice; it cannot appoint or sign for anyone.
 
+## Owner correction: Ask KS001 can show a few relevant Store suggestions
+**User journey: Buy → discover → enter the actual seller's Store → select items → form the canonical Agreement → choose settlement when appropriate.** The "Buy something" intention in Mini is fundamentally different from "Pay someone" and must not ask for an agreed price before finding products.
+
+A person who asks KS001 for an item or service can receive a **small set of genuine, relevant suggested Digital Stores inline** as convenient quick assistance. "Sample Stores" means **selected candidate Stores** in the real experience—not fabricated merchants, fake stock or injected advertisements. Fictional samples are allowed only in labelled test fixtures.
+
+### Grounded conditions, not an ad slot
+- Suggest **zero to three** Store cards only when the question indicates buying/discovery (or the customer explicitly asks for Store suggestions). No cards for unrelated questions and never an always-on home feed.
+- Rank from **actual published Store/offer/search records** with relevance to item/specification, local area or requested destination (coarse consented context), serviceability, source freshness and verified stock evidence where present. Never claim in-stock, nearby, delivery available, licensed or cheapest without authoritative, current data.
+- Each suggestion shows **real Store identity, matched published item/service, verified information actually available, and availability status** (confirmed or needs checking). If no suitable published Store is found, say so; do not invent results or automatically reroute to a paid Plug.
+- Do not pay-to-rank, favour Keyman companies, or treat suggestions as ads. Neutral selection should be inspectable and user-correctable. Show why an option fits in plain words.
+- Offer only minimal actions: **View Store**, **View item**, or **Ask about availability** where real capability exists. The user decides whether to enter a Store. More matches may be discovered on explicit request.
+- In the three-panel Living Workspace, Store thumbnails/cards render within the **existing middle KS001 conversation**, and **View Store/Item** uses the already agreed Store tool-to-middle expansion; it must never replace the conversation or open a fourth panel. Cart and summary remain canonical.
+- In Mini and embedded Ask KS001, keep the existing **compact lightweight surface**: tap a suggestion to open the seller's real Store/offer, then return through the existing one-agreement/one-checkout flow. No second catalogue, Store clone, cart or payment.
+- In a limited-data mode, render **text-first cards**, with optional images on demand. No compulsory map, video, external link or deep AI response to discover goods.
+- A suggested Store is **not an endorsed seller, a reservation, confirmed stock, buyer/seller agreement, pending charge or authorisation to share private delivery details**. An offer snapshot must be refreshed and seller confirmation obtained as the agreement progresses.
+- If the person asks for multiple suppliers, coordinate only after they choose; Community Saver/Plug support remains separately voluntary and consented. Do not show a Master or Plug on an ordinary Store suggestion.
+
+### Examples (fictional labels only)
+- "Where can I buy 40 bags of cement around Varsityville?" → up to 3 actual Store/offer matches with *40 bags not yet confirmed*; tap to view published shop.
+- "I need milk today" → one nearby eligible listing if published and available; straight to Store without an unnecessary support prompt.
+- "I want an engineer to inspect a foundation" → service discovery must check current, scope-specific expert and regulatory claims; never imply self-designation is verified competence.
+- "What is a fair price for cement?" → answer the factual question first, optionally "Show Stores selling cement" if context calls for it; no mandatory promotional results.
+
+### Acceptance guard
+No mock card may appear as a real Store; no suggestion without source; no unrelated recommendation; no paid ranking or unsupported discount; no forced chat, Plug, Master or Mini switch; item/Store selection does not destroy chat state, cart or rights.
+
 ## Personas as equal first-class citizens
 
 **Young trader with no/limited mobile data**
