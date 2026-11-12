@@ -124,6 +124,8 @@ test('M4: Mini reads canonical own Agreements only; never creates or mutates fro
   const ui=read('src/mini/MiniMyAgreements.tsx');
   const gateway=read('src/api/securepay/agreements/index.ts');
   assert.match(root,/My Agreements/);assert.match(root,/MiniMyAgreements/);
+  assert.match(root,/spm-mini-account-menu/);
+  assert.match(root,/My SecurePay/);
   assert.match(root,/ensureFreshSession\(session,auth\)/);
   assert.match(ui,/gateway\.currentUserAgreements\(nextPage,20\)/);
   assert.match(ui,/gateway\.detail\(item\.id\)/);
