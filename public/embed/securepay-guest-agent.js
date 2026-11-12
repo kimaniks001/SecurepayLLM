@@ -186,7 +186,8 @@
         // Preserve the original token for transient network/retry errors.
         // The server's explicit 404 is the only invalidation of that record.
         if (error && error.code === 404) {
-          clear(); entries=[]; pending=null;
+          // Retain the token until an intentional reset so reload cannot
+          // silently manufacture an unrelated "new" conversation.
           status='expired';
         } else {
           status='continuity-unavailable';
@@ -224,7 +225,7 @@
       } catch (error) {
         if (error && error.code === 404) {
           // Do not silently begin a different conversation after an expired one.
-          clear(); entries=[]; status='expired';
+          status='expired';
         }
         lastError = errorMessage(error);
         return snapshot();
