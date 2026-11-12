@@ -315,12 +315,12 @@ export function MiniExperience() {
           <p className="spm-lead">{t.intro}</p>
           {samplePreviewAllowed && <div className="spm-mini-preview-entry">
             <div><strong>Explore the latest Mini build</strong>
-              <small>KS001 · Agreement details · Save & Continue · People · My Agreements</small>
+              <small>KS001 · Browse Stores · Buying plan · Agreements · Save & Continue</small>
               <small>Interactive example using synthetic data — not live KS001</small>
             </div>
             <button type="button" className="spm-secondary"
               onClick={()=>{setDiscussDraft(null);setSamplePreviewOpen(true);}}>
-              Explore M1–M4 <ArrowRight size={16}/>
+              Explore M1–M5 <ArrowRight size={16}/>
             </button>
           </div>}
           <label className="spm-label" htmlFor="spm-words">{t.start}</label>
@@ -489,7 +489,7 @@ export function MiniExperience() {
         <div className="spm-footer-status">
           <ShieldCheck size={15} aria-hidden="true"/>
           <span>{samplePreviewOpen?'SYNTHETIC DEMO — no real actions':t.boundary}</span>
-          <span className="spm-footer-dash">·</span><span>{samplePreviewOpen?'M1–M4 interactive example':gate4Session ? 'Host reconciliation test' : gate3Session ? 'Payment status test' : gate2Session ? 'Order & agreement test' : storeOfferSession ? 'Store offer review' : checkoutSession || demoRequest ? 'Checkout test' : 'Phase 4'}</span>
+          <span className="spm-footer-dash">·</span><span>{samplePreviewOpen?'M1–M5 interactive example':gate4Session ? 'Host reconciliation test' : gate3Session ? 'Payment status test' : gate2Session ? 'Order & agreement test' : storeOfferSession ? 'Store offer review' : checkoutSession || demoRequest ? 'Checkout test' : 'Phase 4'}</span>
         </div>
         <a className="spm-checkout-imprint" href="https://securepay.ke/"
           target="_blank" rel="noopener noreferrer"

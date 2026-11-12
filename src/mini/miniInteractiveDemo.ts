@@ -11,6 +11,8 @@ import type { ConversationAccessStore } from '../api/securepay/agent/continuity'
 const ID = {
   chairs: '00000000-0000-4000-8000-000000000041',
   njeriChat: '00000000-0000-4000-8000-000000000042',
+  njeriOffer:'00000000-0000-4000-8000-000000000081',
+  kamauOffer:'00000000-0000-4000-8000-000000000082',
   agreement: '00000000-0000-4000-8000-000000000071',
   version: '00000000-0000-4000-8000-000000000072',
   invitation: '00000000-0000-4000-8000-000000000073',
@@ -25,7 +27,8 @@ const EXPIRY = '2026-12-02T19:00:00Z';
 
 type Actor = 'amina' | 'njeri';
 type DemoMessage = { id:string; sender:'HUMAN'|'KS001'; text:string; occurredAt:string };
-type DemoConversation = { owner:Actor; entries:DemoMessage[]; version:number; replyByAction:Record<string,string> };
+type DemoConversation = { owner:Actor; entries:DemoMessage[]; version:number; replyByAction:Record<string,string>;
+  selectedOffer?:string; };
 type State = {
   counter:number;
   conversations:Record<string,DemoConversation>;
@@ -90,6 +93,8 @@ function term(key:string,label:string,value:string,needsChecking=false){
 }
 function explain(text:string):string{
   const x=text.toLowerCase();
+  if(/discuss a buying plan/.test(x))
+    return 'Sample reply: This is your proposed Store buying plan, not an order. Which delivery location and date should the separate sellers review? Their quantities and prices still need confirmation.';
   if(/deliver|transport|date|december|where|ruiru/.test(x))
     return 'Sample reply: Delivery to Varsityville, Ruiru is proposed for 2 December. The supplier and transport still need confirmation. No driver has been booked.';
   if(/15|25|stock|availab|quantity|chairs|40/.test(x))
@@ -98,6 +103,33 @@ function explain(text:string):string{
     return 'Sample reply: This is a draft. The buyer and seller must review the exact Agreement separately. An invitation is not acceptance, and no Money has moved.';
   return 'Sample reply: This is scripted preview data, not live KS001 intelligence. Try asking about the 40 chairs, delivery, or approvals, then explore the Agreement review and My SecurePay.';
 }
+// Fictitious sample stores only. No relationship to real Kenyan businesses.
+const sampleStores=[
+  {canonicalKsNumber:'KS002',displayName:'Njeri Events · Sample Store',
+    identityType:'BUSINESS',status:'ACTIVE',
+    profile:{tagline:'Sample chairs for meetings',about:'Fictional shop — not live stock',
+      locationLabel:'Ruiru, Kenya (sample)',heroHeadline:null,
+      storefrontPreset:'MERCHANT',storefrontTheme:'FOREST',updatedAt:DATE},
+    offers:[{id:ID.njeriOffer,kind:'PRODUCT',title:'Stacking event chair',
+      description:'Fictional lightweight event chairs',priceMinor:16000,
+      currency:'KES',quantityAvailable:25,availabilityState:'AVAILABLE',
+      availabilityConfirmedAt:DATE,mediaRefs:[],updatedAt:DATE}]},
+  {canonicalKsNumber:'KS003',displayName:'Kamau Furnishings · Sample Store',
+    identityType:'BUSINESS',status:'ACTIVE',
+    profile:{tagline:'Sample furniture',about:'Fictional shop — not live stock',
+      locationLabel:'Kamakis, Kenya (sample)',heroHeadline:null,
+      storefrontPreset:'MERCHANT',storefrontTheme:'FOREST',updatedAt:DATE},
+    offers:[{id:ID.kamauOffer,kind:'PRODUCT',title:'Folding meeting chair',
+      description:'Fictional folding chairs',priceMinor:18500,
+      currency:'KES',quantityAvailable:12,availabilityState:'NEEDS_CONFIRMATION',
+      availabilityConfirmedAt:null,mediaRefs:[],updatedAt:DATE}]},
+];
+function demoStore(ks:string){
+  const found=sampleStores.find(store=>store.canonicalKsNumber===ks);
+  if(!found)reject(404,'Sample Store was not found');
+  return found;
+}
+
 function conversation(id:string,actor:Actor){
   const c=current().conversations[id];
   if(!c||c.owner!==actor)reject(403,'The sample conversation belongs to another account');
@@ -318,6 +350,51 @@ export function createMiniDemoHttpClient(getToken:()=>string|null):HttpClient{
         if(!current().saved[person]||savedBuild(person).savedBuildId!==m[1])
           reject(403,'Saved sample work belongs to another account');
         return answer(savedBuild(person));
+      }
+
+      // M5 Store reads use the SAME real StoreGateway contract, but this
+      // demo only returns the two fictional records above.
+      if(p==='/api/v1/stores/search' && method==='GET'){
+        const category=(url.searchParams.get('category')||'').trim().toLowerCase();
+        const kind=url.searchParams.get('kind')||'PRODUCT';
+        const limit=Math.min(10,Math.max(1,Number(url.searchParams.get('limit')||10)));
+        if(!category)return answer([]);
+        return answer(sampleStores.flatMap(store=>store.offers.filter(offer=>
+          offer.kind===kind &&
+          (offer.title.toLowerCase().includes(category) ||
+           category.includes('chair') && offer.title.toLowerCase().includes('chair'))
+        ).map(offer=>({
+          canonicalKsNumber:store.canonicalKsNumber,displayName:store.displayName,
+          locationLabel:store.profile.locationLabel,offer,
+        }))).slice(0,limit));
+      }
+      let storeMatch=match(/^\/api\/v1\/stores\/(KS\d{3,12})(?:\/offers\/([0-9a-fA-F-]{36}))?$/);
+      if(storeMatch && method==='GET'){
+        const store=demoStore(storeMatch[1]);
+        if(!storeMatch[2])return answer(store);
+        const offer=store.offers.find(item=>item.id===storeMatch[2]);
+        if(!offer)reject(404,'Sample Store offer was not found');
+        return answer({...store,offer});
+      }
+      const sourceMatch=match(/^\/api\/agent\/conversations\/([^/]+)\/commercial-source$/);
+      if(sourceMatch && method==='POST'){
+        if(!actor)reject(401,'Select a sample participant');
+        const c=conversation(sourceMatch[1],actor);
+        if(body.sourceType!=='STORE_LISTING'||
+          typeof body.sourceOwnerKsNumber!=='string'||
+          typeof body.sourceId!=='string')reject(422,'Sample Store source is not valid');
+        const store=demoStore(body.sourceOwnerKsNumber);
+        const offer=store.offers.find(item=>item.id===body.sourceId);
+        if(!offer)reject(404,'The sample Store offer was not found');
+        c.selectedOffer=offer.id;persist();
+        return answer({
+          sourceType:'STORE_LISTING',sourceId:offer.id,sourceTitle:offer.title,
+          sourceOwnerKsNumber:store.canonicalKsNumber,
+          contextReference:'Sample published offer only',
+          capturedPriceMinor:offer.priceMinor,capturedCurrency:offer.currency,
+          originatingKsNumber:store.canonicalKsNumber,
+          selectedAt:DATE,
+        });
       }
 
       if(p==='/api/v1/me/agreements' && method==='GET'){

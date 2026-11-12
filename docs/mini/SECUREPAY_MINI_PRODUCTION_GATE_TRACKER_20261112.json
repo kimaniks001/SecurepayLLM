@@ -89,13 +89,13 @@
     {
       "id": "M5",
       "title": "Real Digital Stores",
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "gate": "Published Store → seller confirm → buyer accept → one canonical Agreement",
       "order": 5,
       "owner": "To be assigned at M0",
-      "lastEvidence": "None entered in programme tracker",
-      "ownerDecision": "Pending",
-      "marketingLawAssessment": "Pending"
+      "lastEvidence": "2026-11-12: M5A existing MiniBuyStore public Store search/current-offer check + same first-party AgentController.useOffer source binding and same-chat buyer intention. Multi-Store requests keep sellers distinct; no false combined source or seller consent. Two synthetic Stores allow actual Mini UI inspection in strictly local no-network preview. 91 focused checks passed (8 new M5), zero failed, TS and Vercel READY at source commit ed24c8ba. See docs/mini/M5_STORE_SAME_CONVERSATION_SOURCE_GATE_20261112.md.",
+      "ownerDecision": "M5A source-linked Store-to-KS001 UX code candidate with visible synthetic preview; NOT M5 complete. Live staging, seller-level stock/quote/acceptance, canonical multi-source plan, checkout and actual Agreement remain outstanding. No real account/money or production updates.",
+      "marketingLawAssessment": "Focus: same Mini Store and KS001, no redesign; Candor: listing not reservation/acceptance; Line extension: shopping intent stays tied to Agreement; Sacrifice: no parallel checkout/money engine."
     },
     {
       "id": "M6",
@@ -222,7 +222,7 @@
     "Financial status never inferred from a draft or client-only simulation.",
     "New development PRs do not modify production without separate GO."
   ],
-  "currentWorkBranch": "feat/mini-m4-living-my-agreements-20261112",
+  "currentWorkBranch": "feat/mini-m5-store-to-living-agreement-20261112",
   "lastAudited": "2026-11-12",
   "liveMoneyApproved": false,
   "criticalNextGate": "Verify isolated staging backend and configured matching stage API origin; activate first-party Mini for real KS001 12-turn and mother synthetic acceptance only after operator sign-off."

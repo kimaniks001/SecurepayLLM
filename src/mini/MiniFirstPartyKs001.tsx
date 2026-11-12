@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import { ArrowLeft, ArrowRight, BookmarkPlus, CircleAlert, ClipboardList, FolderOpen, LogOut, Mail, MessageCircle, RefreshCcw, Send, ShieldCheck, Users } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BookmarkPlus, CircleAlert, ClipboardList, FolderOpen, LogOut, Mail, MessageCircle, RefreshCcw, Send, ShieldCheck, ShoppingBag, Users } from 'lucide-react';
 import { createHttpClient } from '../api/securepay/http';
 import { createAgentGateway } from '../api/securepay/agent';
 import { createConversationAccessStore } from '../api/securepay/agent/continuity';
 import { createMiniDemoHttpClient, miniDemoSeedAccess, miniDemoTokens } from './miniInteractiveDemo';
 import { createAuthGateway } from '../api/securepay/auth';
 import { createAgreementGateway } from '../api/securepay/agreements';
+import { createStoreGateway } from '../api/securepay/store';
+import { MiniBuyStore, type MiniStorePlanLine } from './MiniBuyStore';
+import { miniStoreIntent } from './miniStoreIntent.mjs';
+import type { MiniStoreIntent } from './miniStoreIntent.mjs';
 import { MiniParticipantInvitations } from './MiniParticipantInvitations';
 import { MiniCreatorInvitations } from './MiniCreatorInvitations';
 import { MiniMyAgreements } from './MiniMyAgreements';
@@ -64,6 +68,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
     : createHttpClient(apiOrigin,session.getAccessToken),[apiOrigin,demo,session]);
   const auth = useMemo(() => createAuthGateway(http),[http]);
   const agreements=useMemo(()=>createAgreementGateway(http),[http]);
+  const stores=useMemo(()=>createStoreGateway(http),[http]);
   const [epoch,setEpoch] = useState(0);
   const pair = useMemo(() => {
     const gateway = demo
@@ -91,6 +96,10 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
   const [ownedError,setOwnedError] = useState('');
   const [failedResumeId,setFailedResumeId] = useState<string|null>(null);
   const [signOutAsked,setSignOutAsked] = useState(false);
+  const [storeOpen,setStoreOpen] = useState(false);
+  const [storeBusy,setStoreBusy] = useState(false);
+  const [storeError,setStoreError] = useState('');
+  const [heldStorePlan,setHeldStorePlan] = useState<MiniStoreIntent|null>(null);
 
   useEffect(() => {
     setState(pair.controller.getSnapshot());
@@ -277,7 +286,58 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
     setReview(null);setReviewError('');setOwnedList([]);
     setOwnedOpen(false);setPeopleOpen(null);setAgreementsOpen(false);
     setIdentityOpen(false);setSavedNotice('');setOwnedError('');
+    setStoreOpen(false);setHeldStorePlan(null);setStoreError('');
     setMessage('');setStatus('checking');setEpoch(n=>n+1);
+  };
+  // M5: Use the same canonical AgentController for a Store source and the
+  // SAME ongoing conversation. No checkout or new Agreement is minted here.
+  const forwardStorePlan = async(plan:MiniStoreIntent) => {
+    if (storeBusy || state.busy || !!state.pending || status!=='ready')return;
+    setStoreBusy(true);setStoreError('');setHeldStorePlan(null);
+    try{
+      if(plan.source){
+        const result=await pair.controller.useOffer(plan.source);
+        if(result.status!=='selected'){
+          setHeldStorePlan(plan);
+          setStoreError(result.status==='failed'
+            ? 'SecurePay could not verify that Store offer. Recheck the same source; nothing has been ordered.'
+            : 'SecurePay is still working. No Store item was added to an Agreement.');
+          return;
+        }
+      }else if(state.source){
+        setStoreError('This conversation already has a selected Store source. Start a separate buying-plan conversation before combining other sellers.');
+        return;
+      }
+      setStoreOpen(false);
+      await pair.controller.send(plan.statement);
+      // The controller owns uncertain-turn reconciliation, and the next
+      // Agreement review uses the same conversation ID and API authority.
+      setReview(null);
+    }catch{
+      setStoreError('Could not discuss the Store plan with KS001. No order or Agreement was created.');
+    }finally{setStoreBusy(false);}
+  };
+  const discussStorePlan = (lines:MiniStorePlanLine[]) => {
+    const plan=miniStoreIntent(lines);
+    if(!plan){setStoreError('Check the Store, quantity and offer references again. No Agreement was created.');return;}
+    void forwardStorePlan(plan);
+  };
+  const retryStoreSource = async () => {
+    const plan=heldStorePlan;
+    if(!plan||!plan.source||storeBusy||state.busy||!!state.pending)return;
+    setStoreBusy(true);setStoreError('');
+    try{
+      const outcome=await pair.controller.retryOfferSelection();
+      if(outcome.status==='selected'){
+        setHeldStorePlan(null);setStoreOpen(false);
+        await pair.controller.send(plan.statement);
+        setReview(null);
+      }else setStoreError(outcome.status==='failed'
+        ? 'The original Store offer still cannot be verified. Reopen the Store or retry the same source.'
+        : 'SecurePay is still checking the previous Store choice.');
+    }catch{
+      setStoreError('The Store offer could not be verified. No Agreement was accepted.');
+    }finally{setStoreBusy(false);}
   };
   const signOut = () => {
     // Explicit privacy boundary: never leave one signed-in person's saved
@@ -285,6 +345,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
     session.clear();
     pair.gateway.forgetResumableConversation();
     setOwnedList([]);setOwnedOpen(false);setPeopleOpen(null);setAgreementsOpen(false);setIdentityOpen(false);
+    setStoreOpen(false);setHeldStorePlan(null);setStoreError('');
     setOwnedStatus('idle');setOwnedError('');setSavedNotice('');
     setFailedResumeId(null);setReview(null);setMessage('');
     setSignOutAsked(false);
@@ -296,6 +357,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
     try {sessionStorage.removeItem(expiredKey);} catch { /* blocked storage */ }
     setMessage('');setResetAsked(false);setReview(null);setReviewError('');
     setOwnedOpen(false);setPeopleOpen(null);setAgreementsOpen(false);setOwnedError('');setSavedNotice('');
+    setStoreOpen(false);setHeldStorePlan(null);setStoreError('');
     setFailedResumeId(null);
     setEpoch(n=>n+1);
   };
@@ -304,7 +366,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
     <div className="spm-persona"><MessageCircle size={16}/><span>KS001</span>
       <span className="spm-dot"/><span>{demo?'Scripted preview · Not live AI':'First-party staging conversation'}</span></div>
     {demo && <div className="spm-mini-preview-banner" role="status">
-      <strong>Interactive M1–M4 preview · SYNTHETIC DATA</strong>
+      <strong>Interactive M1–M5 preview · SYNTHETIC DATA</strong>
       <p>Try the existing Mini components as Amina or Njeri. Replies are scripted;
         identities, stock, Agreements and Money are not real. No requests reach SecurePayAPI.</p>
       <div className="spm-mini-demo-switch" aria-label="Choose a sample account">
@@ -358,6 +420,32 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
         onReauthenticate={reauthenticateAgreements}
       />}
     {status==='ready' && !identityOpen && !peopleOpen && !agreementsOpen && <>
+      <button type="button" className="spm-secondary spm-mini-store-entry"
+        onClick={()=>{setStoreOpen(open=>!open);setStoreError('');}}
+        disabled={storeBusy||state.busy||!!state.pending}>
+        <ShoppingBag size={16}/>{storeOpen?'Close Stores':'Browse Stores'}
+        <ArrowRight size={15}/>
+      </button>
+      {storeOpen && <div className="spm-mini-store-drawer"
+        aria-label="Digital Store alongside your existing KS001 conversation">
+        <MiniBuyStore language={language} onBack={()=>setStoreOpen(false)}
+          storeGateway={stores} onDiscuss={discussStorePlan}/>
+      </div>}
+      {storeBusy && <p role="status" className="spm-mini-owned-note">
+        KS001 is checking the selected Store information. Nothing is ordered or reserved.
+      </p>}
+      {storeError && <p className="spm-error" role="alert">{storeError}</p>}
+      {heldStorePlan && <div className="spm-mini-owned-actions">
+        <button type="button" className="spm-secondary"
+          disabled={storeBusy||state.busy||!!state.pending}
+          onClick={()=>void retryStoreSource()}>
+          <RefreshCcw size={15}/>Recheck the same Store source
+        </button>
+        <button type="button" className="spm-quiet-button"
+          onClick={()=>{setHeldStorePlan(null);setStoreOpen(true);setStoreError('');}}>
+          Return to Stores
+        </button>
+      </div>}
       {!state.conversationId && <p className="spm-capture-note">
         This preview uses the existing SecurePay Agent API. A conversation will only be created when you send a message.
       </p>}

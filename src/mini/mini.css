@@ -580,3 +580,12 @@ textarea.spm-field { resize:vertical; }
 .spm-mini-demo-switch { display:flex; gap:7px; flex-wrap:wrap; }
 .spm-mini-demo-switch .spm-secondary { font-size:11px; min-height:38px; }
 .spm-mini-demo-switch [aria-pressed="true"] { outline:2px solid #3c7651; outline-offset:1px; background:#e5f0e5; }
+
+
+/* M5: existing Mini Store floats inside the ONE original KS001 conversation. */
+.spm-mini-store-entry { margin:9px 0 5px; min-height:40px; gap:7px; }
+.spm-mini-store-drawer { display:block; min-width:0; max-height:min(65vh,560px); overflow:auto;
+ border:1px solid #d7e5d7; background:#fbfdfa; border-radius:14px; margin:9px 0 13px; padding:10px; }
+.spm-mini-store-drawer>.spm-content { padding:0; margin:0; }
+.spm-mini-store-drawer .spm-question { font-size:clamp(1rem,3.7vw,1.25rem); }
+.spm-mini-store-drawer .spm-mini-buy-results { max-height:320px; overflow:auto; }

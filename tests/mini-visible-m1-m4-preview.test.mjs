@@ -149,7 +149,7 @@ test('Synthetic-only adapter refuses all unknown or financial endpoints',async()
 test('Approved Mini UI remains one shell; demo CTA is clear, gated and interactive',()=>{
   const mini=read('src/mini/MiniExperience.tsx');
   const first=read('src/mini/MiniFirstPartyKs001.tsx');
-  assert.match(mini,/Explore M1–M4/);
+  assert.match(mini,/Explore M1–M5/);
   assert.match(mini,/isMiniExperiencePreviewHost\(window\.location\.hostname\)/);
   assert.match(mini,/samplePreviewOpen && samplePreviewAllowed/);
   assert.match(mini,/MiniFirstPartyKs001 apiOrigin="synthetic-local-only" demo/);
