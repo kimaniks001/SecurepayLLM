@@ -239,7 +239,12 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack }: {
         disabled={status==='checking'||saveBusy}>
         <RefreshCcw size={17}/>Recheck existing conversation</button>
       {failedResumeId && signedIn && <button type="button" className="spm-quiet-button"
-        onClick={()=>{setFailedResumeId(null);setStatus('ready');setOwnedOpen(true);void loadOwned();}}>
+        onClick={()=>{
+          // Return to the owner's list, not a partly recovered transcript.
+          // Explicitly replace the failed controller with an empty one.
+          setFailedResumeId(null);setStatus('checking');setReview(null);
+          setEpoch(n=>n+1);setOwnedOpen(true);void loadOwned();
+        }}>
         Return to my saved work
       </button>}
       {(status==='expired') && <button type="button" className="spm-quiet-button" onClick={reset}>
