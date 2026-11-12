@@ -102,6 +102,8 @@ export function MiniExperience() {
   const [lang, setLang] = useState<MiniLanguage>('en');
   const t = words[lang];
   const [screen, setScreen] = useState<View>('home');
+  const [buyPrefill, setBuyPrefill] = useState('');
+  const [buyResetKey, setBuyResetKey] = useState(0);
   const [opening, setOpening] = useState('');
   const [discussDraft, setDiscussDraft] = useState<MiniDraft | null>(null);
   const [draft, setDraft] = useState<MiniDraft>(emptyMiniDraft());
@@ -157,6 +159,8 @@ export function MiniExperience() {
     try { sessionStorage.removeItem(STORE_KEY); } catch { /* storage denied */ }
     setHasSaved(false);
     setOpening('');
+    setBuyPrefill('');
+    setBuyResetKey(n => n + 1);
     setDiscussDraft(null);
     setPhoto(null);
     setPhotoName('');
@@ -279,7 +283,7 @@ export function MiniExperience() {
           </div>
           <div className="spm-alternative"><span>{lang === 'sw' ? 'Au chagua' : 'Or choose a starting point'}</span></div>
           <div className="spm-actions">
-            <button type="button" className="spm-option" onClick={() => setScreen('buy')}>
+            <button type="button" className="spm-option" onClick={() => {setBuyPrefill('');setScreen('buy');}}>
               <span className="spm-option-icon"><ShoppingBag size={20}/></span>
               <span className="spm-option-text"><strong>{t.buy}</strong><small>{t.buyHint}</small></span><ArrowRight size={18}/></button>
             <button type="button" className="spm-option" onClick={() => begin('sell')}>
@@ -303,7 +307,7 @@ export function MiniExperience() {
           <div className="spm-quote">{opening.trim()}</div>
           <h1 className="spm-question">{t.choose}</h1>
           <div className="spm-actions">
-            <button className="spm-option" type="button" onClick={() => setScreen('buy')}>
+            <button className="spm-option" type="button" onClick={() => {setBuyPrefill(opening.trim());setScreen('buy');}}>
               <span className="spm-option-icon"><ShoppingBag size={20}/></span>
               <strong className="spm-option-text">{t.buy}</strong><ArrowRight size={18}/></button>
             {([['sell', ShoppingBag, t.sell], ['pay', FileText, t.pay], ['collect', HandCoins, t.collect]] as const).map(([id, Icon, label]) =>
@@ -312,7 +316,9 @@ export function MiniExperience() {
           </div>
         </section>}
 
-        {screen === 'buy' && <MiniBuyStore language={lang} onBack={() => setScreen('home')}/>}
+        <div hidden={screen !== 'buy'} aria-hidden={screen !== 'buy'}>
+          <MiniBuyStore key={buyResetKey} language={lang} initialQuery={buyPrefill} onBack={() => setScreen('home')}/>
+        </div>
         {screen === 'describe' && <section className="spm-content">
           <button type="button" className="spm-back" onClick={() => setScreen('home')}><ArrowLeft size={18}/>{t.back}</button>
           <div className="spm-persona"><Sparkles size={16}/><span>KS001</span><span className="spm-dot"/><span>{t.privacy}</span></div>
