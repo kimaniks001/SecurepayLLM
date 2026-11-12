@@ -16,6 +16,7 @@ export const STORE_OFFER_GATE3_PREVIEW_BRANCH = 'feat/mini-phase3-gate3-sandbox-
 export const STORE_OFFER_GATE4_PREVIEW_BRANCH = 'feat/mini-phase3-gate4-verified-return-20261109';
 export const STORE_OFFER_PHASE3_API_CLIENT_BRANCH = 'feat/mini-phase3-real-store-authority-client-20261109';
 export const STORE_OFFER_DAY11_BUY_BRANCH = 'feat/day11-mini-buy-live-store-entry-20261112';
+export const STORE_OFFER_DAY11_COLLECT_BRANCH = 'feat/day11-mini-collect-for-someone-conversation-20261112';
 export const STORE_OFFER_PREVIEW_TTL_MS = 5 * 60 * 1000;
 const KS_NUMBER = /^KS\d{3,12}$/;
 const OFFER_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -25,7 +26,7 @@ const KINDS = new Set(['PRODUCT','SERVICE','CAPACITY']);
 
 export function storePreviewConfig(env = process.env) {
   if (env.VERCEL_ENV !== 'preview' ||
-      ![STORE_OFFER_PREVIEW_BRANCH, STORE_OFFER_OFFLINE_SANDBOX_BRANCH, STORE_OFFER_GATE3_PREVIEW_BRANCH, STORE_OFFER_GATE4_PREVIEW_BRANCH, STORE_OFFER_PHASE3_API_CLIENT_BRANCH, STORE_OFFER_DAY11_BUY_BRANCH]
+      ![STORE_OFFER_PREVIEW_BRANCH, STORE_OFFER_OFFLINE_SANDBOX_BRANCH, STORE_OFFER_GATE3_PREVIEW_BRANCH, STORE_OFFER_GATE4_PREVIEW_BRANCH, STORE_OFFER_PHASE3_API_CLIENT_BRANCH, STORE_OFFER_DAY11_BUY_BRANCH, STORE_OFFER_DAY11_COLLECT_BRANCH]
         .includes(env.VERCEL_GIT_COMMIT_REF)) return null;
   const secret = String(env.MINI_STORE_OFFER_PREVIEW_SECRET || '');
   const host = String(env.VERCEL_URL || '');
