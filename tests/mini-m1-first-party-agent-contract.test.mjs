@@ -12,7 +12,9 @@ const sdk=read('public/embed/securepay-guest-agent.js');
 const slots=read('src/mini/MiniAgreementSlots.tsx');
 
 test('the staging-only first-party route uses existing Agent and Agreement Gateway, never new authority',()=>{
-  assert.match(firstParty,/createAgentGateway\(createHttpClient\(apiOrigin,session\.getAccessToken\)\)/);
+  assert.match(firstParty,/createHttpClient\(apiOrigin,session\.getAccessToken\)/);
+  assert.match(firstParty,/demo\s*\?\s*createMiniDemoHttpClient\(session\.getAccessToken\)/);
+  assert.match(firstParty,/demo\s*\?\s*createAgentGateway\(http,demoAccess\)\s*:\s*createAgentGateway\(http\)/);
   assert.match(firstParty,/createAgentController\(gateway\)/);
   assert.match(firstParty,/gateway\.readAgreementFormation/);
   assert.match(firstParty,/gateway\.conversationHistory/);
