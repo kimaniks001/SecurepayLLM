@@ -35,10 +35,12 @@ type Line = {
 type View = 'search' | 'store' | 'plan';
 
 /** Never infer seller acceptance or stock reservation from a public Store listing. */
-export function MiniBuyStore({ language, onBack }: {language: MiniLanguage; onBack: () => void}) {
+export function MiniBuyStore({ language, onBack, initialQuery = '' }: {language: MiniLanguage; onBack: () => void; initialQuery?: string}) {
   const sw = language === 'sw';
   const [view, setView] = useState<View>('search');
-  const [term, setTerm] = useState('');
+  const [term, setTerm] = useState(() => initialQuery.trim()
+    .replace(/^(?:i (?:want|need|would like) to (?:buy|get|find)|(?:i'm|i am) looking for|buy|find)\s+/i, '')
+    .replace(/[?.!]+$/, '').slice(0, 100));
   const [kind, setKind] = useState<'PRODUCT' | 'SERVICE'>('PRODUCT');
   const [results, setResults] = useState<PublicSearchResultView[]>([]);
   const [chosenStore, setChosenStore] = useState<PublicStoreView | null>(null);
@@ -205,7 +207,7 @@ export function MiniBuyStore({ language, onBack }: {language: MiniLanguage; onBa
       {selected.map(offer => <article className="spm-mini-buy-result" key={offer.id}>
         <strong>{offer.title}</strong><p>{offer.description || 'No description published'}</p>
         <strong>{money(offer.priceMinor, offer.currency)}</strong>
-        <small>{offer.availabilityState.replaceAll('_', ' ')} · Stock and price require seller confirmation</small>
+        <small>{offer.availabilityState.replace(/_/g, ' ')} · Stock and price require seller confirmation</small>
         {activeStates.has(offer.availabilityState) && <>
           <label className="spm-label" htmlFor={'qty-'+offer.id}>Quantity (1–20)</label>
           <input id={'qty-'+offer.id} type="number" className="spm-field" min={1} max={20}
