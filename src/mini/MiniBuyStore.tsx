@@ -5,6 +5,7 @@ import { createStoreGateway, type StoreGateway } from '../api/securepay/store';
 import type { PublicSearchResultView, PublicStoreView, PublicOfferView } from '../api/securepay/store/dto';
 import type { MiniLanguage } from './miniModel';
 import { suggestedStoreSearchTerm } from '../features/living-workspace/suggestedStoreSearchTerm.mjs';
+import { miniStoreOfferSnapshotFresh } from './miniStoreOfferFresh.mjs';
 
 /**
  * Public Store read-only transport reuses the existing, server-allowlisted
@@ -125,30 +126,39 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
     setError('');
   };
 
+  const latestOffersMatch = async () => {
+    const fresh=await Promise.all(cart.map(line=>client.offer(line.sellerKsNumber,line.offerId)));
+    return miniStoreOfferSnapshotFresh(cart,fresh);
+  };
+
   const verify = async () => {
-    if (!cart.length || working) return;
-    setChecking(true); setReviewed(false); setError('');
-    try {
-      const fresh = await Promise.all(cart.map(line => client.offer(line.sellerKsNumber, line.offerId)));
-      const stale = fresh.findIndex((result, i) => {
-        const line = cart[i];
-        const offer = result.offer;
-        return result.canonicalKsNumber !== line.sellerKsNumber ||
-          offer.id !== line.offerId || offer.title !== line.title ||
-          offer.updatedAt !== line.offerUpdatedAt || offer.priceMinor !== line.priceMinor ||
-          offer.currency !== line.currency || !activeStates.has(offer.availabilityState) ||
-          (offer.quantityAvailable !== null && offer.quantityAvailable < line.quantity);
-      });
-      if (stale >= 0) {
-        setError(sw
-          ? 'Maelezo ya bidhaa yamebadilika. Kagua duka na uchague tena.'
-          : 'An offer or its availability changed. Return to the Store to review it again.');
-      } else setReviewed(true);
-    } catch {
-      setError(sw
-        ? 'Hatukuweza kuthibitisha ofa mpya. Hakuna makubaliano yaliyoundwa.'
-        : 'Could not refresh all Store offers. No Agreement was created.');
-    } finally { setChecking(false); }
+    if(!cart.length||working||checking)return;
+    setChecking(true);setReviewed(false);setError('');
+    try{
+      if(!await latestOffersMatch()){
+        setError('A seller changed a published offer, price, or available quantity. Review the Store again before continuing.');
+      }else setReviewed(true);
+    }catch{
+      setError('Could not refresh every Store offer. No Agreement was created.');
+    }finally{setChecking(false);}
+  };
+
+  const discussCurrent = async () => {
+    if(!onDiscuss||!reviewed||!cart.length||working||checking)return;
+    setChecking(true);setError('');
+    try{
+      // This second read is intentional: the seller may have changed stock or
+      // price AFTER the original review, while the buyer was thinking.
+      if(!await latestOffersMatch()){
+        setReviewed(false);
+        setError('This Store offer changed since you checked it. Review the seller’s current listing again; nothing was ordered.');
+        return;
+      }
+      onDiscuss(cart.map(line=>({...line})));
+    }catch{
+      setReviewed(false);
+      setError('The latest Store offer could not be verified. No buyer plan was sent to KS001.');
+    }finally{setChecking(false);}
   };
 
   const reviewSingleOffer = async () => {
@@ -267,7 +277,7 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
       {reviewed && <div className="spm-mini-buy-result">
         <strong>Published sources checked</strong>
         {onDiscuss && <button type="button" className="spm-primary"
-          disabled={working||checking} onClick={()=>onDiscuss(cart.map(line=>({...line})))}>
+          disabled={working||checking} onClick={()=>void discussCurrent()}>
           <MessageCircle size={16}/>Discuss this buying plan with KS001
           <ArrowRight size={16}/>
         </button>}
