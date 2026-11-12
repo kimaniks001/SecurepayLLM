@@ -50,18 +50,18 @@
       "order": 1,
       "owner": "To be assigned at M0",
       "lastEvidence": "2026-11-12 branch fix/mini-m1-history-proof-20261112 source 0806c7c: 30 focused Node checks passed, 0 failed; TypeScript and Vercel build READY. Single server history reuse + exact ID/speaker/text/context proof, 12-turn and 86-entry regression, matching staging origins. Still no live KS001 acceptance.",
-      "ownerDecision": "CODE CANDIDATE PASS. LIVE M1 NOT CERTIFIED: staging origin not approved, 12-turn real model, beneficiary consent, backend history/idempotency and My Agreements not yet demonstrated.",
+      "ownerDecision": "BLOCKED ON VERIFIED STAGING. The current ordinary preview API origin is https://securepay.ke; no evidence of isolated staging runtime or CORS. Do not activate live model or call this M1 PASSED.",
       "marketingLawAssessment": "Pending"
     },
     {
       "id": "M2",
       "title": "Canonical Agreement slots",
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "gate": "Typed claims/corrections/verified source + durable real Agreement draft",
       "order": 2,
       "owner": "To be assigned at M0",
-      "lastEvidence": "None entered in programme tracker",
-      "ownerDecision": "Pending",
+      "lastEvidence": "2026-11-12: M2 canonical AgreementFormationDto slot projection and compact expand-on-demand review added to Mini; source tests for mother, dates, money, consent, acknowledged open points, malformed DTO and no acceptance. Preview commit 09b49e3: 38 focused Node tests pass, zero fail, TypeScript/build READY. No live API integration run.",
+      "ownerDecision": "CODE CANDIDATE ONLY. Real API M2 acceptance depends on stage proof and M1; no accepted Agreement, persistent My Agreements or Money authority claimed.",
       "marketingLawAssessment": "Pending"
     },
     {
@@ -222,7 +222,7 @@
     "Financial status never inferred from a draft or client-only simulation.",
     "New development PRs do not modify production without separate GO."
   ],
-  "currentWorkBranch": "fix/mini-m1-history-proof-20261112",
+  "currentWorkBranch": "feat/mini-m2-canonical-agreement-slots-20261112",
   "lastAudited": "2026-11-12",
   "liveMoneyApproved": false,
   "criticalNextGate": "Verify isolated staging backend and configured matching stage API origin; activate first-party Mini for real KS001 12-turn and mother synthetic acceptance only after operator sign-off."
