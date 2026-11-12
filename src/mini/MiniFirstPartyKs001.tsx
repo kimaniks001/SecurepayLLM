@@ -138,7 +138,9 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack }: {
         {state.turns.map(turn => <div key={turn.id} className={'spm-guest-bubble'+
           (turn.sender==='user'?' spm-guest-human':'')}>
           <small>{turn.sender==='user'?'You':'KS001'}</small>
-          <span>{turn.sender==='user' ? turn.text : turn.response.message}</span>
+          <span>{turn.sender==='user' ? turn.text :
+            typeof turn.response.message==='string' ? turn.response.message :
+            turn.response.message.text}</span>
         </div>)}
       </div>
       {state.error && <p className="spm-error" role="alert">{state.error}</p>}
