@@ -11,6 +11,7 @@ const built=await build({stdin:{contents:[
   "export * from './src/api/securepay/agreements';",
   "export * from './src/features/store/controller';"
 ].join('\n'),resolveDir:process.cwd()},bundle:true,write:false,format:'esm',platform:'node'});
+const {miniStoreOfferSnapshotFresh}=await import('../src/mini/miniStoreOfferFresh.mjs');
 const api=await import('data:text/javascript;base64,'+
   Buffer.from(built.outputFiles[0].text).toString('base64'));
 const chair='00000000-0000-4000-8000-000000000081';
@@ -136,4 +137,37 @@ test('M5B: seller panel reuses StoreController and business guard; acceptance re
   assert.match(root,/My Store/);
   assert.match(recipient,/recipient\.confirm\(\)/);
   assert.doesNotMatch(seller,/acceptAgreement\(|releaseFunds\(|createPaymentIntent\(/);
+});
+
+test('M5B: buyer proof rejects a seller edit made AFTER initial cart review',async()=>{
+  api.miniDemoReset();
+  const buyer=clients('amina'),seller=clients('njeri');
+  const initial=await buyer.stores.offer('KS002',chair);
+  const plan=[{
+    sellerKsNumber:'KS002',sellerName:initial.displayName,offerId:chair,
+    title:initial.offer.title,offerUpdatedAt:initial.offer.updatedAt,
+    priceMinor:initial.offer.priceMinor,currency:initial.offer.currency,quantity:20,
+  }];
+  assert.equal(miniStoreOfferSnapshotFresh(plan,[initial]),true);
+  await seller.stores.updateBusinessOffer('KS002',chair,{
+    kind:'PRODUCT',title:initial.offer.title,published:true,
+    priceMinor:19500,quantityAvailable:17,availabilityState:'LOW_AVAILABILITY',
+    mediaRefs:[],
+  });
+  const changed=await buyer.stores.offer('KS002',chair);
+  assert.equal(miniStoreOfferSnapshotFresh(plan,[changed]),false);
+  assert.equal(changed.priceMinor,undefined); // Price only belongs to the offer record
+  assert.equal(changed.offer.priceMinor,19500);
+  const renewed=[{...plan[0],offerUpdatedAt:changed.offer.updatedAt,
+    priceMinor:changed.offer.priceMinor,quantity:10}];
+  assert.equal(miniStoreOfferSnapshotFresh(renewed,[changed]),true);
+});
+test('M5B: final Discuss with KS001 performs another public Store read and blocks stale records',()=>{
+  const ui=read('src/mini/MiniBuyStore.tsx');
+  assert.match(ui,/const discussCurrent = async/);
+  assert.match(ui,/if\(!await latestOffersMatch\(\)\)/);
+  assert.match(ui,/setReviewed\(false\)/);
+  assert.match(ui,/onDiscuss\(cart.map/);
+  assert.match(ui,/onClick=\{\(\)=>void discussCurrent\(\)\}/);
+  assert.match(ui,/changed since you checked it/);
 });
