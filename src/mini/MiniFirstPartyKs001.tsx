@@ -7,7 +7,8 @@ import { createSessionStore, ensureFreshSession } from '../api/securepay/session
 import { createAgentController } from '../features/agent/controller';
 import type { AgreementFormationDto } from '../api/securepay/agent/dto';
 import { MiniIdentityStep } from './MiniIdentityStep';
-import { miniOwnedBuildConfirmed, miniOwnedBuildList, miniOwnedResumeConfirmed } from './miniOwnedWork.mjs';
+import { miniListServerBuilds, miniResumeServerBuild, miniSaveServerBuild } from './miniSavedWorkFlow.mjs';
+import type { MiniSavedWorkItem } from './miniOwnedWork.mjs';
 import { miniDiscussionPrompt } from './miniGuestConfig';
 import { miniHistoryRestored } from './miniHistoryProof.mjs';
 import { MiniAgreementSlots } from './MiniAgreementSlots';
@@ -61,7 +62,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack }: {
   const [identityOpen,setIdentityOpen] = useState(false);
   const [ownedOpen,setOwnedOpen] = useState(false);
   const [ownedStatus,setOwnedStatus] = useState<'idle'|'loading'|'ready'|'error'>('idle');
-  const [ownedList,setOwnedList] = useState<ReturnType<typeof miniOwnedBuildList>>([]);
+  const [ownedList,setOwnedList] = useState<MiniSavedWorkItem[]>([]);
   const [saveBusy,setSaveBusy] = useState(false);
   const [savedNotice,setSavedNotice] = useState('');
   const [ownedError,setOwnedError] = useState('');
@@ -159,9 +160,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack }: {
     setOwnedStatus('loading');setOwnedError('');
     try {
       await ensureFreshSession(session,auth);
-      const items = await pair.gateway.listSavedBuilds(20,0);
-      const safe = miniOwnedBuildList(items);
-      if (!safe) throw new Error('Could not verify saved work');
+      const safe = await miniListServerBuilds(pair.gateway);
       setOwnedList(safe);setOwnedStatus('ready');
     } catch {
       setOwnedList([]);setOwnedStatus('error');
@@ -175,9 +174,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack }: {
     setSaveBusy(true);setOwnedError('');setSavedNotice('');
     try {
       await ensureFreshSession(session,auth);
-      const saved = await pair.gateway.saveBuild(conversationId);
-      if (!miniOwnedBuildConfirmed(saved,conversationId))
-        throw new Error('Unverified saved build');
+      await miniSaveServerBuild(pair.gateway,conversationId);
       setSavedNotice('Saved to your SecurePay account. It is still an unfinished Agreement, not accepted or funded.');
       setOwnedOpen(true);
       await loadOwned();
@@ -193,14 +190,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack }: {
       await ensureFreshSession(session,auth);
       // A signed-in, server-authorised owner receives the original conversation
       // ID, never a new transcript or Agreement clone.
-      const saved = await pair.gateway.resumeSavedBuild(savedBuildId);
-      const original = miniOwnedResumeConfirmed(saved,savedBuildId);
-      if (!original) throw new Error('Unverified resume');
-      const history = await pair.gateway.conversationHistory(original);
-      if (!history || !Array.isArray(history.entries)) throw new Error('Missing history');
-      await pair.controller.resumeConversation(original,history);
-      if (!miniHistoryRestored(history,pair.controller.getSnapshot(),original))
-        throw new Error('Cannot restore authenticated work');
+      await miniResumeServerBuild(pair.gateway,pair.controller,savedBuildId);
       setReview(null);setMessage('');setStatus('ready');
       setFailedResumeId(null);setOwnedOpen(false);
       setSavedNotice('Your original SecurePay conversation has been restored.');
