@@ -94,7 +94,7 @@ test('foreign conversation context is refused, never shown as verified understan
   assert.equal(state.conversationId, CONVERSATION);
   assert.equal(state.context.status, 'error');
   assert.equal(state.context.data, null);
-  assert.match(state.context.error, /different conversation/i);
+  assert.match(state.context.error, /verify .*conversation/i);
   assert.equal(state.pending, null, 'already-acknowledged reply is never sent twice');
 });
 
