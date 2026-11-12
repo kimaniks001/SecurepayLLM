@@ -1,3 +1,5 @@
+import { COMMERCE_EXPERIENCE } from '../agreement-commerce/experienceContract';
+
 type GuideSurface = 'vision' | 'store' | 'agreement' | 'money';
 
 const COPY: Record<GuideSurface, { title: string; body: string; action: string }> = {
@@ -8,7 +10,7 @@ const COPY: Record<GuideSurface, { title: string; body: string; action: string }
   },
   store: {
     title: 'SecurePay can help you use this, not just browse it',
-    body: 'Ask how this Store or fulfilment option could fit your plan or Agreement, and what still needs checking.',
+    body: COMMERCE_EXPERIENCE.assistant + ' Ask what is verified and what still needs checking before committing.',
     action: 'Ask SecurePay how this could fit',
   },
   agreement: {

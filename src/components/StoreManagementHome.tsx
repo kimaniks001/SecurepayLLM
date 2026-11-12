@@ -4,6 +4,8 @@ import type { BusinessStoreOpportunityResponse } from '../api/securepay/store/dt
 import type { FulfilmentNeedMatchDto, SupplyRouteDto } from '../api/securepay/fulfilment-needs';
 import type { StoreIdentity, StoreOffer, StoreActivityItem, StoreEnquiry } from '../types';
 import { Ks001SurfaceGuide } from '../features/experience/Ks001SurfaceGuide';
+import { CommunitySaverConsentPreview } from '../features/agreement-commerce/CommunitySaverConsentPreview';
+import { COMMERCE_EXPERIENCE } from '../features/agreement-commerce/experienceContract';
 
 interface StoreManagementHomeProps {
   store: StoreIdentity;
@@ -69,6 +71,12 @@ export function StoreManagementHome({ store, offers, activity, enquiries, onBack
       </div>
 
       <div className="max-w-4xl mx-auto px-4 md:px-6 py-4 space-y-5">
+        <section aria-label="Agreement Commerce in my Store" className="rounded-2xl border border-forest-200 bg-forest-50/40 px-4 py-3">
+          <p className="text-[0.7rem] font-semibold text-forest-700">{COMMERCE_EXPERIENCE.promise}</p>
+          <p className="mt-1 text-sm font-medium text-forest-900">{COMMERCE_EXPERIENCE.seller}</p>
+          <p className="mt-1 text-xs text-sand-600">A sale leads to commitments. Agreements, execution and supporting providers must be checked against their own verified records. No work or payment is assumed complete here.</p>
+        </section>
+        <CommunitySaverConsentPreview />
         <section aria-label="What people can find" className="sp-section px-4 py-4 md:px-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
