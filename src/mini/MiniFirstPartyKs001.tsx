@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import { ArrowLeft, ArrowRight, BookmarkPlus, CircleAlert, ClipboardList, FolderOpen, LogOut, Mail, MessageCircle, RefreshCcw, Send, ShieldCheck, ShoppingBag, Users } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BookmarkPlus, CircleAlert, ClipboardList, FolderOpen, LogOut, Mail, MessageCircle, RefreshCcw, Send, ShieldCheck, ShoppingBag, Store, Users } from 'lucide-react';
 import { createHttpClient } from '../api/securepay/http';
 import { createAgentGateway } from '../api/securepay/agent';
 import { createConversationAccessStore } from '../api/securepay/agent/continuity';
 import { createMiniDemoHttpClient, miniDemoSeedAccess, miniDemoTokens } from './miniInteractiveDemo';
 import { createAuthGateway } from '../api/securepay/auth';
 import { createAgreementGateway } from '../api/securepay/agreements';
+import { createBusinessGateway } from '../api/securepay/business';
+import { MiniSellerStore } from './MiniSellerStore';
 import { createStoreGateway } from '../api/securepay/store';
 import { MiniBuyStore, type MiniStorePlanLine } from './MiniBuyStore';
 import { miniStoreIntent } from './miniStoreIntent.mjs';
@@ -69,6 +71,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
   const auth = useMemo(() => createAuthGateway(http),[http]);
   const agreements=useMemo(()=>createAgreementGateway(http),[http]);
   const stores=useMemo(()=>createStoreGateway(http),[http]);
+  const businesses=useMemo(()=>createBusinessGateway(http),[http]);
   const [epoch,setEpoch] = useState(0);
   const pair = useMemo(() => {
     const gateway = demo
@@ -85,9 +88,10 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
   const [reviewError,setReviewError] = useState('');
   const [recoveryAttempt,setRecoveryAttempt] = useState(0);
   const [identityOpen,setIdentityOpen] = useState(false);
-  const [identityGoal,setIdentityGoal] = useState<'saved'|'inbox'|'creator'|'agreements'>('saved');
+  const [identityGoal,setIdentityGoal] = useState<'saved'|'inbox'|'creator'|'agreements'|'seller'>('saved');
   const [peopleOpen,setPeopleOpen] = useState<'inbox'|'creator'|null>(null);
   const [agreementsOpen,setAgreementsOpen] = useState(false);
+  const [sellerOpen,setSellerOpen] = useState(false);
   const [ownedOpen,setOwnedOpen] = useState(false);
   const [ownedStatus,setOwnedStatus] = useState<'idle'|'loading'|'ready'|'error'>('idle');
   const [ownedList,setOwnedList] = useState<MiniSavedWorkItem[]>([]);
@@ -240,9 +244,18 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
     setOwnedOpen(next);
     if (next) void loadOwned();
   };
+  const openSeller = () => {
+    setPeopleOpen(null);setAgreementsOpen(false);
+    setOwnedOpen(false);setOwnedList([]);setOwnedStatus('idle');
+    setStoreOpen(false);
+    if(!signedIn){
+      setIdentityGoal('seller');setIdentityOpen(true);return;
+    }
+    setSellerOpen(true);
+  };
   const openAgreements = () => {
     setOwnedOpen(false);setOwnedList([]);setOwnedStatus('idle');
-    setPeopleOpen(null);
+    setPeopleOpen(null);setSellerOpen(false);
     if(!signedIn){
       setIdentityGoal('agreements');setIdentityOpen(true);return;
     }
@@ -257,7 +270,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
   };
   const openPeople = (kind:'inbox'|'creator') => {
     setOwnedOpen(false);setOwnedList([]);setOwnedStatus('idle');
-    setAgreementsOpen(false);
+    setAgreementsOpen(false);setSellerOpen(false);
     if(!signedIn){
       setIdentityGoal(kind);setIdentityOpen(true);return;
     }
@@ -276,6 +289,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
     setIdentityOpen(false);
     if(identityGoal==='saved'){setOwnedOpen(true);void loadOwned();}
     else if(identityGoal==='agreements'){setAgreementsOpen(true);}
+    else if(identityGoal==='seller'){setSellerOpen(true);}
     else {setPeopleOpen(identityGoal);}
   };
   const changeDemoPersona = (actor:'amina'|'njeri') => {
@@ -284,7 +298,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
     if (actor==='amina') miniDemoSeedAccess(demoAccess);
     session.setTokens(miniDemoTokens(actor));
     setReview(null);setReviewError('');setOwnedList([]);
-    setOwnedOpen(false);setPeopleOpen(null);setAgreementsOpen(false);
+    setOwnedOpen(false);setPeopleOpen(null);setAgreementsOpen(false);setSellerOpen(false);
     setIdentityOpen(false);setSavedNotice('');setOwnedError('');
     setStoreOpen(false);setHeldStorePlan(null);setStoreError('');
     setMessage('');setStatus('checking');setEpoch(n=>n+1);
@@ -344,7 +358,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
     // transcript or account list visible after their token is dropped.
     session.clear();
     pair.gateway.forgetResumableConversation();
-    setOwnedList([]);setOwnedOpen(false);setPeopleOpen(null);setAgreementsOpen(false);setIdentityOpen(false);
+    setOwnedList([]);setOwnedOpen(false);setPeopleOpen(null);setAgreementsOpen(false);setSellerOpen(false);setIdentityOpen(false);
     setStoreOpen(false);setHeldStorePlan(null);setStoreError('');
     setOwnedStatus('idle');setOwnedError('');setSavedNotice('');
     setFailedResumeId(null);setReview(null);setMessage('');
@@ -356,7 +370,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
     pair.gateway.forgetResumableConversation();
     try {sessionStorage.removeItem(expiredKey);} catch { /* blocked storage */ }
     setMessage('');setResetAsked(false);setReview(null);setReviewError('');
-    setOwnedOpen(false);setPeopleOpen(null);setAgreementsOpen(false);setOwnedError('');setSavedNotice('');
+    setOwnedOpen(false);setPeopleOpen(null);setAgreementsOpen(false);setSellerOpen(false);setOwnedError('');setSavedNotice('');
     setStoreOpen(false);setHeldStorePlan(null);setStoreError('');
     setFailedResumeId(null);
     setEpoch(n=>n+1);
@@ -419,7 +433,13 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
         onBack={()=>setAgreementsOpen(false)}
         onReauthenticate={reauthenticateAgreements}
       />}
-    {status==='ready' && !identityOpen && !peopleOpen && !agreementsOpen && <>
+    {status==='ready' && !identityOpen && sellerOpen &&
+      <MiniSellerStore storeGateway={stores} businessGateway={businesses}
+        prepare={()=>ensureFreshSession(session,auth)}
+        onBack={()=>setSellerOpen(false)}
+        onInvitations={()=>{setSellerOpen(false);openPeople('inbox');}}
+      />}
+    {status==='ready' && !identityOpen && !peopleOpen && !agreementsOpen && !sellerOpen && <>
       <button type="button" className="spm-secondary spm-mini-store-entry"
         onClick={()=>{setStoreOpen(open=>!open);setStoreError('');}}
         disabled={storeBusy||state.busy||!!state.pending}>
@@ -488,6 +508,8 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
               onClick={openOwned} disabled={saveBusy}>My saved work</button>
             <button type="button" className="spm-quiet-button" onClick={openAgreements}
               disabled={saveBusy}><ClipboardList size={15}/>My Agreements</button>
+            <button type="button" className="spm-quiet-button" onClick={openSeller}
+              disabled={saveBusy}><Store size={15}/>My Store</button>
             <button type="button" className="spm-quiet-button"
               onClick={()=>openPeople('inbox')} disabled={saveBusy}>
               <Mail size={15}/>Invitations for me

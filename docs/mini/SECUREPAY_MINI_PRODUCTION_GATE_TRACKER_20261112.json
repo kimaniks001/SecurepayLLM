@@ -93,8 +93,8 @@
       "gate": "Published Store → seller confirm → buyer accept → one canonical Agreement",
       "order": 5,
       "owner": "To be assigned at M0",
-      "lastEvidence": "2026-11-12: M5A existing MiniBuyStore public Store search/current-offer check + same first-party AgentController.useOffer source binding and same-chat buyer intention. Multi-Store requests keep sellers distinct; no false combined source or seller consent. Two synthetic Stores allow actual Mini UI inspection in strictly local no-network preview. 91 focused checks passed (8 new M5), zero failed, TS and Vercel READY at source commit ed24c8ba. See docs/mini/M5_STORE_SAME_CONVERSATION_SOURCE_GATE_20261112.md.",
-      "ownerDecision": "M5A source-linked Store-to-KS001 UX code candidate with visible synthetic preview; NOT M5 complete. Live staging, seller-level stock/quote/acceptance, canonical multi-source plan, checkout and actual Agreement remain outstanding. No real account/money or production updates.",
+      "lastEvidence": "2026-11-12 M5B: Compact seller My Store via canonical StoreController + BusinessGateway.mine/representation permission, explicit published price/quantity/availability and business fulfilment delivery updates; buyer final Discuss with KS001 rechecks exact Store updatedAt/price/quantity/availability again to block staleness. Two sample actors demonstrate owner-only writes; 100 focused M1–M5B tests green, TypeScript passed, preview READY on 391531bee0f7b2c29dffe38ca39308dc8a486c8c. See docs/mini/M5B_SELLER_OFFER_AND_BUYER_RECHECK_20261112.md.",
+      "ownerDecision": "M5A+M5B code/preview candidates, NOT complete M5 or live Agreement acceptance. Published offer/fulfilment updates do not bind a buyer or revise the Agreement. Server-owned exact buyer-specific quote/Agreement version, multi-seller consent, staging and Money checks remain NO-GO.",
       "marketingLawAssessment": "Focus: same Mini Store and KS001, no redesign; Candor: listing not reservation/acceptance; Line extension: shopping intent stays tied to Agreement; Sacrifice: no parallel checkout/money engine."
     },
     {
@@ -222,7 +222,7 @@
     "Financial status never inferred from a draft or client-only simulation.",
     "New development PRs do not modify production without separate GO."
   ],
-  "currentWorkBranch": "feat/mini-m5-store-to-living-agreement-20261112",
+  "currentWorkBranch": "feat/mini-m5b-seller-offer-confirmation-20261112",
   "lastAudited": "2026-11-12",
   "liveMoneyApproved": false,
   "criticalNextGate": "Verify isolated staging backend and configured matching stage API origin; activate first-party Mini for real KS001 12-turn and mother synthetic acceptance only after operator sign-off."
