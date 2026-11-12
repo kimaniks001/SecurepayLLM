@@ -23,4 +23,4 @@ export interface MiniAgreementDetail {
 }
 export declare function miniAgreementStatus(code:string):string;
 export declare function miniAgreementHomePage(response:Page<CurrentUserAgreementSummaryResponse>,expectedPage?:number):MiniAgreementPage|null;
-export declare function miniAgreementDetailView(dto:AgreementDetailResponse,expectedId:string):MiniAgreementDetail|null;
+export declare function miniAgreementDetailView(dto:AgreementDetailResponse,expectedId:string,expectedVersionId?:string|null):MiniAgreementDetail|null;
