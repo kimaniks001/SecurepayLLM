@@ -1,4 +1,4 @@
-import { ArrowRight, CircleHelp, ShieldCheck } from 'lucide-react';
+import { ArrowRight, CircleHelp, FileText } from 'lucide-react';
 import type { AgreementFormationDto } from '../api/securepay/agent/dto';
 import { miniAgreementSlots } from './miniAgreementSlots.mjs';
 
@@ -15,7 +15,7 @@ export function MiniAgreementSlots({ formation }: { formation: AgreementFormatio
   return <section className="spm-guest-prepared spm-mini-slots"
     aria-label="Agreement taking shape" data-mini-agreement-version={view.version}>
     <div className="spm-mini-slots-heading">
-      <ShieldCheck size={17}/>
+      <FileText size={17}/>
       <div><strong>Agreement taking shape</strong>
         <small>Draft understanding · version {view.version}</small>
       </div>
