@@ -159,7 +159,7 @@ export function MiniExperience() {
   const beginCollection = () => {
     // Ordinary goods/service payments retain the existing lightweight Mini
     // collection form. Beneficiary support requests invite specific questions.
-    if (/\b(?:for (?:my|our|someone|another|a family member)|on behalf of|fundrais(?:e|ing)|contributions? for|support (?:my|our|someone))\b/i.test(opening))
+    if (/\b(?:for (?:(?:my|our|his|her|their)\s+(?:mother|mum|mom|mama|father|dad|parent|sister|brother|daughter|son|wife|husband|friend|family|relative|neighbou?r)|someone else|another person|a family member)|on behalf of|fundrais(?:e|ing)|contributions? for|support (?:my mother|someone|a person))\b/i.test(opening))
       startSupportedCollection(opening);
     else
       begin('collect');
