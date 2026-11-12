@@ -366,7 +366,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
     <div className="spm-persona"><MessageCircle size={16}/><span>KS001</span>
       <span className="spm-dot"/><span>{demo?'Scripted preview · Not live AI':'First-party staging conversation'}</span></div>
     {demo && <div className="spm-mini-preview-banner" role="status">
-      <strong>Interactive M1–M4 preview · SYNTHETIC DATA</strong>
+      <strong>Interactive M1–M5 preview · SYNTHETIC DATA</strong>
       <p>Try the existing Mini components as Amina or Njeri. Replies are scripted;
         identities, stock, Agreements and Money are not real. No requests reach SecurePayAPI.</p>
       <div className="spm-mini-demo-switch" aria-label="Choose a sample account">
