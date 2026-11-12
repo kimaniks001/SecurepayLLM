@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { COMMERCE_EXPERIENCE, canRevealViewer, canShareCommunitySignal } from './experienceContract';
+import { COMMERCE_EXPERIENCE, canShareCommunitySignal } from './experienceContract';
 
 /**
  * Interactive OWNER REVIEW only. No network calls, persistence, subscription,
@@ -75,8 +75,8 @@ export function CommunitySaverConsentPreview() {
               Reciprocal viewer visibility
             </label>
             <p className="text-xs text-sand-600">
-              {canRevealViewer({myReceipts: viewerReceipts, theirReceipts: viewerReceipts})
-                ? 'You could see a viewer only if that person also opts in; they could see your views.'
+              {viewerReceipts
+                ? 'You are choosing mutual visibility. A viewer is identifiable only if they also opt in; they can see your views too.'
                 : 'Your views would be private; you would not see who viewed your opportunities.'}
             </p>
             <div className="rounded-lg border border-cream-200 bg-cream-50 p-3 text-xs text-sand-600">
