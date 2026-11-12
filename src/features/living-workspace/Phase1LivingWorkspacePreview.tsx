@@ -1078,7 +1078,20 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, store
           {mode==='work' && <button type="button" disabled={workActionBusy} data-day4-mobile-agreement onClick={()=>{setShowAgreementHub(false);setShowSavedWork(false);setScreen('result');}}
             className="inline-flex min-h-11 items-center rounded-xl bg-cream-100 px-3 text-sm font-semibold md:hidden">Agreement</button>}
           {(!uiOnlyPreview || mode!=='work')&&<button type="button" onClick={openToolPicker} aria-label="Expand tool shelf" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-cream-100 px-4 text-sm font-semibold xl:hidden"><Plus size={18}/> Tools</button>}</div></div>
-        {liveStarted && gateway && !uiOnlyPreview && <div className={mode==='work' && liveWork && !showDraftReview && !openedAgreementId && !createdAgreementId?'flex min-h-0 flex-1 flex-col':'hidden'}><LiveKs001Session controller={liveController!} opening={persona.opening} draftRevision={draftRevision} navigationLocked={workActionBusy} onUnsentDraftChange={text=>{openingComposerText.current=text;}} onOpenTool={name=>openTool(name)} nextQuestion={formationState?.data?.conversationId===liveConversationId?formationState.data.question?.text:null}/></div>}
+        {liveStarted && gateway && !uiOnlyPreview && <div className={mode==='work' && liveWork && !showDraftReview && !openedAgreementId && !createdAgreementId?'flex min-h-0 flex-1 flex-col':'hidden'}><LiveKs001Session controller={liveController!} opening={persona.opening} draftRevision={draftRevision} navigationLocked={workActionBusy} onUnsentDraftChange={text=>{openingComposerText.current=text;}} onOpenTool={name=>openTool(name)}
+          storeGateway={signedIn && !!storeIntegration ? storeIntegration.gateway : undefined}
+          onViewStore={ksNumber=>{
+            if(!signedIn || !storeIntegration) return;
+            openTool('Stores');
+            setStoreBrowser(previous=>({...previous,selectedStoreKs:ksNumber,tab:'stores'}));
+            expandCompactStore({kind:'store',storeKs:ksNumber});
+          }}
+          onBrowseStores={term=>{
+            if(!signedIn || !storeIntegration) return;
+            setStoreBrowser(previous=>({...previous,query:term,submitted:term,selectedStoreKs:null,tab:'items'}));
+            openTool('Stores');
+          }}
+          nextQuestion={formationState?.data?.conversationId===liveConversationId?formationState.data.question?.text:null}/></div>}
         {!openedAgreementId && !createdAgreementId && showDraftReview && liveController && formationController && formationState?.data &&
           <div className="min-h-0 flex-1 overflow-y-auto bg-[#fcfcf8] px-4 py-4 sm:px-6" data-day1-workspace-review>
             <AgreementReview
