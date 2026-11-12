@@ -5,6 +5,8 @@ import { MiniContextInput, type MiniKind } from './MiniContextInput';
 import { WorkspaceWelcome } from './WorkspaceWelcome';
 import { answerActions } from './answerActions';
 import { readDraft, writeDraft } from '../conversation/drafts';
+import type { StoreGateway } from '../../api/securepay/store';
+import { Ks001StoreSuggestions, suggestedStoreSearchTerm } from './Ks001StoreSuggestions';
 
 /** Present the final explicit question prominently, without changing server wording.
  * Replies without a clear question stay exactly as written.
@@ -39,7 +41,7 @@ function Ks001Reply({ text, nextQuestion }: { text: string; nextQuestion?: strin
  * first-class, permission-checked workspace intent, only My Work is enabled.
  * This intentionally does not replace the full AgentExperience source/review UI.
  */
-export function LiveKs001Session({ controller, nextQuestion, opening, onOpenTool, draftRevision=0, navigationLocked=false, onUnsentDraftChange }: { controller: AgentController; nextQuestion?: string | null; opening?: string; onOpenTool?:(name:'Photos'|'Places'|'People & Invitations')=>void; draftRevision?:number; navigationLocked?:boolean; onUnsentDraftChange?:(text:string)=>void }) {
+export function LiveKs001Session({ controller, nextQuestion, opening, onOpenTool, draftRevision=0, navigationLocked=false, onUnsentDraftChange, storeGateway, onViewStore, onBrowseStores }: { controller: AgentController; nextQuestion?: string | null; opening?: string; onOpenTool?:(name:'Photos'|'Places'|'People & Invitations')=>void; draftRevision?:number; navigationLocked?:boolean; onUnsentDraftChange?:(text:string)=>void; storeGateway?:Pick<StoreGateway,'search'>; onViewStore?:(ksNumber:string)=>void; onBrowseStores?:(query:string)=>void }) {
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   const [draft, setDraft] = useState('');
   // Review handoffs only populate the existing conversation's unsent composer.
@@ -53,6 +55,11 @@ export function LiveKs001Session({ controller, nextQuestion, opening, onOpenTool
   const [mini,setMini] = useState<{kind:MiniKind;question:string}|null>(null);
   const historyEnd=useRef<HTMLDivElement|null>(null);
   const lastTurn=state.turns[state.turns.length-1]?.id;
+  const lastCompletedReply = state.turns[state.turns.length-1]?.sender !== 'user' &&
+    state.turns.length > 0 && !state.busy && !state.pending && !state.error;
+  const lastShoppingQuestion = [...state.turns].reverse().find(turn=>turn.sender==='user')?.text || '';
+  const shoppingTerm = lastCompletedReply && storeGateway && onViewStore && onBrowseStores
+    ? suggestedStoreSearchTerm(lastShoppingQuestion) : null;
   useEffect(()=>{historyEnd.current?.scrollIntoView({block:'end',behavior:'smooth'});},[lastTurn]);
   const canSend = !navigationLocked && !state.busy && !state.pending && !!draft.trim();
   return <section aria-busy={navigationLocked} aria-label="Live KS001 backend conversation" className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
@@ -72,6 +79,9 @@ export function LiveKs001Session({ controller, nextQuestion, opening, onOpenTool
         <p className="mb-1 text-xs font-semibold text-sand-600">{turn.sender==='user'?'You':'KS001'}</p>
         {turn.sender==='user'?turn.text:<Ks001Reply text={turn.response.message.text} nextQuestion={turn.id===lastTurn&&!state.busy&&!state.pending?nextQuestion:null}/>}
       </div>)}
+      {shoppingTerm && onViewStore && onBrowseStores && <Ks001StoreSuggestions
+        searchTerm={shoppingTerm} gateway={storeGateway}
+        onViewStore={onViewStore} onBrowseStores={onBrowseStores}/>}
       {state.busy && <p role="status" className="text-sm text-sand-700">KS001 is working on your message…</p>}
       {state.error && <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-3"><p className="text-sm">{state.error}</p><p className="mt-1 text-xs">A previous turn may already have reached SecurePay. Retry uses the same turn ID.</p></div>}
       <div ref={historyEnd} aria-hidden="true"/>
