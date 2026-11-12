@@ -145,3 +145,13 @@ test('M3: user-visible saved state is not passed off as agreed, shared or funded
   assert.match(signIn,/does not accept an Agreement or move money/);
   assert.match(mini,/session\.clear\(\)/);
 });
+
+test('M3: sign-out takes two deliberate actions and resets private client state',()=>{
+  const mini=read('src/mini/MiniFirstPartyKs001.tsx');
+  assert.match(mini,/signOutAsked/);
+  assert.match(mini,/Confirm sign out/);
+  assert.match(mini,/Unsaved work may be lost/);
+  assert.match(mini,/session\.clear\(\)/);
+  assert.match(mini,/setOwnedList\(\[\]\)/);
+  assert.match(mini,/setEpoch\(n=>n\+1\)/);
+});
