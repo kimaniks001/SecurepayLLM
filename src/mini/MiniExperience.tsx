@@ -15,11 +15,12 @@ import { MiniHostedCheckoutDemo } from './MiniHostedCheckoutDemo';
 import { MiniServerCheckout } from './MiniServerCheckout';
 import { MiniRealStoreOffer } from './MiniRealStoreOffer';
 import { MiniBuyStore } from './MiniBuyStore';
+import { MiniCollectConversation } from './MiniCollectConversation';
 import { MiniGate2Sandbox } from './MiniGate2Sandbox';
 import { miniMergeUserDescription, miniCaptureText, type MiniCaptureSource, type MiniCaptureKind } from './miniCapture';
 import './mini.css';
 
-type View = MiniScreen | 'choose' | 'funding' | 'buy';
+type View = MiniScreen | 'choose' | 'funding' | 'buy' | 'collect-interview';
 const STORE_KEY = 'securepay-mini-phase1-local-draft-v1';
 const words = {
   en: {
@@ -104,6 +105,9 @@ export function MiniExperience() {
   const [screen, setScreen] = useState<View>('home');
   const [buyPrefill, setBuyPrefill] = useState('');
   const [buyResetKey, setBuyResetKey] = useState(0);
+  const [collectResetKey, setCollectResetKey] = useState(0);
+  const [collectPrefill, setCollectPrefill] = useState('');
+  const [collectionReviewActive, setCollectionReviewActive] = useState(false);
   const [opening, setOpening] = useState('');
   const [discussDraft, setDiscussDraft] = useState<MiniDraft | null>(null);
   const [draft, setDraft] = useState<MiniDraft>(emptyMiniDraft());
@@ -142,7 +146,19 @@ export function MiniExperience() {
     document.querySelector<HTMLElement>('.spm-frame')?.scrollTo(0, 0);
   }, [screen]);
 
+  const beginCollection = () => {
+    // The same human-first conversation works after a typed sentence such as
+    // "I want to collect money for my mother", or with no starting context.
+    // All interview answers remain local until the user explicitly prepares
+    // a draft. Do not pass the text to an unauthorised public collector.
+    setCollectPrefill(opening.trim().slice(0,400));
+    setOpening('');
+    setCollectionReviewActive(false);
+    setError('');
+    setScreen('collect-interview');
+  };
   const begin = (intent: MiniIntent) => {
+    setCollectionReviewActive(false);
     setDraft({ ...emptyMiniDraft(intent), description: opening.trim().slice(0, 400) });
     setOpening('');
     setError('');
@@ -161,6 +177,9 @@ export function MiniExperience() {
     setOpening('');
     setBuyPrefill('');
     setBuyResetKey(n => n + 1);
+    setCollectResetKey(n => n + 1);
+    setCollectPrefill('');
+    setCollectionReviewActive(false);
     setDiscussDraft(null);
     setPhoto(null);
     setPhotoName('');
@@ -173,6 +192,7 @@ export function MiniExperience() {
     const previous = readSavedMiniDraft();
     if (!previous) { setHasSaved(false); return; }
     setDraft(previous);
+    setCollectionReviewActive(false);
     setError('');
     setPhoto(null);
     setPhotoName('');
@@ -292,7 +312,7 @@ export function MiniExperience() {
             <button type="button" className="spm-option" onClick={() => begin('pay')}>
               <span className="spm-option-icon"><FileText size={20}/></span>
               <span className="spm-option-text"><strong>{t.pay}</strong><small>{t.payHint}</small></span><ArrowRight size={18}/></button>
-            <button type="button" className="spm-option" onClick={() => begin('collect')}>
+            <button type="button" className="spm-option" onClick={beginCollection}>
               <span className="spm-option-icon"><HandCoins size={20}/></span>
               <span className="spm-option-text"><strong>{t.collect}</strong><small>{t.collectHint}</small></span><ArrowRight size={18}/></button>
           </div>
@@ -310,14 +330,28 @@ export function MiniExperience() {
             <button className="spm-option" type="button" onClick={() => {setBuyPrefill(opening.trim());setScreen('buy');}}>
               <span className="spm-option-icon"><ShoppingBag size={20}/></span>
               <strong className="spm-option-text">{t.buy}</strong><ArrowRight size={18}/></button>
-            {([['sell', ShoppingBag, t.sell], ['pay', FileText, t.pay], ['collect', HandCoins, t.collect]] as const).map(([id, Icon, label]) =>
+            {([['sell', ShoppingBag, t.sell], ['pay', FileText, t.pay]] as const).map(([id, Icon, label]) =>
               <button className="spm-option" key={id} type="button" onClick={() => begin(id)}>
                 <span className="spm-option-icon"><Icon size={20}/></span><strong className="spm-option-text">{label}</strong><ArrowRight size={18}/></button>)}
+            <button type="button" className="spm-option" onClick={beginCollection}>
+              <span className="spm-option-icon"><HandCoins size={20}/></span>
+              <strong className="spm-option-text">{t.collect}</strong><ArrowRight size={18}/></button>
           </div>
         </section>}
 
         <div hidden={screen !== 'buy'} aria-hidden={screen !== 'buy'}>
           <MiniBuyStore key={buyResetKey} language={lang} initialQuery={buyPrefill} onBack={() => setScreen('home')}/>
+        </div>
+        <div hidden={screen !== 'collect-interview'} aria-hidden={screen !== 'collect-interview'}>
+          <MiniCollectConversation key={collectResetKey} language={lang} seed={collectPrefill}
+            onBack={()=>setScreen('home')}
+            onPrepareDraft={prepared=>{
+              setDraft({...emptyMiniDraft('collect'), description:prepared.description.slice(0,400),
+                amount:prepared.amount, note:prepared.note.slice(0,400)});
+              setCollectionReviewActive(true);
+              setError('');
+              setScreen('review');
+            }}/>
         </div>
         {screen === 'describe' && <section className="spm-content">
           <button type="button" className="spm-back" onClick={() => setScreen('home')}><ArrowLeft size={18}/>{t.back}</button>
@@ -376,7 +410,7 @@ export function MiniExperience() {
         </section>}
 
         {screen === 'review' && <section className="spm-content">
-          <button type="button" className="spm-back" onClick={() => setScreen('describe')}><ArrowLeft size={18}/>{t.edit}</button>
+          <button type="button" className="spm-back" onClick={() => setScreen(collectionReviewActive?'collect-interview':'describe')}><ArrowLeft size={18}/>{t.edit}</button>
           <div className="spm-persona spm-neutral"><Pencil size={16}/>{t.preview}</div>
           <h1 className="spm-question">{t.preview}</h1>
           <div className="spm-draft">
@@ -394,9 +428,9 @@ export function MiniExperience() {
           </div>
           <p className="spm-support-text">{t.reviewText} {t.noSourceSaved}</p>
           <button className="spm-secondary spm-guest-launch" type="button" onClick={() => { setDiscussDraft(draft); setScreen('help'); }}><MessageCircle size={17}/>{t.discuss}</button>
-          <button className="spm-secondary spm-guest-launch" type="button" onClick={() => setScreen('funding')}><HandCoins size={17}/>{t.testFunding}</button>
+          {!collectionReviewActive && <button className="spm-secondary spm-guest-launch" type="button" onClick={() => setScreen('funding')}><HandCoins size={17}/>{t.testFunding}</button>}
           <button className="spm-primary" type="button" onClick={keepDraft}>{t.save}<CheckCircle2 size={19}/></button>
-          <button className="spm-quiet-button" type="button" onClick={() => setScreen('describe')}><Pencil size={16}/>{t.edit}</button>
+          <button className="spm-quiet-button" type="button" onClick={() => setScreen(collectionReviewActive?'collect-interview':'describe')}><Pencil size={16}/>{t.edit}</button>
         </section>}
 
         {screen === 'saved' && <section className="spm-content spm-finish">
