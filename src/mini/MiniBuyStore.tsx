@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, Search, ShoppingBag, Store, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, MessageCircle, Search, ShoppingBag, Store, CheckCircle2 } from 'lucide-react';
 import { createHttpClient } from '../api/securepay/http';
-import { createStoreGateway } from '../api/securepay/store';
+import { createStoreGateway, type StoreGateway } from '../api/securepay/store';
 import type { PublicSearchResultView, PublicStoreView, PublicOfferView } from '../api/securepay/store/dto';
 import type { MiniLanguage } from './miniModel';
 import { suggestedStoreSearchTerm } from '../features/living-workspace/suggestedStoreSearchTerm.mjs';
@@ -28,7 +28,7 @@ const money = (amountMinor: number | null, currency: string) =>
   amountMinor === null ? 'Price to confirm' : currency + ' ' +
   (amountMinor / 100).toLocaleString('en-KE', { maximumFractionDigits: 2 });
 
-type Line = {
+export type MiniStorePlanLine = {
   sellerKsNumber: string; sellerName: string; offerId: string; title: string;
   quantity: number; priceMinor: number | null; currency: string;
   offerUpdatedAt: string; availabilityState: string;
@@ -36,7 +36,14 @@ type Line = {
 type View = 'search' | 'store' | 'plan';
 
 /** Never infer seller acceptance or stock reservation from a public Store listing. */
-export function MiniBuyStore({ language, onBack, initialQuery = '' }: {language: MiniLanguage; onBack: () => void; initialQuery?: string}) {
+export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway, onDiscuss }: {
+  language:MiniLanguage; onBack:()=>void; initialQuery?:string;
+  /** Existing public StoreGateway, optionally on the same isolated API as KS001. */
+  storeGateway?:Pick<StoreGateway,'search'|'store'|'offer'>;
+  /** Only after a fresh Store offer check, never on Add to cart alone. */
+  onDiscuss?:(lines:MiniStorePlanLine[])=>void;
+}) {
+  const client=storeGateway??stores;
   const sw = language === 'sw';
   const [view, setView] = useState<View>('search');
   const asSearchTerm = (phrase: string) => {
@@ -57,7 +64,7 @@ export function MiniBuyStore({ language, onBack, initialQuery = '' }: {language:
   const [kind, setKind] = useState<'PRODUCT' | 'SERVICE'>('PRODUCT');
   const [results, setResults] = useState<PublicSearchResultView[]>([]);
   const [chosenStore, setChosenStore] = useState<PublicStoreView | null>(null);
-  const [cart, setCart] = useState<Line[]>([]);
+  const [cart, setCart] = useState<MiniStorePlanLine[]>([]);
   const [quantity, setQuantity] = useState<Record<string, number>>({});
   const [working, setWorking] = useState(false);
   const [error, setError] = useState('');
@@ -74,7 +81,7 @@ export function MiniBuyStore({ language, onBack, initialQuery = '' }: {language:
     const request = ++generation.current;
     setWorking(true); setResults([]); setError(''); setChosenStore(null); setView('search');
     try {
-      const found = await stores.search({kind, category: word, limit: 10});
+      const found = await client.search({kind, category: word, limit: 10});
       if (request === generation.current) setResults(found.filter(x =>
         /^KS\d{3,12}$/.test(x.canonicalKsNumber) && x.offer?.kind === kind &&
         typeof x.offer.id === 'string' && typeof x.offer.title === 'string'));
@@ -90,7 +97,7 @@ export function MiniBuyStore({ language, onBack, initialQuery = '' }: {language:
     const request = ++generation.current;
     setWorking(true); setError(''); setChosenStore(null);
     try {
-      const found = await stores.store(ks);
+      const found = await client.store(ks);
       if (request === generation.current && found.canonicalKsNumber === ks &&
           found.status === 'ACTIVE' && Array.isArray(found.offers)) {
         setChosenStore(found); setView('store');
@@ -122,7 +129,7 @@ export function MiniBuyStore({ language, onBack, initialQuery = '' }: {language:
     if (!cart.length || working) return;
     setChecking(true); setReviewed(false); setError('');
     try {
-      const fresh = await Promise.all(cart.map(line => stores.offer(line.sellerKsNumber, line.offerId)));
+      const fresh = await Promise.all(cart.map(line => client.offer(line.sellerKsNumber, line.offerId)));
       const stale = fresh.findIndex((result, i) => {
         const line = cart[i];
         const offer = result.offer;
@@ -259,6 +266,11 @@ export function MiniBuyStore({ language, onBack, initialQuery = '' }: {language:
       </button>
       {reviewed && <div className="spm-mini-buy-result">
         <strong>Published sources checked</strong>
+        {onDiscuss && <button type="button" className="spm-primary"
+          disabled={working||checking} onClick={()=>onDiscuss(cart.map(line=>({...line})))}>
+          <MessageCircle size={16}/>Discuss this buying plan with KS001
+          <ArrowRight size={16}/>
+        </button>}
         <p>Seller confirmation and a canonical Agreement are still required. This check does not accept an order.</p>
         {cart.length === 1 && cart[0].priceMinor !== null &&
           <button type="button" className="spm-secondary" disabled={working}
