@@ -47,7 +47,7 @@ test('no consent and no receiving authority remain blockers and never create a c
     'living','pending','collector','pending','open','undecided','moreLater');
   assert.equal(s.stage,'review');
   const result=collectionReview(s);
-  assert.ok(result.checks.some(check=>/permission is still needed/i.test(check)));
+  assert.ok(result.checks.some(check=>/consent or independently verified lawful authority is still needed/i.test(check)));
   assert.ok(result.checks.some(check=>/authority to receive or manage/i.test(check)));
   assert.ok(result.checks.some(check=>/spending updates/i.test(check)));
   assert.equal(result.publishable,false);
@@ -57,7 +57,7 @@ test('cannot give consent routes to a lawful-authority check rather than fabrica
   const s=advance(startCollectInterview('for my mother'), 'rent','unable','beneficiary','open','updates','purpose');
   assert.equal(s.stage,'review');
   assert.match(collectionReview(s).consent,/lawful authority needs review/i);
-  assert.ok(collectionReview(s).checks.some(x=>/permission is still needed/i.test(x)));
+  assert.ok(collectionReview(s).checks.some(x=>/consent or independently verified lawful authority is still needed/i.test(x)));
 });
 
 test('unrelated collection for self does not require someone else to consent',()=>{
