@@ -67,12 +67,12 @@
     {
       "id": "M3",
       "title": "Identity, consents & invitations",
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "gate": "Parties independently approve same version with cross-identity privacy",
       "order": 3,
       "owner": "To be assigned at M0",
-      "lastEvidence": "None entered in programme tracker",
-      "ownerDecision": "Pending",
+      "lastEvidence": "2026-11-12: M3A compact canonical KSNumber/OTP in Mini, server-owned Save/List/Resume with strict original-conversation restoration, memory-only auth/owned-list and explicit signout; focused Node mocked-gateway checks and preview build. See docs/mini/M3_OWNER_SAVED_WORK_SOURCE_GATE_20261112.md.",
+      "ownerDecision": "M3A CODE CANDIDATE; LIVE NO-GO: isolated staging absent and M1 model not certified. M3B invitation/party authority/independent acceptance and 2-person backend negative tests NOT DONE.",
       "marketingLawAssessment": "Pending"
     },
     {
@@ -222,7 +222,7 @@
     "Financial status never inferred from a draft or client-only simulation.",
     "New development PRs do not modify production without separate GO."
   ],
-  "currentWorkBranch": "feat/mini-m2-canonical-agreement-slots-20261112",
+  "currentWorkBranch": "feat/mini-m3-owned-saved-work-20261112",
   "lastAudited": "2026-11-12",
   "liveMoneyApproved": false,
   "criticalNextGate": "Verify isolated staging backend and configured matching stage API origin; activate first-party Mini for real KS001 12-turn and mother synthetic acceptance only after operator sign-off."
