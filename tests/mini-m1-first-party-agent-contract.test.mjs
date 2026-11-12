@@ -6,6 +6,7 @@ const read=p=>readFileSync(fileURLToPath(new URL('../'+p,import.meta.url)),'utf8
 const mini=read('src/mini/MiniExperience.tsx');
 const firstParty=read('src/mini/MiniFirstPartyKs001.tsx');
 const config=read('src/mini/miniFirstPartyConfig.ts');
+const origin=read('src/mini/miniFirstPartyOrigin.mjs');
 const guest=read('src/mini/MiniGuestChat.tsx');
 const sdk=read('public/embed/securepay-guest-agent.js');
 
@@ -24,16 +25,19 @@ test('no anonymous staging Mini conversation is represented as a signed Agreemen
   assert.match(firstParty,/No participant accepted, no SecureLink issued and no Money moved/);
   assert.match(firstParty,/staging/);
   assert.match(firstParty,/continuity-unavailable/);
-  assert.match(firstParty,/snapshot\.turns\.length !== history\.entries\.length/);
+  assert.match(firstParty,/miniHistoryRestored\(history,\s*snapshot,\s*priorId\)/);
 });
 
 test('protected stage origin cannot be arbitrary or production, and no fallback leaks client secrets',()=>{
   assert.match(config,/VITE_MINI_FIRST_PARTY_API_ORIGIN/);
-  assert.match(config,/https:/);
-  assert.match(config,/staging\|sandbox\|qa\|test/);
-  assert.match(config,/securepay/);
-  assert.match(config,/return null/);
-  assert.doesNotMatch(config,/localStorage|Bearer|fetch\(/);
+  assert.match(config,/VITE_SECUREPAY_API_BASE_URL/);
+  assert.match(config,/miniFirstPartyOriginsAligned/);
+  assert.match(origin,/https:/);
+  assert.match(origin,/staging\|sandbox\|qa\|test/);
+  assert.match(origin,/securepay/);
+  assert.match(origin,/agent===shared/);
+  assert.match(origin,/return null/);
+  assert.doesNotMatch(config+origin,/localStorage|Bearer|fetch\(/);
 });
 
 test('the approved Mini selection and independent registered-guest fallback remain intact',()=>{

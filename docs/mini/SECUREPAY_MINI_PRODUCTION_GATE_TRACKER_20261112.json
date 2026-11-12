@@ -38,8 +38,8 @@
       "gate": "Approved UI + source/CI/staging reconciliation and signed release ledger",
       "order": 0,
       "owner": "To be assigned at M0",
-      "lastEvidence": "2026-11-12: Mini/Store branches diverged 353/322 commits; Mini owner Vercel preview build READY. Current main API has /api/agent/conversations and Agreement Formation, but no discovered /api/v1/public/embed/installations controller. No registered Mini staging origin configuration. See docs/mini/M1_FIRST_PARTY_AGENT_COMPATIBILITY_AND_ACTIVATION_20261112.md.",
-      "ownerDecision": "PARTIAL / NO-GO. Validate independent staging and CORS, reconcile approved Store source, recover GitHub CI.",
+      "lastEvidence": "2026-11-12 Vercel securepay-llm base VITE_SECUREPAY_API_BASE_URL=https://securepay.ke for preview, production and dev; staging Vercel project has no deployments/custom domain. Separate staging backend and source SHA not verified. See docs/mini/M1_MINI_STAGING_ACTIVATION_EVIDENCE_20261112.md.",
+      "ownerDecision": "NO-GO. Verify isolated stage API/DB/queues/model and exact preview Origin/CORS before activating. Preview must not be mixed with production.",
       "marketingLawAssessment": "Pending"
     },
     {
@@ -49,8 +49,8 @@
       "gate": "12-turn chairs & mother live model, safe reload, genuine status",
       "order": 1,
       "owner": "To be assigned at M0",
-      "lastEvidence": "Candidate branch: same AgentGateway + AgentController reused in Mini behind staging-only VITE_MINI_FIRST_PARTY_API_ORIGIN; guest route remains fallback. Focused 18 tests (8 mother + 6 guest continuity + 4 first-party contracts) and TypeScript typecheck passed in preview deployment commit 1347c398. No actual live KS001 test.",
-      "ownerDecision": "M1 CODE CANDIDATE ONLY. Stage exact Origin + backend isolation/CORS, 12-turn Ruiru chairs, mother consent, reload, idempotent pending send, independent human gate.",
+      "lastEvidence": "2026-11-12 branch fix/mini-m1-history-proof-20261112 source 0806c7c: 30 focused Node checks passed, 0 failed; TypeScript and Vercel build READY. Single server history reuse + exact ID/speaker/text/context proof, 12-turn and 86-entry regression, matching staging origins. Still no live KS001 acceptance.",
+      "ownerDecision": "CODE CANDIDATE PASS. LIVE M1 NOT CERTIFIED: staging origin not approved, 12-turn real model, beneficiary consent, backend history/idempotency and My Agreements not yet demonstrated.",
       "marketingLawAssessment": "Pending"
     },
     {
@@ -222,7 +222,8 @@
     "Financial status never inferred from a draft or client-only simulation.",
     "New development PRs do not modify production without separate GO."
   ],
-  "currentWorkBranch": "feat/mini-m0-m1-continuity-gate-20261112",
+  "currentWorkBranch": "fix/mini-m1-history-proof-20261112",
   "lastAudited": "2026-11-12",
-  "liveMoneyApproved": false
+  "liveMoneyApproved": false,
+  "criticalNextGate": "Verify isolated staging backend and configured matching stage API origin; activate first-party Mini for real KS001 12-turn and mother synthetic acceptance only after operator sign-off."
 }
