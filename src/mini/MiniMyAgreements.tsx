@@ -17,10 +17,11 @@ const dateLabel = (iso:string|null) => {
  * "who must act" inference. The server's nextActions and attentionRequired
  * remain the only authority on this user's next work.
  */
-export function MiniMyAgreements({gateway,prepare,onBack}:{
+export function MiniMyAgreements({gateway,prepare,onBack,onReauthenticate}:{
   gateway:Pick<AgreementGateway,'currentUserAgreements'|'detail'>;
   prepare:()=>Promise<unknown>;
   onBack:()=>void;
+  onReauthenticate:()=>void;
 }) {
   const alive=useRef(true);
   const busy=useRef(false);
@@ -118,6 +119,9 @@ export function MiniMyAgreements({gateway,prepare,onBack}:{
           No decision has been recorded.</p>
         <button type="button" className="spm-secondary"
           onClick={()=>void loadPage(0,true)}><RefreshCcw size={15}/>Refresh My Agreements</button>
+        <button type="button" className="spm-quiet-button" onClick={onReauthenticate}>
+          Sign in again with your KS Number
+        </button>
       </div>}
       {detailStatus==='ready'&&details&&<>
         {details.purpose&&<p className="spm-mini-owned-note">{details.purpose}</p>}
@@ -169,7 +173,10 @@ export function MiniMyAgreements({gateway,prepare,onBack}:{
       {status==='error'&&<><p role="alert">SecurePay could not verify your Agreements.
         Nothing has been changed.</p>
         <button type="button" className="spm-secondary"
-          onClick={()=>void loadPage(0,true)}><RefreshCcw size={15}/>Recheck</button></>}
+          onClick={()=>void loadPage(0,true)}><RefreshCcw size={15}/>Recheck</button>
+        <button type="button" className="spm-quiet-button" onClick={onReauthenticate}>
+          Sign in again with your KS Number
+        </button></>}
       {status==='ready'&&items.length===0&&<p>No existing Agreements were returned for this account.</p>}
       {status==='ready'&&items.length>0&&<>
         {items.some(a=>a.attentionRequired)&&<strong>Needs your attention</strong>}
