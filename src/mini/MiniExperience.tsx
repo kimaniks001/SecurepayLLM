@@ -9,6 +9,8 @@ import {
 } from './miniModel';
 import { MiniCaptureTools } from './MiniCaptureTools';
 import { MiniGuestChat } from './MiniGuestChat';
+import { MiniFirstPartyKs001 } from './MiniFirstPartyKs001';
+import { getMiniFirstPartyOrigin } from './miniFirstPartyConfig';
 import { MiniFundingPreview } from './MiniFundingPreview';
 import { getMiniDemoCheckout } from './checkoutDemoFixtures';
 import { MiniHostedCheckoutDemo } from './MiniHostedCheckoutDemo';
@@ -455,8 +457,11 @@ export function MiniExperience() {
         </section>}
 
         {screen === 'funding' && <MiniFundingPreview draft={draft} language={lang} onBack={() => setScreen('review')}/>}
-        {screen === 'help' && <MiniGuestChat draft={discussDraft} language={lang}
-          onBack={() => setScreen(discussDraft ? 'review' : 'home')}/>} 
+        {screen === 'help' && (getMiniFirstPartyOrigin()
+          ? <MiniFirstPartyKs001 apiOrigin={getMiniFirstPartyOrigin()!} draft={discussDraft} language={lang}
+              onBack={() => setScreen(discussDraft ? 'review' : 'home')}/>
+          : <MiniGuestChat draft={discussDraft} language={lang}
+              onBack={() => setScreen(discussDraft ? 'review' : 'home')}/>)} 
         </>}
       </div>
 
