@@ -5,6 +5,9 @@ import type { StoreOfferFulfilmentResponse } from '../api/securepay/store/dto';
 import type { BusinessGateway, BusinessRepresentationDto } from '../api/securepay/business';
 import { createStoreController } from '../features/store/controller';
 import { availabilityOptionsFor } from '../features/store/view';
+import { miniSellerQuotationDraft } from './miniSellerQuotationDraft.mjs';
+import type { MiniSellerQuotationDraft } from './miniSellerQuotationDraft.mjs';
+import { miniStoreOfferSnapshotFresh } from './miniStoreOfferFresh.mjs';
 
 /**
  * M5B: the existing StoreController remains the sole Store update engine.
@@ -12,12 +15,14 @@ import { availabilityOptionsFor } from '../features/store/view';
  * payment/Agreement version mutation. Business permission is checked by
  * the canonical BusinessGateway before loading and again before fulfilment.
  */
-export function MiniSellerStore({storeGateway,businessGateway,prepare,onBack,onInvitations}:{
+export function MiniSellerStore({storeGateway,businessGateway,prepare,onBack,onInvitations,onSellerDiscuss}:{
   storeGateway:StoreGateway;
   businessGateway:Pick<BusinessGateway,'mine'|'representation'>;
   prepare:()=>Promise<unknown>;
   onBack:()=>void;
   onInvitations:()=>void;
+  /** Seller's words travel to the SAME KS001 conversation, never to an order endpoint. */
+  onSellerDiscuss:(proposal:MiniSellerQuotationDraft)=>Promise<boolean>;
 }){
   const controller=useMemo(()=>createStoreController(storeGateway),[storeGateway]);
   const state=useSyncExternalStore(controller.subscribe,controller.getSnapshot,controller.getSnapshot);
@@ -32,6 +37,15 @@ export function MiniSellerStore({storeGateway,businessGateway,prepare,onBack,onI
   const [leadHours,setLeadHours]=useState('');
   const [deliveryTerms,setDeliveryTerms]=useState('');
   const [notice,setNotice]=useState('');
+  const [quoteBuyer,setQuoteBuyer]=useState('');
+  const [quoteQty,setQuoteQty]=useState('1');
+  const [quoteUnit,setQuoteUnit]=useState('');
+  const [quoteWhere,setQuoteWhere]=useState('');
+  const [quoteWhen,setQuoteWhen]=useState('');
+  const [quoteDeliveryBy,setQuoteDeliveryBy]=useState<'SELLER'|'BUYER'|'TO_AGREE'>('TO_AGREE');
+  const [quoteConditions,setQuoteConditions]=useState('');
+  const [quoteBusy,setQuoteBusy]=useState(false);
+  const [quoteError,setQuoteError]=useState('');
 
   useEffect(()=>{
     let alive=true;
@@ -81,6 +95,10 @@ export function MiniSellerStore({storeGateway,businessGateway,prepare,onBack,onI
     const raw=opened?.raw.find(o=>o.id===id);
     if(!raw)return;
     setSelectedOffer(id);setDeliveryNotice('');setDeliveryError('');setFulfilment(null);
+    setQuoteError('');setQuoteQty('1');
+    setQuoteUnit(raw.priceMinor===null?'':String(raw.priceMinor/100));
+    setQuoteBuyer('');setQuoteWhere('');setQuoteWhen('');
+    setQuoteDeliveryBy('TO_AGREE');setQuoteConditions('');
     controller.openBuilder(id);
     if(!storeBusiness)return;
     try{
@@ -158,6 +176,46 @@ export function MiniSellerStore({storeGateway,businessGateway,prepare,onBack,onI
     }catch{
       setDeliveryError('SecurePay could not confirm the delivery update. No buyer commitment was created.');
     }finally{setDeliveryBusy(false);}
+  };
+
+  // M5C slice 1: a seller can WRITE a buyer-specific proposal in the existing
+  // conversation. Current API has only Store publication + Agreement amendments,
+  // not a persisted, buyer/seller-bound quotation; never call this acceptance.
+  const discussSellerQuotation=async()=>{
+    if(!offer||!storeBusiness||quoteBusy||state.draftBusy)return;
+    const proposal=miniSellerQuotationDraft({
+      sellerKsNumber:storeBusiness.ksNumber,
+      offerId:offer.id,title:offer.title,offerUpdatedAt:offer.updatedAt,
+      publishedPriceMinor:offer.priceMinor,currency:offer.currency,
+      buyerKsNumber:quoteBuyer,quantity:quoteQty,unitPrice:quoteUnit,
+      deliveryPlace:quoteWhere,deliveryDate:quoteWhen,
+      deliveryBy:quoteDeliveryBy,conditions:quoteConditions,
+    });
+    if(!proposal){
+      setQuoteError('Add a valid buyer KS Number, quantity, price, delivery place and date. Nothing was sent.');
+      return;
+    }
+    setQuoteBusy(true);setQuoteError('');
+    try{
+      await prepare();
+      const authorised=await businessGateway.representation(storeBusiness.ksNumber);
+      if(!authorised.canActFor||authorised.identityType!=='BUSINESS'||
+        authorised.businessKsNumber!==storeBusiness.ksNumber) throw Error('No authority');
+      // Re-read immediately before handing off. This is in addition to the
+      // existing backend commercial-source check in AgentController.useOffer.
+      const published=await storeGateway.offer(storeBusiness.ksNumber,offer.id);
+      const matches=miniStoreOfferSnapshotFresh([{
+        sellerKsNumber:storeBusiness.ksNumber,offerId:offer.id,
+        sellerName:storeBusiness.displayName,availabilityState:offer.availabilityState,
+        title:offer.title,offerUpdatedAt:offer.updatedAt,
+        priceMinor:offer.priceMinor,currency:offer.currency,
+        quantity:proposal.quantity,
+      }],[published]);
+      if(!matches)throw Error('Published Store source changed');
+      if(!await onSellerDiscuss(proposal))throw Error('KS001 did not acknowledge the handoff');
+    }catch{
+      setQuoteError('Your Store authority, published offer or KS001 handoff could not be verified. Recheck the offer. No quotation was accepted or sent to a buyer.');
+    }finally{setQuoteBusy(false);}
   };
 
   return <section className="spm-mini-owned-list spm-mini-seller-store"
@@ -246,6 +304,41 @@ export function MiniSellerStore({storeGateway,businessGateway,prepare,onBack,onI
             {deliveryBusy?'Checking…':'Publish delivery information'}
           </button>
         </div>}
+        {storeBusiness&&<details className="spm-mini-seller-editor" data-m5c="proposal-only">
+          <summary><strong>Prepare buyer-specific quotation with KS001</strong></summary>
+          <p>These are proposed terms for your own KS001 conversation, not an issued quote, stock reservation or buyer approval. The buyer identity and terms must still be verified in the exact Agreement.</p>
+          <label className="spm-label" htmlFor="m5c-buyer">Buyer's KS Number (seller-stated; not identity-verified)</label>
+          <input id="m5c-buyer" className="spm-field" placeholder="KS001" autoComplete="off"
+            value={quoteBuyer} maxLength={14} onChange={e=>setQuoteBuyer(e.target.value.toUpperCase())}/>
+          <label className="spm-label" htmlFor="m5c-qty">Quantity you propose</label>
+          <input id="m5c-qty" className="spm-field" inputMode="numeric" type="number" min="1" max="20"
+            value={quoteQty} onChange={e=>setQuoteQty(e.target.value)}/>
+          <label className="spm-label" htmlFor="m5c-unit">Proposed price per unit ({offer.currency})</label>
+          <input id="m5c-unit" className="spm-field" inputMode="decimal" autoComplete="off"
+            value={quoteUnit} onChange={e=>setQuoteUnit(e.target.value)} placeholder="0.00"/>
+          <label className="spm-label" htmlFor="m5c-place">Delivery or collection place</label>
+          <input id="m5c-place" className="spm-field" maxLength={100}
+            value={quoteWhere} onChange={e=>setQuoteWhere(e.target.value)}/>
+          <label className="spm-label" htmlFor="m5c-date">Proposed delivery or collection date</label>
+          <input id="m5c-date" className="spm-field" type="date"
+            value={quoteWhen} onChange={e=>setQuoteWhen(e.target.value)}/>
+          <label className="spm-label" htmlFor="m5c-who">Who will arrange transport?</label>
+          <select id="m5c-who" className="spm-field" value={quoteDeliveryBy}
+            onChange={e=>setQuoteDeliveryBy(e.target.value as typeof quoteDeliveryBy)}>
+            <option value="TO_AGREE">Still to agree</option>
+            <option value="SELLER">Seller proposes to arrange it</option>
+            <option value="BUYER">Buyer proposes to arrange it</option>
+          </select>
+          <label className="spm-label" htmlFor="m5c-terms">Exceptions or conditions (optional)</label>
+          <textarea id="m5c-terms" className="spm-field" rows={2} maxLength={180}
+            value={quoteConditions} onChange={e=>setQuoteConditions(e.target.value)}/>
+          {quoteError&&<p role="alert">{quoteError}</p>}
+          <button type="button" className="spm-secondary" disabled={quoteBusy||state.draftBusy}
+            onClick={()=>void discussSellerQuotation()}>
+            {quoteBusy?'Verifying…':'Discuss proposed quotation with KS001'}
+          </button>
+          <small>No sending to the buyer, Agreement confirmation, Money or stock reservation here.</small>
+        </details>}
         {deliveryError&&<p role="alert">{deliveryError}</p>}
         {deliveryNotice&&<p role="status">{deliveryNotice}</p>}
       </div>}

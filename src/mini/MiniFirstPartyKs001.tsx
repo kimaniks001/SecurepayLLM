@@ -12,6 +12,7 @@ import { createStoreGateway } from '../api/securepay/store';
 import { MiniBuyStore, type MiniStorePlanLine } from './MiniBuyStore';
 import { miniStoreIntent } from './miniStoreIntent.mjs';
 import type { MiniStoreIntent } from './miniStoreIntent.mjs';
+import type { MiniSellerQuotationDraft } from './miniSellerQuotationDraft.mjs';
 import { MiniParticipantInvitations } from './MiniParticipantInvitations';
 import { MiniCreatorInvitations } from './MiniCreatorInvitations';
 import { MiniMyAgreements } from './MiniMyAgreements';
@@ -336,6 +337,31 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
     if(!plan){setStoreError('Check the Store, quantity and offer references again. No Agreement was created.');return;}
     void forwardStorePlan(plan);
   };
+  // M5C: an owner-authorised seller's proposed terms use the SAME
+  // AgentController/source selection and ongoing KS001 conversation. This is
+  // NOT a seller-issued backend quote or canonical Agreement version yet.
+  const discussSellerQuotation = async(proposal:MiniSellerQuotationDraft):Promise<boolean> => {
+    if(storeBusy||state.busy||!!state.pending||status!=='ready')return false;
+    setStoreBusy(true);setStoreError('');
+    try{
+      const outcome=await pair.controller.useOffer(proposal.source);
+      if(outcome.status!=='selected'){
+        setStoreError('The Store source could not be selected. Nothing was committed.');
+        return false;
+      }
+      await pair.controller.send(proposal.statement);
+      const next=pair.controller.getSnapshot();
+      if(next.pending||next.error){
+        setStoreError('KS001 could not confirm the same conversation turn. Nothing was agreed.');
+        return false;
+      }
+      setSellerOpen(false);setReview(null);
+      return true;
+    }catch{
+      setStoreError('The seller proposal could not be discussed. No Agreement or buyer invitation was created.');
+      return false;
+    }finally{setStoreBusy(false);}
+  };
   const retryStoreSource = async () => {
     const plan=heldStorePlan;
     if(!plan||!plan.source||storeBusy||state.busy||!!state.pending)return;
@@ -438,6 +464,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
         prepare={()=>ensureFreshSession(session,auth)}
         onBack={()=>setSellerOpen(false)}
         onInvitations={()=>{setSellerOpen(false);openPeople('inbox');}}
+        onSellerDiscuss={discussSellerQuotation}
       />}
     {status==='ready' && !identityOpen && !peopleOpen && !agreementsOpen && !sellerOpen && <>
       <button type="button" className="spm-secondary spm-mini-store-entry"
