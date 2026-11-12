@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "prebuild": "node --test tests/day11-mini-beneficiary-collection.test.mjs tests/mini-m1-guest-continuity.test.mjs tests/mini-m1-first-party-agent-contract.test.mjs tests/mini-m1-history-proof.test.mjs tests/mini-m1-staging-origin.test.mjs && npm run typecheck",
+    "prebuild": "node --test tests/day11-mini-beneficiary-collection.test.mjs tests/mini-m1-guest-continuity.test.mjs tests/mini-m1-first-party-agent-contract.test.mjs tests/mini-m1-history-proof.test.mjs tests/mini-m1-staging-origin.test.mjs tests/mini-m2-canonical-agreement-slots.test.mjs && npm run typecheck",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
@@ -37,7 +37,8 @@
     "test:mini-beneficiary": "node --test tests/day11-mini-beneficiary-collection.test.mjs",
     "test:mini-continuity": "node --test tests/mini-m1-guest-continuity.test.mjs",
     "test:mini-first-party": "node --test tests/mini-m1-first-party-agent-contract.test.mjs",
-    "test:mini-m1-history": "node --test tests/mini-m1-history-proof.test.mjs"
+    "test:mini-m1-history": "node --test tests/mini-m1-history-proof.test.mjs",
+    "test:mini-m2-slots": "node --test tests/mini-m2-canonical-agreement-slots.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
