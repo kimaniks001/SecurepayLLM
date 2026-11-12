@@ -11,6 +11,7 @@ import { MiniCaptureTools } from './MiniCaptureTools';
 import { MiniGuestChat } from './MiniGuestChat';
 import { MiniFirstPartyKs001 } from './MiniFirstPartyKs001';
 import { getMiniFirstPartyOrigin } from './miniFirstPartyConfig';
+import { isMiniExperiencePreviewHost } from './miniInteractiveDemo';
 import { MiniFundingPreview } from './MiniFundingPreview';
 import { getMiniDemoCheckout } from './checkoutDemoFixtures';
 import { MiniHostedCheckoutDemo } from './MiniHostedCheckoutDemo';
@@ -127,6 +128,11 @@ export function MiniExperience() {
   const amountField = useRef<HTMLInputElement | null>(null);
   const quantityField = useRef<HTMLInputElement | null>(null);
   const urlParams = typeof window === 'undefined' ? null : new URLSearchParams(window.location.search);
+  const samplePreviewAllowed = typeof window !== 'undefined' &&
+    isMiniExperiencePreviewHost(window.location.hostname);
+  const [samplePreviewOpen,setSamplePreviewOpen] = useState(
+    () => samplePreviewAllowed && urlParams?.get('demo')==='1'
+  );
   const compact = urlParams?.get('embedded') === '1';
   const gate4Session = urlParams?.get('sandboxReconcile') ?? null;
   const gate3Session = urlParams?.get('sandboxPayment') ?? null;
@@ -288,7 +294,11 @@ export function MiniExperience() {
       </header>
 
       <div className="spm-main" aria-live="polite">
-        {gate4Session ? <MiniGate2Sandbox session={gate4Session} language={lang} gate3Enabled gate4Enabled/> :
+        {samplePreviewOpen && samplePreviewAllowed
+          ? <MiniFirstPartyKs001 apiOrigin="synthetic-local-only" demo
+              draft={discussDraft} language={lang}
+              onBack={()=>{setSamplePreviewOpen(false);setScreen('home');}}/>
+          : gate4Session ? <MiniGate2Sandbox session={gate4Session} language={lang} gate3Enabled gate4Enabled/> :
           gate3Session ? <MiniGate2Sandbox session={gate3Session} language={lang} gate3Enabled/> :
           gate2Session ? <MiniGate2Sandbox session={gate2Session} language={lang}/> :
           storeOfferSession ? <MiniRealStoreOffer session={storeOfferSession} language={lang}/> :
@@ -303,6 +313,16 @@ export function MiniExperience() {
           <div className="spm-persona"><Sparkles size={16}/><span>KS001</span><span className="spm-dot"/><span>{t.phase4}</span></div>
           <h1 className="spm-hero">{t.hello}</h1>
           <p className="spm-lead">{t.intro}</p>
+          {samplePreviewAllowed && <div className="spm-mini-preview-entry">
+            <div><strong>Explore the latest Mini build</strong>
+              <small>KS001 · Agreement details · Save & Continue · People · My Agreements</small>
+              <small>Interactive example using synthetic data — not live KS001</small>
+            </div>
+            <button type="button" className="spm-secondary"
+              onClick={()=>{setDiscussDraft(null);setSamplePreviewOpen(true);}}>
+              Explore M1–M4 <ArrowRight size={16}/>
+            </button>
+          </div>}
           <label className="spm-label" htmlFor="spm-words">{t.start}</label>
           <div className="spm-composer">
             <textarea id="spm-words" maxLength={400} rows={3} value={opening} onChange={e => setOpening(e.target.value)}
@@ -468,8 +488,8 @@ export function MiniExperience() {
       <footer className="spm-footer">
         <div className="spm-footer-status">
           <ShieldCheck size={15} aria-hidden="true"/>
-          <span>{t.boundary}</span>
-          <span className="spm-footer-dash">·</span><span>{gate4Session ? 'Host reconciliation test' : gate3Session ? 'Payment status test' : gate2Session ? 'Order & agreement test' : storeOfferSession ? 'Store offer review' : checkoutSession || demoRequest ? 'Checkout test' : 'Phase 4'}</span>
+          <span>{samplePreviewOpen?'SYNTHETIC DEMO — no real actions':t.boundary}</span>
+          <span className="spm-footer-dash">·</span><span>{samplePreviewOpen?'M1–M4 interactive example':gate4Session ? 'Host reconciliation test' : gate3Session ? 'Payment status test' : gate2Session ? 'Order & agreement test' : storeOfferSession ? 'Store offer review' : checkoutSession || demoRequest ? 'Checkout test' : 'Phase 4'}</span>
         </div>
         <a className="spm-checkout-imprint" href="https://securepay.ke/"
           target="_blank" rel="noopener noreferrer"
