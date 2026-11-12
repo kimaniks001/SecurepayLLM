@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowRight, CircleAlert, LoaderCircle, MessageCircle, Shield
 import type { MiniDraft, MiniLanguage } from './miniModel';
 import { MiniFundingPreview } from './MiniFundingPreview';
 import { MiniGuestChat } from './MiniGuestChat';
+import { COMMERCE_EXPERIENCE } from '../features/agreement-commerce/experienceContract';
 import { loadRealStoreOfferPreview, type MiniRealOfferReview } from './realStoreOfferPreview';
 
 type Status='loading'|'expired'|'changed'|'unavailable'|'ready';
@@ -95,7 +96,7 @@ export function MiniRealStoreOffer({session,language}:{
         <div className="spm-hosted-price">{'KSh ' + (r.amountMinor / 100).toLocaleString('en-KE', {maximumFractionDigits:2})}</div>
         <span>{r.details}</span>
         <div className="spm-hosted-rule">
-          {sw?'Bei iliyochapishwa, si oda au mkataba.':'Published price, not a reserved order or agreed quote.'}
+          {sw?'Bei iliyochapishwa, si oda au mkataba.':COMMERCE_EXPERIENCE.sourceOnly}
           <small> · Updated {r.offerUpdatedAt.slice(0,10)}</small>
         </div>
       </div>
