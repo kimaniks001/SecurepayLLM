@@ -10,6 +10,7 @@ import { demoStores, getOfferById, getOffersByStore, getStoreById, searchOffers 
 import type { StoreBrowserTarget } from '../living-workspace/CompactStoreBrowser';
 import { storeOfferAssistTurn } from './offerAssistTurn.mjs';
 import type { PreviewStoreContext } from '../living-workspace/PreviewWorkNotes';
+import { CommunitySaverConsentPreview } from '../agreement-commerce/CommunitySaverConsentPreview';
 
 /**
  * An actual, interactive SHOPFRONT review of the SAME StoreHome component used
@@ -276,6 +277,7 @@ export function StoreMasterpieceLayoutReview({shopFocused=true,onSelectionChange
             <p className="mt-1 text-xs leading-5 text-sand-600">The real Digital Store signup also offers an optional application for ShortStays, My Ride or Storage. Joining requires a separate consent and later verification by that service.</p>
           </section>
         </div>
+        <div className="mt-4"><CommunitySaverConsentPreview /></div>
       </div>}
 
       {page==='ask'&&<div className="flex-1 overflow-y-auto p-4 sm:p-5" aria-label="KS001 example Store conversation">
