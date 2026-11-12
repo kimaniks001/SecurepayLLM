@@ -54,8 +54,11 @@ export function MiniSellerStore({storeGateway,businessGateway,prepare,onBack,onI
 
   const personal=async()=>{
     setSelectedOffer(null);setFulfilment(null);setNotice('');
-    try{await prepare();await controller.enterManagement();}
-    catch{setNotice('SecurePay could not verify your own Store. No offer was changed.');}
+    try{
+      await prepare();await controller.enterManagement();
+      if(controller.getSnapshot().mine.status!=='ready')
+        throw Error('Personal Store was not returned');
+    }catch{setNotice('SecurePay could not verify your own Store. No offer was changed.');}
   };
   const business=async(b:BusinessRepresentationDto)=>{
     setSelectedOffer(null);setFulfilment(null);setNotice('');
@@ -66,6 +69,8 @@ export function MiniSellerStore({storeGateway,businessGateway,prepare,onBack,onI
         verified.identityType!=='BUSINESS')throw Error('Representation not confirmed');
       await controller.enterBusinessManagement(verified.businessKsNumber,
         verified.displayName||verified.businessKsNumber);
+      if(controller.getSnapshot().mine.status!=='ready')
+        throw Error('Business Store was not returned');
     }catch{setNotice('SecurePay could not verify your authority for that business Store. Nothing was changed.');}
   };
   const opened=state.mine.status==='ready'?state.mine.data:null;
@@ -96,17 +101,37 @@ export function MiniSellerStore({storeGateway,businessGateway,prepare,onBack,onI
     setNotice('');
     try{
       await prepare();
+      if(storeBusiness){
+        const verified=await businessGateway.representation(storeBusiness.ksNumber);
+        if(!verified.canActFor||verified.businessKsNumber!==storeBusiness.ksNumber)
+          throw Error('Business management permission lost');
+      }
       await controller.submitDraft();
+      const result=controller.getSnapshot();
+      if(result.draftError || result.mine.status!=='ready' || result.view!=='manage')
+        throw Error('Published offer was not verified after update');
       // The StoreController reloads server records; an update is not a
       // buyer quote or a revised Agreement version.
       setSelectedOffer(null);setFulfilment(null);
-      setNotice('Check the refreshed published offer. This is not a buyer-approved order.');
+      setNotice('Published offer updated and refreshed. This is not a buyer-approved order.');
     }catch{setNotice('SecurePay could not verify this update. Check the Store before relying on it.');}
   };
   const confirmAvailability=async(id:string)=>{
     setNotice('');
-    try{await prepare();await controller.confirmAvailability(id);
-      setNotice('SecurePay was asked to confirm the published availability. Recheck the latest Store record; no order was accepted.');
+    try{
+      await prepare();
+      if(storeBusiness){
+        const verified=await businessGateway.representation(storeBusiness.ksNumber);
+        if(!verified.canActFor||verified.businessKsNumber!==storeBusiness.ksNumber)
+          throw Error('Business management permission lost');
+      }
+      await controller.confirmAvailability(id);
+      const refreshed=controller.getSnapshot();
+      const confirmed=refreshed.mine.status==='ready'
+        ?refreshed.mine.data.raw.find(o=>o.id===id):null;
+      if(!confirmed?.availabilityConfirmedAt)
+        throw Error('No canonical availability confirmation');
+      setNotice('SecurePay confirmed the published availability. This does not reserve stock or accept any buyer order.');
     }catch{setNotice('Availability could not be verified. No buyer commitment was made.');}
   };
   const publishDelivery=async()=>{
