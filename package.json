@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "prebuild": "node --test tests/day11-mini-beneficiary-collection.test.mjs tests/mini-m1-guest-continuity.test.mjs tests/mini-m1-first-party-agent-contract.test.mjs tests/mini-m1-history-proof.test.mjs tests/mini-m1-staging-origin.test.mjs tests/mini-m2-canonical-agreement-slots.test.mjs tests/mini-m3-owned-work.test.mjs tests/mini-m3b-participant-authority.test.mjs tests/mini-m4-living-agreements.test.mjs tests/mini-visible-m1-m4-preview.test.mjs && npm run typecheck",
+    "prebuild": "node --test tests/day11-mini-beneficiary-collection.test.mjs tests/mini-m1-guest-continuity.test.mjs tests/mini-m1-first-party-agent-contract.test.mjs tests/mini-m1-history-proof.test.mjs tests/mini-m1-staging-origin.test.mjs tests/mini-m2-canonical-agreement-slots.test.mjs tests/mini-m3-owned-work.test.mjs tests/mini-m3b-participant-authority.test.mjs tests/mini-m4-living-agreements.test.mjs tests/mini-visible-m1-m4-preview.test.mjs tests/mini-m5-store-to-ks001.test.mjs && npm run typecheck",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
@@ -42,7 +42,8 @@
     "test:mini-m3-owned": "node --test tests/mini-m3-owned-work.test.mjs",
     "test:mini-m3b": "node --test tests/mini-m3b-participant-authority.test.mjs",
     "test:mini-m4": "node --test tests/mini-m4-living-agreements.test.mjs",
-    "test:mini-visible-preview": "node --test tests/mini-visible-m1-m4-preview.test.mjs"
+    "test:mini-visible-preview": "node --test tests/mini-visible-m1-m4-preview.test.mjs",
+    "test:mini-m5": "node --test tests/mini-m5-store-to-ks001.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
