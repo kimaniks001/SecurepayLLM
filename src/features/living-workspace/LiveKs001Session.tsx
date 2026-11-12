@@ -6,7 +6,8 @@ import { WorkspaceWelcome } from './WorkspaceWelcome';
 import { answerActions } from './answerActions';
 import { readDraft, writeDraft } from '../conversation/drafts';
 import type { StoreGateway } from '../../api/securepay/store';
-import { Ks001StoreSuggestions, suggestedStoreSearchTerm } from './Ks001StoreSuggestions';
+import { Ks001StoreSuggestions } from './Ks001StoreSuggestions';
+import { suggestedStoreSearchTerm } from './suggestedStoreSearchTerm.mjs';
 
 /** Present the final explicit question prominently, without changing server wording.
  * Replies without a clear question stay exactly as written.
