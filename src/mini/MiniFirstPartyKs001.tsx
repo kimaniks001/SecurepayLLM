@@ -357,23 +357,28 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack }: {
           onClick={()=>void saveOwned()} disabled={state.busy||!!state.pending||saveBusy}>
           <BookmarkPlus size={16}/>{saveBusy?'Checking…':signedIn?'Save for later':'Sign in to save'}
         </button>}
-        <button type="button" className="spm-quiet-button"
-          onClick={openOwned} disabled={saveBusy}><FolderOpen size={16}/>My saved work</button>
-        <button type="button" className="spm-quiet-button" onClick={openAgreements}
-          disabled={saveBusy}><ClipboardList size={16}/>My Agreements</button>
-        <button type="button" className="spm-quiet-button"
-          onClick={()=>openPeople('inbox')} disabled={saveBusy}>
-          <Mail size={16}/>Invitations for me
-        </button>
-        <button type="button" className="spm-quiet-button"
-          onClick={()=>openPeople('creator')} disabled={saveBusy}>
-          <Users size={16}/>Invite someone
-        </button>
-        {signedIn && <button type="button" className="spm-quiet-button"
-          onClick={()=>{if (!signOutAsked){setSignOutAsked(true);return;}signOut();}}
-          aria-label={signOutAsked?'Confirm sign out; unsaved work may be lost':'Sign out of SecurePay Mini'}>
-          <LogOut size={15}/>{signOutAsked?'Confirm sign out':'Sign out'}
-        </button>}
+        <details className="spm-mini-account-menu">
+          <summary><FolderOpen size={16}/>My SecurePay <ArrowRight size={14}/></summary>
+          <div className="spm-mini-account-options">
+            <button type="button" className="spm-quiet-button"
+              onClick={openOwned} disabled={saveBusy}>My saved work</button>
+            <button type="button" className="spm-quiet-button" onClick={openAgreements}
+              disabled={saveBusy}><ClipboardList size={15}/>My Agreements</button>
+            <button type="button" className="spm-quiet-button"
+              onClick={()=>openPeople('inbox')} disabled={saveBusy}>
+              <Mail size={15}/>Invitations for me
+            </button>
+            <button type="button" className="spm-quiet-button"
+              onClick={()=>openPeople('creator')} disabled={saveBusy}>
+              <Users size={15}/>Invite someone
+            </button>
+            {signedIn && <button type="button" className="spm-quiet-button"
+              onClick={()=>{if (!signOutAsked){setSignOutAsked(true);return;}signOut();}}
+              aria-label={signOutAsked?'Confirm sign out; unsaved work may be lost':'Sign out of SecurePay Mini'}>
+              <LogOut size={15}/>{signOutAsked?'Confirm sign out':'Sign out'}
+            </button>}
+          </div>
+        </details>
       </div>
       {signOutAsked && <p className="spm-mini-owned-note" role="status">
         Unsaved work may be lost when you sign out. Press Confirm sign out, or continue working.
