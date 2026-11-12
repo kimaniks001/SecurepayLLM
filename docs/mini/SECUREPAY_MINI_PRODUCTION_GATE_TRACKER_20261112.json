@@ -1,0 +1,225 @@
+{
+  "document": "SecurePay Mini → SecurePay owner programme ledger",
+  "createdDate": "2026-11-12",
+  "baseBranch": "feat/day11-mini-collect-for-someone-conversation-20261112",
+  "trackingBranch": "plan/mini-as-securepay-production-20261112",
+  "programmeSource": "docs/mini/SECUREPAY_MINI_AS_PRODUCT_PRODUCTION_MASTERPLAN_20261112.md",
+  "marketingSource": "docs/marketing/SECUREPAY_22_LAWS_DECISION_GATES_20261112.md",
+  "domainAuthoritative": "SecurePayAPI main + canonical API Phase 42 and financial responsibility registers",
+  "decision": "Mini is the primary SecurePay; Living Workspace is optional deeper workbench",
+  "designLocked": true,
+  "productionApproved": false,
+  "realMoneyApproved": false,
+  "progressIsTestProof": false,
+  "statusLegend": [
+    "NOT_STARTED",
+    "IN_PROGRESS",
+    "CANDIDATE",
+    "TESTED",
+    "INDEPENDENTLY_VERIFIED",
+    "PILOT",
+    "PRODUCTION",
+    "BLOCKED"
+  ],
+  "factualCandidateNotes": [
+    "PR #276 includes a working local guided beneficiary-collection interview, NOT live KS001 and not real collection.",
+    "PR #274 includes source-backed Mini Buy browsing, NOT seller-accepted purchase or live Money.",
+    "PR #275 contains candidate Workspace KS001 sourced Store suggestions, NOT a public embedded Ask deployment.",
+    "API has Agreement, Money, and human capability domains, but complete end-to-end production activation is not certified.",
+    "Backend Phase 42H is not activated; provider/legal/privacy/operational approvals and independent checks are mandatory.",
+    "12-turn staging Ruiru chairs and reload continuity had previously failed and must be revalidated.",
+    "Earlier GitHub Actions billing limitations require independent current verification at M0."
+  ],
+  "phases": [
+    {
+      "id": "M0",
+      "title": "Freeze & audit",
+      "status": "IN_PROGRESS",
+      "gate": "Approved UI + source/CI/staging reconciliation and signed release ledger",
+      "order": 0,
+      "owner": "To be assigned at M0",
+      "lastEvidence": "None entered in programme tracker",
+      "ownerDecision": "Pending",
+      "marketingLawAssessment": "Pending"
+    },
+    {
+      "id": "M1",
+      "title": "Real KS001 & continuity",
+      "status": "NOT_STARTED",
+      "gate": "12-turn chairs & mother live model, safe reload, genuine status",
+      "order": 1,
+      "owner": "To be assigned at M0",
+      "lastEvidence": "None entered in programme tracker",
+      "ownerDecision": "Pending",
+      "marketingLawAssessment": "Pending"
+    },
+    {
+      "id": "M2",
+      "title": "Canonical Agreement slots",
+      "status": "NOT_STARTED",
+      "gate": "Typed claims/corrections/verified source + durable real Agreement draft",
+      "order": 2,
+      "owner": "To be assigned at M0",
+      "lastEvidence": "None entered in programme tracker",
+      "ownerDecision": "Pending",
+      "marketingLawAssessment": "Pending"
+    },
+    {
+      "id": "M3",
+      "title": "Identity, consents & invitations",
+      "status": "NOT_STARTED",
+      "gate": "Parties independently approve same version with cross-identity privacy",
+      "order": 3,
+      "owner": "To be assigned at M0",
+      "lastEvidence": "None entered in programme tracker",
+      "ownerDecision": "Pending",
+      "marketingLawAssessment": "Pending"
+    },
+    {
+      "id": "M4",
+      "title": "My Agreements speaks",
+      "status": "NOT_STARTED",
+      "gate": "Next-action server truth and continuous records; full Workspace optional",
+      "order": 4,
+      "owner": "To be assigned at M0",
+      "lastEvidence": "None entered in programme tracker",
+      "ownerDecision": "Pending",
+      "marketingLawAssessment": "Pending"
+    },
+    {
+      "id": "M5",
+      "title": "Real Digital Stores",
+      "status": "NOT_STARTED",
+      "gate": "Published Store → seller confirm → buyer accept → one canonical Agreement",
+      "order": 5,
+      "owner": "To be assigned at M0",
+      "lastEvidence": "None entered in programme tracker",
+      "ownerDecision": "Pending",
+      "marketingLawAssessment": "Pending"
+    },
+    {
+      "id": "M6",
+      "title": "Optional provider Money",
+      "status": "NOT_STARTED",
+      "gate": "Certified provider quotes, idempotency, webhooks and reconciliation, independent GO",
+      "order": 6,
+      "owner": "To be assigned at M0",
+      "lastEvidence": "None entered in programme tracker",
+      "ownerDecision": "Pending",
+      "marketingLawAssessment": "Pending"
+    },
+    {
+      "id": "M7",
+      "title": "Beneficiary/group collections",
+      "status": "NOT_STARTED",
+      "gate": "Verified beneficiary/delegate/recipient authority, contributor updates, partner proof",
+      "order": 7,
+      "owner": "To be assigned at M0",
+      "lastEvidence": "None entered in programme tracker",
+      "ownerDecision": "Pending",
+      "marketingLawAssessment": "Pending"
+    },
+    {
+      "id": "M8",
+      "title": "Secure host embedding",
+      "status": "NOT_STARTED",
+      "gate": "Same Mini/Agreement/return via signed host-origin context",
+      "order": 8,
+      "owner": "To be assigned at M0",
+      "lastEvidence": "None entered in programme tracker",
+      "ownerDecision": "Pending",
+      "marketingLawAssessment": "Pending"
+    },
+    {
+      "id": "M9",
+      "title": "Plugs/Masters/Saver/low-data",
+      "status": "NOT_STARTED",
+      "gate": "Qualified opt-in scoped help and independently vetted categories",
+      "order": 9,
+      "owner": "To be assigned at M0",
+      "lastEvidence": "None entered in programme tracker",
+      "ownerDecision": "Pending",
+      "marketingLawAssessment": "Pending"
+    },
+    {
+      "id": "M10",
+      "title": "Security, privacy & operations",
+      "status": "IN_PROGRESS",
+      "gate": "Cross-cutting security/consumer/regulatory/DR/monitoring support; final independent certification",
+      "order": 10,
+      "owner": "To be assigned at M0",
+      "lastEvidence": "None entered in programme tracker",
+      "ownerDecision": "Pending",
+      "marketingLawAssessment": "Pending"
+    },
+    {
+      "id": "M11",
+      "title": "Limited launch then activation",
+      "status": "BLOCKED",
+      "gate": "Separate agreement-only, regulated-money pilot and public GO decisions",
+      "order": 11,
+      "owner": "To be assigned at M0",
+      "lastEvidence": "None entered in programme tracker",
+      "ownerDecision": "Pending",
+      "marketingLawAssessment": "Pending"
+    },
+    {
+      "id": "M12",
+      "title": "Scale based on repetition",
+      "status": "BLOCKED",
+      "gate": "Retention, valid unit margins, fair customer outcomes and 22-laws review",
+      "order": 12,
+      "owner": "To be assigned at M0",
+      "lastEvidence": "None entered in programme tracker",
+      "ownerDecision": "Pending",
+      "marketingLawAssessment": "Pending"
+    }
+  ],
+  "launchWaves": [
+    {
+      "code": "A",
+      "name": "Real Agreements, no Money",
+      "status": "NOT_AUTHORIZED",
+      "requires": [
+        "M0",
+        "M1",
+        "M2",
+        "M3",
+        "M4",
+        "M10"
+      ]
+    },
+    {
+      "code": "B",
+      "name": "Limited certified provider money pilot",
+      "status": "NOT_AUTHORIZED",
+      "requires": [
+        "M0",
+        "M1",
+        "M2",
+        "M3",
+        "M4",
+        "M5",
+        "M6",
+        "M10"
+      ]
+    },
+    {
+      "code": "C",
+      "name": "Wider released Agreement Commerce",
+      "status": "NOT_AUTHORIZED",
+      "requires": [
+        "M11",
+        "independent regulatory and customer proof",
+        "22-law gate"
+      ]
+    }
+  ],
+  "operatorRules": [
+    "Progress changes only with exact Git SHA, tests, staging evidence, assigned gate owner and explicit approval.",
+    "Do not mark a phase complete based on Vercel READY or a documentation commit.",
+    "User-approved design remains fixed; no independent 4th Mini app, shop, Assistant or Money ledger.",
+    "Financial status never inferred from a draft or client-only simulation.",
+    "New development PRs do not modify production without separate GO."
+  ]
+}
