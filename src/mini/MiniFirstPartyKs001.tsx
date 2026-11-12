@@ -6,6 +6,7 @@ import { createAgentController } from '../features/agent/controller';
 import type { AgreementFormationDto } from '../api/securepay/agent/dto';
 import { miniDiscussionPrompt } from './miniGuestConfig';
 import { miniHistoryRestored } from './miniHistoryProof.mjs';
+import { MiniAgreementSlots } from './MiniAgreementSlots';
 import type { MiniDraft, MiniLanguage } from './miniModel';
 
 /**
@@ -180,13 +181,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack }: {
         onClick={()=>void readAgreement()} disabled={state.busy||!!state.pending}>
         <ShieldCheck size={17}/>Review what SecurePay understands</button>}
       {reviewError && <p className="spm-error" role="alert">{reviewError}</p>}
-      {review && <div className="spm-guest-prepared" aria-label="Read-only real Agreement Formation">
-        <strong>Agreement forming · {review.stage}</strong>
-        <p>{review.summary||'SecurePay has not established the full details yet.'}</p>
-        <small>Version {review.version} · {review.openPoints.length} open point(s).</small>
-        {review.openPoints.slice(0,4).map(point=><p key={point.id}>{point.text}</p>)}
-        <p>Read-only proposal. No participant accepted, no SecureLink issued and no Money moved.</p>
-      </div>}
+      {review && <MiniAgreementSlots formation={review}/>}
     </>}
     <p className="spm-disclaimer">Staging-only Agent conversation; no automatic agreement, participant invitation or payment.</p>
   </section>;

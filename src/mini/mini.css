@@ -478,3 +478,33 @@ textarea.spm-field { resize:vertical; }
 .spm-collect-next strong { font-size:12px; }
 .spm-collect-next ul { padding-left:17px; margin:8px 0 0; display:grid; gap:6px; color:#526858; }
 .spm-collect-summary .spm-secondary { width:100%; }
+
+
+/* M2: Quiet extra Agreement layer inside the approved Mini KS001 shell.
+ * Never show all fields as a large mandatory form. */
+.spm-mini-slots { display:grid; gap:10px; min-width:0; }
+.spm-mini-slots-heading { display:flex; align-items:center; gap:9px; }
+.spm-mini-slots-heading > svg { flex:none; }
+.spm-mini-slots-heading div { display:grid; gap:3px; }
+.spm-mini-slots-heading small { display:block; font-size:10px; color:#63826a; }
+.spm-mini-slots-list { display:grid; gap:7px; min-width:0; }
+.spm-mini-slot { display:block; background:white; border:1px solid #dce8db; border-radius:11px; overflow:hidden; }
+.spm-mini-slot summary { display:flex; justify-content:space-between; align-items:center; padding:10px 12px; cursor:pointer; list-style:none; gap:8px; }
+.spm-mini-slot summary::-webkit-details-marker { display:none; }
+.spm-mini-slot summary > span { display:grid; gap:3px; }
+.spm-mini-slot summary strong { color:#244e36; font-size:12px; }
+.spm-mini-slot summary small { color:#687d6c; font-size:10px; }
+.spm-mini-slot summary > svg { flex:none; color:#4b7656; transition:transform 0.12s ease; }
+.spm-mini-slot[open] summary > svg { transform:rotate(90deg); }
+.spm-mini-slot-items { display:grid; padding:0 12px 12px; gap:9px; }
+.spm-mini-slot-item { border-top:1px solid #edf0e9; padding-top:9px; }
+.spm-mini-slot-item strong { color:#355743; font-size:11px; }
+.spm-mini-slot-item p { margin:4px 0 0; font-size:12px; line-height:1.45; color:#294c36; white-space:pre-wrap; overflow-wrap:anywhere; }
+.spm-mini-slot-item small { display:block; color:#7b7764; font-size:10px; margin-top:5px; }
+.spm-mini-slot-item .spm-mini-slot-unverified { color:#8a652e; font-weight:600; }
+.spm-mini-slot-note, .spm-mini-slot-disclosure { color:#6c7d6d; font-size:11px; line-height:1.5; }
+.spm-mini-slot-next { display:flex; align-items:flex-start; gap:8px; padding:10px; background:#f7faf5; border-radius:10px; color:#2b543e; }
+.spm-mini-slot-next > svg { flex:none; }
+.spm-mini-slot-next strong { font-size:11px; }
+.spm-mini-slot-next p { margin:4px 0; font-size:12px; }
+.spm-mini-slot-next small { color:#6a7d6e; font-size:10px; }

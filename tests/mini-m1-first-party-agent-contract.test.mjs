@@ -9,6 +9,7 @@ const config=read('src/mini/miniFirstPartyConfig.ts');
 const origin=read('src/mini/miniFirstPartyOrigin.mjs');
 const guest=read('src/mini/MiniGuestChat.tsx');
 const sdk=read('public/embed/securepay-guest-agent.js');
+const slots=read('src/mini/MiniAgreementSlots.tsx');
 
 test('the staging-only first-party route uses existing Agent and Agreement Gateway, never new authority',()=>{
   assert.match(firstParty,/createAgentGateway\(createHttpClient\(apiOrigin, \(\) => null\)\)/);
@@ -22,7 +23,8 @@ test('the staging-only first-party route uses existing Agent and Agreement Gatew
 
 test('no anonymous staging Mini conversation is represented as a signed Agreement or paid',()=>{
   assert.match(firstParty,/Nothing has been accepted or sent/);
-  assert.match(firstParty,/No participant accepted, no SecureLink issued and no Money moved/);
+  assert.match(firstParty,/<MiniAgreementSlots formation=\{review\}/);
+  assert.match(slots,/No invitations, payments or funds have moved/);
   assert.match(firstParty,/staging/);
   assert.match(firstParty,/continuity-unavailable/);
   assert.match(firstParty,/miniHistoryRestored\(history,\s*snapshot,\s*priorId\)/);
