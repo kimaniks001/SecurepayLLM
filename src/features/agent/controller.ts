@@ -1,6 +1,6 @@
 import type { AgentGateway } from '../../api/securepay/agent';
 import { agentResponseView, conversationHistoryView, tradeContextView } from '../../api/securepay/agent/adapters';
-import type { AdoptFactRequest, ExternalFactRequest, KsIdentitySelectionRequest, KsIdentitySelectionResult, SelectedCommercialSourceDto, StructuredInputRequest, StructuredInputResult, TurnRequest } from '../../api/securepay/agent/dto';
+import type { AdoptFactRequest, ConversationHistoryResponseDto, ExternalFactRequest, KsIdentitySelectionRequest, KsIdentitySelectionResult, SelectedCommercialSourceDto, StructuredInputRequest, StructuredInputResult, TurnRequest } from '../../api/securepay/agent/dto';
 import { ApiError } from '../../api/securepay/http';
 import type { MessageResponse } from '../../types';
 
@@ -367,12 +367,15 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
      * read failure never blocks resume -- it degrades to an empty transcript (today's prior behaviour),
      * never a fatal resume error, since the transcript is presentation only.
      */
-    async resumeConversation(conversationId: string) {
+    async resumeConversation(conversationId: string, verifiedHistory?: ConversationHistoryResponseDto) {
       if (state.busy || state.pending) return;
       update({ conversationId, turns: [], error: null, pending: null, source: null, offerSelectionFailure: null, communitySourceSelectionFailure: null, offeredDiscoveryEntityIds: [], context: { status: 'idle', data: null, error: null } });
       let turns: Turn[] = [];
       try {
-        const entries = conversationHistoryView(await gateway.conversationHistory(conversationId));
+        // Mini may already have verified the server history. Reuse that exact
+        // bounded snapshot rather than fetching a different page/limit and
+        // making the valid 12-turn conversation appear truncated on reload.
+        const entries = conversationHistoryView(verifiedHistory ?? await gateway.conversationHistory(conversationId));
         turns = entries.map(entry => entry.sender === 'HUMAN'
           ? { id: entry.id, sender: 'user' as const, text: entry.text }
           : { id: entry.id, sender: 'agent' as const, response: historyReplyResponseView(entry.text) });
