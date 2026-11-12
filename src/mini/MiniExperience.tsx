@@ -14,17 +14,18 @@ import { getMiniDemoCheckout } from './checkoutDemoFixtures';
 import { MiniHostedCheckoutDemo } from './MiniHostedCheckoutDemo';
 import { MiniServerCheckout } from './MiniServerCheckout';
 import { MiniRealStoreOffer } from './MiniRealStoreOffer';
+import { MiniBuyStore } from './MiniBuyStore';
 import { MiniGate2Sandbox } from './MiniGate2Sandbox';
 import { miniMergeUserDescription, miniCaptureText, type MiniCaptureSource, type MiniCaptureKind } from './miniCapture';
 import './mini.css';
 
-type View = MiniScreen | 'choose' | 'funding';
+type View = MiniScreen | 'choose' | 'funding' | 'buy';
 const STORE_KEY = 'securepay-mini-phase1-local-draft-v1';
 const words = {
   en: {
     hello: 'Hello. What can I help you do?', intro: 'Tell me in your own words, or choose what you need.',
     start: 'Write a little about it (optional)', startHint: 'For example: I want to sell something to a customer',
-    next: 'Continue', choose: 'What would you like to do with this?', sell: 'Sell something',
+    next: 'Continue', choose: 'What would you like to do with this?', buy: 'Buy something', buyHint: 'Find goods, visit a Store and agree', sell: 'Sell something',
     sellHint: 'At a counter or from your shop', pay: 'Pay someone', payHint: 'For goods or an obligation',
     collect: 'Collect money', collectHint: 'For a purpose or contribution',
     ask: 'Ask KS001', askHint: 'Get help with something else',
@@ -58,6 +59,7 @@ const words = {
     hello: 'Habari. Nikusaidie na nini?', intro: 'Niambie kwa maneno yako, au chagua unachohitaji.',
     start: 'Eleza kidogo (si lazima)', startHint: 'Kwa mfano: Nataka kuuza kitu kwa mteja',
     next: 'Endelea', choose: 'Unataka kufanya nini?', sell: 'Uza kitu', sellHint: 'Dukani au kwa mteja',
+    buy: 'Nunua kitu', buyHint: 'Tafuta bidhaa, tembelea duka na kubaliana',
     pay: 'Lipa mtu', payHint: 'Bidhaa au malipo mengine', collect: 'Kusanya pesa', collectHint: 'Mchango au malipo',
     ask: 'Uliza KS001', askHint: 'Msaada mwingine', begin: 'Tunafanya nini?',
     sellTitle: 'Unauza nini?', payTitle: 'Unalipia nini?', collectTitle: 'Mchango huu ni wa nini?',
@@ -100,6 +102,8 @@ export function MiniExperience() {
   const [lang, setLang] = useState<MiniLanguage>('en');
   const t = words[lang];
   const [screen, setScreen] = useState<View>('home');
+  const [buyPrefill, setBuyPrefill] = useState('');
+  const [buyResetKey, setBuyResetKey] = useState(0);
   const [opening, setOpening] = useState('');
   const [discussDraft, setDiscussDraft] = useState<MiniDraft | null>(null);
   const [draft, setDraft] = useState<MiniDraft>(emptyMiniDraft());
@@ -155,6 +159,8 @@ export function MiniExperience() {
     try { sessionStorage.removeItem(STORE_KEY); } catch { /* storage denied */ }
     setHasSaved(false);
     setOpening('');
+    setBuyPrefill('');
+    setBuyResetKey(n => n + 1);
     setDiscussDraft(null);
     setPhoto(null);
     setPhotoName('');
@@ -277,6 +283,9 @@ export function MiniExperience() {
           </div>
           <div className="spm-alternative"><span>{lang === 'sw' ? 'Au chagua' : 'Or choose a starting point'}</span></div>
           <div className="spm-actions">
+            <button type="button" className="spm-option" onClick={() => {setBuyPrefill('');setScreen('buy');}}>
+              <span className="spm-option-icon"><ShoppingBag size={20}/></span>
+              <span className="spm-option-text"><strong>{t.buy}</strong><small>{t.buyHint}</small></span><ArrowRight size={18}/></button>
             <button type="button" className="spm-option" onClick={() => begin('sell')}>
               <span className="spm-option-icon"><ShoppingBag size={20}/></span>
               <span className="spm-option-text"><strong>{t.sell}</strong><small>{t.sellHint}</small></span><ArrowRight size={18}/></button>
@@ -298,12 +307,18 @@ export function MiniExperience() {
           <div className="spm-quote">{opening.trim()}</div>
           <h1 className="spm-question">{t.choose}</h1>
           <div className="spm-actions">
+            <button className="spm-option" type="button" onClick={() => {setBuyPrefill(opening.trim());setScreen('buy');}}>
+              <span className="spm-option-icon"><ShoppingBag size={20}/></span>
+              <strong className="spm-option-text">{t.buy}</strong><ArrowRight size={18}/></button>
             {([['sell', ShoppingBag, t.sell], ['pay', FileText, t.pay], ['collect', HandCoins, t.collect]] as const).map(([id, Icon, label]) =>
               <button className="spm-option" key={id} type="button" onClick={() => begin(id)}>
                 <span className="spm-option-icon"><Icon size={20}/></span><strong className="spm-option-text">{label}</strong><ArrowRight size={18}/></button>)}
           </div>
         </section>}
 
+        <div hidden={screen !== 'buy'} aria-hidden={screen !== 'buy'}>
+          <MiniBuyStore key={buyResetKey} language={lang} initialQuery={buyPrefill} onBack={() => setScreen('home')}/>
+        </div>
         {screen === 'describe' && <section className="spm-content">
           <button type="button" className="spm-back" onClick={() => setScreen('home')}><ArrowLeft size={18}/>{t.back}</button>
           <div className="spm-persona"><Sparkles size={16}/><span>KS001</span><span className="spm-dot"/><span>{t.privacy}</span></div>

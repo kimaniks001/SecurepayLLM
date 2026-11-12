@@ -435,3 +435,17 @@ textarea.spm-field { resize:vertical; }
 .spm-add-method-launch:focus-visible,.spm-add-method-form button:focus-visible,
 .spm-added-method-input:focus-visible,.spm-add-method-form select:focus-visible{
   outline:3px solid #bf9155;outline-offset:2px;}
+
+
+/* Day 11: the approved Mini shell stays unchanged. Only the Buy source view is additive. */
+.spm-mini-buy-types { display:flex; gap:7px; margin:12px 0; }
+.spm-mini-buy-types button { border:1px solid #d9e1d7; border-radius:999px; background:#fff; color:#27583e; padding:8px 13px; font-size:12px; min-height:38px; }
+.spm-mini-buy-types button[aria-pressed="true"] { background:#285c42; color:#fff; border-color:#285c42; }
+.spm-mini-buy-results { display:grid; gap:8px; margin:14px 0; }
+.spm-mini-buy-result { display:grid; gap:6px; min-width:0; border:1px solid #e2e8db; border-radius:13px; background:#fbfcf8; padding:12px; margin:10px 0; overflow-wrap:anywhere; }
+.spm-mini-buy-result strong { font-size:13px; color:#234d35; }
+.spm-mini-buy-result p { font-size:12px; margin:0; color:#385942; line-height:1.45; }
+.spm-mini-buy-result small { font-size:11px; color:#637667; line-height:1.35; }
+.spm-mini-buy-result .spm-secondary { margin:4px 0 0; min-height:40px; }
+.spm-buy .spm-field { width:100%; min-width:0; }
+.spm-buy .spm-disclaimer { margin:18px 0 3px; font-size:11px; color:#69796a; line-height:1.5; }
