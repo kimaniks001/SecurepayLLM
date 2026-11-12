@@ -55,7 +55,7 @@ export function collectQuestion(state) {
         a.beneficiary==='group'?'Has the group authorised you to organise this collection?':
         'Does this person know about the collection and agree to it?',
       note:'An answer here is your statement, not yet independently verified consent.',
-      options:[option('yes','Yes, they agree'),option('pending','Not yet — I need to ask'),option('unable','They cannot currently give consent')],
+      options:[option('yes',forMother?'Yes, she agrees':'Yes, they agree'),option('pending','Not yet — I need to ask'),option('unable',forMother?'She cannot currently give consent':'They cannot currently give consent')],
     };
     case 'recipient':return {
       text:'Who would receive and control the contributions?',
@@ -93,10 +93,12 @@ export function collectQuestion(state) {
     };
     case 'disclosure':return {
       text:'What should people see before contributing?',
-      note:'Your mother’s name, location, records and personal details stay private unless she agrees to share them.',
+      note:forMother
+        ? 'Your mother’s name, location, records and personal details stay private unless she agrees to share them.'
+        : 'Names, exact addresses and private details stay private unless each person agrees to share them.',
       options:[
         option('purpose','Only the purpose and collection terms'),
-        option('firstName','Her first name, if she authorises it'),
+        option('firstName',forMother?'Her first name, if she authorises it':'A first name, only with permission'),
         option('moreLater','Decide on details with her later'),
       ],
     };
@@ -133,7 +135,7 @@ export function answerCollectInterview(state,value) {
     if(!chosen) return {...state,lastError:'Please choose one of the options shown.'};
     answer=chosen.id;
   }
-  if(hasSensitiveIdentifier(raw))return {...state,lastError:'Please leave phone numbers, ID numbers, accounts and private details out of this draft.'};
+  if(stage!=='targetAmount' && hasSensitiveIdentifier(raw))return {...state,lastError:'Please leave phone numbers, ID numbers, accounts and private details out of this draft.'};
   const a={...state.answers};
   let shown=raw;
   if(stage==='beneficiary') {
@@ -171,7 +173,7 @@ export function collectionReview(state) {
   const a=state.answers;
   const needs=[];
   if(a.beneficiary!=='self'){
-    if(a.consent!=='yes')needs.push('Beneficiary or group permission is still needed before publishing.');
+    if(a.consent!=='yes')needs.push('Beneficiary consent or independently verified lawful authority is still needed before publishing.');
     else needs.push('Verify the beneficiary’s stated consent through an authorised process.');
   }
   if(['collector','other'].includes(a.recipient) && a.beneficiary!=='self'){
