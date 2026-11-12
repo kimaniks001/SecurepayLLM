@@ -5,7 +5,7 @@
  * Multiple listings are separately attributed buyer statements, never a
  * fake single commercial source or combined seller acceptance.
  */
-const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ks=/^KS\d{3,12}$/;
 const text=(v,max)=>typeof v==='string' ? v.trim().slice(0,max) : '';
 export function miniStoreIntent(lines){
