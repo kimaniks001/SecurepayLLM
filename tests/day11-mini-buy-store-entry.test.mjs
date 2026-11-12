@@ -23,8 +23,8 @@ test('Buy is an additional Mini entrance; sell/pay/collect and the approved shel
 test('Store reads reuse the public Store source and approved server relay',()=>{
   assert.match(buy,/createStoreGateway\(createHttpClient/);
   assert.match(buy,/\/api\/preview-workspace\?path=/);
-  assert.match(buy,/\/api\/v1\/stores/);
-  assert.match(buy,/status: 'ACTIVE'/);
+  assert.match(buy,/Store read is outside the approved public API/);
+  assert.match(buy,/found\.status === 'ACTIVE'/);
   assert.match(preview,/pathname === '\/api\/v1\/stores\/search'/);
   assert.match(buy,/method: 'GET'/);
   assert.match(buy,/credentials: 'same-origin'/);
