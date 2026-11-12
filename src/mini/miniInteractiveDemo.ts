@@ -30,6 +30,7 @@ type State = {
   counter:number;
   conversations:Record<string,DemoConversation>;
   saved:Record<Actor,boolean>;
+  savedConversations:Record<Actor,string>;
   invitationStatus:'ISSUED'|'VIEWED'|'JOINED'|'REVOKED';
   joined:boolean;confirmed:boolean;
 };
@@ -46,6 +47,7 @@ function initialState():State{
     counter:200,
     conversations:{[ID.chairs]:{owner:'amina',entries:starterMessages,version:3,replyByAction:{}}},
     saved:{amina:true,njeri:false},
+    savedConversations:{amina:ID.chairs,njeri:ID.njeriChat},
     invitationStatus:'ISSUED',joined:false,confirmed:false,
   };
 }
@@ -54,7 +56,7 @@ function load():State{
     const parsed=JSON.parse(sessionStorage.getItem(PREVIEW_STORAGE)||'null');
     if(parsed && Number.isInteger(parsed.counter) && parsed.conversations?.[ID.chairs] &&
       Array.isArray(parsed.conversations[ID.chairs].entries) &&
-      parsed.saved && typeof parsed.saved.amina==='boolean' &&
+      parsed.saved && parsed.savedConversations && typeof parsed.saved.amina==='boolean' &&
       ['ISSUED','VIEWED','JOINED','REVOKED'].includes(parsed.invitationStatus) &&
       typeof parsed.joined==='boolean' && typeof parsed.confirmed==='boolean')
       return parsed as State;
@@ -205,7 +207,7 @@ function formation(id:string,actor:Actor){
   };
 }
 function savedBuild(actor:Actor){
-  const id=actor==='amina'?ID.chairs:ID.njeriChat;
+  const id=current().savedConversations[actor];
   return {
     savedBuildId:actor==='amina'?ID.saved:'00000000-0000-4000-8000-000000000079',
     conversationId:id,title:'40 chairs — unfinished conversation',
@@ -300,8 +302,10 @@ export function createMiniDemoHttpClient(getToken:()=>string|null):HttpClient{
         }
         if(endpoint==='saved-build' && method==='POST'){
           auth();
-          current().saved[actor]=true;persist();
-          return answer({...savedBuild(actor),conversationId:id});
+          current().saved[actor]=true;
+          current().savedConversations[actor]=id;
+          persist();
+          return answer(savedBuild(actor));
         }
       }
       if(p==='/api/agent/saved-builds' && method==='GET'){
@@ -402,7 +406,7 @@ export function createMiniDemoHttpClient(getToken:()=>string|null):HttpClient{
             reject(404,'Sample KS Number not found');
           current().invitationStatus='ISSUED';current().joined=false;current().confirmed=false;persist();
           return answer({invitationId:ID.invitation,status:'ISSUED',
-            invitationToken:'DEMO-NOT-A-REAL-LINK',replayed:false,
+            invitationToken:null,replayed:true,
             targetKind:'KS_NUMBER',targetHint:'DEMO-N'});
         }
         if(tail==='invitations/'+ID.invitation+'/revoke'&&method==='POST'){
@@ -421,4 +425,10 @@ export function createMiniDemoHttpClient(getToken:()=>string|null):HttpClient{
       reject(404,'This preview action is not simulated; no request was sent');
     }
   };
+}
+
+/** Reset only the isolated, sample-only preview between focused tests. */
+export function miniDemoReset(){
+  state=initialState();
+  try{sessionStorage.removeItem(PREVIEW_STORAGE);}catch{/* server/unit runner */}
 }
