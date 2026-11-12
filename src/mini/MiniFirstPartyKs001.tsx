@@ -5,6 +5,7 @@ import { createAgentGateway } from '../api/securepay/agent';
 import { createAgentController } from '../features/agent/controller';
 import type { AgreementFormationDto } from '../api/securepay/agent/dto';
 import { miniDiscussionPrompt } from './miniGuestConfig';
+import { miniHistoryRestored } from './miniHistoryProof.mjs';
 import type { MiniDraft, MiniLanguage } from './miniModel';
 
 /**
@@ -66,14 +67,17 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack }: {
       }
       try {
         // Never show a clean/empty chat as if it were the original conversation.
-        const history = await pair.gateway.conversationHistory(priorId,20);
+        // Read ONCE and reuse the same authorised snapshot in the canonical
+        // controller. The earlier limit=20 could reject valid 12-turn sessions
+        // when the controller fetched a different history window.
+        const history = await pair.gateway.conversationHistory(priorId);
         if (!history || !Array.isArray(history.entries)) throw new Error('Invalid history');
-        await pair.controller.resumeConversation(priorId);
+        await pair.controller.resumeConversation(priorId, history);
         const snapshot = pair.controller.getSnapshot();
-        // A second transient read failure in resumeConversation cannot
-        // silently produce a healthy empty transcript.
-        if (snapshot.turns.length !== history.entries.length ||
-            snapshot.context.status !== 'ready') throw new Error('History could not be restored');
+        // Verify every message ID, actor and text plus the canonical context,
+        // not merely an equal number of messages.
+        if (!miniHistoryRestored(history, snapshot, priorId))
+          throw new Error('History could not be restored');
         if (alive) setStatus('ready');
       } catch (error) {
         if (!alive) return;
