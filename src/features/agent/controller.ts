@@ -235,12 +235,23 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
     update({ turns: [...state.turns, { id: replyId, sender: 'agent', response: historyReplyResponseView(text) }] });
   }
   async function readContext() {
-    if (!state.conversationId) return;
+    // Bind the read to the exact conversation that requested it. A late
+    // response from a resumed/previous conversation must not overwrite the
+    // active one or make foreign Trade Context look authoritative.
+    const conversationId = state.conversationId;
+    if (!conversationId) return;
     update({ context: { status: 'loading', data: state.context.data, error: null } });
     try {
-      const data = tradeContextView(await gateway.readContext(state.conversationId));
+      const data = tradeContextView(await gateway.readContext(conversationId));
+      if (state.conversationId !== conversationId) return;
+      if (data.conversationId !== conversationId) {
+        throw new ApiError('invalid-response', 'SecurePay returned context for a different conversation.');
+      }
       update({ context: { status: 'ready', data, error: null } });
-    } catch (error) { update({ context: { status: 'error', data: null, error: errorText(error) } }); }
+    } catch (error) {
+      if (state.conversationId !== conversationId) return;
+      update({ context: { status: 'error', data: null, error: errorText(error) } });
+    }
   }
   async function run(pending: Pending): Promise<boolean> {
     const contextBefore = state.context;
@@ -369,16 +380,24 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
      */
     async resumeConversation(conversationId: string) {
       if (state.busy || state.pending) return;
-      update({ conversationId, turns: [], error: null, pending: null, source: null, offerSelectionFailure: null, communitySourceSelectionFailure: null, offeredDiscoveryEntityIds: [], context: { status: 'idle', data: null, error: null } });
-      let turns: Turn[] = [];
+      // A user must not submit a new turn while the server's previous
+      // conversation history is still loading; otherwise the late history
+      // response can replace their freshly submitted message in this UI.
+      update({ busy: true, conversationId, turns: [], error: null, pending: null, source: null, offerSelectionFailure: null, communitySourceSelectionFailure: null, offeredDiscoveryEntityIds: [], context: { status: 'idle', data: null, error: null } });
       try {
-        const entries = conversationHistoryView(await gateway.conversationHistory(conversationId));
-        turns = entries.map(entry => entry.sender === 'HUMAN'
-          ? { id: entry.id, sender: 'user' as const, text: entry.text }
-          : { id: entry.id, sender: 'agent' as const, response: historyReplyResponseView(entry.text) });
-      } catch { /* presentation-only; Trade Context (read below) remains the canonical understanding */ }
-      update({ turns });
-      await readContext();
+        let turns: Turn[] = [];
+        try {
+          const entries = conversationHistoryView(await gateway.conversationHistory(conversationId));
+          turns = entries.map(entry => entry.sender === 'HUMAN'
+            ? { id: entry.id, sender: 'user' as const, text: entry.text }
+            : { id: entry.id, sender: 'agent' as const, response: historyReplyResponseView(entry.text) });
+        } catch { /* history is presentation-only; canonical context is still read */ }
+        if (state.conversationId !== conversationId) return;
+        update({ turns });
+        await readContext();
+      } finally {
+        if (state.conversationId === conversationId) update({ busy: false });
+      }
     },
     async send(text: string) {
       if (state.busy || state.pending || !text.trim()) return;
