@@ -146,16 +146,23 @@ export function MiniExperience() {
     document.querySelector<HTMLElement>('.spm-frame')?.scrollTo(0, 0);
   }, [screen]);
 
-  const beginCollection = () => {
-    // The same human-first conversation works after a typed sentence such as
-    // "I want to collect money for my mother", or with no starting context.
-    // All interview answers remain local until the user explicitly prepares
-    // a draft. Do not pass the text to an unauthorised public collector.
-    setCollectPrefill(opening.trim().slice(0,400));
+  const startSupportedCollection = (source='') => {
+    // One optional deeper journey, called by the person's words or explicit
+    // choice. Never automatically publish, verify authority or solicit money.
+    setCollectPrefill(source.trim().slice(0,400));
+    setCollectResetKey(n=>n+1);
     setOpening('');
     setCollectionReviewActive(false);
     setError('');
     setScreen('collect-interview');
+  };
+  const beginCollection = () => {
+    // Ordinary goods/service payments retain the existing lightweight Mini
+    // collection form. Beneficiary support requests invite specific questions.
+    if (/\b(?:for (?:my|our|someone|another|a family member)|on behalf of|fundrais(?:e|ing)|contributions? for|support (?:my|our|someone))\b/i.test(opening))
+      startSupportedCollection(opening);
+    else
+      begin('collect');
   };
   const begin = (intent: MiniIntent) => {
     setCollectionReviewActive(false);
@@ -360,6 +367,10 @@ export function MiniExperience() {
           <label className="spm-label" htmlFor="spm-description">{t.describe}</label>
           <textarea className="spm-field spm-main-field" id="spm-description" ref={firstField} maxLength={400} rows={3}
             placeholder={t.descriptionHint} value={draft.description} onChange={e => update('description', e.target.value)}/>
+          {draft.intent==='collect' && <button className="spm-quiet-button" type="button"
+            onClick={()=>startSupportedCollection(draft.description)}>
+            <MessageCircle size={16}/>Collecting for your mother or someone else? Get help.
+          </button>}
           <label className="spm-label" htmlFor="spm-amount">{draft.intent === 'collect' ? t.optionalAmount : t.amount}</label>
           <input className="spm-field" id="spm-amount" ref={amountField} type="text" inputMode="decimal" maxLength={30}
             placeholder={draft.intent === 'collect' ? t.optionalAmountHint : t.amountHint}
