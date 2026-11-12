@@ -108,6 +108,7 @@ test('M3B an ambiguous or stale version never gets auto-confirmed',async()=>{
   const calls=[];
   const {controller}=recipient({
     versions:async()=>[{...version(),versionStatus:'SUPERSEDED'}],
+    version:async()=>({...version(),versionStatus:'SUPERSEDED'}),
     confirmVersion:async()=>{calls.push('confirm');return confirmation();}
   });
   await controller.load();controller.proceed(true);await controller.join();
