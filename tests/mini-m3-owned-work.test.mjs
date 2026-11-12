@@ -72,8 +72,8 @@ test('M3: malformed/duplicated/cross-id entries never become owner work',async()
   assert.equal(miniOwnedBuildList([{...build(),savedBuildId:'not-a-uuid'}]),null);
   assert.equal(miniOwnedBuildList([{...build(),title:undefined}]),null);
   assert.equal(miniOwnedBuildList(new Array(21).fill(build())),null);
-  await assert.rejects(()=>miniListServerBuilds({listSavedBuilds:async()=>({entries:[build()]})}),
-    /did not confirm/);
+  const malformedListGateway={listSavedBuilds:async()=>({entries:[build()]})};
+  await assert.rejects(async()=>miniListServerBuilds(malformedListGateway),/did not confirm/);
 });
 test('M3: another person's private saved build remains inaccessible (server-denied)',async()=>{
   const gateway={listSavedBuilds:async()=>{throw Object.assign(Error('Access refused'),{status:403});}};
