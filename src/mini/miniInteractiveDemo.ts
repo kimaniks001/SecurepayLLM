@@ -45,7 +45,7 @@ const starterMessages:DemoMessage[]=[
 function initialState():State{
   return {
     counter:200,
-    conversations:{[ID.chairs]:{owner:'amina',entries:starterMessages,version:3,replyByAction:{}}},
+    conversations:{[ID.chairs]:{owner:'amina',entries:starterMessages.map(entry=>({...entry})),version:3,replyByAction:{}}},
     saved:{amina:true,njeri:false},
     savedConversations:{amina:ID.chairs,njeri:ID.njeriChat},
     invitationStatus:'ISSUED',joined:false,confirmed:false,
