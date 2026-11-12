@@ -48,7 +48,7 @@ test('M5: single Store plan keeps seller and offer references, but is buyer inte
   const {stores}=setup();
   const found=await stores.store('KS002');
   const plan=miniStoreIntent([cartLine(found,found.offers[0],20)]);
-  assert.ok(plan);assert.equal(plan.kind,'single');
+  assert.ok(plan,JSON.stringify({store:found.canonicalKsNumber,offer:found.offers[0]}));assert.equal(plan.kind,'single');
   assert.equal(plan.source.sourceId,offerId);
   assert.equal(plan.source.sourceOwnerKsNumber,'KS002');
   assert.match(plan.statement,/not place an order/);
@@ -77,7 +77,7 @@ test('M5: multi-Store plan preserves independent sellers and cannot be called on
   const b=await stores.store('KS003');
   const proposal=miniStoreIntent([
     cartLine(a,a.offers[0],10),cartLine(b,b.offers[0],6)]);
-  assert.ok(proposal);
+  assert.ok(proposal,JSON.stringify({a:a.offers[0],b:b.offers[0]}));
   assert.equal(proposal.kind,'multi');
   assert.equal(proposal.source,null);
   assert.equal(proposal.distinctSellers,2);
