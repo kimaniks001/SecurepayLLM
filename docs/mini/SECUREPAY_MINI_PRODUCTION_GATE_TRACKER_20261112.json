@@ -38,7 +38,7 @@
       "gate": "Approved UI + source/CI/staging reconciliation and signed release ledger",
       "order": 0,
       "owner": "To be assigned at M0",
-      "lastEvidence": "2026-11-12: Mini/Store branches diverged 353/322 commits; Mini owner Vercel preview build READY. Current main API has /api/agent/conversations and Agreement Formation, but no discovered /api/v1/public/embed/installations controller. No registered Mini staging origin configuration. See docs/mini/M1_FIRST_PARTY_AGENT_COMPATIBILITY_AND_ACTIVATION_20261112.md.",
+      "lastEvidence": "2026-11-12: Mini/Store branches diverged 353/322 commits; Mini owner Vercel preview build READY. Current main API has /api/agent/conversations and Agreement Formation, but no discovered /api/v1/public/embed/installations controller. No registered Mini staging origin configuration. See docs/mini/M1_FIRST_PARTY_AGENT_COMPATIBILITY_AND_ACTIVATION_20261112.md. 2026-11-12 original Amina–George 20 synthetic-user Preflight roster recovered; test-only fixture restored, not seeded in isolated API.",
       "ownerDecision": "PARTIAL / NO-GO. Validate independent staging and CORS, reconcile approved Store source, recover GitHub CI.",
       "marketingLawAssessment": "Pending"
     },
@@ -49,8 +49,8 @@
       "gate": "12-turn chairs & mother live model, safe reload, genuine status",
       "order": 1,
       "owner": "To be assigned at M0",
-      "lastEvidence": "Candidate branch: same AgentGateway + AgentController reused in Mini behind staging-only VITE_MINI_FIRST_PARTY_API_ORIGIN; guest route remains fallback. Focused 18 tests (8 mother + 6 guest continuity + 4 first-party contracts) and TypeScript typecheck passed in preview deployment commit 1347c398. No actual live KS001 test.",
-      "ownerDecision": "M1 CODE CANDIDATE ONLY. Stage exact Origin + backend isolation/CORS, 12-turn Ruiru chairs, mother consent, reload, idempotent pending send, independent human gate.",
+      "lastEvidence": "Candidate branch: same AgentGateway + AgentController reused in Mini behind staging-only VITE_MINI_FIRST_PARTY_API_ORIGIN; guest route remains fallback. Focused 18 tests (8 mother + 6 guest continuity + 4 first-party contracts) and TypeScript typecheck passed in preview deployment commit 1347c398. No actual live KS001 test. Vercel preview commit ee0f6e4: 40 focused tests pass, 0 fail, including 20 named persona source checks; includes a Store search punctuation/location privacy correction. This is not server-authenticated multi-user evidence.",
+      "ownerDecision": "M1 SOURCE CHECKS PASS, RUNTIME GATE OPEN. Need exact isolated Preflight backend seeded with 20 verified synthetic sessions, real KS001 12-turn and mother conversations, proper CORS/config, real My Agreements and independent acceptance.",
       "marketingLawAssessment": "Pending"
     },
     {
@@ -224,5 +224,20 @@
   ],
   "currentWorkBranch": "feat/mini-m0-m1-continuity-gate-20261112",
   "lastAudited": "2026-11-12",
-  "liveMoneyApproved": false
+  "liveMoneyApproved": false,
+  "preflight20": {
+    "version": "securepay-mini-preflight-personas-v1",
+    "fixture": "tests/fixtures/securepay-mini-preflight-20.json",
+    "sourceTests": "tests/mini-preflight-20-personas.test.mjs",
+    "syntheticPersonas": 20,
+    "sourceModelChecksPassed": 20,
+    "combinedFocusedTestsPassed": 40,
+    "sourceProofCommit": "ee0f6e4d3c4d09791fdafb070f010123f1f20f86",
+    "isolatedBackendSeeded": false,
+    "serverIdentityRoleSwitchingProven": false,
+    "realConversationsPassed": false,
+    "realAgreementsAccepted": false,
+    "realPaymentsPermitted": false,
+    "status": "STAGE1_SOURCE_CHECKED_ONLY"
+  }
 }
