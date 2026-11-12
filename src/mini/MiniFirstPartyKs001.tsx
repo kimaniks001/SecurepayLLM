@@ -67,6 +67,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack }: {
   const [savedNotice,setSavedNotice] = useState('');
   const [ownedError,setOwnedError] = useState('');
   const [failedResumeId,setFailedResumeId] = useState<string|null>(null);
+  const [signOutAsked,setSignOutAsked] = useState(false);
 
   useEffect(() => {
     setState(pair.controller.getSnapshot());
@@ -201,6 +202,12 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack }: {
       setOwnedError('SecurePay could not safely restore this saved conversation. Recheck it; nothing was accepted or paid.');
     } finally {setSaveBusy(false);}
   };
+  const openOwned = () => {
+    if (!signedIn) {setIdentityOpen(true);return;}
+    const next=!ownedOpen;
+    setOwnedOpen(next);
+    if (next) void loadOwned();
+  };
   const signOut = () => {
     // Explicit privacy boundary: never leave one signed-in person's saved
     // transcript or account list visible after their token is dropped.
@@ -209,6 +216,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack }: {
     setOwnedList([]);setOwnedOpen(false);setIdentityOpen(false);
     setOwnedStatus('idle');setOwnedError('');setSavedNotice('');
     setFailedResumeId(null);setReview(null);setMessage('');
+    setSignOutAsked(false);
     setStatus('checking');setEpoch(n=>n+1);
   };
   const reset = () => {
@@ -290,11 +298,16 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack }: {
           <BookmarkPlus size={16}/>{saveBusy?'Checking…':signedIn?'Save for later':'Sign in to save'}
         </button>}
         <button type="button" className="spm-quiet-button"
-          onClick={()=>signedIn?(setOwnedOpen(!ownedOpen),!ownedOpen&&void loadOwned()):setIdentityOpen(true)}
-          disabled={saveBusy}><FolderOpen size={16}/>My saved work</button>
-        {signedIn && <button type="button" className="spm-quiet-button" onClick={signOut}
-          aria-label="Sign out of SecurePay Mini"><LogOut size={15}/>Sign out</button>}
+          onClick={openOwned} disabled={saveBusy}><FolderOpen size={16}/>My saved work</button>
+        {signedIn && <button type="button" className="spm-quiet-button"
+          onClick={()=>{if (!signOutAsked){setSignOutAsked(true);return;}signOut();}}
+          aria-label={signOutAsked?'Confirm sign out; unsaved work may be lost':'Sign out of SecurePay Mini'}>
+          <LogOut size={15}/>{signOutAsked?'Confirm sign out':'Sign out'}
+        </button>}
       </div>
+      {signOutAsked && <p className="spm-mini-owned-note" role="status">
+        Unsaved work may be lost when you sign out. Press Confirm sign out, or continue working.
+      </p>}
       {savedNotice && <p className="spm-mini-owned-note" role="status">{savedNotice}</p>}
       {ownedError && <p className="spm-error" role="alert">{ownedError}</p>}
       {ownedOpen && signedIn && <section className="spm-mini-owned-list"
