@@ -245,7 +245,11 @@ export function createAgentController(gateway: Pick<AgentGateway, 'createConvers
       const data = tradeContextView(await gateway.readContext(conversationId));
       if (state.conversationId !== conversationId) return;
       if (data.conversationId !== conversationId) {
-        throw new ApiError('invalid-response', 'SecurePay returned context for a different conversation.');
+        // Fail closed with a meaningful user instruction, without revealing
+        // another conversation's identifier or any of its protected facts.
+        update({ context: { status: 'error', data: null,
+          error: 'SecurePay could not verify these details belong to this conversation. Reopen it before continuing.' } });
+        return;
       }
       update({ context: { status: 'ready', data, error: null } });
     } catch (error) {
