@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import { ArrowLeft, ArrowRight, BookmarkPlus, CircleAlert, FolderOpen, LogOut, MessageCircle, RefreshCcw, Send, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BookmarkPlus, CircleAlert, FolderOpen, LogOut, Mail, MessageCircle, RefreshCcw, Send, ShieldCheck, Users } from 'lucide-react';
 import { createHttpClient } from '../api/securepay/http';
 import { createAgentGateway } from '../api/securepay/agent';
 import { createAuthGateway } from '../api/securepay/auth';
+import { createAgreementGateway } from '../api/securepay/agreements';
+import { MiniParticipantInvitations } from './MiniParticipantInvitations';
+import { MiniCreatorInvitations } from './MiniCreatorInvitations';
 import { createSessionStore, ensureFreshSession } from '../api/securepay/session';
 import { createAgentController } from '../features/agent/controller';
 import type { AgreementFormationDto } from '../api/securepay/agent/dto';
@@ -46,6 +49,9 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack }: {
   const auth = useMemo(() => createAuthGateway(
     createHttpClient(apiOrigin,session.getAccessToken)
   ),[apiOrigin,session]);
+  const agreements=useMemo(()=>createAgreementGateway(
+    createHttpClient(apiOrigin,session.getAccessToken)
+  ),[apiOrigin,session]);
   const [epoch,setEpoch] = useState(0);
   const pair = useMemo(() => {
     const gateway = createAgentGateway(createHttpClient(apiOrigin,session.getAccessToken));
@@ -60,6 +66,8 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack }: {
   const [reviewError,setReviewError] = useState('');
   const [recoveryAttempt,setRecoveryAttempt] = useState(0);
   const [identityOpen,setIdentityOpen] = useState(false);
+  const [identityGoal,setIdentityGoal] = useState<'saved'|'inbox'|'creator'>('saved');
+  const [peopleOpen,setPeopleOpen] = useState<'inbox'|'creator'|null>(null);
   const [ownedOpen,setOwnedOpen] = useState(false);
   const [ownedStatus,setOwnedStatus] = useState<'idle'|'loading'|'ready'|'error'>('idle');
   const [ownedList,setOwnedList] = useState<MiniSavedWorkItem[]>([]);
@@ -169,7 +177,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack }: {
     }
   };
   const saveOwned = async () => {
-    if (!signedIn){setIdentityOpen(true);return;}
+    if (!signedIn){setIdentityGoal('saved');setIdentityOpen(true);return;}
     const conversationId = state.conversationId;
     if (!conversationId || status!=='ready' || state.pending || state.busy || saveBusy) return;
     setSaveBusy(true);setOwnedError('');setSavedNotice('');
@@ -203,17 +211,38 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack }: {
     } finally {setSaveBusy(false);}
   };
   const openOwned = () => {
-    if (!signedIn) {setIdentityOpen(true);return;}
+    if (!signedIn) {setIdentityGoal('saved');setIdentityOpen(true);return;}
     const next=!ownedOpen;
     setOwnedOpen(next);
     if (next) void loadOwned();
+  };
+  const openPeople = (kind:'inbox'|'creator') => {
+    setOwnedOpen(false);setOwnedList([]);setOwnedStatus('idle');
+    if(!signedIn){
+      setIdentityGoal(kind);setIdentityOpen(true);return;
+    }
+    setPeopleOpen(kind);
+  };
+  const reauthenticatePeople = () => {
+    // Switching an account never leaves the old account's private data,
+    // recipient review or saved-work list visible behind the identity step.
+    session.clear();
+    setPeopleOpen(null);setOwnedOpen(false);setOwnedList([]);
+    setReview(null);setSavedNotice('');setOwnedError('');
+    setIdentityGoal('inbox');setIdentityOpen(true);
+    setEpoch(n=>n+1);
+  };
+  const afterMiniIdentity = () => {
+    setIdentityOpen(false);
+    if(identityGoal==='saved'){setOwnedOpen(true);void loadOwned();}
+    else {setPeopleOpen(identityGoal);}
   };
   const signOut = () => {
     // Explicit privacy boundary: never leave one signed-in person's saved
     // transcript or account list visible after their token is dropped.
     session.clear();
     pair.gateway.forgetResumableConversation();
-    setOwnedList([]);setOwnedOpen(false);setIdentityOpen(false);
+    setOwnedList([]);setOwnedOpen(false);setPeopleOpen(null);setIdentityOpen(false);
     setOwnedStatus('idle');setOwnedError('');setSavedNotice('');
     setFailedResumeId(null);setReview(null);setMessage('');
     setSignOutAsked(false);
@@ -224,7 +253,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack }: {
     pair.gateway.forgetResumableConversation();
     try {sessionStorage.removeItem(expiredKey);} catch { /* blocked storage */ }
     setMessage('');setResetAsked(false);setReview(null);setReviewError('');
-    setOwnedOpen(false);setOwnedError('');setSavedNotice('');
+    setOwnedOpen(false);setPeopleOpen(null);setOwnedError('');setSavedNotice('');
     setFailedResumeId(null);
     setEpoch(n=>n+1);
   };
@@ -259,9 +288,15 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack }: {
         {resetAsked?'Confirm: clear the previous conversation':'Clear and start a new conversation'}</button>}
     </div>}
     {identityOpen && <MiniIdentityStep auth={auth} session={session}
-      onDone={()=>{setIdentityOpen(false);setOwnedOpen(true);void loadOwned();}}
+      onDone={afterMiniIdentity}
       onCancel={()=>setIdentityOpen(false)}/>}
-    {status==='ready' && !identityOpen && <>
+    {status==='ready' && !identityOpen && peopleOpen==='inbox' &&
+      <MiniParticipantInvitations gateway={agreements} signedIn={signedIn}
+        onBack={()=>setPeopleOpen(null)} onReauthenticate={reauthenticatePeople}/>}
+    {status==='ready' && !identityOpen && peopleOpen==='creator' &&
+      <MiniCreatorInvitations gateway={agreements}
+        onBack={()=>setPeopleOpen(null)}/>}
+    {status==='ready' && !identityOpen && !peopleOpen && <>
       {!state.conversationId && <p className="spm-capture-note">
         This preview uses the existing SecurePay Agent API. A conversation will only be created when you send a message.
       </p>}
@@ -299,6 +334,14 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack }: {
         </button>}
         <button type="button" className="spm-quiet-button"
           onClick={openOwned} disabled={saveBusy}><FolderOpen size={16}/>My saved work</button>
+        <button type="button" className="spm-quiet-button"
+          onClick={()=>openPeople('inbox')} disabled={saveBusy}>
+          <Mail size={16}/>Invitations for me
+        </button>
+        <button type="button" className="spm-quiet-button"
+          onClick={()=>openPeople('creator')} disabled={saveBusy}>
+          <Users size={16}/>Invite someone
+        </button>
         {signedIn && <button type="button" className="spm-quiet-button"
           onClick={()=>{if (!signOutAsked){setSignOutAsked(true);return;}signOut();}}
           aria-label={signOutAsked?'Confirm sign out; unsaved work may be lost':'Sign out of SecurePay Mini'}>
