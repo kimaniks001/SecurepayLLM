@@ -138,6 +138,7 @@ export function MiniGuestChat({ draft, language, onBack }: {
     if (busy || !agent.current) return;
     const result = agent.current.reset();
     setSnapshot(result);
+    setStatus(result.status);
     setMessage('');
     setAskingReset(false);
     setLocalError('');
@@ -157,8 +158,14 @@ export function MiniGuestChat({ draft, language, onBack }: {
       <CircleAlert size={20}/>
       <div>
         <strong>{status === 'checking' ? (sw ? 'Inaunganisha...' : 'Checking secure connection…') :
+          status === 'continuity-unavailable' ? 'Your previous conversation is temporarily unavailable.' :
+          status === 'expired' ? 'Your previous conversation could not be found.' :
           sw ? 'KS001 haijaunganishwa kwenye jaribio hili.' : 'KS001 is not connected in this preview.'}</strong>
-        <p>{status === 'not-configured'
+        <p>{status === 'continuity-unavailable'
+          ? 'We will not start a new conversation or discard your saved one. Recheck the connection to recover its history.'
+          : status === 'expired'
+            ? 'Mini has not replaced your previous conversation. You can recheck it or explicitly clear it and start again.'
+            : status === 'not-configured'
           ? (sw ? 'Usajili wa eneo la majaribio na API haujawekwa. Hakuna jibu la kubuni.' : 'An approved staging site and API have not been configured. Mini will not invent an AI reply.')
           : status === 'client-missing'
             ? 'The trusted SecurePay guest client could not load.'
@@ -238,6 +245,11 @@ export function MiniGuestChat({ draft, language, onBack }: {
 
     {!ready && status !== 'not-configured' && status !== 'client-missing' && <button type="button" className="spm-secondary spm-guest-retry"
       onClick={refresh} disabled={busy || status === 'checking'}><RefreshCcw size={17}/>Recheck approved connection</button>}
+    {!ready && status === 'expired' && <button type="button" className="spm-quiet-button"
+      onClick={reset} disabled={busy}>
+      {askingReset ? 'Confirm: clear previous conversation and begin a new one' :
+        'Clear unavailable conversation and start a new one'}
+    </button>}
 
     <div className="spm-guest-identity">
       <ShieldCheck size={17}/><p>
