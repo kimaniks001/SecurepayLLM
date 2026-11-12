@@ -116,7 +116,7 @@ test('M5B: seller cannot edit another Store or invent accepted order from publis
   const current=await seller.stores.businessOffers('KS002');
   assert.equal(current[0].published,true);
   const http=api.createMiniDemoHttpClient(()=>api.miniDemoTokens('njeri').accessToken);
-  await assert.rejects(()=>http.request('/api/v1/agreements/confirmed-order',{
+  await assert.rejects(()=>http.request('/api/v1/orders/accept',{
     method:'POST',auth:'required'
   }),/not simulated/);
 });
