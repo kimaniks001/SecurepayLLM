@@ -75,7 +75,7 @@ test('M3: malformed/duplicated/cross-id entries never become owner work',async()
   const malformedListGateway={listSavedBuilds:async()=>({entries:[build()]})};
   await assert.rejects(async()=>miniListServerBuilds(malformedListGateway),/did not confirm/);
 });
-test('M3: another person's private saved build remains inaccessible (server-denied)',async()=>{
+test("M3: another person's private saved build remains inaccessible (server-denied)",async()=>{
   const gateway={listSavedBuilds:async()=>{throw Object.assign(Error('Access refused'),{status:403});}};
   await assert.rejects(()=>miniListServerBuilds(gateway),/Access refused/);
 });
