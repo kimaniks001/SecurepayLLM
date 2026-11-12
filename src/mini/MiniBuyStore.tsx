@@ -46,7 +46,7 @@ export function MiniBuyStore({ language, onBack, initialQuery = '' }: {language:
     // unsupported conversation, precise address, account, URL or private data.
     const simple = phrase.trim().replace(/[?.!]+$/, '');
     if (simple.length < 2 || simple.length > 75 ||
-      /\\b(?:phone number|account|password|otp|pin|my address)\\b|[@:/\\\\]|\\d{5,}/i.test(simple))
+      /\b(?:phone number|account|password|otp|pin|my address)\b|[@:/\\]|\d{5,}/i.test(simple))
       return '';
     return simple;
   };
