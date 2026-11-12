@@ -36,6 +36,12 @@ type State = {
   savedConversations:Record<Actor,string>;
   invitationStatus:'ISSUED'|'VIEWED'|'JOINED'|'REVOKED';
   joined:boolean;confirmed:boolean;
+  // Sample-only published Store records, not Agreement confirmations.
+  storePatches:Record<string,{
+    priceMinor:number|null;quantityAvailable:number|null;availabilityState:string;
+    updatedAt:string;availabilityConfirmedAt:string|null;
+  }>;
+  deliveryState:Record<string,Record<string,unknown>>;
 };
 const starterMessages:DemoMessage[]=[
   {id:'sample-chat-1',sender:'HUMAN',text:'I need 40 chairs for a meeting at Varsityville in Ruiru.',occurredAt:DATE},
@@ -52,6 +58,7 @@ function initialState():State{
     saved:{amina:true,njeri:false},
     savedConversations:{amina:ID.chairs,njeri:ID.njeriChat},
     invitationStatus:'ISSUED',joined:false,confirmed:false,
+    storePatches:{},deliveryState:{},
   };
 }
 function load():State{
@@ -59,7 +66,8 @@ function load():State{
     const parsed=JSON.parse(sessionStorage.getItem(PREVIEW_STORAGE)||'null');
     if(parsed && Number.isInteger(parsed.counter) && parsed.conversations?.[ID.chairs] &&
       Array.isArray(parsed.conversations[ID.chairs].entries) &&
-      parsed.saved && parsed.savedConversations && typeof parsed.saved.amina==='boolean' &&
+      parsed.saved && parsed.savedConversations && parsed.storePatches &&
+      parsed.deliveryState && typeof parsed.saved.amina==='boolean' &&
       ['ISSUED','VIEWED','JOINED','REVOKED'].includes(parsed.invitationStatus) &&
       typeof parsed.joined==='boolean' && typeof parsed.confirmed==='boolean')
       return parsed as State;
@@ -127,7 +135,32 @@ const sampleStores=[
 function demoStore(ks:string){
   const found=sampleStores.find(store=>store.canonicalKsNumber===ks);
   if(!found)reject(404,'Sample Store was not found');
-  return found;
+  return {...found,offers:found.offers.map(offer=>({
+    ...offer,...(current().storePatches[offer.id]||{})
+  }))};
+}
+function demoOfferDto(offer:ReturnType<typeof demoStore>['offers'][number]){
+  return {...offer,published:true,createdAt:DATE};
+}
+function demoDelivery(offerId:string){
+  return {
+    offerId,supplyRoles:['RETAILER'],pricingMode:'LISTED_PRICE',
+    unit:'chair',minimumOrderQuantity:1,leadTimeHours:null,
+    serviceAreas:['Ruiru'],deliveryAvailable:null,
+    capacityQuantity:null,capacityUnit:null,scheduleNote:null,
+    warrantyTerms:null,returnTerms:null,fulfilmentConditions:null,
+    credentialRefs:[],evidenceExpectations:[],updatedAt:DATE,version:1,
+    ...(current().deliveryState[offerId]||{})
+  };
+}
+function demoNextPublishedAt(){
+  return new Date(Date.parse(DATE)+(++current().counter)*1000).toISOString();
+}
+function demoSeller(getToken:()=>string|null,options:RequestOptions,ks:string){
+  const actor=requiresActor(getToken,options);
+  if(actor!=='njeri'||ks!=='KS002')
+    reject(403,'Only the sample Store owner can manage this Store');
+  return actor;
 }
 
 function conversation(id:string,actor:Actor){
@@ -352,6 +385,105 @@ export function createMiniDemoHttpClient(getToken:()=>string|null):HttpClient{
         return answer(savedBuild(person));
       }
 
+      // M5B: canonical BusinessGateway representation and StoreController
+      // endpoints, isolated to the Njeri sample identity. The client cannot
+      // confirm Amina's Store, silently reserve stock or accept an Agreement.
+      if(p==='/api/v1/business/mine' && method==='GET'){
+        const person=auth();
+        return answer(person==='njeri'?[{
+          businessKsNumber:'KS002',displayName:'Njeri Events · Sample Store',
+          identityType:'BUSINESS',relationship:'ADMINISTRATOR',canActFor:true,since:DATE
+        }]:[]);
+      }
+      let businessMatch=match(/^\/api\/v1\/business\/(KS\d{3,12})\/representation$/);
+      if(businessMatch && method==='GET'){
+        demoSeller(getToken,options,businessMatch[1]);
+        return answer({
+          businessKsNumber:'KS002',displayName:'Njeri Events · Sample Store',
+          identityType:'BUSINESS',relationship:'ADMINISTRATOR',canActFor:true,since:DATE
+        });
+      }
+      businessMatch=match(/^\/api\/v1\/business\/(KS\d{3,12})\/store(?:\/(.*))?$/);
+      if(businessMatch){
+        const ks=businessMatch[1],tail=businessMatch[2]||'';
+        demoSeller(getToken,options,ks);
+        const shop=demoStore(ks);
+        if(tail==='profile'&&method==='GET'){
+          return answer({
+            businessKsNumber:ks,displayName:shop.displayName,
+            ...shop.profile,createdAt:DATE,
+          });
+        }
+        if(tail==='offers'&&method==='GET')
+          return answer(shop.offers.map(demoOfferDto));
+        if(tail==='opportunities'&&method==='GET')return answer([]);
+        const m=tail.match(/^offers\/([0-9a-fA-F-]{36})(?:\/(availability-confirmation|fulfilment))?$/);
+        if(m){
+          const existing=shop.offers.find(offer=>offer.id===m[1]);
+          if(!existing)reject(404,'This sample seller does not own the requested offer');
+          if(m[2]==='fulfilment'){
+            if(method==='GET')return answer(demoDelivery(existing.id));
+            if(method==='PUT'){
+              const old=demoDelivery(existing.id);
+              const newDetails={
+                ...old,
+                deliveryAvailable:body.deliveryAvailable===null?null:
+                  typeof body.deliveryAvailable==='boolean'?body.deliveryAvailable:
+                    old.deliveryAvailable,
+                leadTimeHours:body.leadTimeHours===null?null:
+                  Number.isInteger(body.leadTimeHours)&&
+                    (body.leadTimeHours as number)>=0&&
+                    (body.leadTimeHours as number)<=8760?body.leadTimeHours:old.leadTimeHours,
+                fulfilmentConditions:body.fulfilmentConditions===null?null:
+                  typeof body.fulfilmentConditions==='string'?
+                    body.fulfilmentConditions.slice(0,500):old.fulfilmentConditions,
+                updatedAt:demoNextPublishedAt(),version:old.version+1,
+              };
+              current().deliveryState[existing.id]=newDetails;persist();
+              return answer(newDetails);
+            }
+          }
+          if(m[2]==='availability-confirmation'&&method==='POST'){
+            const patched={
+              priceMinor:existing.priceMinor,quantityAvailable:existing.quantityAvailable,
+              availabilityState:existing.availabilityState,
+              updatedAt:demoNextPublishedAt(),availabilityConfirmedAt:DATE,
+            };
+            current().storePatches[existing.id]=patched;persist();
+            return answer(demoOfferDto({...existing,...patched}));
+          }
+          if(!m[2]&&method==='PUT'){
+            if(!Number.isSafeInteger(body.priceMinor) && body.priceMinor!==null)
+              reject(422,'Offer price invalid');
+            if(body.quantityAvailable!==null &&
+               (!Number.isInteger(body.quantityAvailable) ||
+                (body.quantityAvailable as number)<0))
+              reject(422,'Offer quantity invalid');
+            if(typeof body.availabilityState!=='string'||
+               !['AVAILABLE','LOW_AVAILABILITY','NEEDS_CONFIRMATION','UNAVAILABLE','PAUSED']
+                 .includes(body.availabilityState))
+              reject(422,'Offer availability invalid');
+            if(body.title!==existing.title)
+              reject(422,'This preview cannot silently replace the published offer');
+            const updated={
+              priceMinor:body.priceMinor as number|null,
+              quantityAvailable:body.quantityAvailable as number|null,
+              availabilityState:body.availabilityState,
+              updatedAt:demoNextPublishedAt(),
+              availabilityConfirmedAt:null,
+            };
+            current().storePatches[existing.id]=updated;persist();
+            return answer(demoOfferDto({...existing,...updated}));
+          }
+        }
+      }
+      if((p==='/api/v1/store/me/profile' || p==='/api/v1/store/me/offers')&&method==='GET'){
+        auth();
+        // The synthetic Njeri offer belongs to the business KS002, not to
+        // her personal Store. Do not fabricate equivalence between scopes.
+        reject(404,'No personal Store is configured in this sample');
+      }
+
       // M5 Store reads use the SAME real StoreGateway contract, but this
       // demo only returns the two fictional records above.
       if(p==='/api/v1/stores/search' && method==='GET'){
@@ -359,7 +491,8 @@ export function createMiniDemoHttpClient(getToken:()=>string|null):HttpClient{
         const kind=url.searchParams.get('kind')||'PRODUCT';
         const limit=Math.min(10,Math.max(1,Number(url.searchParams.get('limit')||10)));
         if(!category)return answer([]);
-        return answer(sampleStores.flatMap(store=>store.offers.filter(offer=>
+        return answer(sampleStores.map(store=>demoStore(store.canonicalKsNumber))
+          .flatMap(store=>store.offers.filter(offer=>
           offer.kind===kind &&
           (offer.title.toLowerCase().includes(category) ||
            category.includes('chair') && offer.title.toLowerCase().includes('chair'))
