@@ -556,3 +556,13 @@ textarea.spm-field { resize:vertical; }
 .spm-mini-agreement-fact small { font-size:10px; color:#657d6b; overflow-wrap:anywhere; }
 .spm-mini-my-agreements .spm-mini-slot summary { display:flex; justify-content:space-between; }
 .spm-mini-my-agreements .spm-mini-slot summary>small { margin-left:auto; font-size:11px; }
+
+
+/* Secondary account tools stay behind one deliberate Mini onion expansion. */
+.spm-mini-account-menu { display:block; position:relative; min-width:0; }
+.spm-mini-account-menu>summary { display:flex; align-items:center; gap:6px; cursor:pointer; font-size:11px; font-weight:600; color:#355c45; padding:9px 11px; border:1px solid #d9e8d9; border-radius:18px; background:#fff; list-style:none; }
+.spm-mini-account-menu>summary::-webkit-details-marker { display:none; }
+.spm-mini-account-menu>summary>svg:last-child { transition:transform .15s ease; }
+.spm-mini-account-menu[open]>summary>svg:last-child { transform:rotate(90deg); }
+.spm-mini-account-options { display:grid; gap:3px; margin-top:7px; padding:8px; border:1px solid #d9e8d9; border-radius:12px; background:#fbfdf9; }
+.spm-mini-account-options>.spm-quiet-button { text-align:left; justify-content:flex-start; min-height:38px; }
