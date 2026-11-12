@@ -4,6 +4,7 @@ import { createHttpClient } from '../api/securepay/http';
 import { createStoreGateway } from '../api/securepay/store';
 import type { PublicSearchResultView, PublicStoreView, PublicOfferView } from '../api/securepay/store/dto';
 import type { MiniLanguage } from './miniModel';
+import { suggestedStoreSearchTerm } from '../features/living-workspace/suggestedStoreSearchTerm.mjs';
 
 /**
  * Public Store read-only transport reuses the existing, server-allowlisted
@@ -38,9 +39,17 @@ type View = 'search' | 'store' | 'plan';
 export function MiniBuyStore({ language, onBack, initialQuery = '' }: {language: MiniLanguage; onBack: () => void; initialQuery?: string}) {
   const sw = language === 'sw';
   const [view, setView] = useState<View>('search');
-  const asSearchTerm = (phrase: string) => phrase.trim()
-    .replace(/^(?:i (?:want|need|would like) to (?:buy|get|find)|(?:i'm|i am) looking for|buy|find)\s+/i, '')
-    .replace(/[?.!]+$/, '').slice(0, 100);
+  const asSearchTerm = (phrase: string) => {
+    const explicitShopping = suggestedStoreSearchTerm(phrase);
+    if (explicitShopping) return explicitShopping;
+    // The Buy input is an intentional product search. Do not send a whole
+    // unsupported conversation, precise address, account, URL or private data.
+    const simple = phrase.trim().replace(/[?.!]+$/, '');
+    if (simple.length < 2 || simple.length > 75 ||
+      /\\b(?:phone number|account|password|otp|pin|my address)\\b|[@:/\\\\]|\\d{5,}/i.test(simple))
+      return '';
+    return simple;
+  };
   const [term, setTerm] = useState(() => asSearchTerm(initialQuery));
   useEffect(() => {
     if (initialQuery.trim()) setTerm(asSearchTerm(initialQuery));
