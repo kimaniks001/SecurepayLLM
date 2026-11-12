@@ -206,6 +206,7 @@ export function MiniSellerStore({storeGateway,businessGateway,prepare,onBack,onI
       const published=await storeGateway.offer(storeBusiness.ksNumber,offer.id);
       const matches=miniStoreOfferSnapshotFresh([{
         sellerKsNumber:storeBusiness.ksNumber,offerId:offer.id,
+        sellerName:storeBusiness.displayName,availabilityState:offer.availabilityState,
         title:offer.title,offerUpdatedAt:offer.updatedAt,
         priceMinor:offer.priceMinor,currency:offer.currency,
         quantity:proposal.quantity,
