@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "prebuild": "node --test tests/day11-mini-beneficiary-collection.test.mjs tests/mini-m1-guest-continuity.test.mjs tests/mini-m1-first-party-agent-contract.test.mjs && npm run typecheck",
+    "prebuild": "node --test tests/day11-mini-beneficiary-collection.test.mjs tests/mini-m1-guest-continuity.test.mjs tests/mini-m1-first-party-agent-contract.test.mjs tests/mini-preflight-20-personas.test.mjs && npm run typecheck",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
@@ -36,7 +36,8 @@
     "test:final-convergence": "node --test tests/*.test.mjs",
     "test:mini-beneficiary": "node --test tests/day11-mini-beneficiary-collection.test.mjs",
     "test:mini-continuity": "node --test tests/mini-m1-guest-continuity.test.mjs",
-    "test:mini-first-party": "node --test tests/mini-m1-first-party-agent-contract.test.mjs"
+    "test:mini-first-party": "node --test tests/mini-m1-first-party-agent-contract.test.mjs",
+    "test:mini-preflight-20": "node --test tests/mini-preflight-20-personas.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
