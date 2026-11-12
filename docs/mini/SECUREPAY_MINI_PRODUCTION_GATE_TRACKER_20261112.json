@@ -38,19 +38,19 @@
       "gate": "Approved UI + source/CI/staging reconciliation and signed release ledger",
       "order": 0,
       "owner": "To be assigned at M0",
-      "lastEvidence": "None entered in programme tracker",
-      "ownerDecision": "Pending",
+      "lastEvidence": "2026-11-12 source compare: Mini vs Store 353 ahead/322 behind; Vercel Mini build READY; two guest pilot VITE variables absent; API PR #409 GitHub Actions startup_failure. docs/mini/M0_SOURCE_ENVIRONMENT_EVIDENCE_20261112.md.",
+      "ownerDecision": "NO-GO / partial. Confirm independent staging, restore CI, reconcile approved source histories.",
       "marketingLawAssessment": "Pending"
     },
     {
       "id": "M1",
       "title": "Real KS001 & continuity",
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "gate": "12-turn chairs & mother live model, safe reload, genuine status",
       "order": 1,
       "owner": "To be assigned at M0",
-      "lastEvidence": "None entered in programme tracker",
-      "ownerDecision": "Pending",
+      "lastEvidence": "Candidate 0faa102a: six SDK continuity regressions and eight mother collection checks passed (14/14) in Vercel prebuild. Not a real live KS001 session. Current source change b82d.../47f8... + UI 731f....",
+      "ownerDecision": "M1 NOT CERTIFIED. Registered guest pilot settings, staged model, 12-turn chairs and reload acceptance still required.",
       "marketingLawAssessment": "Pending"
     },
     {
@@ -221,5 +221,8 @@
     "User-approved design remains fixed; no independent 4th Mini app, shop, Assistant or Money ledger.",
     "Financial status never inferred from a draft or client-only simulation.",
     "New development PRs do not modify production without separate GO."
-  ]
+  ],
+  "currentWorkBranch": "feat/mini-m0-m1-continuity-gate-20261112",
+  "lastAudited": "2026-11-12",
+  "liveMoneyApproved": false
 }
