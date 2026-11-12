@@ -15,8 +15,20 @@ export function validateMiniFirstPartyOrigin(raw: string): string | null {
     return url.origin;
   } catch { return null; }
 }
+/**
+ * Do not activate the first-party KS001 staging path while the rest of Mini's
+ * normal API gateway still points at production. This is a necessary, though
+ * not sufficient, staging-isolation check: Vercel preview proxies and the
+ * upstream database/model must also be independently certified.
+ */
+export function miniFirstPartyOriginsAligned(firstParty: string, sharedApi: string): string | null {
+  const agent = validateMiniFirstPartyOrigin(firstParty);
+  const shared = validateMiniFirstPartyOrigin(sharedApi);
+  return agent && shared && agent === shared ? agent : null;
+}
 export function getMiniFirstPartyOrigin(): string | null {
-  return validateMiniFirstPartyOrigin(
-    String(import.meta.env.VITE_MINI_FIRST_PARTY_API_ORIGIN || '')
+  return miniFirstPartyOriginsAligned(
+    String(import.meta.env.VITE_MINI_FIRST_PARTY_API_ORIGIN || ''),
+    String(import.meta.env.VITE_SECUREPAY_API_BASE_URL || ''),
   );
 }
