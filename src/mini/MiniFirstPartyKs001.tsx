@@ -25,6 +25,12 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack }: {
   onBack: () => void;
 }) {
   const sw = language === 'sw';
+  const expiredKey = 'securepay.mini.firstparty.expired.v1:' + apiOrigin;
+  // Store ONLY an expiry marker; never move anonymous possession tokens into
+  // this component. The existing canonical gateway manages them separately.
+  const expiredWasAcknowledged = () => {
+    try { return sessionStorage.getItem(expiredKey)==='1'; } catch { return false; }
+  };
   const [epoch,setEpoch] = useState(0);
   const pair = useMemo(() => {
     const gateway = createAgentGateway(createHttpClient(apiOrigin, () => null));
@@ -45,6 +51,12 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack }: {
     setStatus('checking');
     setReview(null);setReviewError('');
     const check = async () => {
+      // The Agent Gateway deliberately forgets a rejected token on 404. Mini
+      // must not silently present the replacement empty chat on next reload.
+      if (expiredWasAcknowledged()) {
+        if (alive) setStatus('expired');
+        return;
+      }
       const priorId = pair.gateway.resumableConversationId();
       if (!priorId) {
         // This is a valid *new* locally configured guest. Do not create a
@@ -66,6 +78,9 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack }: {
       } catch (error) {
         if (!alive) return;
         const code = error && typeof error === 'object' && 'status' in error ? error.status : null;
+        if (code === 404) {
+          try {sessionStorage.setItem(expiredKey,'1');} catch { /* private-mode */ }
+        }
         setStatus(code === 404 ? 'expired' : 'continuity-unavailable');
       }
     };
@@ -107,6 +122,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack }: {
   const reset = () => {
     if (!resetAsked) {setResetAsked(true);return;}
     pair.gateway.forgetResumableConversation();
+    try {sessionStorage.removeItem(expiredKey);} catch { /* blocked storage */ }
     setMessage('');setResetAsked(false);setReview(null);setReviewError('');
     setEpoch(n=>n+1);
   };
