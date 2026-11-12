@@ -152,6 +152,54 @@
       "situation": "asks helper near Varsityville",
       "must": "Disclose coarse area only until relevant scoped agreement permissions exist",
       "mustNot": "Reveal exact home Plus Code/estate access"
+    },
+    {
+      "id": "HUX-19",
+      "persona": "customer looking for cement",
+      "surface": "AskKS001",
+      "situation": "asks to buy 40 bags near Varsityville",
+      "must": "At most three real sourced Store/offer suggestions, explain unverified 40-bag capacity and show View Store",
+      "mustNot": "Fake merchant, invent price, stock, delivery, seller agreement, paid ranking"
+    },
+    {
+      "id": "HUX-20",
+      "persona": "customer asking unrelated question",
+      "surface": "AskKS001",
+      "situation": "asks about a constitution clause",
+      "must": "Answer the question without injecting Store cards",
+      "mustNot": "Advertising or irrelevant shops"
+    },
+    {
+      "id": "HUX-21",
+      "persona": "buyer browsing a suggested Store",
+      "surface": "LivingWorkspace",
+      "situation": "taps View Store on an Ask KS001 card",
+      "must": "Open original Store in existing middle region, preserve conversation, selected item/cart and glance summary",
+      "mustNot": "Fourth panel, duplicate Store or new assistant"
+    },
+    {
+      "id": "HUX-22",
+      "persona": "buyer in compact Mini",
+      "surface": "Mini",
+      "situation": "clicks Buy something and needs to discover a product",
+      "must": "Search actual Store/offer records, open source shop, form accepted Agreement before settlement and do not require known price in discovery",
+      "mustNot": "Directly enter Pay someone or require an amount before offer discovery"
+    },
+    {
+      "id": "HUX-23",
+      "persona": "customer with little data",
+      "surface": "AskKS001",
+      "situation": "asks for a local shop",
+      "must": "Small text-first suggestions without image/map/video download requirement",
+      "mustNot": "Compulsory image-heavy catalogue"
+    },
+    {
+      "id": "HUX-24",
+      "persona": "buyer without matching published sources",
+      "surface": "AskKS001",
+      "situation": "asks for a rare item with no supported Store results",
+      "must": "Explain no verified matches and allow refined search or optional assistance",
+      "mustNot": "Synthetic real-looking Store or automatic Plug appointment"
     }
   ]
 }
