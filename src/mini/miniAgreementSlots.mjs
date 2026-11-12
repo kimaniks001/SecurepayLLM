@@ -18,8 +18,10 @@ const people = arr => validArray(arr).filter(x=>x && isText(x.name)).map(x=>({
   value:[x.role,x.describedAs].filter(isText).join(' · ') || 'Person mentioned',
   detail:x.participation==='NOT_JOINED'?'Has not joined or accepted this Agreement':
     x.link==='NOT_LINKED'?'Identity not linked to a verified KSNumber':
-    x.link==='NOT_NAMED'?'Identity not established':null,
-  needsChecking:x.link!=='LINKED' || x.participation==='NOT_JOINED',
+    x.link==='NOT_NAMED'?'Identity not established':
+    'Agreement participation and authority must still be confirmed',
+  // A linked identity is NOT the same as consent or accepted participation.
+  needsChecking:true,
   basis:null,
   kind:'person',
 }));
