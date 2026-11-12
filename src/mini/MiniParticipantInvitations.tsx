@@ -97,7 +97,7 @@ function MiniRecipientDecision({gateway,invitationId,onBack,onReauthenticate}:{
     </>}
     {(state.phase==='join-prompt'||state.phase==='join-error'||state.phase==='join-uncertain') && <>
       {state.error && <p role="alert">{state.error}</p>}
-      <p>**Taking part** adds you as a participant. It does not agree to any terms or move money.</p>
+      <p><strong>Taking part</strong> adds you as a participant. It does not agree to any terms or move money.</p>
       <button type="button" className="spm-primary" onClick={()=>void recipient.join()}>
         {state.phase==='join-uncertain'?'Check the same Join request':'Take part — not yet agreeing'}
       </button>
