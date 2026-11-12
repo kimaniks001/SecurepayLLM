@@ -38,8 +38,8 @@
       "gate": "Approved UI + source/CI/staging reconciliation and signed release ledger",
       "order": 0,
       "owner": "To be assigned at M0",
-      "lastEvidence": "2026-11-12 source compare: Mini vs Store 353 ahead/322 behind; Vercel Mini build READY; two guest pilot VITE variables absent; API PR #409 GitHub Actions startup_failure. docs/mini/M0_SOURCE_ENVIRONMENT_EVIDENCE_20261112.md.",
-      "ownerDecision": "NO-GO / partial. Confirm independent staging, restore CI, reconcile approved source histories.",
+      "lastEvidence": "2026-11-12: Mini/Store branches diverged 353/322 commits; Mini owner Vercel preview build READY. Current main API has /api/agent/conversations and Agreement Formation, but no discovered /api/v1/public/embed/installations controller. No registered Mini staging origin configuration. See docs/mini/M1_FIRST_PARTY_AGENT_COMPATIBILITY_AND_ACTIVATION_20261112.md.",
+      "ownerDecision": "PARTIAL / NO-GO. Validate independent staging and CORS, reconcile approved Store source, recover GitHub CI.",
       "marketingLawAssessment": "Pending"
     },
     {
@@ -49,8 +49,8 @@
       "gate": "12-turn chairs & mother live model, safe reload, genuine status",
       "order": 1,
       "owner": "To be assigned at M0",
-      "lastEvidence": "Candidate 0faa102a: six SDK continuity regressions and eight mother collection checks passed (14/14) in Vercel prebuild. Not a real live KS001 session. Current source change b82d.../47f8... + UI 731f....",
-      "ownerDecision": "M1 NOT CERTIFIED. Registered guest pilot settings, staged model, 12-turn chairs and reload acceptance still required.",
+      "lastEvidence": "Candidate branch: same AgentGateway + AgentController reused in Mini behind staging-only VITE_MINI_FIRST_PARTY_API_ORIGIN; guest route remains fallback. Focused 18 tests (8 mother + 6 guest continuity + 4 first-party contracts) and TypeScript typecheck passed in preview deployment commit 1347c398. No actual live KS001 test.",
+      "ownerDecision": "M1 CODE CANDIDATE ONLY. Stage exact Origin + backend isolation/CORS, 12-turn Ruiru chairs, mother consent, reload, idempotent pending send, independent human gate.",
       "marketingLawAssessment": "Pending"
     },
     {
