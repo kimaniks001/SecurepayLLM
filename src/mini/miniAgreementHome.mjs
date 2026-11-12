@@ -68,12 +68,14 @@ export function miniAgreementHomePage(response,expectedPage=0){
  * this. We deliberately never call a Money rail, invent an approval, or
  * interpret an obligation's PENDING status as overdue.
  */
-export function miniAgreementDetailView(dto,expectedId){
+export function miniAgreementDetailView(dto,expectedId,expectedVersionId=null){
   if(!dto||!dto.overview||dto.overview.agreementId!==expectedId||
     !nonBlank(expectedId)||!nonBlank(dto.overview.status)||
     !array(dto.participants)||!array(dto.milestones)||
     !array(dto.terms)||!array(dto.activity)||
-    !array(dto.versionHistory)||!dto.money)return null;
+    !array(dto.versionHistory)||!dto.money||
+    (expectedVersionId!==null &&
+      (!dto.currentVersion || dto.currentVersion.versionId!==expectedVersionId)))return null;
   const participants=[];
   for(const p of dto.participants){
     if(!p||!nonBlank(p.participantId)||!nonBlank(p.roleCode)||
