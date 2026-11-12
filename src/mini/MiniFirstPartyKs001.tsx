@@ -319,6 +319,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack }: {
       <MiniMyAgreements gateway={agreements}
         prepare={()=>ensureFreshSession(session,auth)}
         onBack={()=>setAgreementsOpen(false)}
+        onReauthenticate={reauthenticateAgreements}
       />}
     {status==='ready' && !identityOpen && !peopleOpen && !agreementsOpen && <>
       {!state.conversationId && <p className="spm-capture-note">
