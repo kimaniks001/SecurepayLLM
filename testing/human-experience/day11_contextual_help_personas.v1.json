@@ -1,0 +1,205 @@
+{
+  "suite": "Day 11 human-first contextual assistance UX acceptance",
+  "version": 1,
+  "status": "BLUEPRINT_ONLY_UNTESTED",
+  "targets": [
+    "Store",
+    "LivingWorkspace",
+    "SecurePayMini",
+    "AskKS001"
+  ],
+  "cases": [
+    {
+      "id": "HUX-01",
+      "persona": "ordinary shopper",
+      "surface": "Store",
+      "situation": "buys one bag of rice",
+      "must": "No Plug, Master or Saver prompt or mandatory human role",
+      "mustNot": "Human referral before cart checkout"
+    },
+    {
+      "id": "HUX-02",
+      "persona": "ordinary shopper",
+      "surface": "Mini",
+      "situation": "valid payable agreement enters checkout",
+      "must": "Original Mini flow without redirect to chat or helper",
+      "mustNot": "Mandatory help/role selection"
+    },
+    {
+      "id": "HUX-03",
+      "persona": "young trader with little mobile data",
+      "surface": "Store",
+      "situation": "wants to see prices with images off",
+      "must": "Text-first small data path; no forced map, audio, image or video",
+      "mustNot": "Fake low-data mode or claim of deployed offline service"
+    },
+    {
+      "id": "HUX-04",
+      "persona": "young trader without Internet connection",
+      "surface": "AskKS001",
+      "situation": "tries to submit while offline",
+      "must": "Clearly report unsubmitted/unverified status; show genuine available support channel if implemented",
+      "mustNot": "Claim server acceptance or SMS send without service"
+    },
+    {
+      "id": "HUX-05",
+      "persona": "young trader needs to create a Store",
+      "surface": "LivingWorkspace",
+      "situation": "asks for someone to assist",
+      "must": "Offer optional scoped, non-coercive human help and fee disclosure before assignment",
+      "mustNot": "Ask for credentials/OTP or give Plug unrestricted owner account"
+    },
+    {
+      "id": "HUX-06",
+      "persona": "elder scientist",
+      "surface": "AskKS001",
+      "situation": "requests expert offering without using complex forms",
+      "must": "Offer concise plain language choices and optional assisted service",
+      "mustNot": "Classify age as inability or assume skill unverified"
+    },
+    {
+      "id": "HUX-07",
+      "persona": "elder scientist",
+      "surface": "Store",
+      "situation": "publishes a consultation with helper support",
+      "must": "Expert independently reviews and authorises scope, publication and price",
+      "mustNot": "Plug impersonates expert or self-verifies professional status"
+    },
+    {
+      "id": "HUX-08",
+      "persona": "buyer with 3 sources",
+      "surface": "Store",
+      "situation": "cannot coordinate transport",
+      "must": "Offer optional contextual coordination with qualified on-duty Plug and distinct seller consent",
+      "mustNot": "Default Saver participation or fictitious savings"
+    },
+    {
+      "id": "HUX-09",
+      "persona": "project buyer",
+      "surface": "AskKS001",
+      "situation": "asks whether structural material is suitable",
+      "must": "Offer optional scoped verified specialist advice if capability evidence exists",
+      "mustNot": "Self-designated Master assumed licensed/verified"
+    },
+    {
+      "id": "HUX-10",
+      "persona": "any customer",
+      "surface": "LivingWorkspace",
+      "situation": "declines optional human helper",
+      "must": "Preserve original chat, cart, work and next action",
+      "mustNot": "Delete draft or force assistance"
+    },
+    {
+      "id": "HUX-11",
+      "persona": "seller",
+      "surface": "Store",
+      "situation": "authorises Plug to upload photos",
+      "must": "Granular time-bounded delegated scope, audit and revocation",
+      "mustNot": "Plug changes prices/availability/agreements on their own"
+    },
+    {
+      "id": "HUX-12",
+      "persona": "customer",
+      "surface": "Mini",
+      "situation": "payment is blocked by missing seller consent",
+      "must": "Describe blocker and next seller action; no human role unless user asks or evidenced specialist need",
+      "mustNot": "Automatic charge or paid Plug referral"
+    },
+    {
+      "id": "HUX-13",
+      "persona": "one user many surfaces",
+      "surface": "Store,LivingWorkspace,Mini,AskKS001",
+      "situation": "asks qualified person for help and returns",
+      "must": "Same canonical request/status and source context",
+      "mustNot": "Parallel human task record or second KS001"
+    },
+    {
+      "id": "HUX-14",
+      "persona": "community saver shopper",
+      "surface": "Store",
+      "situation": "qualified Plug unavailable",
+      "must": "Show direct/separate delivery alternative without blocking ordinary purchase",
+      "mustNot": "Fictitious Plug or pre-approved Saver"
+    },
+    {
+      "id": "HUX-15",
+      "persona": "person asking human assistance",
+      "surface": "AskKS001",
+      "situation": "asks 'can someone call me?'",
+      "must": "Only offer real available contact channel with consent and realistic expectations",
+      "mustNot": "Claim a call was arranged if no capability exists"
+    },
+    {
+      "id": "HUX-16",
+      "persona": "elder scientist",
+      "surface": "LivingWorkspace",
+      "situation": "wants to review an opinion read aloud by assistant",
+      "must": "User retains full approval; signed/submitted opinion requires authenticated expert authority",
+      "mustNot": "Human assistant issues expert opinion as expert"
+    },
+    {
+      "id": "HUX-17",
+      "persona": "user with urgent question",
+      "surface": "AskKS001",
+      "situation": "already has verified facts and a simple next action",
+      "must": "Answer briefly with one useful next step",
+      "mustNot": "Complex chat tree or sales-promoted helper"
+    },
+    {
+      "id": "HUX-18",
+      "persona": "privacy-sensitive user",
+      "surface": "Store",
+      "situation": "asks helper near Varsityville",
+      "must": "Disclose coarse area only until relevant scoped agreement permissions exist",
+      "mustNot": "Reveal exact home Plus Code/estate access"
+    },
+    {
+      "id": "HUX-19",
+      "persona": "customer looking for cement",
+      "surface": "AskKS001",
+      "situation": "asks to buy 40 bags near Varsityville",
+      "must": "At most three real sourced Store/offer suggestions, explain unverified 40-bag capacity and show View Store",
+      "mustNot": "Fake merchant, invent price, stock, delivery, seller agreement, paid ranking"
+    },
+    {
+      "id": "HUX-20",
+      "persona": "customer asking unrelated question",
+      "surface": "AskKS001",
+      "situation": "asks about a constitution clause",
+      "must": "Answer the question without injecting Store cards",
+      "mustNot": "Advertising or irrelevant shops"
+    },
+    {
+      "id": "HUX-21",
+      "persona": "buyer browsing a suggested Store",
+      "surface": "LivingWorkspace",
+      "situation": "taps View Store on an Ask KS001 card",
+      "must": "Open original Store in existing middle region, preserve conversation, selected item/cart and glance summary",
+      "mustNot": "Fourth panel, duplicate Store or new assistant"
+    },
+    {
+      "id": "HUX-22",
+      "persona": "buyer in compact Mini",
+      "surface": "Mini",
+      "situation": "clicks Buy something and needs to discover a product",
+      "must": "Search actual Store/offer records, open source shop, form accepted Agreement before settlement and do not require known price in discovery",
+      "mustNot": "Directly enter Pay someone or require an amount before offer discovery"
+    },
+    {
+      "id": "HUX-23",
+      "persona": "customer with little data",
+      "surface": "AskKS001",
+      "situation": "asks for a local shop",
+      "must": "Small text-first suggestions without image/map/video download requirement",
+      "mustNot": "Compulsory image-heavy catalogue"
+    },
+    {
+      "id": "HUX-24",
+      "persona": "buyer without matching published sources",
+      "surface": "AskKS001",
+      "situation": "asks for a rare item with no supported Store results",
+      "must": "Explain no verified matches and allow refined search or optional assistance",
+      "mustNot": "Synthetic real-looking Store or automatic Plug appointment"
+    }
+  ]
+}
