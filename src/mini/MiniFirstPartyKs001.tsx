@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { ArrowLeft, ArrowRight, BookmarkPlus, CircleAlert, ClipboardList, FolderOpen, LogOut, Mail, MessageCircle, RefreshCcw, Send, ShieldCheck, Users } from 'lucide-react';
 import { createHttpClient } from '../api/securepay/http';
 import { createAgentGateway } from '../api/securepay/agent';
+import { createConversationAccessStore } from '../api/securepay/agent/continuity';
+import { createMiniDemoHttpClient, miniDemoSeedAccess, miniDemoTokens } from './miniInteractiveDemo';
 import { createAuthGateway } from '../api/securepay/auth';
 import { createAgreementGateway } from '../api/securepay/agreements';
 import { MiniParticipantInvitations } from './MiniParticipantInvitations';
@@ -29,11 +31,12 @@ import type { MiniDraft, MiniLanguage } from './miniModel';
  * Unlike the legacy guest installation contract, this route exists in the
  * currently inspected SecurePayAPI main source as /api/agent/conversations.
  */
-export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack }: {
+export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo = false }: {
   apiOrigin: string;
   draft: MiniDraft | null;
   language: MiniLanguage;
   onBack: () => void;
+  demo?: boolean;
 }) {
   const sw = language === 'sw';
   const expiredKey = 'securepay.mini.firstparty.expired.v1:' + apiOrigin;
@@ -44,20 +47,30 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack }: {
   };
   // Use SecurePay's canonical, memory-only session store; never write identity
   // tokens or account listings into Mini's local browser draft storage.
-  const [session] = useState(() => createSessionStore());
+  const [session] = useState(() => {
+    const owner = createSessionStore();
+    if (demo) owner.setTokens(miniDemoTokens('amina'));
+    return owner;
+  });
+  const [demoAccess] = useState(() => {
+    const access = createConversationAccessStore(null);
+    if (demo) miniDemoSeedAccess(access);
+    return access;
+  });
   const sessionState = useSyncExternalStore(session.subscribe,session.getSnapshot,session.getSnapshot);
   const signedIn = sessionState.status === 'signed-in';
-  const auth = useMemo(() => createAuthGateway(
-    createHttpClient(apiOrigin,session.getAccessToken)
-  ),[apiOrigin,session]);
-  const agreements=useMemo(()=>createAgreementGateway(
-    createHttpClient(apiOrigin,session.getAccessToken)
-  ),[apiOrigin,session]);
+  const http = useMemo(() => demo
+    ? createMiniDemoHttpClient(session.getAccessToken)
+    : createHttpClient(apiOrigin,session.getAccessToken),[apiOrigin,demo,session]);
+  const auth = useMemo(() => createAuthGateway(http),[http]);
+  const agreements=useMemo(()=>createAgreementGateway(http),[http]);
   const [epoch,setEpoch] = useState(0);
   const pair = useMemo(() => {
-    const gateway = createAgentGateway(createHttpClient(apiOrigin,session.getAccessToken));
+    const gateway = demo
+      ? createAgentGateway(http,demoAccess)
+      : createAgentGateway(http);
     return { gateway, controller: createAgentController(gateway) };
-  },[apiOrigin,epoch,session]);
+  },[http,epoch,demo,demoAccess]);
   const [state,setState] = useState(pair.controller.getSnapshot());
   const [status,setStatus] = useState<'checking'|'ready'|'continuity-unavailable'|'expired'>('checking');
   const [message,setMessage] = useState(() => draft
@@ -256,6 +269,16 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack }: {
     else if(identityGoal==='agreements'){setAgreementsOpen(true);}
     else {setPeopleOpen(identityGoal);}
   };
+  const changeDemoPersona = (actor:'amina'|'njeri') => {
+    if (!demo) return;
+    demoAccess.forget();
+    if (actor==='amina') miniDemoSeedAccess(demoAccess);
+    session.setTokens(miniDemoTokens(actor));
+    setReview(null);setReviewError('');setOwnedList([]);
+    setOwnedOpen(false);setPeopleOpen(null);setAgreementsOpen(false);
+    setIdentityOpen(false);setSavedNotice('');setOwnedError('');
+    setMessage('');setStatus('checking');setEpoch(n=>n+1);
+  };
   const signOut = () => {
     // Explicit privacy boundary: never leave one signed-in person's saved
     // transcript or account list visible after their token is dropped.
@@ -279,7 +302,20 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack }: {
   return <section className="spm-guest spm-content" data-mini-first-party-ks001="staging">
     <button type="button" className="spm-back" onClick={onBack}><ArrowLeft size={18}/>{sw?'Rudi':'Back'}</button>
     <div className="spm-persona"><MessageCircle size={16}/><span>KS001</span>
-      <span className="spm-dot"/><span>First-party staging conversation</span></div>
+      <span className="spm-dot"/><span>{demo?'Scripted preview · Not live AI':'First-party staging conversation'}</span></div>
+    {demo && <div className="spm-mini-preview-banner" role="status">
+      <strong>Interactive M1–M4 preview · SYNTHETIC DATA</strong>
+      <p>Try the existing Mini components as Amina or Njeri. Replies are scripted;
+        identities, stock, Agreements and Money are not real. No requests reach SecurePayAPI.</p>
+      <div className="spm-mini-demo-switch" aria-label="Choose a sample account">
+        <button type="button" className="spm-secondary"
+          aria-pressed={sessionState.status==='signed-in'&&sessionState.tokens.accessToken==='mini-demo-amina'}
+          onClick={()=>changeDemoPersona('amina')}>Amina · Buyer</button>
+        <button type="button" className="spm-secondary"
+          aria-pressed={sessionState.status==='signed-in'&&sessionState.tokens.accessToken==='mini-demo-njeri'}
+          onClick={()=>changeDemoPersona('njeri')}>Njeri · Seller</button>
+      </div>
+    </div>}
     <h1 className="spm-question">{sw?'Ungependa kuuliza nini?':'What would you like help with?'}</h1>
     {status==='checking' && <p className="spm-capture-note" role="status">Checking the previous SecurePay conversation…</p>}
     {(status==='continuity-unavailable'||status==='expired') && <div className="spm-guest-warning" role="alert">
@@ -372,7 +408,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack }: {
               onClick={()=>openPeople('creator')} disabled={saveBusy}>
               <Users size={15}/>Invite someone
             </button>
-            {signedIn && <button type="button" className="spm-quiet-button"
+            {signedIn && !demo && <button type="button" className="spm-quiet-button"
               onClick={()=>{if (!signOutAsked){setSignOutAsked(true);return;}signOut();}}
               aria-label={signOutAsked?'Confirm sign out; unsaved work may be lost':'Sign out of SecurePay Mini'}>
               <LogOut size={15}/>{signOutAsked?'Confirm sign out':'Sign out'}
@@ -405,6 +441,8 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack }: {
           onClick={()=>void loadOwned()}>Recheck saved work</button>}
       </section>}
     </>}
-    <p className="spm-disclaimer">Staging-only Agent conversation; no automatic agreement, participant invitation or payment.</p>
+    <p className="spm-disclaimer">{demo
+      ? 'SYNTHETIC DEMO ONLY — no real KS001 intelligence, identities, Store stock, Agreement acceptance or Money.'
+      : 'Staging-only Agent conversation; no automatic agreement, participant invitation or payment.'}</p>
   </section>;
 }
