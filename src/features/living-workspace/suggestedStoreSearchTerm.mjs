@@ -18,6 +18,10 @@ export function suggestedStoreSearchTerm(message) {
   }
   if (!remainder) return null;
   let product = remainder.trim()
+    // Remove trailing punctuation BEFORE removing location phrases; otherwise
+    // "cement near Varsityville?" forwards the private location as a search
+    // term while "cement near Varsityville" correctly strips it.
+    .replace(/[?.!,]+$/,'')
     .replace(/^(?:me |a |an |some |the |a shop (?:selling|for) |a store (?:selling|for) )+/,'')
     .replace(/^\d+\s*(?:bags?|pieces?|packets?|kilograms?|kg|litres?|tons?|crates?|units?)\s+(?:of\s+)?/, '')
     .replace(/\s+(?:near|around|in|at|from|for delivery to)\s+[a-z0-9, .'-]+$/,'')
