@@ -12,6 +12,7 @@ test('Day 11 uses one source of Agreement Commerce language', () => {
   const ks = read('src/features/experience/Ks001SurfaceGuide.tsx');
   assert.match(c, /Agree · Deliver · Grow/);
   assert.match(store, /CommunitySaverConsentPreview/);
+  if (has('src/features/store/StoreMasterpieceLayoutReview.tsx')) assert.match(read('src/features/store/StoreMasterpieceLayoutReview.tsx'), /CommunitySaverConsentPreview/);
   if (mini) assert.match(mini, /COMMERCE_EXPERIENCE\.sourceOnly/);
   else assert.match(c, /sourceOnly: 'Published offer only/);
   assert.match(ks, /COMMERCE_EXPERIENCE\.assistant/);
