@@ -24,7 +24,7 @@ test('no anonymous staging Mini conversation is represented as a signed Agreemen
   assert.match(firstParty,/No participant accepted, no SecureLink issued and no Money moved/);
   assert.match(firstParty,/staging/);
   assert.match(firstParty,/continuity-unavailable/);
-  assert.match(firstParty,/snapshot\.turns\.length !== history\.entries\.length/);
+  assert.match(firstParty,/miniHistoryRestored\(history,\s*snapshot,\s*priorId\)/);
 });
 
 test('protected stage origin cannot be arbitrary or production, and no fallback leaks client secrets',()=>{
