@@ -46,8 +46,7 @@ export function MiniParticipantInvitations({ gateway, signedIn, onReauthenticate
           item.status==='REVOKED'?'Revoked':item.status==='EXPIRED'?'Expired':'Status unavailable'}</small>
         {item.inviterDisplayName && <small>From {item.inviterDisplayName}</small>}
       </div>
-      {item.needsAttention && (item.status==='ISSUED'||item.status==='VIEWED') &&
-      item.isCurrentVersion && <button type="button" className="spm-secondary"
+      {item.needsAttention && <button type="button" className="spm-secondary"
         onClick={()=>setSelected(item.invitationId)}>Review <ArrowRight size={14}/></button>}
     </div>)}
     {state.status==='ready' && state.items.length<state.total && <button type="button"
