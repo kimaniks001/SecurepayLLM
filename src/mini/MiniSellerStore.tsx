@@ -47,7 +47,10 @@ export function MiniSellerStore({storeGateway,businessGateway,prepare,onBack,onI
     };
     void load();
     return()=>{alive=false;};
-  },[businessGateway,prepare]);
+    // The parent supplies a short-lived auth refresh callback; its identity
+    // changes every render. Only the stable gateway owns this load.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[businessGateway]);
 
   const personal=async()=>{
     setSelectedOffer(null);setFulfilment(null);setNotice('');
