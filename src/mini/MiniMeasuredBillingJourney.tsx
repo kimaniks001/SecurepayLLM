@@ -8,7 +8,7 @@ import type { ConfirmedQuantity, EvidenceAssessment, MeasuredReport } from
 import type {
   MeasuredBillingGateway, ConfirmedDispute, ResolutionSummary,
   ResolutionOutcome, ResolutionProposal, ReviewedBill, BillReview, PlannedPayment, PlannedReview,
-  AgreementPlanAddendumStatus,
+  AgreementPlanAddendumStatus, MeasuredMoneyReadiness,
 } from '../api/securepay/measured-billing';
 
 /**
@@ -78,6 +78,7 @@ export function MiniMeasuredBillingJourney({
   const [plan,setPlan]=useState<PlannedPayment|null>(null);
   const [planReview,setPlanReview]=useState<PlannedReview|null>(null);
   const [addendum,setAddendum]=useState<AgreementPlanAddendumStatus|null>(null);
+  const [moneyReadiness,setMoneyReadiness]=useState<MeasuredMoneyReadiness|null>(null);
   const [annexRejection,setAnnexRejection]=useState('');
   const [revising,setRevising]=useState(false);
   const [staleBill,setStaleBill]=useState(false);
@@ -167,6 +168,7 @@ export function MiniMeasuredBillingJourney({
       let nextPlan:PlannedPayment|null=null;
       let nextPlanReview:PlannedReview|null=null;
       let nextAnnex:AgreementPlanAddendumStatus|null=null;
+      let nextMoney:MeasuredMoneyReadiness|null=null;
       let previousBillHeld=false;
       if(!currentDispute||currentOutcome){
         try{nextBill=await gateway.latestBill(agreementId,report.reportId);}
@@ -211,6 +213,20 @@ export function MiniMeasuredBillingJourney({
                   nextAnnex.planDigest!==nextPlan.planDigest ||
                   nextAnnex.canonicalAgreementVersionPreserved!==true)
                 throw Error('Agreement addendum consent does not match the plan');
+              if(nextAnnex.annexCurrent){
+                nextMoney=await gateway.moneyReadiness(
+                  agreementId,nextBill.id,nextPlan.id);
+                if(nextMoney.paymentAuthorized!==false ||
+                    nextMoney.providerQuoteAvailable!==false ||
+                    nextMoney.settlementPermitted!==false ||
+                    nextMoney.callbackVerified!==false ||
+                    nextMoney.billId!==nextBill.id ||
+                    nextMoney.planId!==nextPlan.id ||
+                    nextMoney.planDigest!==nextPlan.planDigest ||
+                    nextMoney.billSourceKey!==nextBill.sourceKey ||
+                    nextMoney.billTotalMinor!==nextBill.totalMinor)
+                  throw Error('SecurePay cannot verify safe Money status');
+              }
             }
           }
         }
@@ -218,6 +234,7 @@ export function MiniMeasuredBillingJourney({
       if(ticket!==requestNumber.current)return;
       setBill(nextBill);setBillReview(nextBillReview);
       setPlan(nextPlan);setPlanReview(nextPlanReview);setAddendum(nextAnnex);
+      setMoneyReadiness(nextMoney);
       setStaleBill(previousBillHeld);
       setBlocked(false);setReady(true);
       setNotice('Checked against current SecurePay records.');
@@ -227,6 +244,7 @@ export function MiniMeasuredBillingJourney({
         setResolutionHistory([]);
         setOutcome(null);setBill(null);setBillReview(null);
         setPlan(null);setPlanReview(null);setAddendum(null);
+        setMoneyReadiness(null);
         setError('SecurePay could not verify this work, its reviews or current bill. No action was approved. Recheck before proceeding.');
       }
     }finally{if(ticket===requestNumber.current)setBusy(false);}
@@ -734,6 +752,18 @@ export function MiniMeasuredBillingJourney({
                   {addendum?.annexCurrent&&
                     <small role="status">Signed Agreement addendum recorded.
                       This is not a deposit receipt, an invoice or payment authority.</small>}
+                  {moneyReadiness&&<div className="spm-mini-agreement-fact"
+                    data-g9="measured-money-readiness" role="status">
+                    <strong>Money · provider authorization pending</strong>
+                    <small>Agreement and payment plan consent checked.
+                      Actual payment remains disabled until the separate
+                      funding and provider safety gates are certified.</small>
+                    <small>Next: {moneyReadiness.nextAction
+                      .replaceAll('_',' ').toLowerCase()}.</small>
+                    {moneyReadiness.fundsReceivedOrInMotion&&
+                      <small>Existing money activity needs reconciliation;
+                        do not attempt a second payment.</small>}
+                  </div>}
                   {addendum?.state==='ADDENDUM_REJECTED_NEW_PLAN_REQUIRED'&&
                     <small>The plan needs revision and fresh consent.
                       The old proposed terms remain in history.</small>}
