@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { ArrowLeft, ArrowRight, BookmarkPlus, CircleAlert, ClipboardList, FolderOpen, LogOut, Mail, MessageCircle, RefreshCcw, Send, ShieldCheck, ShoppingBag, Store, Users } from 'lucide-react';
 import { createHttpClient } from '../api/securepay/http';
 import { createAgentGateway } from '../api/securepay/agent';
@@ -34,6 +34,7 @@ import type { MiniSavedWorkItem } from './miniOwnedWork.mjs';
 import { miniDiscussionPrompt } from './miniGuestConfig';
 import { miniHistoryRestored } from './miniHistoryProof.mjs';
 import { MiniAgreementSlots } from './MiniAgreementSlots';
+import { miniCapabilityCatalogue, type MiniCapabilityCatalogueView } from './miniCapabilityCatalogue.mjs';
 import type { MiniDraft, MiniLanguage } from './miniModel';
 
 /**
@@ -120,6 +121,14 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
   const [resetAsked,setResetAsked] = useState(false);
   const [review,setReview] = useState<AgreementFormationDto|null>(null);
   const [reviewError,setReviewError] = useState('');
+  // P0 onion: descriptive capability truth, requested only by the user and
+  // never a tool or action grant. Preview flag is presentation-only.
+  const capabilityEnabled = !demo &&
+    import.meta.env.VITE_SECUREPAY_P0_KS001_CAPABILITIES === 'enabled';
+  const capabilityReadEpoch = useRef(0);
+  const [capabilityOpen,setCapabilityOpen] = useState(false);
+  const [capabilityStatus,setCapabilityStatus] = useState<'idle'|'loading'|'ready'|'error'>('idle');
+  const [capabilityView,setCapabilityView] = useState<MiniCapabilityCatalogueView|null>(null);
   const [recoveryAttempt,setRecoveryAttempt] = useState(0);
   const [identityOpen,setIdentityOpen] = useState(false);
   const [identityGoal,setIdentityGoal] = useState<'saved'|'inbox'|'creator'|'agreements'|'seller'>('saved');
@@ -147,6 +156,13 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
     setState(pair.controller.getSnapshot());
     return pair.controller.subscribe(() => setState(pair.controller.getSnapshot()));
   },[pair]);
+  // A resumed conversation or account change must never inherit another
+  // conversation's capability response, even during a pending network read.
+  useEffect(() => {
+    capabilityReadEpoch.current += 1;
+    setCapabilityOpen(false);setCapabilityView(null);setCapabilityStatus('idle');
+  },[pair,state.conversationId]);
+
   useEffect(() => {
     let alive = true;
     setStatus('checking');
@@ -207,6 +223,27 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
     await pair.controller.retry();
     const current=pair.controller.getSnapshot();
     if (!current.pending && !current.error) setMessage('');
+  };
+  const toggleCapabilityView = async () => {
+    if (!capabilityEnabled || !state.conversationId || status!=='ready' ||
+        state.busy || !!state.pending) return;
+    if (capabilityOpen) {setCapabilityOpen(false);return;}
+    setCapabilityOpen(true);
+    if (capabilityView && capabilityStatus==='ready') return;
+    setCapabilityStatus('loading');setCapabilityView(null);
+    const startedAt = capabilityReadEpoch.current;
+    const conversationId = state.conversationId;
+    try {
+      const raw = await pair.gateway.readCapabilityCatalogue(conversationId);
+      const safe = miniCapabilityCatalogue(raw);
+      if (!safe) throw new Error('Invalid SecurePay capability truth');
+      if (capabilityReadEpoch.current!==startedAt ||
+          pair.controller.getSnapshot().conversationId!==conversationId) return;
+      setCapabilityView(safe);setCapabilityStatus('ready');
+    } catch {
+      if (capabilityReadEpoch.current!==startedAt) return;
+      setCapabilityStatus('error');
+    }
   };
   const readAgreement = async () => {
     if (!state.conversationId || state.pending || state.busy || status!=='ready') return;
@@ -572,6 +609,41 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
           <Send size={16}/>{state.busy?'Confirming…':'Send to KS001'}<ArrowRight size={16}/>
         </button>
       </form>
+      {capabilityEnabled && !!state.conversationId && <div className="spm-mini-owned-actions">
+        <button type="button" className="spm-quiet-button"
+          aria-expanded={capabilityOpen}
+          onClick={()=>void toggleCapabilityView()} disabled={state.busy||!!state.pending}>
+          <ArrowRight size={15}/>{sw?'KS001 inaweza kusaidia nini?':'What can KS001 help with?'}
+        </button>
+        {capabilityOpen && <section className="spm-mini-owned-list"
+          aria-label="Verified KS001 help, no financial authority">
+          {capabilityStatus==='loading' && <p role="status">Checking SecurePay capabilities…</p>}
+          {capabilityStatus==='error' && <p role="alert">
+            SecurePay could not verify its capabilities. No unavailable service is being offered.
+            <button type="button" className="spm-quiet-button"
+              onClick={()=>{setCapabilityOpen(false);setCapabilityStatus('idle');}}>
+              Close and recheck
+            </button>
+          </p>}
+          {capabilityStatus==='ready' && capabilityView && <>
+            <p>These are the things KS001 can explain or help you prepare in this conversation.
+              Your identity, permission and each action are checked separately.</p>
+            {capabilityView.capabilities.map(item=><details className="spm-mini-slot" key={item.code}>
+              <summary>{item.humanBenefit}</summary>
+              <small>{item.exposure==='KNOW_EXPLAIN'?'Explanation only':
+                item.exposure==='SUGGEST'?'Suggestion only':
+                item.exposure==='READ'?'Authorised information only':
+                'Preparation with your explicit approval'}</small>
+              {item.limited && <p>Some parts of this service are still limited.</p>}
+              {item.eligibility==='UNKNOWN' && <p>Your eligibility has not been verified.</p>}
+              {item.eligibility==='INELIGIBLE' && <p>This service is not available to your current identity.</p>}
+              {item.limitations.map((limit,i)=><p key={i}>{limit}</p>)}
+            </details>)}
+            {capabilityView.capabilities.length===0 &&
+              <p>No capabilities are verified for this conversation right now.</p>}
+          </>}
+        </section>}
+      </div>}
       {!!state.conversationId && <button type="button" className="spm-secondary"
         onClick={()=>void readAgreement()} disabled={state.busy||!!state.pending}>
         <ShieldCheck size={17}/>Review what SecurePay understands</button>}
