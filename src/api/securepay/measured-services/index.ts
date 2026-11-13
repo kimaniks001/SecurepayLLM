@@ -1,4 +1,5 @@
 import { segment, type HttpClient } from '../http';
+import { miniMeasuredArithmeticProof } from '../../../mini/miniMeasuredProof.mjs';
 
 export type MeasuredRateBasis='PER_HOUR'|'PER_KM'|'PER_KM_PLUS_FIXED';
 export type MeasuredMethod='WORK_LOG'|'ODOMETER'|'GPS_ROUTE'|'MUTUAL_MANUAL';
@@ -67,7 +68,8 @@ export function measuredPreviewProof(
        r.proposedMaximumMinor>=r.proposedTotalMinor)) &&
     r.state==='PROPOSAL_ONLY' && r.tariffAgreed===false &&
     r.usageVerified===false && r.supplierApproved===false &&
-    r.executable===false && r.paymentEnabled===false;
+    r.executable===false && r.paymentEnabled===false &&
+    miniMeasuredArithmeticProof(r,request);
 }
 export function createMeasuredServicesGateway(http:HttpClient) {
   return {
