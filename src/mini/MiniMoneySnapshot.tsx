@@ -219,6 +219,18 @@ export function MiniMoneySnapshot({agreementId,versionId,money,payments,
           <MiniMoneyPaymentFlow key={quote.quoteReference}
             quote={quote} agreementId={agreementId} versionId={versionId}
             payments={payments} prepare={prepare}
+            verifyMoney={async()=>{
+              // Recheck canonical Agreement/version and the very same rail
+              // immediately before each financial command. Failed reads deny.
+              try {
+                const current=await money.read(agreementId);
+                return miniMoneySnapshotProof(current,agreementId,versionId)&&
+                  current.feeQuoteRequestsPermitted&&
+                  current.fundingOptions.some(option=>
+                    option.railCode===quote.railCode&&
+                    option.currency===quote.currency&&option.quoteAvailable);
+              } catch { return false; }
+            }}
             onRecheck={()=>setRefresh(n=>n+1)}/>}
         {paymentCommandsEnabled&&historyState==='ready'&&
           history.some(row=>['CREATED','INITIATION_PENDING','ACTION_REQUIRED',
