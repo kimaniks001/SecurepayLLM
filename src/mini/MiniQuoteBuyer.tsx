@@ -359,7 +359,7 @@ export function MiniQuoteBuyer({quotationGateway,agreementGateway,notificationGa
         <button className="spm-quiet-button" type="button" disabled={busy}
           onClick={()=>void refresh()}><RefreshCcw size={14}/>Recheck both people's status</button>
         {review&&<>
-          <small>SecurePay status: {review.agreementStatus} · {review.nextAction.replaceAll('_',' ').toLowerCase()}</small>
+          <small>SecurePay status: {review.agreementStatus} · {review.nextAction.split('_').join(' ').toLowerCase()}</small>
           <small>Seller joined: {review.sellerJoined?'Yes':'Not yet'} · Buyer confirmed: {review.buyerConfirmedCurrent?'Yes':'No'} · Seller confirmed: {review.sellerConfirmedCurrent?'Yes':'No'}</small>
           {!review.buyerConfirmedCurrent&&review.sellerJoined&&review.versionCurrent&&
             <button type="button" className="spm-secondary" disabled={busy}

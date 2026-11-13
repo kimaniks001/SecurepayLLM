@@ -10,6 +10,7 @@ import { createBusinessGateway } from '../api/securepay/business';
 import { MiniSellerStore } from './MiniSellerStore';
 import { createStoreGateway } from '../api/securepay/store';
 import { createStoreQuotationGateway } from '../api/securepay/store-quotations';
+import { createMeasuredServicesGateway } from '../api/securepay/measured-services';
 import { m5QuotationExperienceEnabled } from '../config/securepay';
 import { createNotificationsGateway } from '../api/securepay/notifications';
 import { MiniBuyStore, type MiniStorePlanLine } from './MiniBuyStore';
@@ -76,6 +77,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
   const agreements=useMemo(()=>createAgreementGateway(http),[http]);
   const stores=useMemo(()=>createStoreGateway(http),[http]);
   const quotations=useMemo(()=>createStoreQuotationGateway(http),[http]);
+  const measured=useMemo(()=>createMeasuredServicesGateway(http),[http]);
   const notifications=useMemo(()=>createNotificationsGateway(http),[http]);
   const businesses=useMemo(()=>createBusinessGateway(http),[http]);
   // NO real seller/buyer quote requests just because someone opened Mini.
@@ -464,7 +466,8 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
         onBack={()=>setPeopleOpen(null)}/>}
     {status==='ready' && !identityOpen && agreementsOpen &&
       <MiniMyAgreements gateway={agreements}
-        quotationGateway={quotations} notificationGateway={notifications} liveQuotes={liveQuotes}
+        quotationGateway={quotations} notificationGateway={notifications}
+        measuredGateway={measured} liveQuotes={liveQuotes}
         prepare={()=>ensureFreshSession(session,auth)}
         onBack={()=>setAgreementsOpen(false)}
         onReauthenticate={reauthenticateAgreements}
