@@ -60,8 +60,10 @@ export function measuredPreviewProof(
     Number.isSafeInteger(r.variableChargeMinor) && r.variableChargeMinor>=0 &&
     Number.isSafeInteger(r.proposedTotalMinor) && r.proposedTotalMinor>=0 &&
     r.proposedTotalMinor===r.variableChargeMinor+r.proposedFixedMinor &&
-    (r.proposedMaximumMinor===null ||
-      (Number.isSafeInteger(r.proposedMaximumMinor) &&
+    ((request.proposedMaxHundredths===null && r.proposedMaximumMinor===null) ||
+      (request.proposedMaxHundredths!==null &&
+       r.proposedMaximumMinor!==null &&
+       Number.isSafeInteger(r.proposedMaximumMinor) &&
        r.proposedMaximumMinor>=r.proposedTotalMinor)) &&
     r.state==='PROPOSAL_ONLY' && r.tariffAgreed===false &&
     r.usageVerified===false && r.supplierApproved===false &&
