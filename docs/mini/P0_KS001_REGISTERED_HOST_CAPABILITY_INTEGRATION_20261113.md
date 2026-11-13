@@ -55,3 +55,16 @@ P0 capability truth + host contract is preparatory work. Resume the agreed Secur
 - Added focused source test `tests/mini-p0-myride-hosted-frame.test.mjs`; do not mistake source tests for connected runtime certification.
 - Any transport settlement is out of scope. Official km/hour rates, signed terms, measured evidence and payment authority remain solely in later agreement/money gates.
 - Storage remains the next P0 source-integration discovery; do not invent a Storage production app or enable the guest pilot using another site's credentials.
+
+## Storage P0 extension — 13 November 2026
+
+An existing Storage owner demo was found at Vercel project `storage-ke-owner-preview`; its deployment has a static `src/index.html` and `src/vercel.json`, but no visible Git-backed source or commit SHA. The accessible Vercel file response is truncated. See `docs/mini/P0_STORAGE_SOURCE_AND_HOSTED_ADAPTER_20261113.md`.
+
+This SecurepayLLM branch now provides:
+- `public/embed/storage-host-ks001.js`: opt-in Storage host adapter with four compact intentions and no host data ingress.
+- `public/embed/storage-mini.html`: SecurePay-owned frame using the same canonical guest agent + capability-onion SDK.
+- `tests/mini-p0-storage-hosted-frame.test.mjs`: focused checks; full Node/browser tests remain pending.
+
+**Do not claim installed on the Vercel Storage preview:** no Storage source repo has been changed and the frame's `APPROVED_PARENTS` remains empty. Source recovery, operator origin approval, frame-ancestors policy, site registration and a real deployment checksum are prerequisites. No fees, storage listings or money actions were certified.
+
+**Next P0 acceptance work:** reconcile first-party and guest SecurePayAPI branches into one isolated source, verify paired staging, and check the host adapters without GitHub Actions runners. Continue Gate 8 onward only on separately reviewed controlled branches.
