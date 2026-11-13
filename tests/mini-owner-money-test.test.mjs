@@ -66,7 +66,7 @@ test('sample seller cannot use buyer-side money test; no invented source or prov
   assert.match(first,/sourceMatches=\{miniDemoMoneyFixtureState\(\)\.sourceMatches\}/);
   assert.match(owner,/if\(chosen&&trialDraft&&buyer&&sourceMatches\)/);
   assert.match(owner,/!buyer&&<p role="status"/);
-  assert.match(owner,/only a fictional amount/i);
+  assert.match(owner,/fictional amount to test/i);
 });
 
 test('existing three-rail simulator remains sole owner Money test state machine',()=>{
