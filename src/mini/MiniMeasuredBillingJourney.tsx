@@ -55,6 +55,7 @@ export function MiniMeasuredBillingJourney({
 }) {
   const [opened,setOpened]=useState(false);
   const [busy,setBusy]=useState(false);
+  const [ready,setReady]=useState(false);
   const [blocked,setBlocked]=useState(false);
   const [error,setError]=useState('');
   const [notice,setNotice]=useState('');
@@ -105,7 +106,7 @@ export function MiniMeasuredBillingJourney({
 
   const refresh=async()=>{
     const ticket=++requestNumber.current;
-    setBusy(true);setError('');setStaleBill(false);
+    setReady(false);setBusy(true);setError('');setStaleBill(false);
     try{
       await prepare();
       if(!canAct||!isHex(report.reportDigest)||!isHex(report.versionHash))
@@ -183,11 +184,11 @@ export function MiniMeasuredBillingJourney({
       setBill(nextBill);setBillReview(nextBillReview);
       setPlan(nextPlan);setPlanReview(nextPlanReview);
       setStaleBill(previousBillHeld);
-      setBlocked(false);
+      setBlocked(false);setReady(true);
       setNotice('Checked against current SecurePay records.');
     }catch{
       if(ticket===requestNumber.current){
-        setBlocked(true);setDispute(null);setResolution(null);
+        setBlocked(true);setReady(false);setDispute(null);setResolution(null);
         setOutcome(null);setBill(null);setBillReview(null);
         setPlan(null);setPlanReview(null);
         setError('SecurePay could not verify this work, its reviews or current bill. No action was approved. Recheck before proceeding.');
@@ -203,7 +204,7 @@ export function MiniMeasuredBillingJourney({
   },[opened,agreementId,confirmed.id,viewerIdentityId]);
 
   const act=async(label:string,fn:()=>Promise<void>)=>{
-    if(!canAct||blocked||busy)return;
+    if(!canAct||!ready||blocked||busy)return;
     setBusy(true);setError('');setNotice('');
     try{
       await prepare();await fn();
@@ -426,7 +427,8 @@ export function MiniMeasuredBillingJourney({
       </button>
       {error&&<p role="alert" className="spm-error">{error}</p>}
       {notice&&!error&&<small role="status">{notice}</small>}
-      {!dispute&&<details className="spm-mini-slot" data-g8="post-seal-dispute">
+      {!ready&&<small>Current Agreement and evidence decisions must be verified before taking any action.</small>}
+      {ready&&!dispute&&<details className="spm-mini-slot" data-g8="post-seal-dispute">
         <summary>Something wrong with confirmed work? <small>Preserve history</small></summary>
         <div className="spm-mini-slot-items">
           <label className="spm-label" htmlFor="g8-postseal-reason">Explain the problem</label>
@@ -452,7 +454,7 @@ export function MiniMeasuredBillingJourney({
             The original signed measurement is not erased.</small>
         </div>
       </details>}
-      {dispute&&<div className="spm-mini-agreement-fact">
+      {ready&&dispute&&<div className="spm-mini-agreement-fact">
         <strong>Work under dispute — billing held</strong>
         <small>{dispute.reason}</small>
         {outcome?<small>Separately resolved at {units(outcome.resolvedHundredths)} {unit}.
@@ -508,7 +510,7 @@ export function MiniMeasuredBillingJourney({
         </>}
         {!outcome&&<small>Work remains on hold. A rejected resolution requires an explicit new human process, not an automatic release.</small>}
       </div>}
-      {(!dispute||outcome)&&<div className="spm-mini-agreement-fact">
+      {ready&&(!dispute||outcome)&&<div className="spm-mini-agreement-fact">
         <strong>Charge calculated from the agreed tariff</strong>
         {staleBill&&<small>A previous bill was held because its source changed.
           A new bill must be reviewed separately.</small>}
@@ -650,6 +652,7 @@ function PlanEditor({bill,deposit,onDeposit,rows,setRows,addStage,patchStage,blo
       disabled={blocked} onClick={addStage}>Add another milestone</button>}
     <strong>Bill total: {money(bill.totalMinor,bill.currency)}</strong>
     <small>{calculated===null?'Check all amounts':
+      calculated>BigInt(Number.MAX_SAFE_INTEGER)?'Allocation exceeds safe display range':
       'Allocation: '+money(Number(calculated),bill.currency)+
       (calculated===BigInt(bill.totalMinor)?' · exact total':' · amounts must match')}</small>
     <button type="button" className="spm-secondary" disabled={blocked||!valid}
