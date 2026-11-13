@@ -61,6 +61,8 @@
     assistant=sdk.mount({
       container:root,title:'ShortStays',siteId:SITE_ID,apiBaseUrl:apiBaseUrl,
       embeddedFrame:true,tools:['ask','contract','securelink'],
+      // P0: optional, conversation-scoped catalogue; no new guest action rights.
+      capabilityCatalogueEnabled:true,
       getReturnContext:function(){
         // This is a source listing only, NEVER a booking ID or user identity.
         return {purpose:'UNSPECIFIED',returnReference:approvedPublicListingRef
