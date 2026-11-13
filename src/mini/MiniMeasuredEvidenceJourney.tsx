@@ -102,6 +102,8 @@ export function MiniMeasuredEvidenceJourney({
     return k;
   };
   const chosen=directory?.reports.find(r=>r.reportId===selectedId)??null;
+  const asReporter=!!chosen && directory?.viewerIdentityId===chosen.reporterIdentityId;
+  const asBeneficiary=!!work && directory?.viewerIdentityId===work.beneficiaryIdentityId;
   const unit=directory?.rateBasis==='PER_HOUR'?'hours':'km';
 
   const refresh=async(nextSelected=selectedId)=>{
@@ -113,6 +115,7 @@ export function MiniMeasuredEvidenceJourney({
         measured.list(agreementId),agreements.version(agreementId,versionId),
       ]);
       if(!nonpayable(listed) ||
+          !listed.viewerIdentityId ||
           listed.agreementId!==agreementId ||
           listed.currentVersionId!==versionId ||
           !isHex(listed.versionHash) ||
@@ -454,7 +457,7 @@ export function MiniMeasuredEvidenceJourney({
           <strong>{units(chosen.reportedHundredths)} {unit} reported</strong>
           <small>{chosen.evidenceNote}</small>
           <small>Reported only · {chosen.state.toLowerCase().replaceAll('_',' ')}</small>
-          {!work&&<>
+          {!work&&asReporter&&<>
             <label className="spm-label" htmlFor="g8-beneficiary">
               Who will review the work?</label>
             <select className="spm-field" id="g8-beneficiary" value={beneficiary}
@@ -471,10 +474,10 @@ export function MiniMeasuredEvidenceJourney({
             <div className="spm-mini-agreement-fact">
               <strong><ShieldCheck size={14}/> Secure evidence work</strong>
               <small>{work.nextAction.replaceAll('_',' ').toLowerCase()}</small>
-              {obligation?.status==='AVAILABLE'&&<button type="button"
+              {asReporter&&obligation?.status==='AVAILABLE'&&<button type="button"
                 className="spm-secondary" disabled={busy||blocked}
                 onClick={()=>void startWork()}>Start recording proof</button>}
-              {obligation&&['IN_PROGRESS','EVIDENCE_SUBMITTED','OVERDUE'].includes(obligation.status)&&<>
+              {asReporter&&obligation&&['IN_PROGRESS','EVIDENCE_SUBMITTED','OVERDUE'].includes(obligation.status)&&<>
                 <label htmlFor="g8-private-file" className="spm-label">Photo or document</label>
                 <input id="g8-private-file" className="spm-field" type="file"
                   accept="image/jpeg,image/png,application/pdf"
@@ -495,7 +498,7 @@ export function MiniMeasuredEvidenceJourney({
               <strong>Evidence and the other party's review</strong>
               {evidence.map(proof=><div className="spm-mini-slot-item" key={proof.id}>
                 <small>{proof.description||proof.evidenceType} · {proof.reviewState||'Awaiting review'}</small>
-                {proof.reviewState==='AWAITING_REVIEW'&&<>
+                {asBeneficiary&&proof.reviewState==='AWAITING_REVIEW'&&<>
                   <button type="button" className="spm-secondary"
                     disabled={busy||blocked}
                     onClick={()=>void reviewProof(proof,'APPROVED')}>
@@ -511,7 +514,7 @@ export function MiniMeasuredEvidenceJourney({
                     onClick={()=>void reviewProof(proof,'REJECTED')}>
                     Dispute this evidence</button>
                 </>}
-                {assessment&&!assessment.evidence.some(p=>p.evidenceId===proof.id)&&
+                {asReporter&&assessment&&!assessment.evidence.some(p=>p.evidenceId===proof.id)&&
                   <button type="button" className="spm-quiet-button"
                     disabled={busy||blocked}
                     onClick={()=>void linkExisting(proof)}>
@@ -520,7 +523,7 @@ export function MiniMeasuredEvidenceJourney({
             </div>}
             {assessment&&<small>Evidence: {assessment.state.replaceAll('_',' ').toLowerCase()}.
               Source approval is not proof the physical measurement is accurate.</small>}
-            <div className="spm-mini-agreement-fact">
+            {asBeneficiary&&<div className="spm-mini-agreement-fact">
               <strong>Review the reported {unit}</strong>
               <small>{units(chosen.reportedHundredths)} {unit} · separate from reviewing the photo.</small>
               <button type="button" className="spm-secondary"
@@ -534,8 +537,8 @@ export function MiniMeasuredEvidenceJourney({
               <button type="button" className="spm-quiet-button"
                 disabled={busy||blocked||!decisionReason.trim()}
                 onClick={()=>void decideQuantity('REJECT')}>Dispute reported {unit}</button>
-            </div>
-            {obligation&&obligation.status!=='COMPLETED'&&<>
+            </div>}
+            {asReporter&&obligation&&obligation.status!=='COMPLETED'&&<>
               <button type="button" className="spm-secondary"
                 disabled={busy||blocked}
                 onClick={()=>void completeWork()}>
@@ -545,7 +548,7 @@ export function MiniMeasuredEvidenceJourney({
             {corrections.length>0&&<p className="spm-error">
               A corrected quantity is under review. The original cannot be sealed or billed from here.
             </p>}
-            {obligation?.status==='COMPLETED'&&corrections.length===0&&!confirmed&&<>
+            {asBeneficiary&&obligation?.status==='COMPLETED'&&corrections.length===0&&!confirmed&&<>
               <button type="button" className="spm-secondary"
                 disabled={busy||blocked}
                 onClick={()=>void confirmQuantity()}>
