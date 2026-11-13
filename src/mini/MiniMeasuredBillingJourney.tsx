@@ -430,6 +430,62 @@ export function MiniMeasuredBillingJourney({
     });
   };
 
+  const openAddendum=async()=>{
+    if(!bill||!plan||!planReview?.beneficiaryAccepted||!reporter)return;
+    await act('Agreement-linked payment plan',async()=>{
+      const stored=await gateway.openAddendum(agreementId,bill.id,plan.id,{
+        expectedVersionId:bill.versionId,
+        expectedVersionHash:bill.versionHash,
+        expectedBillSourceKey:bill.sourceKey,
+        expectedPlanDigest:plan.planDigest,
+        idempotencyKey:key('agreement-annex:'+plan.id),
+      });
+      if(stored.planId!==plan.id ||
+          stored.planDigest!==plan.planDigest ||
+          stored.billSourceKey!==bill.sourceKey ||
+          stored.versionId!==bill.versionId)
+        throw Error('Canonical Agreement addendum did not match the source');
+    });
+  };
+
+  const decideAddendum=async(choice:'ACCEPT'|'REJECT')=>{
+    if(!bill||!plan||!addendum?.addendumId||!addendum.viewerNeedsConsent)return;
+    const note=choice==='REJECT'?annexRejection.trim():null;
+    if(choice==='REJECT'&&!note){
+      setError('Explain which deposit or milestone term should change.');
+      return;
+    }
+    await act('Agreement addendum decision',async()=>{
+      const result=await gateway.decideAddendum(
+        agreementId,bill.id,plan.id,addendum.addendumId!,{
+          expectedPlanDigest:plan.planDigest,choice,note,
+          idempotencyKey:key('annex-decision:'+addendum.addendumId+':'+choice),
+        });
+      if(result.planDigest!==plan.planDigest ||
+          result.choice!==choice ||
+          result.identityId!==viewerIdentityId)
+        throw Error('The recorded consent is not the signed-in participant');
+      setAnnexRejection('');
+    });
+  };
+
+  const sealAddendum=async()=>{
+    if(!bill||!plan||!addendum?.addendumId||
+        !addendum.viewerMaySeal||!beneficiary)return;
+    await act('All-party Agreement addendum',async()=>{
+      const result=await gateway.sealAddendum(
+        agreementId,bill.id,plan.id,addendum.addendumId!,{
+          expectedPlanDigest:plan.planDigest,
+          idempotencyKey:key('annex-seal:'+addendum.addendumId),
+        });
+      if(!noMoney(result) || result.payable!==false ||
+          result.state!=='AGREEMENT_ADDENDUM_NONPAYABLE' ||
+          result.planDigest!==plan.planDigest ||
+          result.versionId!==bill.versionId)
+        throw Error('The sealed Agreement plan did not match the original work');
+    });
+  };
+
   const unit=rateBasis==='PER_HOUR'?'hours':'kilometres';
   return <details className="spm-mini-slot" data-g8="metered-billing"
       onToggle={e=>setOpened(e.currentTarget.open)}>
