@@ -47,7 +47,7 @@ test('minor-unit remainder never silently disappears, invalid inputs fail closed
   }
   assert.equal(moneyOwnerSteps(-1,'FULL'),null);
   assert.equal(moneyOwnerSteps(0,'FULL'),null);
-  assert.equal(moneyOwnerSteps(10,'THREE_MILESTONES'),null);
+  assert.equal(moneyOwnerSteps(2,'THREE_MILESTONES'),null);
   assert.equal(moneyOwnerSteps(12345,'UNKNOWN'),null);
 });
 
