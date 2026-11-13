@@ -5,6 +5,7 @@ import { ApiError } from '../api/securepay/http';
 import type {
   MeasuredDirectory, MeasuredReport, MeasuredEvidenceGateway,
   EvidenceWork, EvidenceAssessment, ConfirmedQuantity, Correction,
+  CorrectionReviewSummary,
 } from '../api/securepay/measured-evidence';
 
 /**
@@ -79,6 +80,11 @@ export function MiniMeasuredEvidenceJourney({
   const [evidence,setEvidence]=useState<EvidenceDto[]>([]);
   const [assessment,setAssessment]=useState<EvidenceAssessment|null>(null);
   const [corrections,setCorrections]=useState<Correction[]>([]);
+  const [correctionSummary,setCorrectionSummary]=useState<CorrectionReviewSummary|null>(null);
+  const [correctionQuantity,setCorrectionQuantity]=useState('');
+  const [correctionNote,setCorrectionNote]=useState('');
+  const [correctionEvidence,setCorrectionEvidence]=useState('');
+  const [correctionReviewNote,setCorrectionReviewNote]=useState('');
   const [confirmed,setConfirmed]=useState<ConfirmedQuantity|null>(null);
   const [beneficiary,setBeneficiary]=useState('');
   const [quantity,setQuantity]=useState('');
@@ -137,7 +143,7 @@ export function MiniMeasuredEvidenceJourney({
       const selected=listed.reports.find(p=>p.reportId===nextSelected)??null;
       setSelectedId(selected?.reportId??'');
       setWork(null);setObligation(null);setEvidence([]);
-      setAssessment(null);setCorrections([]);setConfirmed(null);
+      setAssessment(null);setCorrections([]);setCorrectionSummary(null);setConfirmed(null);
       if(selected){
         if(!selected.versionCurrent || selected.versionId!==versionId ||
             selected.versionHash!==listed.versionHash || !isHex(selected.reportDigest) ||
@@ -173,6 +179,19 @@ export function MiniMeasuredEvidenceJourney({
           if(ticket!==currentRequest.current)return;
           setObligation(obligation);setEvidence(proofs);setAssessment(review);
           setCorrections(changes);
+          if(changes.length>0){
+            const recent=changes[0];
+            const summary=await measured.correctionSummary(
+              agreementId,selected.reportId,recent.id);
+            if(ticket!==currentRequest.current)return;
+            if(!nonpayable(summary) ||
+                summary.correctionId!==recent.id ||
+                summary.reportId!==selected.reportId ||
+                summary.correctionRevision!==recent.revisionNumber ||
+                summary.proposedHundredths!==recent.proposedHundredths)
+              throw Error('Latest correction summary is inconsistent');
+            setCorrectionSummary(summary);
+          }
           try{
             const sealed=await measured.confirmed(agreementId,selected.reportId);
             if(ticket!==currentRequest.current)return;
@@ -190,7 +209,7 @@ export function MiniMeasuredEvidenceJourney({
       if(ticket===currentRequest.current){
         setBlocked(true);setDirectory(null);setWork(null);
         setObligation(null);setAssessment(null);setEvidence([]);
-        setConfirmed(null);setCorrections([]);
+        setConfirmed(null);setCorrections([]);setCorrectionSummary(null);
         setError('SecurePay could not verify current work or access. No decision or payment was made. Recheck before continuing.');
       }
     }finally{if(ticket===currentRequest.current)setBusy(false);}
