@@ -85,6 +85,7 @@ export interface MeasuredMoneyReadiness {
   latestAddendumSealed:boolean;fundsReceivedOrInMotion:boolean;
   providerQuoteAvailable:false;paymentAuthorized:false;
   callbackVerified:false;settlementPermitted:false;
+  providerDispatchEnvelopePending:boolean;
 }
 
 export interface AgreementPlanAddendumStatus {
