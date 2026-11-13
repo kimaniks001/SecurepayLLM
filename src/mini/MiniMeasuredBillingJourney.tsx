@@ -8,6 +8,7 @@ import type { ConfirmedQuantity, EvidenceAssessment, MeasuredReport } from
 import type {
   MeasuredBillingGateway, ConfirmedDispute, ResolutionSummary,
   ResolutionOutcome, ReviewedBill, BillReview, PlannedPayment, PlannedReview,
+  AgreementPlanAddendumStatus,
 } from '../api/securepay/measured-billing';
 
 /**
@@ -70,6 +71,8 @@ export function MiniMeasuredBillingJourney({
   const [billReview,setBillReview]=useState<BillReview|null>(null);
   const [plan,setPlan]=useState<PlannedPayment|null>(null);
   const [planReview,setPlanReview]=useState<PlannedReview|null>(null);
+  const [addendum,setAddendum]=useState<AgreementPlanAddendumStatus|null>(null);
+  const [annexRejection,setAnnexRejection]=useState('');
   const [staleBill,setStaleBill]=useState(false);
   const [disputeReason,setDisputeReason]=useState('');
   const [allegedQuantity,setAllegedQuantity]=useState('');
@@ -146,6 +149,7 @@ export function MiniMeasuredBillingJourney({
       let nextBillReview:BillReview|null=null;
       let nextPlan:PlannedPayment|null=null;
       let nextPlanReview:PlannedReview|null=null;
+      let nextAnnex:AgreementPlanAddendumStatus|null=null;
       let previousBillHeld=false;
       if(!currentDispute||currentOutcome){
         try{nextBill=await gateway.latestBill(agreementId,report.reportId);}
@@ -181,12 +185,22 @@ export function MiniMeasuredBillingJourney({
                 nextPlanReview.planDigest!==nextPlan.planDigest ||
                 nextPlanReview.billTotalMinor!==nextBill.totalMinor)
               throw Error('Independent milestone review is inconsistent');
+            if(nextPlanReview.beneficiaryAccepted){
+              nextAnnex=await gateway.addendumStatus(
+                agreementId,nextBill.id,nextPlan.id);
+              if(!noMoney(nextAnnex) ||
+                  nextAnnex.billId!==nextBill.id ||
+                  nextAnnex.planId!==nextPlan.id ||
+                  nextAnnex.planDigest!==nextPlan.planDigest ||
+                  nextAnnex.canonicalAgreementVersionPreserved!==true)
+                throw Error('Agreement addendum consent does not match the plan');
+            }
           }
         }
       }
       if(ticket!==requestNumber.current)return;
       setBill(nextBill);setBillReview(nextBillReview);
-      setPlan(nextPlan);setPlanReview(nextPlanReview);
+      setPlan(nextPlan);setPlanReview(nextPlanReview);setAddendum(nextAnnex);
       setStaleBill(previousBillHeld);
       setBlocked(false);setReady(true);
       setNotice('Checked against current SecurePay records.');
@@ -194,7 +208,7 @@ export function MiniMeasuredBillingJourney({
       if(ticket===requestNumber.current){
         setBlocked(true);setReady(false);setDispute(null);setResolution(null);
         setOutcome(null);setBill(null);setBillReview(null);
-        setPlan(null);setPlanReview(null);
+        setPlan(null);setPlanReview(null);setAddendum(null);
         setError('SecurePay could not verify this work, its reviews or current bill. No action was approved. Recheck before proceeding.');
       }
     }finally{if(ticket===requestNumber.current)setBusy(false);}
