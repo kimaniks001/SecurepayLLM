@@ -12,6 +12,7 @@ import { MiniSellerStore } from './MiniSellerStore';
 import { createStoreGateway } from '../api/securepay/store';
 import { createStoreQuotationGateway } from '../api/securepay/store-quotations';
 import { createMeasuredServicesGateway } from '../api/securepay/measured-services';
+import { createMeasuredEvidenceGateway } from '../api/securepay/measured-evidence';
 import { createMoneySnapshotGateway } from '../api/securepay/money-snapshot';
 import { createPaymentIntentGateway } from '../api/securepay/payment-intent';
 import { m5QuotationExperienceEnabled } from '../config/securepay';
@@ -83,6 +84,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
   const stores=useMemo(()=>createStoreGateway(http),[http]);
   const quotations=useMemo(()=>createStoreQuotationGateway(http),[http]);
   const measured=useMemo(()=>createMeasuredServicesGateway(http),[http]);
+  const measuredEvidence=useMemo(()=>createMeasuredEvidenceGateway(http),[http]);
   const canonicalMoney=useMemo(()=>createMoneySnapshotGateway(http),[http]);
   const paymentHistory=useMemo(()=>createPaymentIntentGateway(http),[http]);
   const notifications=useMemo(()=>createNotificationsGateway(http),[http]);
@@ -93,6 +95,13 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
     m5QuotationExperienceEnabled(import.meta.env.VITE_SECUREPAY_M5_QUOTATIONS);
   // Opt in ONLY when the real isolated API has the canonical Money snapshot.
   // This flag affects visibility, never financial permissions.
+  // Gate 8 E7: deliberate opt-in ONLY for a separately isolated Vercel
+  // development preview with matching draft API + private S3/scanner.
+  // Never activate it merely by URL query or on securepay.ke/estate hosts.
+  const liveEvidence=!demo &&
+    import.meta.env.VITE_SECUREPAY_M8_EVIDENCE==='enabled' &&
+    typeof window!=='undefined' &&
+    isMiniExperiencePreviewHost(window.location.hostname);
   const liveMoneyStatus=!demo &&
     import.meta.env.VITE_SECUREPAY_M6_MONEY_STATUS==='enabled';
   // Fee quotation POST can persist expiring quote evidence; it is NEVER
@@ -493,7 +502,8 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
     {status==='ready' && !identityOpen && agreementsOpen &&
       <MiniMyAgreements gateway={agreements}
         quotationGateway={quotations} notificationGateway={notifications}
-        measuredGateway={measured} liveQuotes={liveQuotes}
+        measuredGateway={measured} evidenceGateway={measuredEvidence}
+        liveQuotes={liveQuotes} liveEvidence={liveEvidence}
         moneyGateway={canonicalMoney} paymentsGateway={paymentHistory}
         liveMoneyStatus={liveMoneyStatus} liveFeeQuotes={liveFeeQuotes}
         livePaymentCommands={livePaymentCommands}
