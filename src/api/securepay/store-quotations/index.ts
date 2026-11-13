@@ -108,6 +108,83 @@ export interface QuoteObligationPlan {
   recordedAt: string;
 }
 
+export type QuoteScheduleType =
+  'FULL_ON_COMPLETION' | 'DEPOSIT_AND_BALANCE' | 'DEPOSIT_PROGRESS_COMPLETION';
+export type QuoteRoutePreference = 'UNDECIDED' | 'CHOICE_BANK' | 'MPESA' | 'PESALINK' | 'OTHER';
+export type QuoteHandlingPreference =
+  'TO_AGREE' | 'DIRECT_TO_SELLER' | 'REGULATED_SAFEGUARD_IF_AVAILABLE';
+
+/**
+ * A M6A schedule preview is NEVER a payment/rail eligibility quote or
+ * a seller-approved Agreement amendment.
+ */
+export interface QuoteSchedulePreviewRequest {
+  expectedPlanId: string;
+  expectedVersionId: string;
+  expectedVersionHash: string;
+  scheduleType: QuoteScheduleType;
+  depositPercent: number | null;
+  progressPercent: number | null;
+  preferredRoute: QuoteRoutePreference;
+  handlingPreference: QuoteHandlingPreference;
+}
+export interface QuoteSchedulePreview {
+  planId: string;
+  agreementId: string;
+  quotationId: string;
+  versionId: string;
+  versionHash: string;
+  currency: string;
+  principalMinor: number;
+  scheduleType: QuoteScheduleType;
+  depositPercent: number | null;
+  progressPercent: number | null;
+  preferredRoute: QuoteRoutePreference;
+  handlingPreference: QuoteHandlingPreference;
+  proposedSteps: Array<{
+    sequence: number;
+    label: string;
+    checkpoint: string;
+    amountMinor: number;
+    payable: false;
+  }>;
+  state: 'PREVIEW_ONLY';
+  recorded: false;
+  sellerScheduleApproved: false;
+  executable: false;
+  paymentEnabled: false;
+  freshSourceAndOriginalConsent: true;
+}
+
+/** A quote schedule is just proposed numbers until an independent new consent. */
+export function quoteSchedulePreviewProof(
+  result: QuoteSchedulePreview, plan: QuoteObligationPlan,
+): boolean {
+  if (!result || !plan || !Number.isSafeInteger(plan.buyerPaymentMinor) ||
+      result.state !== 'PREVIEW_ONLY' || result.recorded !== false ||
+      result.sellerScheduleApproved !== false || result.executable !== false ||
+      result.paymentEnabled !== false || result.freshSourceAndOriginalConsent !== true ||
+      result.planId !== plan.planId ||
+      result.agreementId !== plan.agreementId ||
+      result.quotationId !== plan.quotationId ||
+      result.versionId !== plan.versionId ||
+      result.versionHash !== plan.versionHash ||
+      result.currency !== plan.currency ||
+      result.principalMinor !== plan.buyerPaymentMinor ||
+      !Array.isArray(result.proposedSteps) ||
+      result.proposedSteps.length < 1 || result.proposedSteps.length > 3) return false;
+  let sum=0;
+  for (let i=0;i<result.proposedSteps.length;i++) {
+    const step=result.proposedSteps[i];
+    if (step.sequence !== i+1 || typeof step.label !== 'string' ||
+      typeof step.checkpoint !== 'string' || step.payable !== false ||
+      !Number.isSafeInteger(step.amountMinor) || step.amountMinor<=0) return false;
+    sum+=step.amountMinor;
+    if (!Number.isSafeInteger(sum)) return false;
+  }
+  return sum === result.principalMinor;
+}
+
 /** Strict, read-only UI proofs; never infer consent from a chat or HTTP 201. */
 export const quotedRecordProof = (q: SellerQuoteRecord, expectedId?: string) =>
   !!q && q.status === 'PROPOSAL_RECORDED' &&
@@ -174,6 +251,14 @@ export function createStoreQuotationGateway(http: HttpClient) {
     readNonExecutablePlan: (agreementId: string) =>
       http.request<QuoteObligationPlan>(`${agreementPath(agreementId)}/obligation-plan`,
         { auth: 'required' }),
+    /**
+     * M6A: AUTHENTICATED buyer-owned read-only calculation after staged,
+     * separately consented M5 plan. Does not store terms, contact a provider,
+     * enable Money or amend the canonical Agreement.
+     */
+    previewSchedule: (agreementId: string, body: QuoteSchedulePreviewRequest) =>
+      http.request<QuoteSchedulePreview>(`${agreementPath(agreementId)}/payment-schedule/preview`,
+        { method: 'POST', body, auth: 'required' }),
   };
 }
 export type StoreQuotationGateway = ReturnType<typeof createStoreQuotationGateway>;
