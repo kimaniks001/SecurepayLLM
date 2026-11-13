@@ -7,7 +7,7 @@ import type { ConfirmedQuantity, EvidenceAssessment, MeasuredReport } from
   '../api/securepay/measured-evidence';
 import type {
   MeasuredBillingGateway, ConfirmedDispute, ResolutionSummary,
-  ResolutionOutcome, ReviewedBill, BillReview, PlannedPayment, PlannedReview,
+  ResolutionOutcome, ResolutionProposal, ReviewedBill, BillReview, PlannedPayment, PlannedReview,
   AgreementPlanAddendumStatus,
 } from '../api/securepay/measured-billing';
 
@@ -71,6 +71,7 @@ export function MiniMeasuredBillingJourney({
   const [notice,setNotice]=useState('');
   const [dispute,setDispute]=useState<ConfirmedDispute|null>(null);
   const [resolution,setResolution]=useState<ResolutionSummary|null>(null);
+  const [resolutionHistory,setResolutionHistory]=useState<ResolutionProposal[]>([]);
   const [outcome,setOutcome]=useState<ResolutionOutcome|null>(null);
   const [bill,setBill]=useState<ReviewedBill|null>(null);
   const [billReview,setBillReview]=useState<BillReview|null>(null);
@@ -135,11 +136,20 @@ export function MiniMeasuredBillingJourney({
       setDispute(currentDispute);
       let currentResolution:ResolutionSummary|null=null;
       let currentOutcome:ResolutionOutcome|null=null;
+      let currentHistory:ResolutionProposal[]=[];
       if(currentDispute){
         currentResolution=await gateway.resolution(agreementId,report.reportId);
         if(!noMoney(currentResolution) ||
             currentResolution.disputeId!==currentDispute.id)
           throw Error('Independent resolution status is not authoritative');
+        currentHistory=await gateway.resolutionHistory(agreementId,report.reportId);
+        if(!Array.isArray(currentHistory) || currentHistory.length>100 ||
+            currentHistory.some((item,i)=>
+              item.disputeId!==currentDispute.id ||
+              item.reportId!==report.reportId ||
+              item.revisionNumber!==i+1 ||
+              !isHex(item.reviewDigest)))
+          throw Error('Immutable resolution history does not reconcile');
         if(currentResolution.resolved){
           currentOutcome=await gateway.resolvedOutcome(agreementId,report.reportId);
           if(!noMoney(currentOutcome) ||
@@ -151,6 +161,7 @@ export function MiniMeasuredBillingJourney({
       }
       if(ticket!==requestNumber.current)return;
       setResolution(currentResolution);setOutcome(currentOutcome);
+      setResolutionHistory(currentHistory);
       let nextBill:ReviewedBill|null=null;
       let nextBillReview:BillReview|null=null;
       let nextPlan:PlannedPayment|null=null;
@@ -213,6 +224,7 @@ export function MiniMeasuredBillingJourney({
     }catch{
       if(ticket===requestNumber.current){
         setBlocked(true);setReady(false);setDispute(null);setResolution(null);
+        setResolutionHistory([]);
         setOutcome(null);setBill(null);setBillReview(null);
         setPlan(null);setPlanReview(null);setAddendum(null);
         setError('SecurePay could not verify this work, its reviews or current bill. No action was approved. Recheck before proceeding.');
@@ -556,6 +568,17 @@ export function MiniMeasuredBillingJourney({
         {resolution&&<small>{resolution.status.replaceAll('_',' ').toLowerCase()}
           {resolution.proposalId?' · proposed '+units(resolution.proposedHundredths)+' '+unit:''}
         </small>}
+        {resolutionHistory.length>1&&<details className="spm-mini-slot"
+          data-g8="resolution-history">
+          <summary>Earlier resolution proposals
+            <small>{resolutionHistory.length} immutable versions</small></summary>
+          <div className="spm-mini-slot-items">
+            {resolutionHistory.map(p=><small key={p.id}>
+              Revision {p.revisionNumber}: {units(p.proposedHundredths)} {unit}
+              {' · '+p.reason}
+            </small>)}
+          </div>
+        </details>}
         {resolution&&(!resolution.proposalId ||
             resolution.status==='RESOLUTION_REJECTED')&&!outcome&&
           <div className="spm-mini-slot-items">
