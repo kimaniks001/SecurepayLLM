@@ -145,6 +145,13 @@ export function createStoreQuotationGateway(http: HttpClient) {
   const quotePath = (quotationId: string) => `/api/v1/store/quotations/${segment(quotationId)}`;
   const agreementPath = (agreementId: string) => `/api/v1/store/quoted-agreements/${segment(agreementId)}`;
   return {
+    /** Only the authenticated ACTIVE individual buyer's recent quotations. */
+    received: (limit = 10) => {
+      if (!Number.isInteger(limit) || limit < 1 || limit > 20)
+        throw new Error('Quotation inbox limit must be 1–20');
+      return http.request<SellerQuoteRecord[]>(`/api/v1/store/quotations/received?limit=${limit}`,
+        { auth: 'required' });
+    },
     issue: (businessKsNumber: string, offerId: string, body: SellerQuoteRequest) =>
       http.request<SellerQuoteRecord>(
         `/api/v1/business/${segment(businessKsNumber)}/store/offers/${segment(offerId)}/quotations`,

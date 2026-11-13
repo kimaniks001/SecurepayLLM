@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, RefreshCcw, ShieldCheck } from 'lucide-react';
 import type { AgreementGateway } from '../api/securepay/agreements';
 import {
@@ -25,6 +25,9 @@ export function MiniQuoteBuyer({quotationGateway,agreementGateway,prepare,onCrea
   onCreated:()=>void;
 }) {
   const [reference,setReference]=useState('');
+  const [received,setReceived]=useState<SellerQuoteRecord[]>([]);
+  const [receivedStatus,setReceivedStatus]=useState<'loading'|'ready'|'error'>('loading');
+  const [receivedBusy,setReceivedBusy]=useState(false);
   const [quote,setQuote]=useState<SellerQuoteRecord|null>(null);
   const [draft,setDraft]=useState<QuoteBoundAgreementDraft|null>(null);
   const [review,setReview]=useState<QuoteReview|null>(null);
@@ -42,8 +45,30 @@ export function MiniQuoteBuyer({quotationGateway,agreementGateway,prepare,onCrea
     return keys.current[id];
   };
 
-  const inspect=async()=>{
-    const id=reference.trim().toLowerCase();
+  const loadReceived=async()=>{
+    setReceivedBusy(true);setReceivedStatus('loading');
+    try {
+      await prepare();
+      const items=await quotationGateway.received(10);
+      if(!Array.isArray(items)||items.length>10||
+         !items.every(item=>quotedRecordProof(item)))
+        throw Error('Invalid received quotation list');
+      setReceived(items);
+      setReceivedStatus('ready');
+    }catch{
+      setReceived([]);setReceivedStatus('error');
+    }finally{setReceivedBusy(false);}
+  };
+  useEffect(()=>{
+    // The gateway is bound to the signed-in first-party session.
+    // Refreshing or switching accounts never retains a previous buyer's list.
+    void loadReceived();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[quotationGateway]);
+
+  const inspectId=async(requestedId:string)=>{
+    const id=requestedId.trim().toLowerCase();
+    setReference(id);
     if(!referencePattern.test(id)){
       setError('Enter the exact quotation reference provided by the seller.');return;
     }
@@ -61,6 +86,8 @@ export function MiniQuoteBuyer({quotationGateway,agreementGateway,prepare,onCrea
       setError('The quotation could not be verified for this signed-in KS Number. No Agreement was created.');
     }finally{setBusy(false);}
   };
+
+  const inspect=()=>inspectId(reference);
 
   const createDraft=async()=>{
     if(!quote||busy||!quote.sourceCurrent||new Date(quote.expiresAt).getTime()<=Date.now())return;
@@ -190,7 +217,36 @@ export function MiniQuoteBuyer({quotationGateway,agreementGateway,prepare,onCrea
   return <details className="spm-mini-slot" data-m5c-quote-buyer="real-api-only">
     <summary><ShieldCheck size={16}/>Review a seller quotation <ArrowRight size={15}/></summary>
     <div className="spm-mini-slot-items">
-      <p>Ask the seller for the quotation reference. SecurePay verifies that it was addressed to your signed-in KS Number. Reviewing is not accepting.</p>
+      <p>SecurePay shows recent quotations addressed to your signed-in KS Number. Opening one is not an acceptance.</p>
+      <div className="spm-mini-agreement-fact" data-m5d="buyer-private-inbox">
+        <strong>Quotations for me</strong>
+        <small>Only your 10 most recent server-recorded seller proposals</small>
+        {receivedStatus==='loading'&&<p role="status">Checking your private quotations…</p>}
+        {receivedStatus==='error'&&<p role="alert">
+          Your quotations cannot be verified right now. Nothing has been approved.
+        </p>}
+        {receivedStatus==='ready'&&received.length===0&&<p>
+          No quotations addressed to your account were returned.
+        </p>}
+        {receivedStatus==='ready'&&received.map(item=>{
+          const current=item.sourceCurrent&&new Date(item.expiresAt).getTime()>Date.now();
+          return <div key={item.id} className="spm-mini-owned-item">
+            <div>
+              <strong>{item.offerTitle}</strong>
+              <small>{item.sellerKsNumber} · {item.quantity} × {money(item.unitPriceMinor,item.currency)}
+                {' = '}{money(item.totalMinor,item.currency)}</small>
+              <small>For {item.deliveryDate} · {current?'Proposal available for review':'Source changed or proposal expired'}</small>
+            </div>
+            <button type="button" className="spm-secondary" disabled={busy}
+              onClick={()=>void inspectId(item.id)}>Review <ArrowRight size={14}/></button>
+          </div>;
+        })}
+        <button type="button" className="spm-quiet-button"
+          onClick={()=>void loadReceived()} disabled={receivedBusy||busy}>
+          <RefreshCcw size={14}/>{receivedBusy?'Checking…':'Refresh my quotations'}
+        </button>
+      </div>
+      <p>You can also enter a reference shared privately by the seller.</p>
       <label className="spm-label" htmlFor="m5c-quote-ref">Seller quotation reference</label>
       <input id="m5c-quote-ref" className="spm-field"
         value={reference} maxLength={36} placeholder="Quotation UUID"
