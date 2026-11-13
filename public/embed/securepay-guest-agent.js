@@ -333,6 +333,51 @@
      * ticket. Both this ticket and the guest possession token move ONLY through
      * an exact-origin browser postMessage to the SecurePay staging receiver.
      */
+    /**
+     * P0: site-scoped, possession-checked description of capability ceilings.
+     * This cannot execute any tool, change Agreement state or obtain money.
+     * A missing route or invalid response means no verified catalogue.
+     */
+    async function readCapabilities() {
+      if(status!=='ready'||!lastChecked||!record||pending)
+        throw new Error('An authorised KS001 conversation is required');
+      var answer=await request(route+'/'+record.conversationId+'/capabilities',
+        'GET',undefined,true,15000);
+      if(!answer||answer.authority!=='DESCRIPTIVE_ONLY_NO_ACTION_AUTHORITY'||
+          !['FORMATION','LIVE_AGREEMENT'].includes(answer.interactionMode)||
+          typeof answer.registryVersion!=='string'||
+          !Array.isArray(answer.capabilities)||answer.capabilities.length>32)
+        throw new Error('Unverified SecurePay capabilities');
+      var allowed=['AGREEMENT_FORMATION','AGREEMENT_REVIEW','AGREEMENT_HANDOFF'];
+      var seen={};
+      var items=[];
+      answer.capabilities.forEach(function(item){
+        if(!item||typeof item!=='object'||!allowed.includes(item.code)||
+            seen[item.code]||!['IMPLEMENTED','IMPLEMENTED_WITH_LIMITS'].includes(item.implementationState)||
+            !['KNOW_EXPLAIN','SUGGEST','READ','INITIATE_EXPLICIT_USER_FLOW'].includes(item.exposure)||
+            !['UNKNOWN','NOT_REQUIRED','ELIGIBLE','INELIGIBLE'].includes(item.actorEligibility)||
+            typeof item.humanBenefit!=='string'||!item.humanBenefit.trim()||
+            item.humanBenefit.length>240||!Array.isArray(item.limitations)||
+            item.limitations.length>8||
+            !item.limitations.every(function(s){return typeof s==='string'&&s.length<=200;}))
+          throw new Error('Unverified SecurePay capability entry');
+        seen[item.code]=true;
+        items.push(Object.freeze({
+          code:item.code,
+          benefit:item.humanBenefit,
+          exposure:item.exposure,
+          eligibility:item.actorEligibility,
+          limited:item.implementationState==='IMPLEMENTED_WITH_LIMITS',
+          limitations:Object.freeze(item.limitations.slice())
+        }));
+      });
+      return Object.freeze({
+        registryVersion:answer.registryVersion,
+        interactionMode:answer.interactionMode,
+        capabilities:Object.freeze(items)
+      });
+    }
+
     async function createWorkTransfer(context) {
       if(status!=='ready'||!lastChecked||!record||pending)
         throw new Error('Finish or confirm the current KS001 conversation first.');
@@ -364,6 +409,7 @@
     return Object.freeze({
       snapshot:snapshot, connect:connect, history:history, send:send,
       reviewAgreement:reviewAgreement, prepareAgreementReview:prepareAgreementReview,
+      readCapabilities:readCapabilities,
       createWorkTransfer:createWorkTransfer,
       retry:function(){return attempt();},
       reset:function(){
