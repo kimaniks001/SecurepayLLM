@@ -12,6 +12,7 @@ import { createStoreGateway } from '../api/securepay/store';
 import { createStoreQuotationGateway } from '../api/securepay/store-quotations';
 import { createMeasuredServicesGateway } from '../api/securepay/measured-services';
 import { createMoneySnapshotGateway } from '../api/securepay/money-snapshot';
+import { createPaymentIntentGateway } from '../api/securepay/payment-intent';
 import { m5QuotationExperienceEnabled } from '../config/securepay';
 import { createNotificationsGateway } from '../api/securepay/notifications';
 import { MiniBuyStore, type MiniStorePlanLine } from './MiniBuyStore';
@@ -82,6 +83,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
   const quotations=useMemo(()=>createStoreQuotationGateway(http),[http]);
   const measured=useMemo(()=>createMeasuredServicesGateway(http),[http]);
   const canonicalMoney=useMemo(()=>createMoneySnapshotGateway(http),[http]);
+  const paymentHistory=useMemo(()=>createPaymentIntentGateway(http),[http]);
   const notifications=useMemo(()=>createNotificationsGateway(http),[http]);
   const businesses=useMemo(()=>createBusinessGateway(http),[http]);
   // NO real seller/buyer quote requests just because someone opened Mini.
@@ -92,6 +94,10 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
   // This flag affects visibility, never financial permissions.
   const liveMoneyStatus=!demo &&
     import.meta.env.VITE_SECUREPAY_M6_MONEY_STATUS==='enabled';
+  // Fee quotation POST can persist expiring quote evidence; it is NEVER
+  // silently enabled by Money status. Stage-only, explicit human click.
+  const liveFeeQuotes=liveMoneyStatus &&
+    import.meta.env.VITE_SECUREPAY_M6_FEE_QUOTES==='enabled';
   const [epoch,setEpoch] = useState(0);
   const pair = useMemo(() => {
     const gateway = demo
@@ -427,7 +433,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
   return <section className="spm-guest spm-content" data-mini-first-party-ks001="staging">
     <button type="button" className="spm-back" onClick={onBack}><ArrowLeft size={18}/>{sw?'Rudi':'Back'}</button>
     <div className="spm-persona"><MessageCircle size={16}/><span>KS001</span>
-      <span className="spm-dot"/><span>{demo?'Scripted preview · Not live AI':'First-party staging conversation'}</span></div>
+      <span className="spm-dot"/><span>{demo?'Scripted preview · Not live AI':'Agreement Commerce'}</span></div>
     {demo && <div className="spm-mini-preview-banner" role="status">
       <strong>Interactive M1–M5 preview · SYNTHETIC DATA</strong>
       <p>Try the existing Mini components as Amina or Njeri. Replies are scripted;
@@ -480,7 +486,8 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
       <MiniMyAgreements gateway={agreements}
         quotationGateway={quotations} notificationGateway={notifications}
         measuredGateway={measured} liveQuotes={liveQuotes}
-        moneyGateway={canonicalMoney} liveMoneyStatus={liveMoneyStatus}
+        moneyGateway={canonicalMoney} paymentsGateway={paymentHistory}
+        liveMoneyStatus={liveMoneyStatus} liveFeeQuotes={liveFeeQuotes}
         prepare={()=>ensureFreshSession(session,auth)}
         onBack={()=>setAgreementsOpen(false)}
         onReauthenticate={reauthenticateAgreements}
@@ -625,6 +632,6 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
     </>}
     <p className="spm-disclaimer">{demo
       ? 'SYNTHETIC DEMO ONLY — no real KS001 intelligence, identities, Store stock, Agreement acceptance or Money.'
-      : 'Staging-only Agent conversation; no automatic agreement, participant invitation or payment.'}</p>
+      : 'Each party must confirm their Agreement. Money only follows authorised terms.'}</p>
   </section>;
 }

@@ -310,7 +310,7 @@ export function MiniExperience() {
               <a className="spm-quiet-link" href="/mini.html">Open Mini</a>
             </section>) : <>
         {screen === 'home' && <section className="spm-entrance">
-          <div className="spm-persona"><Sparkles size={16}/><span>KS001</span><span className="spm-dot"/><span>{t.phase4}</span></div>
+          <div className="spm-persona"><Sparkles size={16}/><span>KS001</span><span className="spm-dot"/><span>{samplePreviewAllowed?t.phase4:'Agreement Commerce'}</span></div>
           <h1 className="spm-hero">{t.hello}</h1>
           <p className="spm-lead">{t.intro}</p>
           {samplePreviewAllowed && <div className="spm-mini-preview-entry">
@@ -489,7 +489,7 @@ export function MiniExperience() {
         <div className="spm-footer-status">
           <ShieldCheck size={15} aria-hidden="true"/>
           <span>{samplePreviewOpen?'SYNTHETIC DEMO — no real actions':t.boundary}</span>
-          <span className="spm-footer-dash">·</span><span>{samplePreviewOpen?'M1–M5 interactive example':gate4Session ? 'Host reconciliation test' : gate3Session ? 'Payment status test' : gate2Session ? 'Order & agreement test' : storeOfferSession ? 'Store offer review' : checkoutSession || demoRequest ? 'Checkout test' : 'Phase 4'}</span>
+          <span className="spm-footer-dash">·</span><span>{samplePreviewOpen?'M1–M5 interactive example':gate4Session ? 'Host reconciliation test' : gate3Session ? 'Payment status test' : gate2Session ? 'Order & agreement test' : storeOfferSession ? 'Store offer review' : checkoutSession || demoRequest ? 'Checkout test' : 'SecurePay Mini'}</span>
         </div>
         <a className="spm-checkout-imprint" href="https://securepay.ke/"
           target="_blank" rel="noopener noreferrer"

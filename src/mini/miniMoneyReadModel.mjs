@@ -47,7 +47,8 @@ export function miniMoneyFeeQuoteProof(quote,agreementId,versionId,rail){
     !text(versionId)||quote.railCode!==rail.railCode||
     quote.currency!==rail.currency||
     !text(quote.quoteReference)||!positive(quote.amountMinor)||
-    !code(quote.currency)||!positive(quote.securePayReceivableMinor)||
+    !code(quote.currency)||!Number.isSafeInteger(quote.securePayReceivableMinor)||
+    quote.securePayReceivableMinor<0||
     !Number.isSafeInteger(quote.platformChargeMinor)||
     quote.platformChargeMinor<0||
     !['READY','BLOCKED'].includes(quote.economicState)||
