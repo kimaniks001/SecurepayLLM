@@ -64,26 +64,31 @@ export function MiniMoneySnapshot({agreementId,versionId,money,payments,
     setQuote(null);setSelectedRail('');setSelectedIntent(null);
     setQuoteError('');setIntentError('');
     (async()=>{
-      try{
-        await prepare();
-        const result=await money.read(agreementId);
-        if(!miniMoneySnapshotProof(result,agreementId,versionId))
-          throw Error('Snapshot version or authority unavailable');
-        if(alive){setSnapshot(result);setState('ready');}
-      }catch{
-        if(alive){setSnapshot(null);setState('error');}
+      // Refresh the SAME first-party session once. Parallel reads use that
+      // one auth epoch and do not race single-use refresh tokens.
+      try{ await prepare(); }
+      catch{
+        if(alive){
+          setSnapshot(null);setState('error');
+          setHistory([]);setHistoryState('error');
+        }
+        return;
       }
-    })();
-    (async()=>{
-      try{
-        await prepare();
-        const result=await payments.listIntents(agreementId,0,10);
-        if(!miniMoneyIntentListProof(result))
-          throw Error('Intent history changed or cannot be verified');
-        if(alive){setHistory(result.items);setHistoryState('ready');}
-      }catch{
-        if(alive){setHistory([]);setHistoryState('error');}
-      }
+      const reads=await Promise.allSettled([
+        money.read(agreementId),
+        payments.listIntents(agreementId,0,10),
+      ]);
+      if(!alive)return;
+      const snapshotReply=reads[0];
+      if(snapshotReply.status==='fulfilled'&&
+        miniMoneySnapshotProof(snapshotReply.value,agreementId,versionId)){
+        setSnapshot(snapshotReply.value);setState('ready');
+      }else{setSnapshot(null);setState('error');}
+      const historyReply=reads[1];
+      if(historyReply.status==='fulfilled'&&
+        miniMoneyIntentListProof(historyReply.value)){
+        setHistory(historyReply.value.items);setHistoryState('ready');
+      }else{setHistory([]);setHistoryState('error');}
     })();
     return ()=>{alive=false;};
     // Parent remounts for each Agreement and each signed-in account.
