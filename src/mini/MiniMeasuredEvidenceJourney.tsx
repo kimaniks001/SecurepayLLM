@@ -407,20 +407,83 @@ export function MiniMeasuredEvidenceJourney({
     });
   };
 
+  const proposeCorrection=async()=>{
+    if(!asReporter||!chosen||confirmed)return;
+    const corrected=hundredths(correctionQuantity);
+    const reason=correctionNote.trim();
+    if(corrected===null||corrected===chosen.reportedHundredths||
+        !reason||reason.length>1200||!correctionEvidence){
+      setError('Enter different hours/km, explain the correction and choose linked evidence.');
+      return;
+    }
+    await act('Corrected measurement proposal',async()=>{
+      const response=await measured.proposeCorrection(agreementId,chosen.reportId,{
+        expectedVersionId:versionId,expectedVersionHash:chosen.versionHash,
+        expectedReportDigest:chosen.reportDigest,correctedHundredths:corrected,
+        evidenceBindingId:correctionEvidence,reason,
+        idempotencyKey:key('correction:'+chosen.reportId+':'+
+          corrected+':'+correctionEvidence+':'+reason),
+      });
+      if(response.reportId!==chosen.reportId ||
+          response.proposedHundredths!==corrected ||
+          response.evidenceBindingId!==correctionEvidence ||
+          response.state!=='PROPOSED_UNAGREED' || response.payable!==false)
+        throw Error('Incorrect correction proposal response');
+      setCorrectionQuantity('');setCorrectionNote('');setCorrectionEvidence('');
+    });
+  };
+
+  const decideCorrection=async(choice:'ACCEPT'|'REJECT')=>{
+    if(!asBeneficiary||!chosen||!correctionSummary||corrections.length===0)return;
+    const latest=corrections[0];
+    if(!correctionSummary.latestRevision||correctionSummary.correctionId!==latest.id)
+      {setError('Latest correction cannot be verified. Recheck.');return;}
+    const reason=choice==='REJECT'?correctionReviewNote.trim():null;
+    if(choice==='REJECT'&&!reason)
+      {setError('Explain what is wrong with the corrected quantity.');return;}
+    await act('Correction review',async()=>{
+      const result=await measured.decideCorrection(
+        agreementId,chosen.reportId,latest.id,{
+          expectedVersionId:versionId,expectedVersionHash:chosen.versionHash,
+          expectedReportDigest:chosen.reportDigest,
+          expectedRevision:latest.revisionNumber,
+          expectedCorrectedHundredths:latest.proposedHundredths,
+          choice,reviewNote:reason,
+          idempotencyKey:key('correction-review:'+latest.id+':'+choice),
+        });
+      if(result.correctionId!==latest.id ||
+          result.revisionNumber!==latest.revisionNumber ||
+          result.choice!==choice ||
+          result.state!=='REVIEW_ONLY' || result.payable!==false)
+        throw Error('Independent correction response mismatch');
+      setCorrectionReviewNote('');
+    });
+  };
+
   const confirmQuantity=async()=>{
-    if(!chosen||!work||corrections.length>0||confirmed)return;
+    if(!asBeneficiary||!chosen||!work||confirmed)return;
+    const latest=corrections[0]??null;
+    if(latest && (!correctionSummary||
+        correctionSummary.correctionId!==latest.id ||
+        !correctionSummary.latestRevision ||
+        correctionSummary.state!=='ALL_REVIEW_RESPONSES_ACCEPTED_NONPAYABLE')){
+      setError('The corrected hours or kilometres still need independent acceptance.');
+      return;
+    }
+    const effective=latest?.proposedHundredths??chosen.reportedHundredths;
     await act('Human-confirmed effective quantity',async()=>{
-      const confirmed=await measured.confirm(agreementId,chosen.reportId,{
+      const saved=await measured.confirm(agreementId,chosen.reportId,{
         expectedVersionId:versionId,expectedVersionHash:chosen.versionHash,
         expectedReportDigest:chosen.reportDigest,
-        expectedCorrectionId:null,
-        expectedEffectiveHundredths:chosen.reportedHundredths,
-        idempotencyKey:key('effective:'+chosen.reportId),
+        expectedCorrectionId:latest?.id??null,
+        expectedEffectiveHundredths:effective,
+        idempotencyKey:key('effective:'+chosen.reportId+':'+(latest?.id??'original')),
       });
-      if(!nonpayable(confirmed)||confirmed.invoiceIssued!==false||
-          confirmed.payable!==false||
-          confirmed.reportId!==chosen.reportId ||
-          confirmed.effectiveHundredths!==chosen.reportedHundredths)
+      if(!nonpayable(saved)||saved.invoiceIssued!==false||
+          saved.payable!==false||
+          saved.reportId!==chosen.reportId ||
+          saved.effectiveHundredths!==effective ||
+          saved.correctionId!==(latest?.id??null))
         throw Error('Human-confirmed measurement mismatch');
     });
   };
