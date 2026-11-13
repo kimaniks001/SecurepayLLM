@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
+import type { MeasuredRateBasis } from '../api/securepay/measured-services';
 import { ArrowRight, RefreshCcw, ShieldCheck } from 'lucide-react';
 import { ApiError } from '../api/securepay/http';
 import type { ConfirmedQuantity, EvidenceAssessment, MeasuredReport } from
@@ -43,11 +45,12 @@ const units=(n:number)=>
   Number.isSafeInteger(n)?(n/100).toFixed(2):'Needs checking';
 
 export function MiniMeasuredBillingJourney({
-  agreementId,report,confirmed,assessment,viewerIdentityId,gateway,prepare,
+  agreementId,report,confirmed,assessment,viewerIdentityId,rateBasis,gateway,prepare,
 }:{
   agreementId:string;
   report:MeasuredReport;confirmed:ConfirmedQuantity;
   assessment:EvidenceAssessment|null;viewerIdentityId:string;
+  rateBasis:MeasuredRateBasis;
   gateway:MeasuredBillingGateway;prepare:()=>Promise<unknown>;
 }) {
   const [opened,setOpened]=useState(false);
@@ -87,7 +90,6 @@ export function MiniMeasuredBillingJourney({
   };
   const reporter=viewerIdentityId===confirmed.reporterIdentityId;
   const beneficiary=viewerIdentityId===confirmed.confirmedByIdentityId;
-  const rateUnit=report.evidenceMethod==='WORK_LOG'?'hours':'hours / km';
   const canAct=report.versionCurrent &&
     confirmed.versionId===report.versionId &&
     confirmed.reportDigest===report.reportDigest &&
@@ -409,7 +411,7 @@ export function MiniMeasuredBillingJourney({
     });
   };
 
-  const unit=report.evidenceMethod==='WORK_LOG'?'hours':'hours or kilometres';
+  const unit=rateBasis==='PER_HOUR'?'hours':'kilometres';
   return <details className="spm-mini-slot" data-g8="metered-billing"
       onToggle={e=>setOpened(e.currentTarget.open)}>
     <summary>Review charge, deposit and milestones
@@ -596,7 +598,7 @@ function ProofSelector({id,value,onChange,items,disabled}:{
 }
 function PlanEditor({bill,deposit,onDeposit,rows,setRows,addStage,patchStage,blocked,onSubmit}:{
   bill:ReviewedBill;deposit:string;onDeposit:(value:string)=>void;
-  rows:MilestoneRow[];setRows:React.Dispatch<React.SetStateAction<MilestoneRow[]>>;
+  rows:MilestoneRow[];setRows:Dispatch<SetStateAction<MilestoneRow[]>>;
   addStage:()=>void;
   patchStage:(id:number,field:keyof MilestoneRow,value:string)=>void;
   blocked:boolean;onSubmit:()=>void;
@@ -608,7 +610,7 @@ function PlanEditor({bill,deposit,onDeposit,rows,setRows,addStage,patchStage,blo
   const valid=calculated!==null && calculated===BigInt(bill.totalMinor) &&
     down!==null&&down<bill.totalMinor && rows.every(r=>
       !!r.title.trim()&&!!r.requiredEvidence.trim()&&minor(r.amount)!==null&&
-      minor(r.amount)!>0);
+      (minor(r.amount)??0)>0);
   return <div className="spm-mini-slot-items" data-g8="deposit-milestones-plan">
     <p>Propose how this agreed total would be allocated.
       Nothing is charged or collected by making this plan.</p>
