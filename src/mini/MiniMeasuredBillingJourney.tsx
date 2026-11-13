@@ -665,8 +665,64 @@ export function MiniMeasuredBillingJourney({
                   addStage={addStage} patchStage={patchStage}
                   blocked={busy||blocked} onSubmit={()=>void proposePlan()}/>}
               {planReview?.beneficiaryAccepted&&
-                <small role="status">The allocation has been reviewed.
-                  No deposit has been collected and no milestone released.</small>}
+                <div className="spm-mini-agreement-fact" data-g8="agreement-addendum">
+                  <strong>Agreement-linked deposit and milestone consent</strong>
+                  <small>The reviewed allocation is not yet an Agreement addendum.
+                    Each party must separately accept the exact terms. Confirmed
+                    work, evidence and its tariff version stay unchanged.</small>
+                  {addendum&&<small role="status">
+                    {addendum.state.replaceAll('_',' ').toLowerCase()} ·
+                    {addendum.accepted}/{addendum.requiredParties} parties accepted
+                    {addendum.outstanding>0?' · '+addendum.outstanding+' remaining':''}
+                  </small>}
+                  {reporter&&addendum?.state==='AWAITING_AGREEMENT_ADDENDUM'&&
+                    <button type="button" className="spm-secondary"
+                      disabled={busy||blocked||!ready}
+                      onClick={()=>void openAddendum()}>
+                      Ask parties to sign this payment-plan addendum</button>}
+                  {addendum?.viewerNeedsConsent&&addendum.addendumId&&
+                    addendum.rejected===0&&<>
+                    <button type="button" className="spm-secondary"
+                      disabled={busy||blocked||!ready}
+                      onClick={()=>void decideAddendum('ACCEPT')}>
+                      Accept this Agreement addendum</button>
+                    <label className="spm-label" htmlFor="g8-annex-reason">
+                      Why should this plan change?</label>
+                    <textarea className="spm-field" id="g8-annex-reason"
+                      rows={2} maxLength={1200} value={annexRejection}
+                      disabled={busy||blocked}
+                      onChange={e=>setAnnexRejection(e.target.value)}/>
+                    <button type="button" className="spm-quiet-button"
+                      disabled={busy||blocked||!ready||!annexRejection.trim()}
+                      onClick={()=>void decideAddendum('REJECT')}>
+                      Reject the Agreement addendum</button>
+                  </>}
+                  {beneficiary&&addendum?.viewerMaySeal&&addendum.addendumId&&
+                    <button type="button" className="spm-secondary"
+                      disabled={busy||blocked||!ready}
+                      onClick={()=>void sealAddendum()}>
+                      Confirm every party signed this exact addendum</button>}
+                  {addendum?.annexCurrent&&
+                    <small role="status">Signed Agreement addendum recorded.
+                      This is not a deposit receipt, an invoice or payment authority.</small>}
+                  {addendum?.state==='ADDENDUM_REJECTED_NEW_PLAN_REQUIRED'&&
+                    <small>The plan needs revision and fresh consent.
+                      The old proposed terms remain in history.</small>}
+                  {reporter&&!revising&&
+                    (addendum?.annexCurrent ||
+                     addendum?.state==='ADDENDUM_REJECTED_NEW_PLAN_REQUIRED')&&
+                    <button type="button" className="spm-quiet-button"
+                      disabled={busy||blocked||!ready} onClick={beginRevision}>
+                      Change planned deposit or milestone terms</button>}
+                  {reporter&&revising&&
+                    <PlanEditor bill={bill} deposit={deposit}
+                      onDeposit={setDeposit} rows={stages} setRows={setStages}
+                      addStage={addStage} patchStage={patchStage}
+                      blocked={busy||blocked||!ready}
+                      onSubmit={()=>{setRevising(false);void proposePlan();}}/>}
+                  <small>Any revision needs fresh independent review and signatures.
+                    Once funds are received or moving, payment terms are frozen.</small>
+                </div>}
             </>}
           </div>}
         </>}
