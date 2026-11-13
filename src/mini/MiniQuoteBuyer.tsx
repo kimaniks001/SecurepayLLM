@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, RefreshCcw, ShieldCheck } from 'lucide-react';
 import type { AgreementGateway } from '../api/securepay/agreements';
+import { MiniQuoteSchedulePreview } from './MiniQuoteSchedulePreview';
 import {
   parseNotificationActionKey,
   type NotificationEvent, type NotificationsGateway,
@@ -376,6 +377,8 @@ export function MiniQuoteBuyer({quotationGateway,agreementGateway,notificationGa
           <p>{plan.sellerSupplyDescription}</p>
           <small>Proposed buyer payment {money(plan.buyerPaymentMinor,plan.currency)}.
             No payment, settlement, delivery booking or stock reservation.</small>
+          <MiniQuoteSchedulePreview key={plan.planId} plan={plan}
+            quotationGateway={quotationGateway} prepare={prepare}/>
         </div>}
       </section>}
       {error&&<p role="alert" className="spm-error">{error}</p>}
