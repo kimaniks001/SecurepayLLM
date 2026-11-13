@@ -11,6 +11,7 @@ import { MiniSellerStore } from './MiniSellerStore';
 import { createStoreGateway } from '../api/securepay/store';
 import { createStoreQuotationGateway } from '../api/securepay/store-quotations';
 import { createMeasuredServicesGateway } from '../api/securepay/measured-services';
+import { createMoneySnapshotGateway } from '../api/securepay/money-snapshot';
 import { m5QuotationExperienceEnabled } from '../config/securepay';
 import { createNotificationsGateway } from '../api/securepay/notifications';
 import { MiniBuyStore, type MiniStorePlanLine } from './MiniBuyStore';
@@ -80,12 +81,17 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
   const stores=useMemo(()=>createStoreGateway(http),[http]);
   const quotations=useMemo(()=>createStoreQuotationGateway(http),[http]);
   const measured=useMemo(()=>createMeasuredServicesGateway(http),[http]);
+  const canonicalMoney=useMemo(()=>createMoneySnapshotGateway(http),[http]);
   const notifications=useMemo(()=>createNotificationsGateway(http),[http]);
   const businesses=useMemo(()=>createBusinessGateway(http),[http]);
   // NO real seller/buyer quote requests just because someone opened Mini.
   // Enabled only in isolated stage when the matching M5 API branch is present.
   const liveQuotes=!demo &&
     m5QuotationExperienceEnabled(import.meta.env.VITE_SECUREPAY_M5_QUOTATIONS);
+  // Opt in ONLY when the real isolated API has the canonical Money snapshot.
+  // This flag affects visibility, never financial permissions.
+  const liveMoneyStatus=!demo &&
+    import.meta.env.VITE_SECUREPAY_M6_MONEY_STATUS==='enabled';
   const [epoch,setEpoch] = useState(0);
   const pair = useMemo(() => {
     const gateway = demo
@@ -474,6 +480,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
       <MiniMyAgreements gateway={agreements}
         quotationGateway={quotations} notificationGateway={notifications}
         measuredGateway={measured} liveQuotes={liveQuotes}
+        moneyGateway={canonicalMoney} liveMoneyStatus={liveMoneyStatus}
         prepare={()=>ensureFreshSession(session,auth)}
         onBack={()=>setAgreementsOpen(false)}
         onReauthenticate={reauthenticateAgreements}
