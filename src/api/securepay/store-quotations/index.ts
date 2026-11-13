@@ -111,6 +111,8 @@ export interface QuoteObligationPlan {
 /** Strict, read-only UI proofs; never infer consent from a chat or HTTP 201. */
 export const quotedRecordProof = (q: SellerQuoteRecord, expectedId?: string) =>
   !!q && q.status === 'PROPOSAL_RECORDED' &&
+  typeof q.id === 'string' &&
+  /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(q.id) &&
   (!expectedId || q.id.toLowerCase() === expectedId.toLowerCase()) &&
   /^KS\d{3,12}$/.test(q.buyerKsNumber) &&
   /^KS\d{3,}$/.test(q.sellerKsNumber) &&
