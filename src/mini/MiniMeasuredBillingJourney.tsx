@@ -8,6 +8,7 @@ import type { ConfirmedQuantity, EvidenceAssessment, MeasuredReport } from
 import type {
   MeasuredBillingGateway, ConfirmedDispute, ResolutionSummary,
   ResolutionOutcome, ReviewedBill, BillReview, PlannedPayment, PlannedReview,
+  AgreementPlanAddendumStatus,
 } from '../api/securepay/measured-billing';
 
 /**
@@ -37,6 +38,11 @@ const minor=(s:string):number|null=>{
   const [whole,part='']=s.split('.');
   const n=Number(whole)*100+Number(part.padEnd(2,'0'));
   return Number.isSafeInteger(n)&&n>=0?n:null;
+};
+const inputFromMinor=(value:number)=>{
+  if(!Number.isSafeInteger(value)||value<0)return '';
+  const n=BigInt(value);
+  return (n/100n).toString()+'.'+(n%100n).toString().padStart(2,'0');
 };
 const money=(n:number,currency:string)=>{
   if(!Number.isSafeInteger(n)||n<0)return 'Amount needs checking';
@@ -70,6 +76,9 @@ export function MiniMeasuredBillingJourney({
   const [billReview,setBillReview]=useState<BillReview|null>(null);
   const [plan,setPlan]=useState<PlannedPayment|null>(null);
   const [planReview,setPlanReview]=useState<PlannedReview|null>(null);
+  const [addendum,setAddendum]=useState<AgreementPlanAddendumStatus|null>(null);
+  const [annexRejection,setAnnexRejection]=useState('');
+  const [revising,setRevising]=useState(false);
   const [staleBill,setStaleBill]=useState(false);
   const [disputeReason,setDisputeReason]=useState('');
   const [allegedQuantity,setAllegedQuantity]=useState('');
@@ -146,6 +155,7 @@ export function MiniMeasuredBillingJourney({
       let nextBillReview:BillReview|null=null;
       let nextPlan:PlannedPayment|null=null;
       let nextPlanReview:PlannedReview|null=null;
+      let nextAnnex:AgreementPlanAddendumStatus|null=null;
       let previousBillHeld=false;
       if(!currentDispute||currentOutcome){
         try{nextBill=await gateway.latestBill(agreementId,report.reportId);}
@@ -181,12 +191,22 @@ export function MiniMeasuredBillingJourney({
                 nextPlanReview.planDigest!==nextPlan.planDigest ||
                 nextPlanReview.billTotalMinor!==nextBill.totalMinor)
               throw Error('Independent milestone review is inconsistent');
+            if(nextPlanReview.beneficiaryAccepted){
+              nextAnnex=await gateway.addendumStatus(
+                agreementId,nextBill.id,nextPlan.id);
+              if(!noMoney(nextAnnex) ||
+                  nextAnnex.billId!==nextBill.id ||
+                  nextAnnex.planId!==nextPlan.id ||
+                  nextAnnex.planDigest!==nextPlan.planDigest ||
+                  nextAnnex.canonicalAgreementVersionPreserved!==true)
+                throw Error('Agreement addendum consent does not match the plan');
+            }
           }
         }
       }
       if(ticket!==requestNumber.current)return;
       setBill(nextBill);setBillReview(nextBillReview);
-      setPlan(nextPlan);setPlanReview(nextPlanReview);
+      setPlan(nextPlan);setPlanReview(nextPlanReview);setAddendum(nextAnnex);
       setStaleBill(previousBillHeld);
       setBlocked(false);setReady(true);
       setNotice('Checked against current SecurePay records.');
@@ -194,7 +214,7 @@ export function MiniMeasuredBillingJourney({
       if(ticket===requestNumber.current){
         setBlocked(true);setReady(false);setDispute(null);setResolution(null);
         setOutcome(null);setBill(null);setBillReview(null);
-        setPlan(null);setPlanReview(null);
+        setPlan(null);setPlanReview(null);setAddendum(null);
         setError('SecurePay could not verify this work, its reviews or current bill. No action was approved. Recheck before proceeding.');
       }
     }finally{if(ticket===requestNumber.current)setBusy(false);}
@@ -345,6 +365,19 @@ export function MiniMeasuredBillingJourney({
     });
   };
 
+  const beginRevision=()=>{
+    if(!plan||!bill||!reporter)return;
+    // Preserve previous accepted plan and exact consent as history.
+    // A new revision requires a fresh beneficiary review and fresh annex.
+    setDeposit(inputFromMinor(plan.plannedDepositMinor));
+    setStages(plan.milestones.map((stage,i)=>({
+      id:i+1,title:stage.title,amount:inputFromMinor(stage.amountMinor),
+      requiredEvidence:stage.requiredEvidence,
+      due:stage.dueAt?.slice(0,10)??'',
+    })));
+    nextStage.current=plan.milestones.length;
+    setRevising(true);
+  };
   const addStage=()=>{
     if(stages.length>=5)return;
     const id=++nextStage.current;
@@ -413,6 +446,62 @@ export function MiniMeasuredBillingJourney({
           saved.choice!==choice||saved.depositCollected!==false||
           saved.payable!==false)
         throw Error('Plan response did not match reviewed terms');
+    });
+  };
+
+  const openAddendum=async()=>{
+    if(!bill||!plan||!planReview?.beneficiaryAccepted||!reporter)return;
+    await act('Agreement-linked payment plan',async()=>{
+      const stored=await gateway.openAddendum(agreementId,bill.id,plan.id,{
+        expectedVersionId:bill.versionId,
+        expectedVersionHash:bill.versionHash,
+        expectedBillSourceKey:bill.sourceKey,
+        expectedPlanDigest:plan.planDigest,
+        idempotencyKey:key('agreement-annex:'+plan.id),
+      });
+      if(stored.planId!==plan.id ||
+          stored.planDigest!==plan.planDigest ||
+          stored.billSourceKey!==bill.sourceKey ||
+          stored.versionId!==bill.versionId)
+        throw Error('Canonical Agreement addendum did not match the source');
+    });
+  };
+
+  const decideAddendum=async(choice:'ACCEPT'|'REJECT')=>{
+    if(!bill||!plan||!addendum?.addendumId||!addendum.viewerNeedsConsent)return;
+    const note=choice==='REJECT'?annexRejection.trim():null;
+    if(choice==='REJECT'&&!note){
+      setError('Explain which deposit or milestone term should change.');
+      return;
+    }
+    await act('Agreement addendum decision',async()=>{
+      const result=await gateway.decideAddendum(
+        agreementId,bill.id,plan.id,addendum.addendumId!,{
+          expectedPlanDigest:plan.planDigest,choice,note,
+          idempotencyKey:key('annex-decision:'+addendum.addendumId+':'+choice),
+        });
+      if(result.planDigest!==plan.planDigest ||
+          result.choice!==choice ||
+          result.identityId!==viewerIdentityId)
+        throw Error('The recorded consent is not the signed-in participant');
+      setAnnexRejection('');
+    });
+  };
+
+  const sealAddendum=async()=>{
+    if(!bill||!plan||!addendum?.addendumId||
+        !addendum.viewerMaySeal||!beneficiary)return;
+    await act('All-party Agreement addendum',async()=>{
+      const result=await gateway.sealAddendum(
+        agreementId,bill.id,plan.id,addendum.addendumId!,{
+          expectedPlanDigest:plan.planDigest,
+          idempotencyKey:key('annex-seal:'+addendum.addendumId),
+        });
+      if(!noMoney(result) || result.payable!==false ||
+          result.state!=='AGREEMENT_ADDENDUM_NONPAYABLE' ||
+          result.planDigest!==plan.planDigest ||
+          result.versionId!==bill.versionId)
+        throw Error('The sealed Agreement plan did not match the original work');
     });
   };
 
@@ -576,8 +665,64 @@ export function MiniMeasuredBillingJourney({
                   addStage={addStage} patchStage={patchStage}
                   blocked={busy||blocked} onSubmit={()=>void proposePlan()}/>}
               {planReview?.beneficiaryAccepted&&
-                <small role="status">The allocation has been reviewed.
-                  No deposit has been collected and no milestone released.</small>}
+                <div className="spm-mini-agreement-fact" data-g8="agreement-addendum">
+                  <strong>Agreement-linked deposit and milestone consent</strong>
+                  <small>The reviewed allocation is not yet an Agreement addendum.
+                    Each party must separately accept the exact terms. Confirmed
+                    work, evidence and its tariff version stay unchanged.</small>
+                  {addendum&&<small role="status">
+                    {addendum.state.replaceAll('_',' ').toLowerCase()} ·
+                    {addendum.accepted}/{addendum.requiredParties} parties accepted
+                    {addendum.outstanding>0?' · '+addendum.outstanding+' remaining':''}
+                  </small>}
+                  {reporter&&addendum?.state==='AWAITING_AGREEMENT_ADDENDUM'&&
+                    <button type="button" className="spm-secondary"
+                      disabled={busy||blocked||!ready}
+                      onClick={()=>void openAddendum()}>
+                      Ask parties to sign this payment-plan addendum</button>}
+                  {addendum?.viewerNeedsConsent&&addendum.addendumId&&
+                    addendum.rejected===0&&<>
+                    <button type="button" className="spm-secondary"
+                      disabled={busy||blocked||!ready}
+                      onClick={()=>void decideAddendum('ACCEPT')}>
+                      Accept this Agreement addendum</button>
+                    <label className="spm-label" htmlFor="g8-annex-reason">
+                      Why should this plan change?</label>
+                    <textarea className="spm-field" id="g8-annex-reason"
+                      rows={2} maxLength={1200} value={annexRejection}
+                      disabled={busy||blocked}
+                      onChange={e=>setAnnexRejection(e.target.value)}/>
+                    <button type="button" className="spm-quiet-button"
+                      disabled={busy||blocked||!ready||!annexRejection.trim()}
+                      onClick={()=>void decideAddendum('REJECT')}>
+                      Reject the Agreement addendum</button>
+                  </>}
+                  {beneficiary&&addendum?.viewerMaySeal&&addendum.addendumId&&
+                    <button type="button" className="spm-secondary"
+                      disabled={busy||blocked||!ready}
+                      onClick={()=>void sealAddendum()}>
+                      Confirm every party signed this exact addendum</button>}
+                  {addendum?.annexCurrent&&
+                    <small role="status">Signed Agreement addendum recorded.
+                      This is not a deposit receipt, an invoice or payment authority.</small>}
+                  {addendum?.state==='ADDENDUM_REJECTED_NEW_PLAN_REQUIRED'&&
+                    <small>The plan needs revision and fresh consent.
+                      The old proposed terms remain in history.</small>}
+                  {reporter&&!revising&&
+                    (addendum?.annexCurrent ||
+                     addendum?.state==='ADDENDUM_REJECTED_NEW_PLAN_REQUIRED')&&
+                    <button type="button" className="spm-quiet-button"
+                      disabled={busy||blocked||!ready} onClick={beginRevision}>
+                      Change planned deposit or milestone terms</button>}
+                  {reporter&&revising&&
+                    <PlanEditor bill={bill} deposit={deposit}
+                      onDeposit={setDeposit} rows={stages} setRows={setStages}
+                      addStage={addStage} patchStage={patchStage}
+                      blocked={busy||blocked||!ready}
+                      onSubmit={()=>{setRevising(false);void proposePlan();}}/>}
+                  <small>Any revision needs fresh independent review and signatures.
+                    Once funds are received or moving, payment terms are frozen.</small>
+                </div>}
             </>}
           </div>}
         </>}

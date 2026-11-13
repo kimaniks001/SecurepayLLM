@@ -76,6 +76,33 @@ export interface PlannedReview {
   depositCollected:false;fundsHeld:false;payable:false;paymentEnabled:false;
 }
 
+export interface AgreementPlanAddendumStatus {
+  agreementId:string;billId:string;planId:string;
+  addendumId:string|null;planDigest:string;requiredParties:number;
+  accepted:number;rejected:number;outstanding:number;state:string;
+  nextActorIdentityId:string|null;viewerNeedsConsent:boolean;
+  viewerMaySeal:boolean;latestPlan:boolean;
+  canonicalAgreementVersionPreserved:boolean;
+  annexCurrent:boolean;invoiceIssued:false;
+  payable:false;paymentEnabled:false;
+}
+export interface AgreementPlanAddendum {
+  id:string;agreementId:string;versionId:string;versionHash:string;
+  billId:string;billSourceKey:string;planId:string;planDigest:string;
+  proposerIdentityId:string;
+}
+export interface AgreementPlanAddendumDecision {
+  id:string;participantId:string;identityId:string;
+  choice:'ACCEPT'|'REJECT';note:string|null;planDigest:string;
+}
+export interface AgreementPlanAddendumSeal {
+  id:string;agreementId:string;addendumId:string;versionId:string;
+  versionHash:string;planId:string;planDigest:string;
+  allPartyConsentDigest:string;sealedByIdentityId:string;
+  state:'AGREEMENT_ADDENDUM_NONPAYABLE';replayed:boolean;
+  payable:false;paymentEnabled:false;
+}
+
 export function createMeasuredBillingGateway(http:HttpClient) {
   const root=(a:string)=>`/api/v1/agreements/${segment(a)}/measured-service`;
   const usage=(a:string,r:string)=>`${root(a)}/usage-reports/${segment(r)}`;
@@ -140,6 +167,27 @@ export function createMeasuredBillingGateway(http:HttpClient) {
       idempotencyKey:string;
     })=>http.request<PlannedPayment>(
       `${bill(a,b)}/plans`,{method:'POST',auth:'required',body}),
+    addendumStatus:(a:string,b:string,p:string)=>
+      http.request<AgreementPlanAddendumStatus>(
+        `${plan(a,b,p)}/agreement-addendum`,{auth:'required'}),
+    openAddendum:(a:string,b:string,p:string,body:{
+      expectedVersionId:string;expectedVersionHash:string;
+      expectedBillSourceKey:string;expectedPlanDigest:string;
+      idempotencyKey:string;
+    })=>http.request<AgreementPlanAddendum>(
+      `${plan(a,b,p)}/agreement-addendum`,
+      {method:'POST',auth:'required',body}),
+    decideAddendum:(a:string,b:string,p:string,annex:string,body:{
+      expectedPlanDigest:string;choice:'ACCEPT'|'REJECT';
+      note:string|null;idempotencyKey:string;
+    })=>http.request<AgreementPlanAddendumDecision>(
+      `${plan(a,b,p)}/agreement-addendum/${segment(annex)}/decisions`,
+      {method:'POST',auth:'required',body}),
+    sealAddendum:(a:string,b:string,p:string,annex:string,body:{
+      expectedPlanDigest:string;idempotencyKey:string;
+    })=>http.request<AgreementPlanAddendumSeal>(
+      `${plan(a,b,p)}/agreement-addendum/${segment(annex)}/seal`,
+      {method:'POST',auth:'required',body}),
     planReview:(a:string,b:string,p:string)=>http.request<PlannedReview>(
       `${plan(a,b,p)}/review`,{auth:'required'}),
     decidePlan:(a:string,b:string,p:string,body:{
