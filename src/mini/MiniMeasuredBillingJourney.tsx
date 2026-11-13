@@ -38,9 +38,13 @@ const minor=(s:string):number|null=>{
   const n=Number(whole)*100+Number(part.padEnd(2,'0'));
   return Number.isSafeInteger(n)&&n>=0?n:null;
 };
-const money=(n:number,currency:string)=>
-  Number.isSafeInteger(n)?`${currency} ${(n/100).toLocaleString('en-KE',
-    {minimumFractionDigits:2,maximumFractionDigits:2})}`:'Amount needs checking';
+const money=(n:number,currency:string)=>{
+  if(!Number.isSafeInteger(n)||n<0)return 'Amount needs checking';
+  const exact=BigInt(n);
+  const shillings=(exact/100n).toLocaleString('en-KE');
+  const cents=(exact%100n).toString().padStart(2,'0');
+  return currency+' '+shillings+'.'+cents;
+};
 const units=(n:number)=>
   Number.isSafeInteger(n)?(n/100).toFixed(2):'Needs checking';
 
