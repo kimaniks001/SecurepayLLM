@@ -14,3 +14,12 @@ export function apiBaseUrl(value: string | undefined): string {
   if (url.username || url.password || url.search || url.hash) throw new Error('Invalid SecurePay API URL');
   return url.href.replace(/\/$/, '');
 }
+
+/**
+ * M5 integration gate. The quotation API and buyer/seller consent flows are
+ * candidate-only and must never appear just because Mini is not in demo mode.
+ * Explicitly opt in on an ISOLATED API+Mini staging deployment only.
+ */
+export function m5QuotationExperienceEnabled(value: string | undefined): boolean {
+  return value === 'enabled';
+}

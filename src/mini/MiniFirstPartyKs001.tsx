@@ -10,6 +10,7 @@ import { createBusinessGateway } from '../api/securepay/business';
 import { MiniSellerStore } from './MiniSellerStore';
 import { createStoreGateway } from '../api/securepay/store';
 import { createStoreQuotationGateway } from '../api/securepay/store-quotations';
+import { m5QuotationExperienceEnabled } from '../config/securepay';
 import { createNotificationsGateway } from '../api/securepay/notifications';
 import { MiniBuyStore, type MiniStorePlanLine } from './MiniBuyStore';
 import { miniStoreIntent } from './miniStoreIntent.mjs';
@@ -77,6 +78,10 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
   const quotations=useMemo(()=>createStoreQuotationGateway(http),[http]);
   const notifications=useMemo(()=>createNotificationsGateway(http),[http]);
   const businesses=useMemo(()=>createBusinessGateway(http),[http]);
+  // NO real seller/buyer quote requests just because someone opened Mini.
+  // Enabled only in isolated stage when the matching M5 API branch is present.
+  const liveQuotes=!demo &&
+    m5QuotationExperienceEnabled(import.meta.env.VITE_SECUREPAY_M5_QUOTATIONS);
   const [epoch,setEpoch] = useState(0);
   const pair = useMemo(() => {
     const gateway = demo
@@ -459,14 +464,14 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
         onBack={()=>setPeopleOpen(null)}/>}
     {status==='ready' && !identityOpen && agreementsOpen &&
       <MiniMyAgreements gateway={agreements}
-        quotationGateway={quotations} notificationGateway={notifications} liveQuotes={!demo}
+        quotationGateway={quotations} notificationGateway={notifications} liveQuotes={liveQuotes}
         prepare={()=>ensureFreshSession(session,auth)}
         onBack={()=>setAgreementsOpen(false)}
         onReauthenticate={reauthenticateAgreements}
       />}
     {status==='ready' && !identityOpen && sellerOpen &&
       <MiniSellerStore storeGateway={stores} businessGateway={businesses}
-        quotationGateway={quotations} liveQuotes={!demo}
+        quotationGateway={quotations} liveQuotes={liveQuotes}
         prepare={()=>ensureFreshSession(session,auth)}
         onBack={()=>setSellerOpen(false)}
         onInvitations={()=>{setSellerOpen(false);openPeople('inbox');}}
