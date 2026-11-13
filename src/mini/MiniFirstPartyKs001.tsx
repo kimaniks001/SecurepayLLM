@@ -3,7 +3,8 @@ import { ArrowLeft, ArrowRight, BookmarkPlus, CircleAlert, ClipboardList, Folder
 import { createHttpClient } from '../api/securepay/http';
 import { createAgentGateway } from '../api/securepay/agent';
 import { createConversationAccessStore } from '../api/securepay/agent/continuity';
-import { createMiniDemoHttpClient, miniDemoSeedAccess, miniDemoTokens } from './miniInteractiveDemo';
+import { createMiniDemoHttpClient, miniDemoSeedAccess, miniDemoTokens,
+  isMiniExperiencePreviewHost } from './miniInteractiveDemo';
 import { createAuthGateway } from '../api/securepay/auth';
 import { createAgreementGateway } from '../api/securepay/agreements';
 import { createBusinessGateway } from '../api/securepay/business';
@@ -98,6 +99,13 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
   // silently enabled by Money status. Stage-only, explicit human click.
   const liveFeeQuotes=liveMoneyStatus &&
     import.meta.env.VITE_SECUREPAY_M6_FEE_QUOTES==='enabled';
+  // NEVER let ordinary customers trigger provider instructions during
+  // development. Reopen this control only with a separately approved,
+  // isolated sandbox and passing regulated-rail certification.
+  const livePaymentCommands=liveFeeQuotes &&
+    import.meta.env.VITE_SECUREPAY_M6_PAYMENT_SUBMISSION==='enabled' &&
+    typeof window!=='undefined' &&
+    isMiniExperiencePreviewHost(window.location.hostname);
   const [epoch,setEpoch] = useState(0);
   const pair = useMemo(() => {
     const gateway = demo
@@ -488,6 +496,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
         measuredGateway={measured} liveQuotes={liveQuotes}
         moneyGateway={canonicalMoney} paymentsGateway={paymentHistory}
         liveMoneyStatus={liveMoneyStatus} liveFeeQuotes={liveFeeQuotes}
+        livePaymentCommands={livePaymentCommands}
         prepare={()=>ensureFreshSession(session,auth)}
         onBack={()=>setAgreementsOpen(false)}
         onReauthenticate={reauthenticateAgreements}

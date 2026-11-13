@@ -25,17 +25,17 @@ const dateLabel = (iso:string|null) => {
  * "who must act" inference. The server's nextActions and attentionRequired
  * remain the only authority on this user's next work.
  */
-export function MiniMyAgreements({gateway,quotationGateway,notificationGateway,measuredGateway,moneyGateway,paymentsGateway,liveQuotes,liveMoneyStatus,liveFeeQuotes,prepare,onBack,onReauthenticate}:{
+export function MiniMyAgreements({gateway,quotationGateway,notificationGateway,measuredGateway,moneyGateway,paymentsGateway,liveQuotes,liveMoneyStatus,liveFeeQuotes,livePaymentCommands,prepare,onBack,onReauthenticate}:{
   gateway:Pick<AgreementGateway,'currentUserAgreements'|'detail'|'propose'|'confirmVersion'|'version'>;
   quotationGateway:StoreQuotationGateway;
   measuredGateway:MeasuredServicesGateway;
   moneyGateway:Pick<MoneySnapshotGateway,'read'>;
-  paymentsGateway:Pick<PaymentIntentGateway,
-    'listIntents'|'get'|'createVersionBoundQuote'>;
+  paymentsGateway:PaymentIntentGateway;
   notificationGateway:Pick<NotificationsGateway,'list'|'markRead'>;
   liveQuotes:boolean;
   liveMoneyStatus:boolean;
   liveFeeQuotes:boolean;
+  livePaymentCommands:boolean;
   prepare:()=>Promise<unknown>;
   onBack:()=>void;
   onReauthenticate:()=>void;
@@ -183,7 +183,9 @@ export function MiniMyAgreements({gateway,quotationGateway,notificationGateway,m
           <MiniMoneySnapshot key={chosen.id+details.currentVersion.id}
             agreementId={chosen.id} versionId={details.currentVersion.id}
             money={moneyGateway} payments={paymentsGateway}
-            quoteReviewEnabled={liveFeeQuotes} prepare={prepare}/>}
+            quoteReviewEnabled={liveFeeQuotes}
+            paymentCommandsEnabled={livePaymentCommands}
+            prepare={prepare}/>}
         {!liveMoneyStatus&&details.moneyStatus&&<p className="spm-mini-owned-note">
           SecurePay Money record: {details.moneyStatus}.
           This screen does not verify a provider payment or release funds.

@@ -8,6 +8,7 @@ import type {
   AgreementFundingQuoteResponse,PaymentIntentResponse,
   AgreementFundingOptionResponse,
 } from '../api/securepay/payment-intent';
+import { MiniMoneyPaymentFlow } from './MiniMoneyPaymentFlow';
 import {miniMoneySnapshotProof,miniMoneyStatusLabel}
   from './miniMoneySnapshotProof.mjs';
 import {
@@ -30,18 +31,20 @@ const date=(s:string)=>{const t=Date.parse(s);return Number.isFinite(t)
  * - Snapshot and intent history only GET, rechecked for this signed-in actor.
  * - Version-bound fee-quote POST is an explicit, opt-in isolated-staging
  *   action and may persist quote evidence. NEVER creates a payment intent.
- * - Actual payment initiation, release and ledger movement are NOT reachable
- *   here until backend/provider certification and consent are established.
+ * - Payment submission is separately opt-in on a preview host, with
+ *   independent server funding authority and a separate initiation click.
+ *   It remains disabled in all ordinary deployments.
+ * - Settlement / ledger release is never initiated from Mini here.
  * - Neither a quote nor a provider-confirmed attempt is a Money receipt.
  */
 export function MiniMoneySnapshot({agreementId,versionId,money,payments,
-  quoteReviewEnabled,prepare}:{
+  quoteReviewEnabled,paymentCommandsEnabled,prepare}:{
   agreementId:string;
   versionId:string;
   money:Pick<MoneySnapshotGateway,'read'>;
-  payments:Pick<PaymentIntentGateway,
-    'listIntents'|'get'|'createVersionBoundQuote'>;
+  payments:PaymentIntentGateway;
   quoteReviewEnabled:boolean;
+  paymentCommandsEnabled:boolean;
   prepare:()=>Promise<unknown>;
 }) {
   const [snapshot,setSnapshot]=useState<AgreementMoneySnapshotResponse|null>(null);
@@ -206,6 +209,19 @@ export function MiniMoneySnapshot({agreementId,versionId,money,payments,
           <small>Quoted total: {formatMoney(quote.totalChargeMinor,quote.currency)}</small>
           <small>Expires: {date(quote.expiresAt)}. No payment intent or transfer has started.</small>
         </div>}
+        {paymentCommandsEnabled&&quote&&quote.economicState==='READY'&&
+          historyState==='ready'&&!history.some(row=>
+            ['CREATED','INITIATION_PENDING','ACTION_REQUIRED',
+             'PROVIDER_PENDING','CONFIRMATION_PENDING'].includes(row.status))&&
+          <MiniMoneyPaymentFlow key={quote.quoteReference}
+            quote={quote} agreementId={agreementId} versionId={versionId}
+            payments={payments} prepare={prepare}
+            onRecheck={()=>setRefresh(n=>n+1)}/>}
+        {paymentCommandsEnabled&&historyState==='ready'&&
+          history.some(row=>['CREATED','INITIATION_PENDING','ACTION_REQUIRED',
+            'PROVIDER_PENDING','CONFIRMATION_PENDING'].includes(row.status))&&
+          <small>An earlier Agreement payment attempt is unresolved.
+            Recheck it before preparing any other payment.</small>}
         {!quoteReviewEnabled&&<small>Funding choices are informational here.
           No payment or fee quote is initiated.</small>}
       </div>}
