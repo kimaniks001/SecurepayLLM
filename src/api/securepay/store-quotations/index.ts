@@ -127,7 +127,8 @@ export const boundDraftProof = (d: QuoteBoundAgreementDraft, quoteId: string) =>
   /^[0-9a-f-]{36}$/i.test(d.boundVersionId) &&
   /^[0-9a-f]{64}$/i.test(d.boundContentHash) &&
   d.boundVersionNumber === 1 && d.versionCurrent &&
-  d.agreementStatus === 'DRAFT';
+  ['DRAFT','PROPOSED','INVITATION_PENDING','PARTICIPANTS_JOINING',
+   'CONFIRMATION_PENDING'].includes(d.agreementStatus);
 
 /** Neither quote completion nor independent consent turns this into Money. */
 export const quoteReviewProof = (r: QuoteReview, agreementId: string, versionId: string, hash: string) =>
