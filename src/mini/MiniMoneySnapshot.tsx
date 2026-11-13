@@ -88,8 +88,11 @@ export function MiniMoneySnapshot({agreementId,versionId,money,payments,
         setSnapshot(snapshotReply.value);setState('ready');
       }else{setSnapshot(null);setState('error');}
       const historyReply=reads[1];
+      // The API page may omit older unresolved payment attempts. A
+      // partial history is never authority to create another intent.
       if(historyReply.status==='fulfilled'&&
-        miniMoneyIntentListProof(historyReply.value)){
+        miniMoneyIntentListProof(historyReply.value)&&
+        historyReply.value.totalElements===historyReply.value.items.length){
         setHistory(historyReply.value.items);setHistoryState('ready');
       }else{setHistory([]);setHistoryState('error');}
     })();
