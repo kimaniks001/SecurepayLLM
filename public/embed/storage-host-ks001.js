@@ -102,6 +102,7 @@
 
     var topic = null, draft = '', frame = null, frameReady = false;
     var status = '', disposed = false, connectionId = 0;
+    var sendButton = null, statusNode = null;
     function validReply(ev) {
       return frame && ev.origin === frameOrigin &&
         ev.source === frame.contentWindow && ev.data &&
@@ -112,7 +113,9 @@
     function receive(ev) {
       if (disposed || !validReply(ev)) return;
       frameReady = true;
-      render();
+      // Never detach or recreate a loaded SecurePay iframe on READY. Doing so
+      // would reset its authenticated guest session and lose the live chat.
+      if (sendButton) sendButton.disabled = !draft.trim();
     }
     global.addEventListener('message', receive);
     function button(label, action, cls) {
@@ -127,6 +130,7 @@
     function render() {
       if (disposed) return;
       body.replaceChildren();
+      sendButton = null; statusNode = null;
       if (!topic) {
         body.appendChild(element('p', 'muted', 'What would you like to arrange?'));
         var grid = element('div', 'tiles');
@@ -180,22 +184,27 @@
             product:PROTOCOL,text:value,publicSpaceReference:null,
           },frameOrigin);
           status = 'Draft offered for your review. Press Send inside SecurePay.';
-          render();
+          if (statusNode) statusNode.textContent = status;
         });
         send.disabled = !frameReady || !draft.trim();
+        sendButton = send;
         body.appendChild(send);
       }
-      if (status) body.appendChild(element('p','status',status));
+      statusNode = element('p','status',status);
+      body.appendChild(statusNode);
     }
     launcher.addEventListener('click', function(){
       panel.hidden = !panel.hidden;
       launcher.setAttribute('aria-expanded', String(!panel.hidden));
-      if (!panel.hidden) render();
+      // Retain a mounted conversation when merely hiding/reopening the panel.
+      // Re-render only before a frame exists; a re-render would detach it.
+      if (!panel.hidden && !frame) render();
     });
     close.addEventListener('click', function(){
       panel.hidden = true;
       launcher.setAttribute('aria-expanded','false');
-      resetFrame();
+      // Closing the panel is non-destructive. Explicitly selecting another
+      // request or destroy() closes this conversation frame.
     });
     render();
     return Object.freeze({
