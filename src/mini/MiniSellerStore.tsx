@@ -387,7 +387,7 @@ export function MiniSellerStore({storeGateway,businessGateway,quotationGateway,l
         </div>}
         {storeBusiness&&<details className="spm-mini-seller-editor" data-m5c="proposal-only">
           <summary><strong>Prepare buyer-specific quotation with KS001</strong></summary>
-          <p>These are proposed terms for your own KS001 conversation, not an issued quote, stock reservation or buyer approval. The buyer identity and terms must still be verified in the exact Agreement.</p>
+          <p>Prepare the seller’s terms here. Discussing with KS001 does not issue anything. The separate Record quotation button asks SecurePayAPI to verify and record your proposal for the named buyer. Neither action is buyer approval, stock reservation or payment.</p>
           <label className="spm-label" htmlFor="m5c-buyer">Buyer's KS Number (seller-stated; not identity-verified)</label>
           <input id="m5c-buyer" className="spm-field" placeholder="KS001" autoComplete="off"
             value={quoteBuyer} maxLength={14} onChange={e=>{clearRecordedQuote();setQuoteBuyer(e.target.value.toUpperCase());}}/>
