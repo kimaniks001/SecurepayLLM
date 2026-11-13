@@ -20,7 +20,7 @@ export interface ResolutionSummary {
 }
 export interface ResolutionProposal {
   id:string;agreementId:string;disputeId:string;
-  confirmedQuantityId:string;reportId:string;versionId:string;
+  revisionNumber:number;confirmedQuantityId:string;reportId:string;versionId:string;
   versionHash:string;reportDigest:string;proposedHundredths:number;
   sourceEvidenceBindingId:string|null;reason:string;
   proposerIdentityId:string;reviewDigest:string;state:'RESOLUTION_PROPOSED';
@@ -122,6 +122,8 @@ export function createMeasuredBillingGateway(http:HttpClient) {
       {method:'POST',auth:'required',body}),
     resolution:(a:string,r:string)=>http.request<ResolutionSummary>(
       `${dispute(a,r)}/resolution-summary`,{auth:'required'}),
+    resolutionHistory:(a:string,r:string)=>http.request<ResolutionProposal[]>(
+      `${dispute(a,r)}/resolution/history`,{auth:'required'}),
     proposeResolution:(a:string,r:string,body:{
       expectedDisputeId:string;expectedConfirmedId:string;
       expectedVersionId:string;expectedVersionHash:string;
