@@ -26,6 +26,7 @@ export interface MeasuredReport {
 }
 export interface MeasuredDirectory {
   agreementId:string;
+  viewerIdentityId:string;
   currentVersionId:string;
   versionHash:string;
   currency:string;
