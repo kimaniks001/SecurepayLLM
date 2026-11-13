@@ -30,7 +30,7 @@ export function MiniMeasuredServicePreview({agreementId,versionId,
   const [quantity,setQuantity]=useState('4');
   const [max,setMax]=useState('6');
   const [method,setMethod]=useState<MeasuredMethod>('WORK_LOG');
-  const [currency,setCurrency]=useState('KES');
+  const currency='KES';
   const [result,setResult]=useState<MeasuredServicePreview|null>(null);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
