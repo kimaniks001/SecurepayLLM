@@ -100,6 +100,11 @@ export function createAgentGateway(rawHttp: HttpClient, access: ConversationAcce
     // "Continue Building" the moment a conversation is actually saved. 'optional' preserves today's
     // signed-out-friendly behaviour for a never-saved conversation (no token is required) while letting
     // a signed-in owner's token reach the backend so the ownership check can actually succeed.
+    // P0: the read-only Agent capability catalogue uses the SAME conversation
+    // access wrapper and its anonymous possession / saved-owner credentials.
+    // The backend derives its mode and exposure; this GET never grants tools.
+    readCapabilityCatalogue: (id: string) =>
+      http.request<unknown>(`${conversation(id)}/capabilities`, { auth: 'optional' }),
     readContext: (id: string) => http.request<TradeContextDto>(`${conversation(id)}/context`, { auth: 'optional' }),
     // Entry Perfection Phase 6 -- the emerging agreement (Review), readable before sign-in by whoever holds the conversation.
     readAgreementFormation: (id: string, timeZone?: string) =>
