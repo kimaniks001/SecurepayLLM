@@ -14,7 +14,8 @@ The compact **Work evidence** tool is added to the existing first-party **My Agr
 4. The backend creates a single **NON_MONETARY** canonical evidence-only obligation per report. The reporter starts that work using the established Agreement endpoint and exact state version.
 5. The tool reuses existing **private, malware-scanned media intake** for JPG/PNG/PDF, verified receipt, canonical evidence submission, and immutable binding to this exact report/ride. No local photo record, invented media URL or second storage system. Verified receipt upload and canonical submission are separate server operations, orchestrated behind one user intent. No implicit retries after uncertain results.
 6. The beneficiary reviews canonical source evidence independently; a second explicit review addresses the **reported quantity**. Neither is an invoice or Money authorization. The reporter can finish the nonmonetary evidence work only when the existing completion gate says so.
-7. The actual beneficiary can explicitly confirm the effective original quantity only after the backend verifies every fresh Agreement confirmation, independent evidence approval, work completion, exact participant votes and tariff cap. Corrected/disputed reports are blocked in this initial Mini UI pending the dedicated correction UI, rather than silently paying the original quantity.
+7. A reporter can propose a corrected quantity with an existing linked evidence binding and a written reason. Mini shows the latest immutable correction revision and its independent participant-review summary. The beneficiary can explicitly ACCEPT or REJECT that exact correction, with source evidence approval required for ACCEPT. Neither action edits the original report or issues an invoice.
+8. The actual beneficiary can explicitly confirm the effective original OR latest accepted corrected quantity only after the backend verifies every fresh Agreement confirmation, independent evidence approval, work completion, exact participant votes/revision and tariff cap. A disputed or incomplete correction blocks final confirmation.
 
 ## Activation boundary
 
@@ -28,7 +29,7 @@ These conditions do NOT establish that the system is deployed or certified. No p
 
 ## Remaining engineering before Gate 8 code freeze
 
-- Integrate the complete **correction and dispute** review UX (including E7 correction revisions and exact latest review summary).
+- **Implemented as draft:** in-tool correction proposal, history, exact latest revision status, beneficiary accept/reject and guarded effective-quantity confirmation; extended multi-party correction review and post-seal dispute/supersession remain OPEN.
 - Bind effect of human-confirmed quantity to a separate verified **bill**/milestone/deposit contract under Gate 8 E8, with an explicit Money authority boundary.
 - Independently check physical meter/route evidence where available; a reviewed photo alone cannot prove actual kilometres.
 - Complete source-level error handling and privacy on account switch; end-to-end authentication/Java/Flyway/upload/review tests are expressly deferred until the owner-approved certification phase.
