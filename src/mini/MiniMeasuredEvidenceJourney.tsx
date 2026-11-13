@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { MiniMeasuredBillingJourney } from './MiniMeasuredBillingJourney';
+import type { MeasuredBillingGateway } from '../api/securepay/measured-billing';
 import { ArrowRight, Camera, CheckCircle2, RefreshCcw, ShieldCheck } from 'lucide-react';
 import type { AgreementGateway, EvidenceDto, ObligationDto } from '../api/securepay/agreements';
 import { ApiError } from '../api/securepay/http';
@@ -38,10 +40,11 @@ const nonpayable=(value:unknown):boolean=>!!value&&typeof value==='object'&&
   'paymentEnabled' in value && value.paymentEnabled===false;
 
 export function MiniMeasuredEvidenceJourney({
-  agreementId,versionId,people,agreements,measured,prepare,
+  agreementId,versionId,people,agreements,measured,billing,prepare,
 }:{
   agreementId:string;versionId:string;people:Party[];
   agreements:Agreements;measured:MeasuredEvidenceGateway;
+  billing:MeasuredBillingGateway;
   prepare:()=>Promise<unknown>;
 }) {
   const [available,setAvailable]=useState(false);
@@ -709,6 +712,13 @@ export function MiniMeasuredEvidenceJourney({
             {confirmed&&<div className="spm-mini-agreement-fact" role="status">
               <strong>{units(confirmed.effectiveHundredths)} {unit} confirmed</strong>
               <small>Evidence-linked human agreement recorded. Not an invoice or payment approval.</small>
+              {directory?.viewerIdentityId&&
+                <MiniMeasuredBillingJourney
+                  key={'billing:'+confirmed.id}
+                  agreementId={agreementId} report={chosen} confirmed={confirmed}
+                  assessment={assessment} viewerIdentityId={directory.viewerIdentityId}
+                  rateBasis={directory.rateBasis} gateway={billing}
+                  prepare={prepare}/>}
             </div>}
           </>}
         </div>}

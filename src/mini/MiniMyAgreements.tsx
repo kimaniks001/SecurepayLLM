@@ -7,6 +7,7 @@ import { MiniQuoteBuyer } from './MiniQuoteBuyer';
 import { MiniMeasuredServicePreview } from './MiniMeasuredServicePreview';
 import { MiniMeasuredEvidenceJourney } from './MiniMeasuredEvidenceJourney';
 import type { MeasuredEvidenceGateway } from '../api/securepay/measured-evidence';
+import type { MeasuredBillingGateway } from '../api/securepay/measured-billing';
 import type { MeasuredServicesGateway } from '../api/securepay/measured-services';
 import type { MoneySnapshotGateway } from '../api/securepay/money-snapshot';
 import type { PaymentIntentGateway } from '../api/securepay/payment-intent';
@@ -27,7 +28,7 @@ const dateLabel = (iso:string|null) => {
  * "who must act" inference. The server's nextActions and attentionRequired
  * remain the only authority on this user's next work.
  */
-export function MiniMyAgreements({gateway,quotationGateway,notificationGateway,measuredGateway,evidenceGateway,moneyGateway,paymentsGateway,liveQuotes,liveEvidence,liveMoneyStatus,liveFeeQuotes,livePaymentCommands,prepare,onBack,onReauthenticate}:{
+export function MiniMyAgreements({gateway,quotationGateway,notificationGateway,measuredGateway,evidenceGateway,billingGateway,moneyGateway,paymentsGateway,liveQuotes,liveEvidence,liveMoneyStatus,liveFeeQuotes,livePaymentCommands,prepare,onBack,onReauthenticate}:{
   gateway:Pick<AgreementGateway,'currentUserAgreements'|'detail'|'propose'|'confirmVersion'|'version'|
     'obligations'|'startObligation'|'obligationEvidence'|
     'uploadVerifiedMedia'|'submitVerifiedMediaEvidence'|'reviewEvidence'|
@@ -35,6 +36,7 @@ export function MiniMyAgreements({gateway,quotationGateway,notificationGateway,m
   quotationGateway:StoreQuotationGateway;
   measuredGateway:MeasuredServicesGateway;
   evidenceGateway:MeasuredEvidenceGateway;
+  billingGateway:MeasuredBillingGateway;
   liveEvidence:boolean;
   moneyGateway:Pick<MoneySnapshotGateway,'read'>;
   paymentsGateway:PaymentIntentGateway;
@@ -190,7 +192,8 @@ export function MiniMyAgreements({gateway,quotationGateway,notificationGateway,m
           <MiniMeasuredEvidenceJourney key={'evidence:'+chosen.id+details.currentVersion.id}
             agreementId={chosen.id} versionId={details.currentVersion.id}
             people={details.participants} agreements={gateway}
-            measured={evidenceGateway} prepare={prepare}/>}
+            measured={evidenceGateway} billing={billingGateway}
+            prepare={prepare}/>}
         {liveMoneyStatus&&details.currentVersion&&
           <MiniMoneySnapshot key={chosen.id+details.currentVersion.id}
             agreementId={chosen.id} versionId={details.currentVersion.id}

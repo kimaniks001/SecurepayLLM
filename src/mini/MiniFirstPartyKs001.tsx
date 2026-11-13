@@ -13,6 +13,7 @@ import { createStoreGateway } from '../api/securepay/store';
 import { createStoreQuotationGateway } from '../api/securepay/store-quotations';
 import { createMeasuredServicesGateway } from '../api/securepay/measured-services';
 import { createMeasuredEvidenceGateway } from '../api/securepay/measured-evidence';
+import { createMeasuredBillingGateway } from '../api/securepay/measured-billing';
 import { createMoneySnapshotGateway } from '../api/securepay/money-snapshot';
 import { createPaymentIntentGateway } from '../api/securepay/payment-intent';
 import { m5QuotationExperienceEnabled } from '../config/securepay';
@@ -85,6 +86,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
   const quotations=useMemo(()=>createStoreQuotationGateway(http),[http]);
   const measured=useMemo(()=>createMeasuredServicesGateway(http),[http]);
   const measuredEvidence=useMemo(()=>createMeasuredEvidenceGateway(http),[http]);
+  const measuredBilling=useMemo(()=>createMeasuredBillingGateway(http),[http]);
   const canonicalMoney=useMemo(()=>createMoneySnapshotGateway(http),[http]);
   const paymentHistory=useMemo(()=>createPaymentIntentGateway(http),[http]);
   const notifications=useMemo(()=>createNotificationsGateway(http),[http]);
@@ -503,6 +505,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
       <MiniMyAgreements gateway={agreements}
         quotationGateway={quotations} notificationGateway={notifications}
         measuredGateway={measured} evidenceGateway={measuredEvidence}
+        billingGateway={measuredBilling}
         liveQuotes={liveQuotes} liveEvidence={liveEvidence}
         moneyGateway={canonicalMoney} paymentsGateway={paymentHistory}
         liveMoneyStatus={liveMoneyStatus} liveFeeQuotes={liveFeeQuotes}
