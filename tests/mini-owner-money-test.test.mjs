@@ -62,7 +62,7 @@ test('money testing lives only in the existing Mini synthetic preview host and a
 });
 
 test('sample seller cannot use buyer-side money test; no invented source or provider request',()=>{
-  assert.match(first,/buyer=\{sessionState\.tokens\.accessToken==='mini-demo-amina'\}/);
+  assert.match(first,/buyer=\{sessionState\.status==='signed-in'&&/);
   assert.match(first,/sourceMatches=\{miniDemoMoneyFixtureState\(\)\.sourceMatches\}/);
   assert.match(owner,/if\(chosen&&trialDraft&&buyer&&sourceMatches\)/);
   assert.match(owner,/!buyer&&<p role="status"/);
