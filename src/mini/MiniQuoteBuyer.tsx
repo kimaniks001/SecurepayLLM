@@ -2,6 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, RefreshCcw, ShieldCheck } from 'lucide-react';
 import type { AgreementGateway } from '../api/securepay/agreements';
 import {
+  parseNotificationActionKey,
+  type NotificationEvent, type NotificationsGateway,
+} from '../api/securepay/notifications';
+import {
   boundDraftProof, quotedRecordProof, quoteReviewProof,
   type QuoteBoundAgreementDraft, type QuoteObligationPlan, type QuoteReview,
   type SellerQuoteRecord, type StoreQuotationGateway,
@@ -18,9 +22,10 @@ const money = (minor:number,currency:string) => `${currency} ${(minor/100).toFix
  * All live routes are authenticated SecurePayAPI, never synthetic UI state.
  * Demo hides this component because its API has no authoritative quote store.
  */
-export function MiniQuoteBuyer({quotationGateway,agreementGateway,prepare,onCreated}:{
+export function MiniQuoteBuyer({quotationGateway,agreementGateway,notificationGateway,prepare,onCreated}:{
   quotationGateway:StoreQuotationGateway;
   agreementGateway:Pick<AgreementGateway,'propose'|'confirmVersion'>;
+  notificationGateway:Pick<NotificationsGateway,'list'|'markRead'>;
   prepare:()=>Promise<unknown>;
   onCreated:()=>void;
 }) {
@@ -28,6 +33,9 @@ export function MiniQuoteBuyer({quotationGateway,agreementGateway,prepare,onCrea
   const [received,setReceived]=useState<SellerQuoteRecord[]>([]);
   const [receivedStatus,setReceivedStatus]=useState<'loading'|'ready'|'error'>('loading');
   const [receivedBusy,setReceivedBusy]=useState(false);
+  const [quoteAlerts,setQuoteAlerts]=useState<NotificationEvent[]>([]);
+  const [alertsStatus,setAlertsStatus]=useState<'loading'|'ready'|'error'>('loading');
+  const [alertsBusy,setAlertsBusy]=useState(false);
   const [quote,setQuote]=useState<SellerQuoteRecord|null>(null);
   const [draft,setDraft]=useState<QuoteBoundAgreementDraft|null>(null);
   const [review,setReview]=useState<QuoteReview|null>(null);
@@ -59,14 +67,47 @@ export function MiniQuoteBuyer({quotationGateway,agreementGateway,prepare,onCrea
       setReceived([]);setReceivedStatus('error');
     }finally{setReceivedBusy(false);}
   };
+  /**
+   * Only canonical buyer-self notifications, never public notifications.
+   * The action is a typed navigation hint; the quotation GET separately
+   * authorizes this exact authenticated buyer. Notification text and links
+   * are NOT trusted as quotation terms or acceptance.
+   */
+  const loadQuoteAlerts=async()=>{
+    setAlertsBusy(true);setAlertsStatus('loading');
+    try {
+      await prepare();
+      const received=await notificationGateway.list({
+        category:'AGREEMENTS',unreadOnly:true,page:0,size:20,
+      });
+      if(!Array.isArray(received)||received.length>20)
+        throw Error('Invalid private notification list');
+      setQuoteAlerts(received.filter(event=>
+        event.category==='AGREEMENTS' &&
+        parseNotificationActionKey(event.actionKey)==='OPEN_STORE' &&
+        typeof event.actionObjectReference==='string' &&
+        referencePattern.test(event.actionObjectReference) &&
+        event.eventKey===`store.quotation_created:${event.actionObjectReference}` &&
+        !event.readAt &&
+        !event.resolvedAt));
+      setAlertsStatus('ready');
+    }catch{
+      setQuoteAlerts([]);setAlertsStatus('error');
+    }finally{setAlertsBusy(false);}
+  };
+
   useEffect(()=>{
     // The gateway is bound to the signed-in first-party session.
     // Refreshing or switching accounts never retains a previous buyer's list.
     void loadReceived();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   },[quotationGateway]);
+  useEffect(()=>{
+    void loadQuoteAlerts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[notificationGateway]);
 
-  const inspectId=async(requestedId:string)=>{
+  const inspectId=async(requestedId:string,notificationId?:string)=>{
     const id=requestedId.trim().toLowerCase();
     setReference(id);
     if(!referencePattern.test(id)){
@@ -80,6 +121,14 @@ export function MiniQuoteBuyer({quotationGateway,agreementGateway,prepare,onCrea
       const result=await quotationGateway.read(id);
       if(!quotedRecordProof(result,id))throw Error('Invalid quote source');
       setQuote(result);
+      // Read status is not consent. Do not block the quote when optional
+      // notification acknowledgement is unavailable.
+      if(notificationId) {
+        try {
+          await notificationGateway.markRead(notificationId);
+          setQuoteAlerts(current=>current.filter(n=>n.id!==notificationId));
+        }catch{/* The authenticated quote GET succeeded; no mutation follows. */}
+      }
       if(!result.sourceCurrent||new Date(result.expiresAt).getTime()<=Date.now())
         setNotice('The seller quotation is stale or expired. Ask the seller to issue a new one.');
     }catch{
@@ -218,6 +267,32 @@ export function MiniQuoteBuyer({quotationGateway,agreementGateway,prepare,onCrea
     <summary><ShieldCheck size={16}/>Review a seller quotation <ArrowRight size={15}/></summary>
     <div className="spm-mini-slot-items">
       <p>SecurePay shows recent quotations addressed to your signed-in KS Number. Opening one is not an acceptance.</p>
+      <div className="spm-mini-agreement-fact" data-m5e="private-quotation-alerts">
+        <strong>New quotations</strong>
+        {alertsStatus==='loading'&&<small role="status">Checking your notifications…</small>}
+        {alertsStatus==='error'&&<small role="status">
+          Notifications are unavailable; you can still review quotations below.
+        </small>}
+        {alertsStatus==='ready'&&quoteAlerts.length===0&&
+          <small>No new unread quotation notifications.</small>}
+        {alertsStatus==='ready'&&quoteAlerts.map(alert=>
+          <div className="spm-mini-owned-item" key={alert.id}>
+            <div>
+              <strong>Seller quotation awaiting your review</strong>
+              <small>{new Date(alert.createdAt).toLocaleDateString('en-KE',
+                {day:'numeric',month:'short',year:'numeric'})}</small>
+              <small>A notification is not an accepted order.</small>
+            </div>
+            <button className="spm-secondary" type="button" disabled={busy||alertsBusy}
+              onClick={()=>void inspectId(alert.actionObjectReference!,alert.id)}>
+              Review <ArrowRight size={14}/>
+            </button>
+          </div>)}
+        <button type="button" className="spm-quiet-button"
+          onClick={()=>void loadQuoteAlerts()} disabled={busy||alertsBusy}>
+          <RefreshCcw size={14}/>Refresh new quotations
+        </button>
+      </div>
       <div className="spm-mini-agreement-fact" data-m5d="buyer-private-inbox">
         <strong>Quotations for me</strong>
         <small>Only your 10 most recent server-recorded seller proposals</small>
