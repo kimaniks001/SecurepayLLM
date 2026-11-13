@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, Camera, CheckCircle2, RefreshCcw, ShieldCheck } from 'lucide-react';
 import type { AgreementGateway, EvidenceDto, ObligationDto } from '../api/securepay/agreements';
 import { ApiError } from '../api/securepay/http';
@@ -43,6 +43,30 @@ export function MiniMeasuredEvidenceJourney({
   agreements:Agreements;measured:MeasuredEvidenceGateway;
   prepare:()=>Promise<unknown>;
 }) {
+  const [available,setAvailable]=useState(false);
+  // Only show this deeper onion layer for an ACTUAL versioned measured
+  // Agreement. Never advertise hourly/km execution on a normal Agreement.
+  useEffect(()=>{
+    let alive=true;
+    const check=async()=>{
+      try{
+        await prepare();
+        const v=await agreements.version(agreementId,versionId);
+        if(alive)setAvailable(
+          v.id===versionId && isHex(v.contentHash) &&
+          !!v.snapshot &&
+          typeof v.snapshot.measured_financial_terms==='object' &&
+          v.snapshot.measured_financial_terms!==null
+        );
+      }catch{
+        if(alive)setAvailable(false);
+      }
+    };
+    void check();
+    return ()=>{alive=false;};
+    // Only the signed-in Agreement/version session owns this component.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[agreementId,versionId,agreements]);
   const [opened,setOpened]=useState(false);
   const [busy,setBusy]=useState(false);
   const [blocked,setBlocked]=useState(false);
@@ -379,6 +403,7 @@ export function MiniMeasuredEvidenceJourney({
     });
   };
 
+  if(!available)return null;
   return <details className="spm-mini-slot" data-g8-evidence="canonical"
       onToggle={e=>{
         if(e.currentTarget.open&&!opened){
