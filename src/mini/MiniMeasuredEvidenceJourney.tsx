@@ -68,7 +68,7 @@ export function MiniMeasuredEvidenceJourney({
   const serviceInstance=useRef('');
   const keys=useRef(new Map<string,string>());
   const pendingReceipt=useRef<{
-    fileName:string;size:number;obligationId:string;
+    fileName:string;size:number;file:File;obligationId:string;
     stateVersion:number;receiptId:string;idempotencyKey:string;
   }|null>(null);
 
@@ -100,6 +100,13 @@ export function MiniMeasuredEvidenceJourney({
         throw Error('Measured work no longer matches the canonical Agreement');
       if(ticket!==currentRequest.current)return;
       setDirectory(listed);
+      // A timed-out declaration may already have committed. Preserve the
+      // session ID until an authoritative read finds it. Never create a
+      // second ride/session because an earlier response was uncertain.
+      if(serviceInstance.current && listed.reports.some(p=>
+          p.serviceInstanceId===serviceInstance.current)) {
+        serviceInstance.current='';setQuantity('');setNote('');
+      }
       const selected=listed.reports.find(p=>p.reportId===nextSelected)??null;
       setSelectedId(selected?.reportId??'');
       setWork(null);setObligation(null);setEvidence([]);
@@ -196,7 +203,7 @@ export function MiniMeasuredEvidenceJourney({
           saved.agreementId!==agreementId || saved.versionId!==versionId ||
           saved.serviceInstanceId!==instance || saved.reportedHundredths!==amount)
         throw Error('Usage declaration mismatch');
-      serviceInstance.current='';setQuantity('');setNote('');
+      // Do not reset the unique session before the directory confirms it.
       // A saved declaration becomes selectable only after a fresh read.
       return saved.id;
     });
@@ -254,12 +261,13 @@ export function MiniMeasuredEvidenceJourney({
             !isHex(res.verifiedUpload.serverSha256)||
             res.verifiedUpload.sizeBytes!==selectedFile.size)
           throw Error('Verified upload receipt missing');
-        pending={fileName:selectedFile.name,size:selectedFile.size,
+        pending={fileName:selectedFile.name,size:selectedFile.size,file:selectedFile,
           obligationId:work.obligationId,stateVersion:obligation.stateVersion,
           receiptId:res.verifiedUpload.receiptId,
           idempotencyKey:key('media-submit:'+label)};
         pendingReceipt.current=pending;
-      }else if(pending.fileName!==selectedFile.name ||
+      }else if(pending.file!==selectedFile ||
+          pending.fileName!==selectedFile.name ||
           pending.size!==selectedFile.size||
           pending.obligationId!==work.obligationId ||
           pending.stateVersion!==obligation.stateVersion){
