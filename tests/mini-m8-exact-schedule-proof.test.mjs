@@ -57,7 +57,7 @@ test('invalid percentages, missing stages, fake payability and tiny shares fail'
     fixture(100,'DEPOSIT_AND_BALANCE',0,null),
     fixture(100,'DEPOSIT_AND_BALANCE',100,null),
     fixture(100,'DEPOSIT_PROGRESS_COMPLETION',50,50),
-    fixture(100,'DEPOSIT_PROGRESS_COMPLETION',null,30),
+    {...fixture(100,'DEPOSIT_PROGRESS_COMPLETION',20,30),depositPercent:null},
     fixture(1,'DEPOSIT_AND_BALANCE',1,null),
     fixture(2,'DEPOSIT_PROGRESS_COMPLETION',30,30),
     {...fixture(100,'FULL_ON_COMPLETION',null,null),proposedSteps:[]},
