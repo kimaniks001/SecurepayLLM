@@ -97,6 +97,10 @@ export function MiniMeasuredEvidenceJourney({
   const currentRequest=useRef(0);
   const serviceInstance=useRef('');
   const keys=useRef(new Map<string,string>());
+  // Different Files can have the same name and byte length. Give every
+  // selected File object its own retry-stable upload attempt identity so
+  // a second distinct photo is never misidentified as the first.
+  const fileAttemptIds=useRef(new WeakMap<File,string>());
   const pendingReceipt=useRef<{
     fileName:string;size:number;file:File;obligationId:string;
     stateVersion:number;receiptId:string;idempotencyKey:string;
@@ -295,7 +299,12 @@ export function MiniMeasuredEvidenceJourney({
     const selectedFile=file;
     if(!selectedFile)return;
     await act('Private evidence',async()=>{
-      const label=work.obligationId+':'+selectedFile.name+':'+selectedFile.size;
+      let fileAttemptId=fileAttemptIds.current.get(selectedFile);
+      if(!fileAttemptId){
+        fileAttemptId=newKey();
+        fileAttemptIds.current.set(selectedFile,fileAttemptId);
+      }
+      const label=work.obligationId+':'+fileAttemptId;
       let pending=pendingReceipt.current;
       if(!pending) {
         const uploadKey=key('media-upload:'+label);
