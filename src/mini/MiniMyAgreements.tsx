@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, ClipboardList, RefreshCcw } from 'lucide-react';
 import type { AgreementGateway } from '../api/securepay/agreements';
+import type { StoreQuotationGateway } from '../api/securepay/store-quotations';
+import { MiniQuoteBuyer } from './MiniQuoteBuyer';
 import {miniAgreementHomePage,miniAgreementDetailView} from './miniAgreementHome.mjs';
 import type {MiniAgreementItem,MiniAgreementDetail} from './miniAgreementHome.mjs';
 
@@ -17,8 +19,10 @@ const dateLabel = (iso:string|null) => {
  * "who must act" inference. The server's nextActions and attentionRequired
  * remain the only authority on this user's next work.
  */
-export function MiniMyAgreements({gateway,prepare,onBack,onReauthenticate}:{
-  gateway:Pick<AgreementGateway,'currentUserAgreements'|'detail'>;
+export function MiniMyAgreements({gateway,quotationGateway,liveQuotes,prepare,onBack,onReauthenticate}:{
+  gateway:Pick<AgreementGateway,'currentUserAgreements'|'detail'|'propose'|'confirmVersion'>;
+  quotationGateway:StoreQuotationGateway;
+  liveQuotes:boolean;
   prepare:()=>Promise<unknown>;
   onBack:()=>void;
   onReauthenticate:()=>void;
@@ -169,6 +173,9 @@ export function MiniMyAgreements({gateway,prepare,onBack,onReauthenticate}:{
     </> : <>
       <p>See your existing Agreements and what SecurePay says needs your attention.
         Unfinished conversations remain under My saved work.</p>
+      {liveQuotes&&<MiniQuoteBuyer quotationGateway={quotationGateway}
+        agreementGateway={gateway} prepare={prepare}
+        onCreated={()=>void loadPage(0,true)}/>}
       {status==='loading'&&<p role="status">Checking your Agreements…</p>}
       {status==='error'&&<><p role="alert">SecurePay could not verify your Agreements.
         Nothing has been changed.</p>

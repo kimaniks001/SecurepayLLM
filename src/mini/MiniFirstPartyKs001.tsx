@@ -9,6 +9,7 @@ import { createAgreementGateway } from '../api/securepay/agreements';
 import { createBusinessGateway } from '../api/securepay/business';
 import { MiniSellerStore } from './MiniSellerStore';
 import { createStoreGateway } from '../api/securepay/store';
+import { createStoreQuotationGateway } from '../api/securepay/store-quotations';
 import { MiniBuyStore, type MiniStorePlanLine } from './MiniBuyStore';
 import { miniStoreIntent } from './miniStoreIntent.mjs';
 import type { MiniStoreIntent } from './miniStoreIntent.mjs';
@@ -72,6 +73,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
   const auth = useMemo(() => createAuthGateway(http),[http]);
   const agreements=useMemo(()=>createAgreementGateway(http),[http]);
   const stores=useMemo(()=>createStoreGateway(http),[http]);
+  const quotations=useMemo(()=>createStoreQuotationGateway(http),[http]);
   const businesses=useMemo(()=>createBusinessGateway(http),[http]);
   const [epoch,setEpoch] = useState(0);
   const pair = useMemo(() => {
@@ -455,12 +457,14 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
         onBack={()=>setPeopleOpen(null)}/>}
     {status==='ready' && !identityOpen && agreementsOpen &&
       <MiniMyAgreements gateway={agreements}
+        quotationGateway={quotations} liveQuotes={!demo}
         prepare={()=>ensureFreshSession(session,auth)}
         onBack={()=>setAgreementsOpen(false)}
         onReauthenticate={reauthenticateAgreements}
       />}
     {status==='ready' && !identityOpen && sellerOpen &&
       <MiniSellerStore storeGateway={stores} businessGateway={businesses}
+        quotationGateway={quotations} liveQuotes={!demo}
         prepare={()=>ensureFreshSession(session,auth)}
         onBack={()=>setSellerOpen(false)}
         onInvitations={()=>{setSellerOpen(false);openPeople('inbox');}}

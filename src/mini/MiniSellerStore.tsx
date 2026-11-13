@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { ArrowLeft, ArrowRight, RefreshCcw, Store, ShieldCheck } from 'lucide-react';
 import type { StoreGateway } from '../api/securepay/store';
+import type { SellerQuoteRecord, StoreQuotationGateway } from '../api/securepay/store-quotations';
+import { quotedRecordProof } from '../api/securepay/store-quotations';
 import type { StoreOfferFulfilmentResponse } from '../api/securepay/store/dto';
 import type { BusinessGateway, BusinessRepresentationDto } from '../api/securepay/business';
 import { createStoreController } from '../features/store/controller';
@@ -15,8 +17,10 @@ import { miniStoreOfferSnapshotFresh } from './miniStoreOfferFresh.mjs';
  * payment/Agreement version mutation. Business permission is checked by
  * the canonical BusinessGateway before loading and again before fulfilment.
  */
-export function MiniSellerStore({storeGateway,businessGateway,prepare,onBack,onInvitations,onSellerDiscuss}:{
+export function MiniSellerStore({storeGateway,businessGateway,quotationGateway,liveQuotes,prepare,onBack,onInvitations,onSellerDiscuss}:{
   storeGateway:StoreGateway;
+  quotationGateway:StoreQuotationGateway;
+  liveQuotes:boolean;
   businessGateway:Pick<BusinessGateway,'mine'|'representation'>;
   prepare:()=>Promise<unknown>;
   onBack:()=>void;
@@ -46,6 +50,14 @@ export function MiniSellerStore({storeGateway,businessGateway,prepare,onBack,onI
   const [quoteConditions,setQuoteConditions]=useState('');
   const [quoteBusy,setQuoteBusy]=useState(false);
   const [quoteError,setQuoteError]=useState('');
+  const [recordedQuote,setRecordedQuote]=useState<SellerQuoteRecord|null>(null);
+  const quoteAction=useRef<{fingerprint:string;key:string;expiresAt:string}|null>(null);
+  // Changing any requested fact requires an entirely fresh seller action.
+  // An identical retry keeps the original key; an ambiguous network outcome
+  // must NEVER imply that the quote was not recorded by the server.
+  const clearRecordedQuote=()=>{
+    setRecordedQuote(null);quoteAction.current=null;setQuoteError('');
+  };
 
   useEffect(()=>{
     let alive=true;
@@ -95,7 +107,7 @@ export function MiniSellerStore({storeGateway,businessGateway,prepare,onBack,onI
     const raw=opened?.raw.find(o=>o.id===id);
     if(!raw)return;
     setSelectedOffer(id);setDeliveryNotice('');setDeliveryError('');setFulfilment(null);
-    setQuoteError('');setQuoteQty('1');
+    clearRecordedQuote();setQuoteQty('1');
     setQuoteUnit(raw.priceMinor===null?'':String(raw.priceMinor/100));
     setQuoteBuyer('');setQuoteWhere('');setQuoteWhen('');
     setQuoteDeliveryBy('TO_AGREE');setQuoteConditions('');
@@ -218,6 +230,75 @@ export function MiniSellerStore({storeGateway,businessGateway,prepare,onBack,onI
     }finally{setQuoteBusy(false);}
   };
 
+  /**
+   * M5C backend bridge: an explicit authenticated SELLER action, separate
+   * from talking to KS001. Uses ONLY server-owned Store, identity and
+   * quotation authority. Neither issue nor chat accepts for a buyer.
+   * Not reachable in the synthetic Mini demo.
+   */
+  const issueRecordedQuotation=async()=>{
+    if(!liveQuotes||!offer||!storeBusiness||quoteBusy||state.draftBusy)return;
+    const proposal=miniSellerQuotationDraft({
+      sellerKsNumber:storeBusiness.ksNumber,
+      offerId:offer.id,title:offer.title,offerUpdatedAt:offer.updatedAt,
+      publishedPriceMinor:offer.priceMinor,currency:offer.currency,
+      buyerKsNumber:quoteBuyer,quantity:quoteQty,unitPrice:quoteUnit,
+      deliveryPlace:quoteWhere,deliveryDate:quoteWhen,
+      deliveryBy:quoteDeliveryBy,conditions:quoteConditions,
+    });
+    if(!proposal||proposal.totalMinor<=0){
+      setQuoteError('Check the buyer, price, quantity, delivery place and date before recording.');return;
+    }
+    const fingerprint=JSON.stringify([storeBusiness.ksNumber,offer.id,offer.updatedAt,
+      proposal.buyerKsNumber,proposal.quantity,proposal.unitPriceMinor,
+      quoteWhere.trim(),quoteWhen,quoteDeliveryBy,quoteConditions.trim()]);
+    if(quoteAction.current?.fingerprint!==fingerprint)
+      quoteAction.current={
+        fingerprint,key:'mini-seller-'+crypto.randomUUID(),
+        // Expiry is a MATERIAL part of the backend idempotency fingerprint;
+        // keep it unchanged on timeout/retry of an identical seller action.
+        expiresAt:new Date(Date.now()+7*24*60*60*1000).toISOString(),
+      };
+    setQuoteBusy(true);setQuoteError('');
+    try{
+      await prepare();
+      const authority=await businessGateway.representation(storeBusiness.ksNumber);
+      if(!authority.canActFor||authority.identityType!=='BUSINESS'||
+         authority.businessKsNumber!==storeBusiness.ksNumber)
+        throw Error('Seller representation unavailable');
+      const published=await storeGateway.offer(storeBusiness.ksNumber,offer.id);
+      if(!miniStoreOfferSnapshotFresh([{
+        sellerKsNumber:storeBusiness.ksNumber,offerId:offer.id,
+        sellerName:storeBusiness.displayName,availabilityState:offer.availabilityState,
+        title:offer.title,offerUpdatedAt:offer.updatedAt,
+        priceMinor:offer.priceMinor,currency:offer.currency,quantity:proposal.quantity,
+      }],[published]))throw Error('Listing changed');
+      // This expiry is a proposal window, NOT an inventory hold.
+      const expiresAt=quoteAction.current!.expiresAt;
+      const response=await quotationGateway.issue(storeBusiness.ksNumber,offer.id,{
+        idempotencyKey:quoteAction.current!.key,
+        buyerKsNumber:proposal.buyerKsNumber,
+        expectedOfferUpdatedAt:offer.updatedAt,
+        quantity:proposal.quantity,unitPriceMinor:proposal.unitPriceMinor,
+        currency:offer.currency,deliveryPlace:quoteWhere.trim(),
+        deliveryDate:quoteWhen,deliveryBy:quoteDeliveryBy,
+        conditions:quoteConditions.trim()||null,expiresAt,
+      });
+      if(!quotedRecordProof(response) ||
+        response.offerId!==offer.id ||
+        response.sellerKsNumber!==storeBusiness.ksNumber ||
+        response.buyerKsNumber!==proposal.buyerKsNumber ||
+        response.totalMinor!==proposal.totalMinor ||
+        response.deliveryDate!==quoteWhen ||
+        response.deliveryPlace!==quoteWhere.trim())
+        throw Error('Quotation proof mismatch');
+      setRecordedQuote(response);
+    }catch{
+      setRecordedQuote(null);
+      setQuoteError('The quotation could not be verified. Its server outcome may be unknown. Recheck before retrying the SAME details; no buyer acceptance or payment is implied.');
+    }finally{setQuoteBusy(false);}
+  };
+
   return <section className="spm-mini-owned-list spm-mini-seller-store"
     aria-label="My Store: published offers and availability">
     <button type="button" className="spm-back" onClick={onBack}><ArrowLeft size={16}/>Back to KS001</button>
@@ -306,38 +387,62 @@ export function MiniSellerStore({storeGateway,businessGateway,prepare,onBack,onI
         </div>}
         {storeBusiness&&<details className="spm-mini-seller-editor" data-m5c="proposal-only">
           <summary><strong>Prepare buyer-specific quotation with KS001</strong></summary>
-          <p>These are proposed terms for your own KS001 conversation, not an issued quote, stock reservation or buyer approval. The buyer identity and terms must still be verified in the exact Agreement.</p>
+          <p>Prepare the seller’s terms here. Discussing with KS001 does not issue anything. The separate Record quotation button asks SecurePayAPI to verify and record your proposal for the named buyer. Neither action is buyer approval, stock reservation or payment.</p>
           <label className="spm-label" htmlFor="m5c-buyer">Buyer's KS Number (seller-stated; not identity-verified)</label>
           <input id="m5c-buyer" className="spm-field" placeholder="KS001" autoComplete="off"
-            value={quoteBuyer} maxLength={14} onChange={e=>setQuoteBuyer(e.target.value.toUpperCase())}/>
+            value={quoteBuyer} maxLength={14} onChange={e=>{clearRecordedQuote();setQuoteBuyer(e.target.value.toUpperCase());}}/>
           <label className="spm-label" htmlFor="m5c-qty">Quantity you propose</label>
           <input id="m5c-qty" className="spm-field" inputMode="numeric" type="number" min="1" max="20"
-            value={quoteQty} onChange={e=>setQuoteQty(e.target.value)}/>
+            value={quoteQty} onChange={e=>{clearRecordedQuote();setQuoteQty(e.target.value);}}/>
           <label className="spm-label" htmlFor="m5c-unit">Proposed price per unit ({offer.currency})</label>
           <input id="m5c-unit" className="spm-field" inputMode="decimal" autoComplete="off"
-            value={quoteUnit} onChange={e=>setQuoteUnit(e.target.value)} placeholder="0.00"/>
+            value={quoteUnit} onChange={e=>{clearRecordedQuote();setQuoteUnit(e.target.value);}} placeholder="0.00"/>
           <label className="spm-label" htmlFor="m5c-place">Delivery or collection place</label>
           <input id="m5c-place" className="spm-field" maxLength={100}
-            value={quoteWhere} onChange={e=>setQuoteWhere(e.target.value)}/>
+            value={quoteWhere} onChange={e=>{clearRecordedQuote();setQuoteWhere(e.target.value);}}/>
           <label className="spm-label" htmlFor="m5c-date">Proposed delivery or collection date</label>
           <input id="m5c-date" className="spm-field" type="date"
-            value={quoteWhen} onChange={e=>setQuoteWhen(e.target.value)}/>
+            value={quoteWhen} onChange={e=>{clearRecordedQuote();setQuoteWhen(e.target.value);}}/>
           <label className="spm-label" htmlFor="m5c-who">Who will arrange transport?</label>
           <select id="m5c-who" className="spm-field" value={quoteDeliveryBy}
-            onChange={e=>setQuoteDeliveryBy(e.target.value as typeof quoteDeliveryBy)}>
+            onChange={e=>{clearRecordedQuote();setQuoteDeliveryBy(e.target.value as typeof quoteDeliveryBy);}}>
             <option value="TO_AGREE">Still to agree</option>
             <option value="SELLER">Seller proposes to arrange it</option>
             <option value="BUYER">Buyer proposes to arrange it</option>
           </select>
           <label className="spm-label" htmlFor="m5c-terms">Exceptions or conditions (optional)</label>
           <textarea id="m5c-terms" className="spm-field" rows={2} maxLength={180}
-            value={quoteConditions} onChange={e=>setQuoteConditions(e.target.value)}/>
+            value={quoteConditions} onChange={e=>{clearRecordedQuote();setQuoteConditions(e.target.value);}}/>
           {quoteError&&<p role="alert">{quoteError}</p>}
           <button type="button" className="spm-secondary" disabled={quoteBusy||state.draftBusy}
             onClick={()=>void discussSellerQuotation()}>
             {quoteBusy?'Verifying…':'Discuss proposed quotation with KS001'}
           </button>
-          <small>No sending to the buyer, Agreement confirmation, Money or stock reservation here.</small>
+          {liveQuotes && <button type="button" className="spm-secondary"
+            disabled={quoteBusy||state.draftBusy||!!recordedQuote}
+            onClick={()=>void issueRecordedQuotation()}>
+            {quoteBusy?'Verifying seller authority…':
+              recordedQuote?'Quotation recorded':'Record seller quotation for buyer'}
+          </button>}
+          {recordedQuote && <div className="spm-mini-owned-item" role="status">
+            <div>
+              <strong>Seller quotation recorded — proposal only</strong>
+              <small>Reference: {recordedQuote.id}</small>
+              <small>{recordedQuote.currency} {(recordedQuote.totalMinor/100).toFixed(2)}
+                {' · '}for {recordedQuote.buyerKsNumber}
+                {' · '}valid until {recordedQuote.expiresAt.slice(0,10)}</small>
+              <small>Give the reference privately to your buyer. They must review
+                and create their own Agreement draft. This does not contact or
+                bind them automatically.</small>
+            </div>
+            <button type="button" className="spm-secondary"
+              onClick={()=>void navigator.clipboard?.writeText(recordedQuote.id)}>
+              Copy reference
+            </button>
+          </div>}
+          <small>{liveQuotes
+            ? 'KS001 discussion and recording a seller quotation are separate actions. The buyer has not agreed; no inventory or Money is reserved.'
+            : 'Sample demo: only KS001 discussion is simulated. No real seller quotation, Agreement, Money or stock hold.'}</small>
         </details>}
         {deliveryError&&<p role="alert">{deliveryError}</p>}
         {deliveryNotice&&<p role="status">{deliveryNotice}</p>}
