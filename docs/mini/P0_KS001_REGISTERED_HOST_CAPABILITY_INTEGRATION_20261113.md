@@ -68,3 +68,14 @@ This SecurepayLLM branch now provides:
 **Do not claim installed on the Vercel Storage preview:** no Storage source repo has been changed and the frame's `APPROVED_PARENTS` remains empty. Source recovery, operator origin approval, frame-ancestors policy, site registration and a real deployment checksum are prerequisites. No fees, storage listings or money actions were certified.
 
 **Next P0 acceptance work:** reconcile first-party and guest SecurePayAPI branches into one isolated source, verify paired staging, and check the host adapters without GitHub Actions runners. Continue Gate 8 onward only on separately reviewed controlled branches.
+
+## Converged Gate 8 API candidate — 13 November 2026
+
+**Single new isolated backend source candidate exists:**
+`kimaniks001/SecurePayAPI@feat/p0-ks001-api-convergence-g8-20261113`.
+
+It descends from `feat/g8-e8-canonical-plan-addendum-20261113` and selectively imports first-party plus registered-site guest KS001 paths. Both catalogue endpoints now use one injected `AgentCapabilityTruthPort` bean. Guest security stays bounded to the registered site, approved Origin, conversation and three descriptive-only Agreement abilities. The two Day 6 guest database migrations were assigned nonconflicting numbers `V20270309125000` and `V20270309126000` **only on this new candidate**. Day 5 unrelated Store/WhatsApp work was NOT mass-merged.
+
+**Engineering candidate ≠ certified runtime.** Focused Java compile/tests, Flyway sandbox validation, Vercel host-iframe CSP, registered site ownership and end-to-end browser tests are still pending. The historical two P0 API source branches are untouched. Read `docs/operations/P0_KS001_API_CONVERGENCE_GATE8_20261113.md` on the converged API branch. Do not point any active host to the candidate until separately authorised.
+
+The previous references in this document to "two API branches still need reconciliation" are retained as historical progress notes, not current status.
