@@ -76,6 +76,17 @@ export interface PlannedReview {
   depositCollected:false;fundsHeld:false;payable:false;paymentEnabled:false;
 }
 
+/** Gate 9 read-only status; its money permissions are NEVER inferred from a bill. */
+export interface MeasuredMoneyReadiness {
+  agreementId:string;versionId:string;billId:string;planId:string;
+  billSourceKey:string;planDigest:string;billTotalMinor:number;
+  currency:string;state:string;nextAction:string;
+  billAccepted:boolean;latestPlanAccepted:boolean;
+  latestAddendumSealed:boolean;fundsReceivedOrInMotion:boolean;
+  providerQuoteAvailable:false;paymentAuthorized:false;
+  callbackVerified:false;settlementPermitted:false;
+}
+
 export interface AgreementPlanAddendumStatus {
   agreementId:string;billId:string;planId:string;
   addendumId:string|null;planDigest:string;requiredParties:number;
@@ -169,6 +180,9 @@ export function createMeasuredBillingGateway(http:HttpClient) {
       idempotencyKey:string;
     })=>http.request<PlannedPayment>(
       `${bill(a,b)}/plans`,{method:'POST',auth:'required',body}),
+    moneyReadiness:(a:string,b:string,p:string)=>
+      http.request<MeasuredMoneyReadiness>(
+        `${plan(a,b,p)}/money-readiness`,{auth:'required'}),
     addendumStatus:(a:string,b:string,p:string)=>
       http.request<AgreementPlanAddendumStatus>(
         `${plan(a,b,p)}/agreement-addendum`,{auth:'required'}),
