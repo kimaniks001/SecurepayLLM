@@ -32,6 +32,8 @@ const suites = [
   'tests/mini-m6-money-closure.test.mjs',
   'tests/mini-m6-payment-command-gates.test.mjs',
   'tests/mini-m6-release-gate.test.mjs',
+  'tests/mini-m8-exact-schedule-proof.test.mjs',
+  'tests/mini-m8-measured-arithmetic.test.mjs',
 ];
 for (const filename of suites) {
   console.log('\n== SecurePay Mini focused suite: ' + filename + ' ==');

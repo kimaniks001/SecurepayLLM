@@ -1,4 +1,5 @@
 import { segment, type HttpClient } from '../http';
+import { miniExactScheduleSplitProof } from '../../../mini/miniScheduleProof.mjs';
 
 /**
  * M5C: these are the SecurePayAPI *seller's product quotation* endpoints.
@@ -173,16 +174,7 @@ export function quoteSchedulePreviewProof(
       result.principalMinor !== plan.buyerPaymentMinor ||
       !Array.isArray(result.proposedSteps) ||
       result.proposedSteps.length < 1 || result.proposedSteps.length > 3) return false;
-  let sum=0;
-  for (let i=0;i<result.proposedSteps.length;i++) {
-    const step=result.proposedSteps[i];
-    if (step.sequence !== i+1 || typeof step.label !== 'string' ||
-      typeof step.checkpoint !== 'string' || step.payable !== false ||
-      !Number.isSafeInteger(step.amountMinor) || step.amountMinor<=0) return false;
-    sum+=step.amountMinor;
-    if (!Number.isSafeInteger(sum)) return false;
-  }
-  return sum === result.principalMinor;
+  return miniExactScheduleSplitProof(result);
 }
 
 /** Strict, read-only UI proofs; never infer consent from a chat or HTTP 201. */
