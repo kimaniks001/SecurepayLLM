@@ -627,15 +627,75 @@ export function MiniMeasuredEvidenceJourney({
                 Mark reviewed evidence work complete</button>
               <small>SecurePay checks independent evidence approval before completing.</small>
             </>}
-            {corrections.length>0&&<p className="spm-error">
-              A corrected quantity is under review. The original cannot be sealed or billed from here.
-            </p>}
-            {asBeneficiary&&obligation?.status==='COMPLETED'&&corrections.length===0&&!confirmed&&<>
+            {asReporter&&!confirmed&&assessment&&assessment.evidence.length>0&&
+              <details className="spm-mini-slot" data-g8-evidence="correct-usage">
+                <summary>Correct the reported {unit} <small>Preserve history</small></summary>
+                <div className="spm-mini-slot-items">
+                  <small>If the original quantity was wrong, propose a different figure.
+                    The original report will remain in the Agreement history.</small>
+                  <label className="spm-label" htmlFor="g8-correction-qty">
+                    Corrected {unit}</label>
+                  <input id="g8-correction-qty" className="spm-field"
+                    value={correctionQuantity} inputMode="decimal"
+                    placeholder="e.g. 4.00" disabled={busy||blocked}
+                    onChange={e=>setCorrectionQuantity(e.target.value)}/>
+                  <label className="spm-label" htmlFor="g8-correction-evidence">
+                    Which existing proof supports this correction?</label>
+                  <select id="g8-correction-evidence" className="spm-field"
+                    value={correctionEvidence} disabled={busy||blocked}
+                    onChange={e=>setCorrectionEvidence(e.target.value)}>
+                    <option value="">Choose linked evidence</option>
+                    {assessment.evidence.filter(p=>!p.superseded).map((p,i)=>
+                      <option key={p.bindingId} value={p.bindingId}>
+                        Proof {i+1} · {p.evidenceType} · {p.evidenceReviewState.replaceAll('_',' ').toLowerCase()}
+                      </option>)}
+                  </select>
+                  <label className="spm-label" htmlFor="g8-correction-note">
+                    Why are you changing the quantity?</label>
+                  <textarea id="g8-correction-note" className="spm-field"
+                    rows={2} maxLength={1200} value={correctionNote}
+                    disabled={busy||blocked}
+                    onChange={e=>setCorrectionNote(e.target.value)}/>
+                  <button type="button" className="spm-secondary"
+                    disabled={busy||blocked||!correctionQuantity.trim()||
+                      !correctionEvidence||!correctionNote.trim()}
+                    onClick={()=>void proposeCorrection()}>
+                    Propose a corrected quantity</button>
+                  <small>A correction requires fresh independent review. It is never automatically payable.</small>
+                </div>
+              </details>}
+            {corrections.length>0&&<div className="spm-mini-agreement-fact"
+              data-g8-evidence="correction-status">
+              <strong>Corrected {unit}: {units(corrections[0].proposedHundredths)}</strong>
+              <small>Revision {corrections[0].revisionNumber} ·
+                {correctionSummary?.state.replaceAll('_',' ').toLowerCase()||
+                  ' Awaiting current review'}</small>
+              <small>Original {units(chosen.reportedHundredths)} {unit} preserved. No invoice has been issued.</small>
+              {asBeneficiary&&!confirmed&&correctionSummary?.latestRevision&&<>
+                <button type="button" className="spm-secondary"
+                  disabled={busy||blocked||!correctionSummary.sourceEvidenceCanonicallyApproved}
+                  onClick={()=>void decideCorrection('ACCEPT')}>
+                  Accept corrected {unit}</button>
+                <label className="spm-label" htmlFor="g8-correction-review-note">
+                  Reason if this correction is disputed</label>
+                <textarea id="g8-correction-review-note" className="spm-field"
+                  rows={2} value={correctionReviewNote} disabled={busy||blocked}
+                  onChange={e=>setCorrectionReviewNote(e.target.value)}/>
+                <button type="button" className="spm-quiet-button"
+                  disabled={busy||blocked||!correctionReviewNote.trim()}
+                  onClick={()=>void decideCorrection('REJECT')}>
+                  Reject this correction</button>
+              </>}
+            </div>}
+            {asBeneficiary&&obligation?.status==='COMPLETED'&&!confirmed&&
+              (corrections.length===0||
+                correctionSummary?.state==='ALL_REVIEW_RESPONSES_ACCEPTED_NONPAYABLE')&&<>
               <button type="button" className="spm-secondary"
                 disabled={busy||blocked}
                 onClick={()=>void confirmQuantity()}>
-                Confirm effective {unit}</button>
-              <small>For the beneficiary only. The server requires every party's current Agreement confirmation, the exact usage reviews and approved evidence.</small>
+                Confirm {corrections.length>0?'corrected':'effective'} {unit}</button>
+              <small>Separate beneficiary confirmation. The server checks the Agreement version,
+                all required reviews and evidence, the exact corrected quantity and the cap.</small>
             </>}
             {confirmed&&<div className="spm-mini-agreement-fact" role="status">
               <strong>{units(confirmed.effectiveHundredths)} {unit} confirmed</strong>
