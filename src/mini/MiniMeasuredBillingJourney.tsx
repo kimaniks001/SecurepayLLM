@@ -39,6 +39,11 @@ const minor=(s:string):number|null=>{
   const n=Number(whole)*100+Number(part.padEnd(2,'0'));
   return Number.isSafeInteger(n)&&n>=0?n:null;
 };
+const inputFromMinor=(value:number)=>{
+  if(!Number.isSafeInteger(value)||value<0)return '';
+  const n=BigInt(value);
+  return (n/100n).toString()+'.'+(n%100n).toString().padStart(2,'0');
+};
 const money=(n:number,currency:string)=>{
   if(!Number.isSafeInteger(n)||n<0)return 'Amount needs checking';
   const exact=BigInt(n);
@@ -73,6 +78,7 @@ export function MiniMeasuredBillingJourney({
   const [planReview,setPlanReview]=useState<PlannedReview|null>(null);
   const [addendum,setAddendum]=useState<AgreementPlanAddendumStatus|null>(null);
   const [annexRejection,setAnnexRejection]=useState('');
+  const [revising,setRevising]=useState(false);
   const [staleBill,setStaleBill]=useState(false);
   const [disputeReason,setDisputeReason]=useState('');
   const [allegedQuantity,setAllegedQuantity]=useState('');
@@ -359,6 +365,19 @@ export function MiniMeasuredBillingJourney({
     });
   };
 
+  const beginRevision=()=>{
+    if(!plan||!bill||!reporter)return;
+    // Preserve previous accepted plan and exact consent as history.
+    // A new revision requires a fresh beneficiary review and fresh annex.
+    setDeposit(inputFromMinor(plan.plannedDepositMinor));
+    setStages(plan.milestones.map((stage,i)=>({
+      id:i+1,title:stage.title,amount:inputFromMinor(stage.amountMinor),
+      requiredEvidence:stage.requiredEvidence,
+      due:stage.dueAt?.slice(0,10)??'',
+    })));
+    nextStage.current=plan.milestones.length;
+    setRevising(true);
+  };
   const addStage=()=>{
     if(stages.length>=5)return;
     const id=++nextStage.current;
