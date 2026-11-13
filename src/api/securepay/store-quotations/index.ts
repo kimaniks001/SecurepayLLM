@@ -173,16 +173,46 @@ export function quoteSchedulePreviewProof(
       result.principalMinor !== plan.buyerPaymentMinor ||
       !Array.isArray(result.proposedSteps) ||
       result.proposedSteps.length < 1 || result.proposedSteps.length > 3) return false;
+  // The server is the source of truth. Verify its proposed amounts
+  // independently against the *selected* split, not merely an equal total:
+  // a mislabelled 90/10 response must never appear as an approved 30/70 plan.
+  // Use BigInt to match API integer-minor percentage truncation exactly.
+  const principal=result.principalMinor;
+  if (!Number.isSafeInteger(principal) || principal<=0 ||
+      result.currency.length!==3) return false;
+  const percent=(p:number)=>Number(BigInt(principal)*BigInt(p)/100n);
+  let expected:number[];
+  if (result.scheduleType==='FULL_ON_COMPLETION') {
+    if (result.depositPercent!==null || result.progressPercent!==null)
+      return false;
+    expected=[principal];
+  } else if (result.scheduleType==='DEPOSIT_AND_BALANCE') {
+    const deposit=result.depositPercent;
+    if (!Number.isInteger(deposit) || deposit===null || deposit<1 ||
+        deposit>99 || result.progressPercent!==null) return false;
+    const depositMinor=percent(deposit);
+    expected=[depositMinor,principal-depositMinor];
+  } else if (result.scheduleType==='DEPOSIT_PROGRESS_COMPLETION') {
+    const deposit=result.depositPercent,progress=result.progressPercent;
+    if (!Number.isInteger(deposit)||!Number.isInteger(progress)||
+        deposit===null||progress===null||
+        deposit<1||progress<1||deposit+progress>=100) return false;
+    const d=percent(deposit),p=percent(progress);
+    expected=[d,p,principal-d-p];
+  } else return false;
+  if (result.proposedSteps.length!==expected.length ||
+      !expected.every(n=>Number.isSafeInteger(n)&&n>0)) return false;
   let sum=0;
   for (let i=0;i<result.proposedSteps.length;i++) {
     const step=result.proposedSteps[i];
-    if (step.sequence !== i+1 || typeof step.label !== 'string' ||
-      typeof step.checkpoint !== 'string' || step.payable !== false ||
-      !Number.isSafeInteger(step.amountMinor) || step.amountMinor<=0) return false;
+    if (step.sequence!==i+1 || typeof step.label!=='string' ||
+      !step.label.trim() || typeof step.checkpoint!=='string' ||
+      !step.checkpoint.trim() || step.payable!==false ||
+      step.amountMinor!==expected[i]) return false;
     sum+=step.amountMinor;
     if (!Number.isSafeInteger(sum)) return false;
   }
-  return sum === result.principalMinor;
+  return sum===principal;
 }
 
 /** Strict, read-only UI proofs; never infer consent from a chat or HTTP 201. */
