@@ -20,6 +20,8 @@ import type { MiniSellerQuotationDraft } from './miniSellerQuotationDraft.mjs';
 import { MiniParticipantInvitations } from './MiniParticipantInvitations';
 import { MiniCreatorInvitations } from './MiniCreatorInvitations';
 import { MiniMyAgreements } from './MiniMyAgreements';
+import { MiniOwnerMoneyTest } from './MiniOwnerMoneyTest';
+import { miniDemoMoneyFixtureState } from './miniInteractiveDemo';
 import { createSessionStore, ensureFreshSession } from '../api/securepay/session';
 import { createAgentController } from '../features/agent/controller';
 import type { AgreementFormationDto } from '../api/securepay/agent/dto';
@@ -103,6 +105,10 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
   const [identityGoal,setIdentityGoal] = useState<'saved'|'inbox'|'creator'|'agreements'|'seller'>('saved');
   const [peopleOpen,setPeopleOpen] = useState<'inbox'|'creator'|null>(null);
   const [agreementsOpen,setAgreementsOpen] = useState(false);
+  // Explicit preview-host synthetic flow only. Real API Mini never reads this.
+  const [moneyOwnerOpen,setMoneyOwnerOpen] = useState(()=>demo &&
+    typeof window!=='undefined' &&
+    new URLSearchParams(window.location.search).get('moneyTest')==='1');
   const [sellerOpen,setSellerOpen] = useState(false);
   const [ownedOpen,setOwnedOpen] = useState(false);
   const [ownedStatus,setOwnedStatus] = useState<'idle'|'loading'|'ready'|'error'>('idle');
@@ -396,7 +402,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
     session.clear();
     pair.gateway.forgetResumableConversation();
     setOwnedList([]);setOwnedOpen(false);setPeopleOpen(null);setAgreementsOpen(false);setSellerOpen(false);setIdentityOpen(false);
-    setStoreOpen(false);setHeldStorePlan(null);setStoreError('');
+    setMoneyOwnerOpen(false);setStoreOpen(false);setHeldStorePlan(null);setStoreError('');
     setOwnedStatus('idle');setOwnedError('');setSavedNotice('');
     setFailedResumeId(null);setReview(null);setMessage('');
     setSignOutAsked(false);
@@ -408,7 +414,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
     try {sessionStorage.removeItem(expiredKey);} catch { /* blocked storage */ }
     setMessage('');setResetAsked(false);setReview(null);setReviewError('');
     setOwnedOpen(false);setPeopleOpen(null);setAgreementsOpen(false);setSellerOpen(false);setOwnedError('');setSavedNotice('');
-    setStoreOpen(false);setHeldStorePlan(null);setStoreError('');
+    setMoneyOwnerOpen(false);setStoreOpen(false);setHeldStorePlan(null);setStoreError('');
     setFailedResumeId(null);
     setEpoch(n=>n+1);
   };
@@ -472,6 +478,17 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
         onBack={()=>setAgreementsOpen(false)}
         onReauthenticate={reauthenticateAgreements}
       />}
+    {status==='ready' && !identityOpen && demo && moneyOwnerOpen && (
+      <MiniOwnerMoneyTest
+        key={sessionState.status==='signed-in'?sessionState.tokens.accessToken:'none'}
+        buyer={sessionState.status==='signed-in'&&
+          sessionState.tokens.accessToken==='mini-demo-amina'}
+        sourceMatches={miniDemoMoneyFixtureState().sourceMatches}
+        sellerJoined={miniDemoMoneyFixtureState().sellerJoined}
+        sellerConfirmed={miniDemoMoneyFixtureState().sellerConfirmed}
+        language={language}
+        onBack={()=>setMoneyOwnerOpen(false)}/>
+    )}
     {status==='ready' && !identityOpen && sellerOpen &&
       <MiniSellerStore storeGateway={stores} businessGateway={businesses}
         quotationGateway={quotations} liveQuotes={liveQuotes}
@@ -480,7 +497,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
         onInvitations={()=>{setSellerOpen(false);openPeople('inbox');}}
         onSellerDiscuss={discussSellerQuotation}
       />}
-    {status==='ready' && !identityOpen && !peopleOpen && !agreementsOpen && !sellerOpen && <>
+    {status==='ready' && !identityOpen && !peopleOpen && !agreementsOpen && !sellerOpen && !moneyOwnerOpen && <>
       <button type="button" className="spm-secondary spm-mini-store-entry"
         onClick={()=>{setStoreOpen(open=>!open);setStoreError('');}}
         disabled={storeBusy||state.busy||!!state.pending}>
@@ -551,6 +568,13 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
               disabled={saveBusy}><ClipboardList size={15}/>My Agreements</button>
             <button type="button" className="spm-quiet-button" onClick={openSeller}
               disabled={saveBusy}><Store size={15}/>My Store</button>
+            {demo && <button type="button" className="spm-quiet-button"
+              onClick={()=>{
+                setOwnedOpen(false);setPeopleOpen(null);setAgreementsOpen(false);
+                setSellerOpen(false);setMoneyOwnerOpen(true);
+              }} disabled={saveBusy}>
+              <ShieldCheck size={15}/>Test Money · three routes (simulation)
+            </button>}
             <button type="button" className="spm-quiet-button"
               onClick={()=>openPeople('inbox')} disabled={saveBusy}>
               <Mail size={15}/>Invitations for me
