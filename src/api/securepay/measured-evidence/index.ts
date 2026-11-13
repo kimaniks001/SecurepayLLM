@@ -141,6 +141,42 @@ export interface Correction {
   state:'PROPOSED_UNAGREED';
   payable:false;
 }
+export interface CorrectionReviewSummary {
+  agreementId:string;
+  reportId:string;
+  correctionId:string;
+  correctionRevision:number;
+  proposedHundredths:number;
+  requiredReviewers:number;
+  accepted:number;
+  rejected:number;
+  outstanding:number;
+  state:string;
+  latestRevision:boolean;
+  sourceEvidenceCanonicallyApproved:boolean;
+  correctionApplied:false;
+  workVerified:false;
+  invoiceIssued:false;
+  paymentEnabled:false;
+}
+export interface CorrectionDecision {
+  id:string;
+  agreementId:string;
+  correctionId:string;
+  reportId:string;
+  versionId:string;
+  versionHash:string;
+  reportDigest:string;
+  revisionNumber:number;
+  reviewerIdentityId:string;
+  choice:'ACCEPT'|'REJECT';
+  state:'REVIEW_ONLY';
+  replayed:boolean;
+  quantityVerified:false;
+  correctionApplied:false;
+  payable:false;
+}
+
 export interface ConfirmedQuantity {
   id:string;
   agreementId:string;
@@ -198,6 +234,23 @@ export function createMeasuredEvidenceGateway(http:HttpClient) {
       {method:'POST',auth:'required',body}),
     corrections: (agreementId:string,reportId:string)=>http.request<Correction[]>(
       `${report(agreementId,reportId)}/corrections`,{auth:'required'}),
+    proposeCorrection: (agreementId:string,reportId:string,body:{
+      expectedVersionId:string;expectedVersionHash:string;expectedReportDigest:string;
+      correctedHundredths:number;evidenceBindingId:string;reason:string;
+      idempotencyKey:string;
+    })=>http.request<Correction>(`${report(agreementId,reportId)}/corrections`,
+      {method:'POST',auth:'required',body}),
+    correctionSummary: (agreementId:string,reportId:string,correctionId:string)=>
+      http.request<CorrectionReviewSummary>(
+        `${report(agreementId,reportId)}/corrections/${segment(correctionId)}/review-summary`,
+        {auth:'required'}),
+    decideCorrection: (agreementId:string,reportId:string,correctionId:string,body:{
+      expectedVersionId:string;expectedVersionHash:string;expectedReportDigest:string;
+      expectedRevision:number;expectedCorrectedHundredths:number;
+      choice:'ACCEPT'|'REJECT';reviewNote:string|null;idempotencyKey:string;
+    })=>http.request<CorrectionDecision>(
+      `${report(agreementId,reportId)}/corrections/${segment(correctionId)}/decisions`,
+      {method:'POST',auth:'required',body}),
     confirm: (agreementId:string,reportId:string,body:{
       expectedVersionId:string;expectedVersionHash:string;expectedReportDigest:string;
       expectedCorrectionId:string|null;expectedEffectiveHundredths:number;
