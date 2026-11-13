@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="strict-origin">
+<title>SecurePay KS001 · Storage staging</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font:13px/1.5 Arial,sans-serif;color:#17432d;background:#fff}
+#status{padding:16px;color:#665f42}
+#sdk-root{position:relative;width:100%;height:100dvh;overflow:hidden}
+</style>
+</head>
+<body>
+<div id="status" role="status">Checking authorised Storage test installation…</div>
+<div id="sdk-root" hidden></div>
+<!-- SecurePay owns the session/token. The Storage parent only sends visible, voluntary prefill. -->
+<script src="/embed/securepay-guest-agent.js"></script>
+<script src="/embed/securepay-embed.js"></script>
+<script>
+(function(){
+  'use strict';
+  /*
+   * P0 FAIL-CLOSED: there is a verified Vercel Storage OWNER PREVIEW but
+   * no source-controlled Storage host or operator-approved embedded pilot.
+   * Keep this empty until the owner approves its EXACT host, the registered
+   * installation and a server-delivered frame-ancestors CSP.
+   */
+  var APPROVED_PARENTS=Object.freeze([]);
+  var SITE_ID='storage-ke-preview';
+  var PROTOCOL='storage.ks001.mini.v1';
+  var status=document.getElementById('status');
+  var parentOrigin='';
+  try {parentOrigin=new URL(document.referrer).origin;}catch(_){}
+  var requestedSite=new URLSearchParams(location.search).get('siteId');
+  var inFrame=window.parent!==window;
+  var currentHost=location.hostname.toLowerCase();
+  var secureStaging=/^(?:staging|sandbox|qa|test)(?:[-.][a-z0-9-]+)*\.securepay\.ke$/.test(currentHost);
+  if(!inFrame || !secureStaging ||
+      !APPROVED_PARENTS.includes(parentOrigin) ||
+      requestedSite!==SITE_ID){
+    status.textContent='This Storage KS001 frame is not approved for this website.';
+    return;
+  }
+  var sdk=window.SecurePayEmbed;
+  if(!sdk||!window.SecurePayGuestAgent){
+    status.textContent='SecurePay assistant scripts are not available.';return;
+  }
+  var apiBaseUrl='https://sandbox.securepay.ke';
+  var root=document.getElementById('sdk-root');
+  var assistant;
+  try {
+    assistant=sdk.mount({
+      container:root,title:'Storage',siteId:SITE_ID,apiBaseUrl:apiBaseUrl,
+      embeddedFrame:true,tools:['ask','contract','securelink'],
+      capabilityCatalogueEnabled:true,
+      // No private inventory, agreement or custody handle is transferred:
+      // there is no server-owned Storage source ID verified in P0.
+      getReturnContext:function(){
+        return {purpose:'UNSPECIFIED',returnReference:null};
+      }
+    });
+    assistant.open();
+  }catch(_){
+    status.textContent='SecurePay could not safely open KS001.';return;
+  }
+  root.hidden=false;
+  status.hidden=true;
+  window.addEventListener('message',function(event){
+    if(event.source!==window.parent || event.origin!==parentOrigin)return;
+    var data=event.data;
+    if(!data||typeof data!=='object'||data.siteId!==SITE_ID)return;
+    if(data.type==='storage.ks001.hello.v1'){
+      // Only the frame loaded; AI, site registration and provider availability
+      // remain independently unverified.
+      window.parent.postMessage({type:'securepay.embed.storage.ready.v1',siteId:SITE_ID},parentOrigin);
+      return;
+    }
+    if(data.type!=='storage.ks001.prefill.v1'||data.product!==PROTOCOL)return;
+    if(typeof data.text!=='string'||!data.text.trim()||data.text.length>1200)return;
+    // Never trust a parent-supplied inventory, storage unit, location or price.
+    // Text alone is reviewed and explicitly sent by the human inside SecurePay.
+    if(data.publicSpaceReference!==null)return;
+    assistant.prefill(data.text);
+  });
+  window.parent.postMessage({type:'securepay.embed.storage.ready.v1',siteId:SITE_ID},parentOrigin);
+})();
+</script>
+</body>
+</html>
