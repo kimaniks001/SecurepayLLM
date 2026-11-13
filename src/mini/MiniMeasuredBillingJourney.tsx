@@ -556,8 +556,14 @@ export function MiniMeasuredBillingJourney({
         {resolution&&<small>{resolution.status.replaceAll('_',' ').toLowerCase()}
           {resolution.proposalId?' · proposed '+units(resolution.proposedHundredths)+' '+unit:''}
         </small>}
-        {resolution&&!resolution.proposalId&&!outcome&&
+        {resolution&&(!resolution.proposalId ||
+            resolution.status==='RESOLUTION_REJECTED')&&!outcome&&
           <div className="spm-mini-slot-items">
+            {resolution.status==='RESOLUTION_REJECTED'&&
+              <small role="status">The earlier proposed resolution was rejected.
+                The original proposal and review stay in history.
+                You can submit a different, evidence-linked revision;
+                the work charge remains on hold.</small>}
             <label className="spm-label" htmlFor="g8-resolve-qty">Proposed agreed {unit}</label>
             <input id="g8-resolve-qty" className="spm-field"
               value={resolutionQuantity} inputMode="decimal"
