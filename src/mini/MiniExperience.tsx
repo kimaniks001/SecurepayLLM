@@ -134,12 +134,14 @@ export function MiniExperience() {
     () => samplePreviewAllowed && urlParams?.get('demo')==='1'
   );
   const compact = urlParams?.get('embedded') === '1';
-  const gate4Session = urlParams?.get('sandboxReconcile') ?? null;
-  const gate3Session = urlParams?.get('sandboxPayment') ?? null;
-  const gate2Session = urlParams?.get('sandboxAgreement') ?? null;
+  // Sandbox-only flows can be opened only on a controlled Mini preview host.
+  // Query strings alone can NEVER enable them on securepay.ke / estate hosts.
+  const gate4Session = samplePreviewAllowed ? urlParams?.get('sandboxReconcile') ?? null : null;
+  const gate3Session = samplePreviewAllowed ? urlParams?.get('sandboxPayment') ?? null : null;
+  const gate2Session = samplePreviewAllowed ? urlParams?.get('sandboxAgreement') ?? null : null;
   const storeOfferSession = urlParams?.get('storeOfferSession') ?? null;
   const checkoutSession = urlParams?.get('checkoutSession') ?? null;
-  const demoRequest = urlParams?.get('demoCheckout') ?? null;
+  const demoRequest = samplePreviewAllowed ? urlParams?.get('demoCheckout') ?? null : null;
   const journeyMode = urlParams?.get('journey') === '1';
   const demoRecord = getMiniDemoCheckout(demoRequest);
 
@@ -461,7 +463,11 @@ export function MiniExperience() {
           </div>
           <p className="spm-support-text">{t.reviewText} {t.noSourceSaved}</p>
           <button className="spm-secondary spm-guest-launch" type="button" onClick={() => { setDiscussDraft(draft); setScreen('help'); }}><MessageCircle size={17}/>{t.discuss}</button>
-          {!collectionReviewActive && <button className="spm-secondary spm-guest-launch" type="button" onClick={() => setScreen('funding')}><HandCoins size={17}/>{t.testFunding}</button>}
+          {samplePreviewAllowed && !collectionReviewActive &&
+            <button className="spm-secondary spm-guest-launch"
+              type="button" onClick={() => setScreen('funding')}>
+              <HandCoins size={17}/>{t.testFunding}
+            </button>}
           <button className="spm-primary" type="button" onClick={keepDraft}>{t.save}<CheckCircle2 size={19}/></button>
           <button className="spm-quiet-button" type="button" onClick={() => setScreen(collectionReviewActive?'collect-interview':'describe')}><Pencil size={16}/>{t.edit}</button>
         </section>}
