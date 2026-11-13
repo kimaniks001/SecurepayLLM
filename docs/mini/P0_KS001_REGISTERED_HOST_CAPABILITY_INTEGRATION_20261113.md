@@ -46,3 +46,12 @@ One KS001 intelligence implementation and one code-owned capability source. Each
 ## Roadmap preservation
 
 P0 capability truth + host contract is preparatory work. Resume the agreed SecurePay Gate 8 completion and the final Gate 9 (provider/callback safety), Gate 10 (20-person acceptance after technical gates), Gate 11 (production readiness). Do not shift the owner into broad testing or launch before engineering closure.
+
+## My Ride P0 extension — 13 November 2026
+
+- `kimaniks001/agreement-mover@feat/p0-myride-ks001-hosted-onion-20261113` adds a small, review-flagged KS001 launcher across its existing routes with four public transport intents (ride, seat, goods, vehicle hire). It builds on the existing Day 7 continuation adapter. It does NOT read/mock booking, driver KS identity, phone, location, rate, payment or custody state into SecurePay.
+- This SecurepayLLM branch now includes `public/embed/myride-mini.html`. Its SecurePay-owned iframe uses the **same** guest SDK and protected capability catalogue as Shortstays, with My Ride-specific, explicitly typed prefill and no automatic send.
+- Until the actual My Ride test origin is verified, the frame intentionally declares `APPROVED_PARENTS=Object.freeze([])` and denies every caller. The operator must pair verified exact parent origin, frame-ancestors CSP, site installation `myride-ke-preview`, iframe-origin registration, sandbox funding/model configuration and test approval before enabling anything.
+- Added focused source test `tests/mini-p0-myride-hosted-frame.test.mjs`; do not mistake source tests for connected runtime certification.
+- Any transport settlement is out of scope. Official km/hour rates, signed terms, measured evidence and payment authority remain solely in later agreement/money gates.
+- Storage remains the next P0 source-integration discovery; do not invent a Storage production app or enable the guest pilot using another site's credentials.
