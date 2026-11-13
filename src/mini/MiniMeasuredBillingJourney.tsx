@@ -754,20 +754,24 @@ export function MiniMeasuredBillingJourney({
                       This is not a deposit receipt, an invoice or payment authority.</small>}
                   {moneyReadiness&&<div className="spm-mini-agreement-fact"
                     data-g9="measured-money-readiness" role="status">
-                    <strong>Money · provider authorization pending</strong>
-                    <small>Agreement and payment plan consent checked.
-                      Actual payment remains disabled until the separate
-                      funding and provider safety gates are certified.</small>
+                    <strong>{moneyReadiness.providerDispatchEnvelopePending?
+                      'Money · dispatch reservation on hold':
+                      'Money · provider authorization pending'}</strong>
+                    <small>{moneyReadiness.providerDispatchEnvelopePending?
+                      'One source-bound provider reservation exists. No debit was sent by this step. Independent reconciliation is required before another attempt.':
+                      'Agreement and payment plan consent checked. Actual payment remains disabled until separate provider safety gates are certified.'}</small>
                     <small>Next: {moneyReadiness.nextAction
                       .replaceAll('_',' ').toLowerCase()}.</small>
                     {moneyReadiness.fundsReceivedOrInMotion&&
-                      <small>Existing money activity needs reconciliation;
+                      <small>Actual funding activity needs reconciliation;
                         do not attempt a second payment.</small>}
                   </div>}
                   {addendum?.state==='ADDENDUM_REJECTED_NEW_PLAN_REQUIRED'&&
                     <small>The plan needs revision and fresh consent.
                       The old proposed terms remain in history.</small>}
                   {reporter&&!revising&&
+                    !moneyReadiness?.providerDispatchEnvelopePending&&
+                    !moneyReadiness?.fundsReceivedOrInMotion&&
                     (addendum?.annexCurrent ||
                      addendum?.state==='ADDENDUM_REJECTED_NEW_PLAN_REQUIRED')&&
                     <button type="button" className="spm-quiet-button"
