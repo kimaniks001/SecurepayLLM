@@ -480,8 +480,9 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
       />}
     {status==='ready' && !identityOpen && demo && moneyOwnerOpen && (
       <MiniOwnerMoneyTest
-        key={sessionState.tokens.accessToken}
-        buyer={sessionState.tokens.accessToken==='mini-demo-amina'}
+        key={sessionState.status==='signed-in'?sessionState.tokens.accessToken:'none'}
+        buyer={sessionState.status==='signed-in'&&
+          sessionState.tokens.accessToken==='mini-demo-amina'}
         sourceMatches={miniDemoMoneyFixtureState().sourceMatches}
         sellerJoined={miniDemoMoneyFixtureState().sellerJoined}
         sellerConfirmed={miniDemoMoneyFixtureState().sellerConfirmed}
