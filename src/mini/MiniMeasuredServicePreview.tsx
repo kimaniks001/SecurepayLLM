@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { RefreshCcw } from 'lucide-react';
 import type { AgreementGateway } from '../api/securepay/agreements';
 import {
@@ -34,7 +34,9 @@ export function MiniMeasuredServicePreview({agreementId,versionId,
   const [result,setResult]=useState<MeasuredServicePreview|null>(null);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
-  const edit=()=>{setResult(null);setError('');};
+  // Editing after an API request was sent must invalidate its old result.
+  const revision=useRef(0);
+  const edit=()=>{revision.current++;setResult(null);setError('');};
   const choose=(next:MeasuredRateBasis)=>{
     setBasis(next);
     if(next==='PER_HOUR'){
@@ -66,6 +68,7 @@ export function MiniMeasuredServicePreview({agreementId,versionId,
       setError('Check the proposed rate, fee, usage and maximum. Use up to two decimal places.');
       return;
     }
+    const requestedRevision=++revision.current;
     setBusy(true);setError('');setResult(null);
     try{
       await prepare();
@@ -82,9 +85,10 @@ export function MiniMeasuredServicePreview({agreementId,versionId,
       const preview=await measuredGateway.preview(agreementId,request);
       if(!measuredPreviewProof(preview,agreementId,request))
         throw Error('Price or authority proof mismatch');
-      setResult(preview);
+      if(revision.current===requestedRevision)setResult(preview);
     }catch{
-      setError('Could not verify this calculation against the current Agreement. No rate was approved or payment created.');
+      if(revision.current===requestedRevision)
+        setError('Could not verify this calculation against the current Agreement. No rate was approved or payment created.');
     }finally{setBusy(false);}
   };
 
@@ -145,6 +149,16 @@ export function MiniMeasuredServicePreview({agreementId,versionId,
         </small>}
         <small>Rate not yet agreed · Usage not verified · Neither party has approved
           this calculation as payable.</small>
+        <details className="spm-mini-slot" data-m8="measured-evidence-steps">
+          <summary>Before this can become a bill <small>4 checks needed</small></summary>
+          <div className="spm-mini-slot-items">
+            <small>1. Both people confirm the rate, fixed fee and limit in a new Agreement version.</small>
+            <small>2. Record time or distance evidence against that agreed version.</small>
+            <small>3. Each party independently reviews the actual measured work and charge.</small>
+            <small>4. SecurePay separately checks payment authority and the chosen provider.</small>
+            <small>This estimate proves none of these checks and cannot become payable automatically.</small>
+          </div>
+        </details>
       </div>}
       <small>Next: record the rate and cap in the actual Agreement,
         separately confirm them, collect usage evidence and have both parties

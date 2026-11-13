@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { RefreshCcw } from 'lucide-react';
 import type {
   QuoteObligationPlan, QuoteSchedulePreview, QuoteScheduleType,
@@ -28,7 +28,9 @@ export function MiniQuoteSchedulePreview({plan,quotationGateway,prepare}:{
   const [result,setResult]=useState<QuoteSchedulePreview|null>(null);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
-  const change=()=>{setResult(null);setError('');};
+  // Never display an obsolete API answer after the buyer edits a split.
+  const revision=useRef(0);
+  const change=()=>{revision.current++;setResult(null);setError('');};
 
   const compare=async()=>{
     if(busy)return;
@@ -45,6 +47,7 @@ export function MiniQuoteSchedulePreview({plan,quotationGateway,prepare}:{
       setError('The original Agreement terms or seller and buyer consent cannot be verified.');
       return;
     }
+    const requestedRevision=++revision.current;
     setBusy(true);setResult(null);setError('');
     try {
       await prepare();
@@ -62,9 +65,10 @@ export function MiniQuoteSchedulePreview({plan,quotationGateway,prepare}:{
           proposed.preferredRoute!==route||
           proposed.handlingPreference!==handling)
         throw Error('Invalid payment schedule source');
-      setResult(proposed);
+      if(revision.current===requestedRevision)setResult(proposed);
     }catch{
-      setError('This schedule could not be verified against the current Agreement. Nothing was recorded or paid.');
+      if(revision.current===requestedRevision)
+        setError('This schedule could not be verified against the current Agreement. Nothing was recorded or paid.');
     }finally{setBusy(false);}
   };
 
@@ -128,6 +132,16 @@ export function MiniQuoteSchedulePreview({plan,quotationGateway,prepare}:{
         <small>These numbers are calculated from the recorded quotation.
           The seller has NOT approved this new schedule and no payment
           route or safeguarding provider has been activated.</small>
+        <details className="spm-mini-slot" data-m8="schedule-consent-steps">
+          <summary>Before any instalment is payable <small>Independent checks</small></summary>
+          <div className="spm-mini-slot-items">
+            <small>1. Record this exact split and checkpoint terms as an Agreement amendment.</small>
+            <small>2. Buyer and seller separately confirm the amended version.</small>
+            <small>3. Verify the milestone evidence and the amount due at that stage.</small>
+            <small>4. SecurePay separately verifies funding authority and provider eligibility.</small>
+            <small>No deposit has been requested or funded here.</small>
+          </div>
+        </details>
       </div>}
       <small>To change what is legally agreed, a future Agreement amendment
         must record the schedule and both parties must independently
