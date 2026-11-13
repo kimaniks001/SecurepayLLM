@@ -31,7 +31,7 @@ const units=(x:number)=>Number.isSafeInteger(x)?(x/100).toFixed(2):'Needs checki
 const newKey=()=>crypto.randomUUID().replace(/-/g,'');
 const fileOk=(file:File|null):boolean=>!!file &&
   ['image/jpeg','image/png','application/pdf'].includes(file.type) &&
-  file.size>0 && file.size<=12*1024*1024 &&
+  file.size>0 && file.size<=(file.type==='application/pdf'?12:8)*1024*1024 &&
   file.name.length<=180 && !/[\\/]/.test(file.name);
 const nonpayable=(value:unknown):boolean=>!!value&&typeof value==='object'&&
   'paymentEnabled' in value && value.paymentEnabled===false;
@@ -163,13 +163,13 @@ export function MiniMeasuredEvidenceJourney({
   };
 
   /** A write's result can be unknown on a timeout. Never auto-retry it. */
-  const act=async(label:string,workAction:()=>Promise<void>,selected=selectedId)=>{
+  const act=async(label:string,workAction:()=>Promise<void|string>,selected=selectedId)=>{
     if(busy||blocked)return;
     setBusy(true);setError('');setNotice('');
     try{
-      await prepare();await workAction();
+      await prepare();const after=await workAction();
       setNotice(label+' recorded. Rechecking its server status…');
-      await refresh(selected);
+      await refresh(typeof after==='string'?after:selected);
     }catch{
       setBlocked(true);
       setError('SecurePay could not confirm the final outcome. Recheck the server record before trying again. Nothing is payable.');
@@ -198,7 +198,7 @@ export function MiniMeasuredEvidenceJourney({
         throw Error('Usage declaration mismatch');
       serviceInstance.current='';setQuantity('');setNote('');
       // A saved declaration becomes selectable only after a fresh read.
-      await refresh(saved.id);
+      return saved.id;
     });
   };
 
