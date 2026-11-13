@@ -306,6 +306,23 @@ export function isMiniExperiencePreviewHost(host:string):boolean{
   return /^securepay-[a-z0-9]+-james-8078\.vercel\.app$/i.test(host) ||
     host==='localhost' || host==='127.0.0.1';
 }
+/**
+ * M6 Money owner walkthrough: verify the example's fixed principal matches
+ * the exact EXISTING synthetic Agreement summary, not a browser-entered price.
+ * This is intentionally unavailable to the real first-party Agent/API.
+ */
+export function miniDemoMoneyFixtureState(){
+  const a=summary('amina');
+  return {
+    sourceMatches:a.agreementId==='00000000-0000-4000-8000-000000000071' &&
+      a.publicReference==='DEMO-AGR-041' &&
+      a.proposedAmountMinor==='400000' &&
+      a.currency==='KES' &&
+      a.title==='40 chairs for Varsityville',
+    sellerJoined:current().joined,
+    sellerConfirmed:current().confirmed,
+  };
+}
 export const miniDemoSampleLabels={amina:'Amina · Buyer',njeri:'Njeri · Seller'} as const;
 
 /**
