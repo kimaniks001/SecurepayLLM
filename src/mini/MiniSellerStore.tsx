@@ -51,7 +51,7 @@ export function MiniSellerStore({storeGateway,businessGateway,quotationGateway,l
   const [quoteBusy,setQuoteBusy]=useState(false);
   const [quoteError,setQuoteError]=useState('');
   const [recordedQuote,setRecordedQuote]=useState<SellerQuoteRecord|null>(null);
-  const quoteAction=useRef<{fingerprint:string;key:string}|null>(null);
+  const quoteAction=useRef<{fingerprint:string;key:string;expiresAt:string}|null>(null);
   // Changing any requested fact requires an entirely fresh seller action.
   // An identical retry keeps the original key; an ambiguous network outcome
   // must NEVER imply that the quote was not recorded by the server.
@@ -253,7 +253,12 @@ export function MiniSellerStore({storeGateway,businessGateway,quotationGateway,l
       proposal.buyerKsNumber,proposal.quantity,proposal.unitPriceMinor,
       quoteWhere.trim(),quoteWhen,quoteDeliveryBy,quoteConditions.trim()]);
     if(quoteAction.current?.fingerprint!==fingerprint)
-      quoteAction.current={fingerprint,key:'mini-seller-'+crypto.randomUUID()};
+      quoteAction.current={
+        fingerprint,key:'mini-seller-'+crypto.randomUUID(),
+        // Expiry is a MATERIAL part of the backend idempotency fingerprint;
+        // keep it unchanged on timeout/retry of an identical seller action.
+        expiresAt:new Date(Date.now()+7*24*60*60*1000).toISOString(),
+      };
     setQuoteBusy(true);setQuoteError('');
     try{
       await prepare();
@@ -269,7 +274,7 @@ export function MiniSellerStore({storeGateway,businessGateway,quotationGateway,l
         priceMinor:offer.priceMinor,currency:offer.currency,quantity:proposal.quantity,
       }],[published]))throw Error('Listing changed');
       // This expiry is a proposal window, NOT an inventory hold.
-      const expiresAt=new Date(Date.now()+7*24*60*60*1000).toISOString();
+      const expiresAt=quoteAction.current!.expiresAt;
       const response=await quotationGateway.issue(storeBusiness.ksNumber,offer.id,{
         idempotencyKey:quoteAction.current!.key,
         buyerKsNumber:proposal.buyerKsNumber,

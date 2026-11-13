@@ -79,6 +79,8 @@ export function MiniQuoteBuyer({quotationGateway,agreementGateway,prepare,onCrea
       if(!boundDraftProof(created,quote.id))throw Error('Version proof mismatch');
       setDraft(created);
       setProposed(created.agreementStatus!=='DRAFT');
+      setInvited(['INVITATION_PENDING','PARTICIPANTS_JOINING',
+        'CONFIRMATION_PENDING'].includes(created.agreementStatus));
       setNotice(created.replayed
         ? 'SecurePay returned your original quote-bound Agreement. No second Agreement was created.'
         : 'Agreement draft created from the recorded quotation. Neither party has confirmed it.');
