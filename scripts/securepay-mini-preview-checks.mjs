@@ -35,6 +35,7 @@ const suites = [
   'tests/mini-m8-exact-schedule-proof.test.mjs',
   'tests/mini-m8-measured-arithmetic.test.mjs',
   'tests/mini-m8-proposal-evidence-gates.test.mjs',
+  'tests/mini-m8-version-bound-terms.test.mjs',
 ];
 for (const filename of suites) {
   console.log('\n== SecurePay Mini focused suite: ' + filename + ' ==');

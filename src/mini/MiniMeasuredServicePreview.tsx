@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { RefreshCcw } from 'lucide-react';
+import { miniMeasuredTermsPacket } from './miniMeasuredTermsPacket.mjs';
 import type { AgreementGateway } from '../api/securepay/agreements';
 import {
   measuredPreviewProof,type MeasuredRateBasis,type MeasuredMethod,
@@ -34,9 +35,10 @@ export function MiniMeasuredServicePreview({agreementId,versionId,
   const [result,setResult]=useState<MeasuredServicePreview|null>(null);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
+  const [copyNotice,setCopyNotice]=useState('');
   // Editing after an API request was sent must invalidate its old result.
   const revision=useRef(0);
-  const edit=()=>{revision.current++;setResult(null);setError('');};
+  const edit=()=>{revision.current++;setResult(null);setError('');setCopyNotice('');};
   const choose=(next:MeasuredRateBasis)=>{
     setBasis(next);
     if(next==='PER_HOUR'){
@@ -149,6 +151,26 @@ export function MiniMeasuredServicePreview({agreementId,versionId,
         </small>}
         <small>Rate not yet agreed · Usage not verified · Neither party has approved
           this calculation as payable.</small>
+        {miniMeasuredTermsPacket(result)&&<details className="spm-mini-slot" data-m8="version-bound-terms-packet">
+          <summary>Terms for discussion <small>Not recorded or agreed</small></summary>
+          <div className="spm-mini-slot-items">
+            <small>Based on Agreement version {result.agreementVersionId.slice(0,8)}.
+              Copy this proposal into your discussion with the other party.
+              It is not an Agreement amendment or payment approval.</small>
+            <textarea className="spm-field" readOnly rows={9}
+              aria-label="Version-bound proposed service terms"
+              value={miniMeasuredTermsPacket(result)??''}/>
+            <button type="button" className="spm-secondary"
+              onClick={()=>{
+                const packet=miniMeasuredTermsPacket(result);
+                if(!packet)return;
+                void navigator.clipboard.writeText(packet).then(()=>
+                  setCopyNotice('Proposal copied for discussion. No Agreement was changed.'),()=>
+                  setCopyNotice('Copy unavailable. Select the proposal text above.'));
+              }}>Copy proposed terms</button>
+            {copyNotice&&<small role="status">{copyNotice}</small>}
+          </div>
+        </details>}
         <details className="spm-mini-slot" data-m8="measured-evidence-steps">
           <summary>Before this can become a bill <small>4 checks needed</small></summary>
           <div className="spm-mini-slot-items">
