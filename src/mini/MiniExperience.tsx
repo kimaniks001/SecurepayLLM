@@ -134,12 +134,14 @@ export function MiniExperience() {
     () => samplePreviewAllowed && urlParams?.get('demo')==='1'
   );
   const compact = urlParams?.get('embedded') === '1';
-  const gate4Session = urlParams?.get('sandboxReconcile') ?? null;
-  const gate3Session = urlParams?.get('sandboxPayment') ?? null;
-  const gate2Session = urlParams?.get('sandboxAgreement') ?? null;
+  // Sandbox-only flows can be opened only on a controlled Mini preview host.
+  // Query strings alone can NEVER enable them on securepay.ke / estate hosts.
+  const gate4Session = samplePreviewAllowed ? urlParams?.get('sandboxReconcile') ?? null : null;
+  const gate3Session = samplePreviewAllowed ? urlParams?.get('sandboxPayment') ?? null : null;
+  const gate2Session = samplePreviewAllowed ? urlParams?.get('sandboxAgreement') ?? null : null;
   const storeOfferSession = urlParams?.get('storeOfferSession') ?? null;
   const checkoutSession = urlParams?.get('checkoutSession') ?? null;
-  const demoRequest = urlParams?.get('demoCheckout') ?? null;
+  const demoRequest = samplePreviewAllowed ? urlParams?.get('demoCheckout') ?? null : null;
   const journeyMode = urlParams?.get('journey') === '1';
   const demoRecord = getMiniDemoCheckout(demoRequest);
 
@@ -310,7 +312,7 @@ export function MiniExperience() {
               <a className="spm-quiet-link" href="/mini.html">Open Mini</a>
             </section>) : <>
         {screen === 'home' && <section className="spm-entrance">
-          <div className="spm-persona"><Sparkles size={16}/><span>KS001</span><span className="spm-dot"/><span>{t.phase4}</span></div>
+          <div className="spm-persona"><Sparkles size={16}/><span>KS001</span><span className="spm-dot"/><span>{samplePreviewAllowed?t.phase4:'Agreement Commerce'}</span></div>
           <h1 className="spm-hero">{t.hello}</h1>
           <p className="spm-lead">{t.intro}</p>
           {samplePreviewAllowed && <div className="spm-mini-preview-entry">
@@ -461,7 +463,11 @@ export function MiniExperience() {
           </div>
           <p className="spm-support-text">{t.reviewText} {t.noSourceSaved}</p>
           <button className="spm-secondary spm-guest-launch" type="button" onClick={() => { setDiscussDraft(draft); setScreen('help'); }}><MessageCircle size={17}/>{t.discuss}</button>
-          {!collectionReviewActive && <button className="spm-secondary spm-guest-launch" type="button" onClick={() => setScreen('funding')}><HandCoins size={17}/>{t.testFunding}</button>}
+          {samplePreviewAllowed && !collectionReviewActive &&
+            <button className="spm-secondary spm-guest-launch"
+              type="button" onClick={() => setScreen('funding')}>
+              <HandCoins size={17}/>{t.testFunding}
+            </button>}
           <button className="spm-primary" type="button" onClick={keepDraft}>{t.save}<CheckCircle2 size={19}/></button>
           <button className="spm-quiet-button" type="button" onClick={() => setScreen(collectionReviewActive?'collect-interview':'describe')}><Pencil size={16}/>{t.edit}</button>
         </section>}
@@ -489,7 +495,7 @@ export function MiniExperience() {
         <div className="spm-footer-status">
           <ShieldCheck size={15} aria-hidden="true"/>
           <span>{samplePreviewOpen?'SYNTHETIC DEMO — no real actions':t.boundary}</span>
-          <span className="spm-footer-dash">·</span><span>{samplePreviewOpen?'M1–M5 interactive example':gate4Session ? 'Host reconciliation test' : gate3Session ? 'Payment status test' : gate2Session ? 'Order & agreement test' : storeOfferSession ? 'Store offer review' : checkoutSession || demoRequest ? 'Checkout test' : 'Phase 4'}</span>
+          <span className="spm-footer-dash">·</span><span>{samplePreviewOpen?'M1–M5 interactive example':gate4Session ? 'Host reconciliation test' : gate3Session ? 'Payment status test' : gate2Session ? 'Order & agreement test' : storeOfferSession ? 'Store offer review' : checkoutSession || demoRequest ? 'Checkout test' : 'SecurePay Mini'}</span>
         </div>
         <a className="spm-checkout-imprint" href="https://securepay.ke/"
           target="_blank" rel="noopener noreferrer"

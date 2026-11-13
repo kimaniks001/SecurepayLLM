@@ -7,6 +7,7 @@ import { MiniQuoteBuyer } from './MiniQuoteBuyer';
 import { MiniMeasuredServicePreview } from './MiniMeasuredServicePreview';
 import type { MeasuredServicesGateway } from '../api/securepay/measured-services';
 import type { MoneySnapshotGateway } from '../api/securepay/money-snapshot';
+import type { PaymentIntentGateway } from '../api/securepay/payment-intent';
 import { MiniMoneySnapshot } from './MiniMoneySnapshot';
 import {miniAgreementHomePage,miniAgreementDetailView} from './miniAgreementHome.mjs';
 import type {MiniAgreementItem,MiniAgreementDetail} from './miniAgreementHome.mjs';
@@ -24,14 +25,17 @@ const dateLabel = (iso:string|null) => {
  * "who must act" inference. The server's nextActions and attentionRequired
  * remain the only authority on this user's next work.
  */
-export function MiniMyAgreements({gateway,quotationGateway,notificationGateway,measuredGateway,moneyGateway,liveQuotes,liveMoneyStatus,prepare,onBack,onReauthenticate}:{
+export function MiniMyAgreements({gateway,quotationGateway,notificationGateway,measuredGateway,moneyGateway,paymentsGateway,liveQuotes,liveMoneyStatus,liveFeeQuotes,livePaymentCommands,prepare,onBack,onReauthenticate}:{
   gateway:Pick<AgreementGateway,'currentUserAgreements'|'detail'|'propose'|'confirmVersion'|'version'>;
   quotationGateway:StoreQuotationGateway;
   measuredGateway:MeasuredServicesGateway;
   moneyGateway:Pick<MoneySnapshotGateway,'read'>;
+  paymentsGateway:PaymentIntentGateway;
   notificationGateway:Pick<NotificationsGateway,'list'|'markRead'>;
   liveQuotes:boolean;
   liveMoneyStatus:boolean;
+  liveFeeQuotes:boolean;
+  livePaymentCommands:boolean;
   prepare:()=>Promise<unknown>;
   onBack:()=>void;
   onReauthenticate:()=>void;
@@ -178,8 +182,11 @@ export function MiniMyAgreements({gateway,quotationGateway,notificationGateway,m
         {liveMoneyStatus&&details.currentVersion&&
           <MiniMoneySnapshot key={chosen.id+details.currentVersion.id}
             agreementId={chosen.id} versionId={details.currentVersion.id}
-            money={moneyGateway} prepare={prepare}/>}
-        {details.moneyStatus&&<p className="spm-mini-owned-note">
+            money={moneyGateway} payments={paymentsGateway}
+            quoteReviewEnabled={liveFeeQuotes}
+            paymentCommandsEnabled={livePaymentCommands}
+            prepare={prepare}/>}
+        {!liveMoneyStatus&&details.moneyStatus&&<p className="spm-mini-owned-note">
           SecurePay Money record: {details.moneyStatus}.
           This screen does not verify a provider payment or release funds.
         </p>}

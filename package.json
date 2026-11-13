@@ -45,7 +45,8 @@
     "test:mini-visible-preview": "node --test tests/mini-visible-m1-m4-preview.test.mjs",
     "test:mini-m5": "node --test tests/mini-m5-store-to-ks001.test.mjs",
     "test:mini-m5b": "node --test tests/mini-m5b-seller-review.test.mjs",
-    "test:mini-m5c": "node --test tests/mini-m5c-seller-quotation.test.mjs"
+    "test:mini-m5c": "node --test tests/mini-m5c-seller-quotation.test.mjs",
+    "build:mini-release": "SECUREPAY_MINI_RELEASE_BUILD=1 vite build && node scripts/securepay-mini-release-audit.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
