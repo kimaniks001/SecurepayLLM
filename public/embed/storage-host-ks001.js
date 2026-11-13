@@ -154,7 +154,10 @@
       body.appendChild(label);
       var textarea = element('textarea');
       textarea.id = 'storage-ks001-draft';textarea.maxLength = 1200;textarea.value = draft;
-      textarea.addEventListener('input', function() { draft = textarea.value; });
+      textarea.addEventListener('input', function() {
+        draft = textarea.value;
+        if (sendButton) sendButton.disabled = !frameReady || !draft.trim();
+      });
       body.appendChild(textarea);
       body.appendChild(element('p','note',
         'Only your chosen text is offered to SecurePay. No stored-item records, inventory, access code, price or personal details are imported.'));
