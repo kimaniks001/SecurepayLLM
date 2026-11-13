@@ -22,13 +22,14 @@ import {miniMoneyIntentStatus} from './miniMoneyReadModel.mjs';
  * original attempt is reconciled on the server.
  */
 export function MiniMoneyPaymentFlow({quote,agreementId,versionId,
-  payments,prepare,onRecheck}:{
+  payments,prepare,verifyMoney,onRecheck}:{
   quote:AgreementFundingQuoteResponse;
   agreementId:string;
   versionId:string;
   payments:Pick<PaymentIntentGateway,
     'fundingAuthority'|'createIntent'|'get'|'initiate'>;
   prepare:()=>Promise<unknown>;
+  verifyMoney:()=>Promise<boolean>;
   onRecheck:()=>void;
 }){
   const [intent,setIntent]=useState<AgreementPaymentIntentCreateResponse|null>(null);
@@ -54,6 +55,8 @@ export function MiniMoneyPaymentFlow({quote,agreementId,versionId,
     setBusy(true);setError('');
     try{
       await prepare();
+      if(!(await verifyMoney()))
+        throw Error('Current Agreement Money position is no longer valid');
       if(quote.agreementId!==agreementId||
         quote.economicState!=='READY'||Date.parse(quote.expiresAt)<=Date.now())
         throw Error('Funding quote expired or source changed');
@@ -90,6 +93,8 @@ export function MiniMoneyPaymentFlow({quote,agreementId,versionId,
     used.current=true;setBusy(true);setError('');
     try{
       await prepare();
+      if(!(await verifyMoney()))
+        throw Error('Current Agreement Money position is no longer valid');
       const fresh=await payments.get(intent.paymentIntentId);
       if(fresh.id!==intent.paymentIntentId||
         fresh.agreementId!==agreementId||
