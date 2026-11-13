@@ -93,6 +93,10 @@
     var chatDraft = '';
     var chatChecking = false, chatChecked = false, chatBusy = false, chatLocalError = '';
     var reviewBusy=false, reviewLocalError='';
+    // P0 onion is a voluntary read of the registered site's current
+    // conversation-bound capability catalogue. Never a new tool or permission.
+    var capabilityExpanded=false, capabilityBusy=false, capabilityItems=null;
+    var capabilityError='', capabilitySeq=0;
     var transferBusy=false, transferSucceeded=false, transferNotice='';
     
     function openPanel(on) {
@@ -127,6 +131,56 @@
       chatBusy=true;chatLocalError='';render();
       try {await agent.retry();}catch(_){chatLocalError='Retry could not be confirmed.';}
       finally{chatBusy=false;render();}
+    }
+    async function readCapabilityOnion() {
+      if(!agent||typeof agent.readCapabilities!=='function'||capabilityBusy)return;
+      var state=agent.snapshot();
+      if(!state.ready||!state.conversationId||state.pending)return;
+      var conversationId=state.conversationId;
+      var seq=++capabilitySeq;
+      capabilityBusy=true;capabilityError='';capabilityItems=null;render();
+      try {
+        var result=await agent.readCapabilities();
+        if(seq!==capabilitySeq||agent.snapshot().conversationId!==conversationId)return;
+        capabilityItems=result.capabilities;
+      } catch (_) {
+        if(seq!==capabilitySeq)return;
+        capabilityError='SecurePay could not verify which capabilities are available. Nothing has been enabled.';
+      } finally {
+        if(seq===capabilitySeq){capabilityBusy=false;render();}
+      }
+    }
+    function renderCapabilityOnion() {
+      if(options.capabilityCatalogueEnabled!==true||!agent)return;
+      var state=agent.snapshot();
+      if(!state.ready||!state.conversationId||state.pending)return;
+      var buttonLabel=capabilityExpanded?'Hide KS001 help':'What can KS001 help with?';
+      var toggle=button(buttonLabel,function(){
+        capabilityExpanded=!capabilityExpanded;
+        if(capabilityExpanded){void readCapabilityOnion();}
+        render();
+      });
+      toggle.setAttribute('aria-expanded',String(capabilityExpanded));
+      body.appendChild(toggle);
+      if(!capabilityExpanded)return;
+      if(capabilityBusy)body.appendChild(element('div','minor','Checking SecurePay capabilities…'));
+      if(capabilityError)body.appendChild(element('div','notice',capabilityError));
+      if(!capabilityItems)return;
+      body.appendChild(element('div','minor',
+        'These are explanations and review options. Every actual action checks identity, terms and permissions separately.'));
+      if(!capabilityItems.length)body.appendChild(element('div','note','No guest capabilities are verified for this conversation.'));
+      capabilityItems.forEach(function(item){
+        var detail=element('details','term');
+        var summary=element('summary','term-value',item.benefit);
+        detail.appendChild(summary);
+        detail.appendChild(element('div','minor',item.exposure==='KNOW_EXPLAIN'
+          ? 'Explanation only' : item.exposure==='READ' ? 'Read-only'
+          : 'Requires your own explicit action'));
+        if(item.eligibility==='UNKNOWN')detail.appendChild(element('div','minor','Eligibility has not been verified.'));
+        if(item.limited)detail.appendChild(element('div','minor','Some parts of this capability remain limited.'));
+        item.limitations.forEach(function(note){detail.appendChild(element('div','minor',note));});
+        body.appendChild(detail);
+      });
     }
     function renderChat() {
       // General public KS001 only; estate private records and identity mapping are not accessible.
@@ -181,8 +235,10 @@
         var sub=element('div','minor','This same guest conversation can continue in SecurePay after you sign in or get your KS Number and approve the transfer.');
         sub.style.marginTop='9px';body.appendChild(sub);
         transferButton();
+        renderCapabilityOnion();
         body.appendChild(button('Start new guest conversation',function(){
           if(chatBusy)return;
+          capabilitySeq++;capabilityItems=null;capabilityExpanded=false;capabilityError='';capabilityBusy=false;
           agent.reset();chatDraft='';render();
         }));
       }
