@@ -12,19 +12,14 @@ import { MiniGuestChat } from './MiniGuestChat';
 import { MiniFirstPartyKs001 } from './MiniFirstPartyKs001';
 import { MiniProudlyKeMark } from './MiniProudlyKeMark';
 import { getMiniFirstPartyOrigin } from './miniFirstPartyConfig';
-import { isMiniExperiencePreviewHost } from './miniInteractiveDemo';
-import { MiniFundingPreview } from './MiniFundingPreview';
-import { getMiniDemoCheckout } from './checkoutDemoFixtures';
-import { MiniHostedCheckoutDemo } from './MiniHostedCheckoutDemo';
 import { MiniServerCheckout } from './MiniServerCheckout';
 import { MiniRealStoreOffer } from './MiniRealStoreOffer';
 import { MiniBuyStore } from './MiniBuyStore';
 import { MiniCollectConversation } from './MiniCollectConversation';
-import { MiniGate2Sandbox } from './MiniGate2Sandbox';
 import { miniMergeUserDescription, miniCaptureText, type MiniCaptureSource, type MiniCaptureKind } from './miniCapture';
 import './mini.css';
 
-type View = MiniScreen | 'choose' | 'funding' | 'buy' | 'collect-interview';
+type View = MiniScreen | 'choose' | 'buy' | 'collect-interview';
 const STORE_KEY = 'securepay-mini-phase1-local-draft-v1';
 const words = {
   en: {
@@ -48,16 +43,14 @@ const words = {
     savedDetail: 'This note is kept in this browser tab only. Nobody has been invited and no money has moved.',
     savedUnavailable: 'Draft preview complete, but browser storage is unavailable. Your draft remains on this page until you leave.',
     newWork: 'Start another', openFull: 'Open full SecurePay', fullDisclaimer: 'This local draft does not transfer to the full workspace yet.',
-    phase1: 'Experience preview', boundary: 'No invitation, payment or fund release happens here.',
-    helpTitle: 'KS001 belongs here.', helpDetail: 'This Phase 1 preview tests the small, simple experience. The live KS001 conversation is not yet connected to this Mini, so I will not pretend to answer on its behalf.',
+    boundary: 'Nothing is invited, accepted or paid from this draft.',
+    helpTitle: 'Ask KS001', helpDetail: 'KS001 is unavailable here until the SecurePay connection is verified. Your work is still yours.',
     helpAction: 'Use KS001 in SecurePay', back: 'Back', clear: 'Clear draft',
     resume: 'Continue previous draft', noImage: 'Only an image (up to 5 MB) can be previewed.',
     needDescription: 'What is this for?', needAmount: 'How much is it?', invalidAmount: 'Please enter a valid amount in shillings.',
-    captured: 'Photo selected, not uploaded', remove: 'Remove photo', privacy: 'Local preview only',
+    captured: 'Photo selected, not uploaded', remove: 'Remove photo', privacy: 'Not shared',
     seller: 'What it is', value: 'Proposed amount', party: 'Person', terms: 'Extra details',
     discuss: 'Discuss this with KS001',
-    testFunding: 'Explore funding options (simulation)',
-    phase4: 'Funding simulation',
     extra: 'Quantity, person and other details (optional)', quantity: 'Quantity (optional)', unit: 'Unit (optional)', unitHint: 'pieces, kg, bags, hours…', invalidQuantity: 'Please check the quantity.', capturedSources: 'Details you reviewed', sourceCaution: 'Selected locally, not independently verified', noSourceSaved: 'Attachments stay only on this page and are not saved.',
   },
   sw: {
@@ -80,16 +73,14 @@ const words = {
     savedDetail: 'Imehifadhiwa kwenye tabo hii tu. Hakuna aliyealikwa, na pesa hazijatumwa.',
     savedUnavailable: 'Rasimu ipo kwenye ukurasa huu tu kwa sababu hifadhi ya kivinjari haipatikani.',
     newWork: 'Anza nyingine', openFull: 'Fungua SecurePay', fullDisclaimer: 'Rasimu hii bado haihamishiwi kwenye SecurePay kamili.',
-    phase1: 'Jaribio la uzoefu', boundary: 'Hakuna mwaliko, malipo au kutolewa kwa pesa hapa.',
-    helpTitle: 'KS001 itakuwa hapa.', helpDetail: 'Hili ni jaribio la muonekano na urahisi. Mazungumzo halisi ya KS001 bado hayajaunganishwa hapa.',
+    boundary: 'Hakuna mwaliko, makubaliano au malipo yanayotumwa kutoka kwa rasimu hii.',
+    helpTitle: 'Uliza KS001', helpDetail: 'KS001 haipatikani hapa mpaka muunganisho wa SecurePay uhakikishwe.',
     helpAction: 'Tumia KS001 kwenye SecurePay', back: 'Rudi', clear: 'Futa rasimu',
     resume: 'Endelea na rasimu iliyopita', noImage: 'Picha tu (hadi MB 5) inaweza kuonyeshwa.',
     needDescription: 'Ni ya nini?', needAmount: 'Kiasi gani?', invalidAmount: 'Weka kiasi sahihi kwa shilingi.',
-    captured: 'Picha imechaguliwa, haijatumwa', remove: 'Ondoa picha', privacy: 'Jaribio la hapa tu',
+    captured: 'Picha imechaguliwa, haijatumwa', remove: 'Ondoa picha', privacy: 'Haijatumwa',
     seller: 'Maelezo', value: 'Kiasi', party: 'Mtu', terms: 'Maelezo zaidi',
     discuss: 'Jadili na KS001',
-    testFunding: 'Jaribu njia za malipo (majaribio)',
-    phase4: 'Jaribio la malipo',
     extra: 'Idadi, mtu na maelezo mengine (si lazima)', quantity: 'Idadi (si lazima)', unit: 'Kipimo (si lazima)', unitHint: 'vipande, kilo, mifuko, saa…', invalidQuantity: 'Kagua idadi uliyoandika.', capturedSources: 'Maelezo uliyokagua', sourceCaution: 'Yamechaguliwa hapa tu; hayajathibitishwa', noSourceSaved: 'Viambatisho havijahifadhiwa.',
   },
 } as const;
@@ -129,22 +120,9 @@ export function MiniExperience() {
   const amountField = useRef<HTMLInputElement | null>(null);
   const quantityField = useRef<HTMLInputElement | null>(null);
   const urlParams = typeof window === 'undefined' ? null : new URLSearchParams(window.location.search);
-  const samplePreviewAllowed = typeof window !== 'undefined' &&
-    isMiniExperiencePreviewHost(window.location.hostname);
-  const [samplePreviewOpen,setSamplePreviewOpen] = useState(
-    () => samplePreviewAllowed && urlParams?.get('demo')==='1'
-  );
   const compact = urlParams?.get('embedded') === '1';
-  // Sandbox-only flows can be opened only on a controlled Mini preview host.
-  // Query strings alone can NEVER enable them on securepay.ke / estate hosts.
-  const gate4Session = samplePreviewAllowed ? urlParams?.get('sandboxReconcile') ?? null : null;
-  const gate3Session = samplePreviewAllowed ? urlParams?.get('sandboxPayment') ?? null : null;
-  const gate2Session = samplePreviewAllowed ? urlParams?.get('sandboxAgreement') ?? null : null;
   const storeOfferSession = urlParams?.get('storeOfferSession') ?? null;
   const checkoutSession = urlParams?.get('checkoutSession') ?? null;
-  const demoRequest = samplePreviewAllowed ? urlParams?.get('demoCheckout') ?? null : null;
-  const journeyMode = urlParams?.get('journey') === '1';
-  const demoRecord = getMiniDemoCheckout(demoRequest);
 
   useEffect(() => {
     if (screen === 'describe') firstField.current?.focus({ preventScroll: true });
@@ -279,7 +257,7 @@ export function MiniExperience() {
   };
   const summary = miniReviewSummary(draft);
 
-  return <main className={'spm-root' + (compact ? ' spm-embedded' : '')}>
+  return <main className={'spm-root spm-clean' + (compact ? ' spm-embedded' : '')}>
     <div className="spm-frame">
       <header className="spm-head">
         <a className="spm-brand spm-brand-link" href="https://securepay.ke/"
@@ -292,40 +270,17 @@ export function MiniExperience() {
         <div className="spm-head-actions">
           <button className="spm-lang" type="button" onClick={() => setLang(lang === 'en' ? 'sw' : 'en')}
             aria-label={lang === 'en' ? 'Badili kwa Kiswahili' : 'Switch to English'}>{lang === 'en' ? 'Kiswahili' : 'English'}</button>
-          {!gate4Session && !gate3Session && !gate2Session && !storeOfferSession && !checkoutSession && !demoRequest && screen !== 'home' && <button type="button" className="spm-icon-btn" aria-label={t.clear} onClick={reset}><X size={19}/></button>}
+          {!storeOfferSession && !checkoutSession && screen !== 'home' && <button type="button" className="spm-icon-btn" aria-label={t.clear} onClick={reset}><X size={19}/></button>}
         </div>
       </header>
 
       <div className="spm-main" aria-live="polite">
-        {samplePreviewOpen && samplePreviewAllowed
-          ? <MiniFirstPartyKs001 apiOrigin="synthetic-local-only" demo
-              draft={discussDraft} language={lang}
-              onBack={()=>{setSamplePreviewOpen(false);setScreen('home');}}/>
-          : gate4Session ? <MiniGate2Sandbox session={gate4Session} language={lang} gate3Enabled gate4Enabled/> :
-          gate3Session ? <MiniGate2Sandbox session={gate3Session} language={lang} gate3Enabled/> :
-          gate2Session ? <MiniGate2Sandbox session={gate2Session} language={lang}/> :
-          storeOfferSession ? <MiniRealStoreOffer session={storeOfferSession} language={lang}/> :
-          checkoutSession ? <MiniServerCheckout session={checkoutSession} language={lang}/> :
-          demoRequest ? (demoRecord
-          ? <MiniHostedCheckoutDemo record={demoRecord} language={lang} journeyMode={journeyMode}/>
-          : <section className="spm-content" role="alert"><h1 className="spm-question">Checkout unavailable</h1>
-              <p className="spm-lead">That test order was not found. No payment was started.</p>
-              <a className="spm-quiet-link" href="/mini.html">Open Mini</a>
-            </section>) : <>
+        {storeOfferSession ? <MiniRealStoreOffer session={storeOfferSession} language={lang}/> :
+          checkoutSession ? <MiniServerCheckout session={checkoutSession} language={lang}/> : <>
         {screen === 'home' && <section className="spm-entrance">
-          <div className="spm-persona"><Sparkles size={16}/><span>KS001</span><span className="spm-dot"/><span>{samplePreviewAllowed?t.phase4:'Agreement Commerce'}</span></div>
+          <div className="spm-persona"><Sparkles size={16}/><span>KS001</span><span className="spm-dot"/><span>Agreement Commerce</span></div>
           <h1 className="spm-hero">{t.hello}</h1>
           <p className="spm-lead">{t.intro}</p>
-          {samplePreviewAllowed && <div className="spm-mini-preview-entry">
-            <div><strong>Explore the latest Mini build</strong>
-              <small>KS001 · Browse Stores · Buying plan · Agreements · Save & Continue</small>
-              <small>Interactive example using synthetic data — not live KS001</small>
-            </div>
-            <button type="button" className="spm-secondary"
-              onClick={()=>{setDiscussDraft(null);setSamplePreviewOpen(true);}}>
-              Explore M1–M5 <ArrowRight size={16}/>
-            </button>
-          </div>}
           <label className="spm-label" htmlFor="spm-words">{t.start}</label>
           <div className="spm-composer">
             <textarea id="spm-words" maxLength={400} rows={3} value={opening} onChange={e => setOpening(e.target.value)}
@@ -464,11 +419,6 @@ export function MiniExperience() {
           </div>
           <p className="spm-support-text">{t.reviewText} {t.noSourceSaved}</p>
           <button className="spm-secondary spm-guest-launch" type="button" onClick={() => { setDiscussDraft(draft); setScreen('help'); }}><MessageCircle size={17}/>{t.discuss}</button>
-          {samplePreviewAllowed && !collectionReviewActive &&
-            <button className="spm-secondary spm-guest-launch"
-              type="button" onClick={() => setScreen('funding')}>
-              <HandCoins size={17}/>{t.testFunding}
-            </button>}
           <button className="spm-primary" type="button" onClick={keepDraft}>{t.save}<CheckCircle2 size={19}/></button>
           <button className="spm-quiet-button" type="button" onClick={() => setScreen(collectionReviewActive?'collect-interview':'describe')}><Pencil size={16}/>{t.edit}</button>
         </section>}
@@ -483,7 +433,6 @@ export function MiniExperience() {
           <p className="spm-disclaimer">{t.fullDisclaimer}</p>
         </section>}
 
-        {screen === 'funding' && <MiniFundingPreview draft={draft} language={lang} onBack={() => setScreen('review')}/>}
         {screen === 'help' && (getMiniFirstPartyOrigin()
           ? <MiniFirstPartyKs001 apiOrigin={getMiniFirstPartyOrigin()!} draft={discussDraft} language={lang}
               onBack={() => setScreen(discussDraft ? 'review' : 'home')}/>
@@ -495,8 +444,7 @@ export function MiniExperience() {
       <footer className="spm-footer">
         <div className="spm-footer-status">
           <ShieldCheck size={15} aria-hidden="true"/>
-          <span>{samplePreviewOpen?'SYNTHETIC DEMO — no real actions':t.boundary}</span>
-          <span className="spm-footer-dash">·</span><span>{samplePreviewOpen?'M1–M5 interactive example':gate4Session ? 'Host reconciliation test' : gate3Session ? 'Payment status test' : gate2Session ? 'Order & agreement test' : storeOfferSession ? 'Store offer review' : checkoutSession || demoRequest ? 'Checkout test' : 'SecurePay Mini'}</span>
+          <span>{t.boundary}</span>
         </div>
         <a className="spm-checkout-imprint" href="https://securepay.ke/"
           target="_blank" rel="noopener noreferrer"
