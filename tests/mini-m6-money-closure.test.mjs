@@ -95,9 +95,9 @@ test('same signed-in Mini: canonical API only; no simulation masquerading as Mon
 });
 test('customer-facing Mini excludes developer notes; demo routes stay host-restricted',()=>{
   assert.match(demo,/securepay-\[a-z0-9\]\+-james-8078/);
-  assert.match(experience,/samplePreviewAllowed && urlParams\?\.get\('demo'\)==='1'/);
+  assert.doesNotMatch(experience,/samplePreviewAllowed|Explore M1–M5|SYNTHETIC DEMO/);
   assert.match(first,/\{demo && <button type="button" className="spm-quiet-button"/);
-  assert.match(experience,/samplePreviewAllowed\?t\.phase4:'Agreement Commerce'/);
+  assert.match(experience,/Agreement Commerce/);
   assert.match(experience,/'SecurePay Mini'/);
   assert.match(first,/Each party must confirm their Agreement/);
   assert.match(env,/VITE_SECUREPAY_M6_MONEY_STATUS=disabled/);
