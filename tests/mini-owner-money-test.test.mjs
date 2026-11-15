@@ -52,7 +52,7 @@ test('minor-unit remainder never silently disappears, invalid inputs fail closed
 });
 
 test('money testing lives only in the existing Mini synthetic preview host and account menu',()=>{
-  assert.match(mini,/samplePreviewAllowed && urlParams\?\.get\('demo'\)==='1'/);
+  assert.doesNotMatch(mini,/samplePreviewAllowed|Explore M1–M5|SYNTHETIC DEMO/);
   assert.match(first,/new URLSearchParams\(window\.location\.search\)\.get\('moneyTest'\)==='1'/);
   assert.match(first,/const \[moneyOwnerOpen,setMoneyOwnerOpen\] = useState\(\(\)=>demo &&/);
   assert.match(first,/\{demo && <button type="button" className="spm-quiet-button"/);

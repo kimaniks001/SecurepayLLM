@@ -278,8 +278,8 @@ test('Mini requires explicit mock review before the existing three-rail simulato
   assert.match(mini,/SANDBOX · No agreement signed/);
   assert.match(mini,/SECUREPAY_MINI_GATE2_CANCEL/);
   const app=read('src/mini/MiniExperience.tsx');
-  assert.match(app,/sandboxAgreement/);
-  assert.match(app,/<MiniGate2Sandbox session=\{gate2Session\} language=/);
+  assert.doesNotMatch(app,/sandboxAgreement|<MiniGate2Sandbox/);
+  assert.match(read('vite.config.ts'),/process\.env\.SECUREPAY_MINI_RELEASE_BUILD !== '0'/);
   assert.match(read('src/mini/MiniFundingPreview.tsx'),/SIMULATION ONLY · No real money/);
 });
 

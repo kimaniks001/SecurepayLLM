@@ -3,9 +3,11 @@ import react from '@vitejs/plugin-react';
 import { fileURLToPath, URL } from 'node:url';
 
 // Mini is its own HTML entry; the approved Living Workspace remains unchanged.
-// Certified release builds omit demonstration host pages entirely.
-// This setting affects build outputs, never backend Money authority.
-const releaseBuild = process.env.SECUREPAY_MINI_RELEASE_BUILD === '1';
+// Customer-facing builds do NOT ship demo host pages by default.
+// Only an explicitly isolated developer build may set
+// SECUREPAY_MINI_RELEASE_BUILD=0 to include test/demo entry points.
+// This build switch is NOT a payment authorisation or backend Money switch.
+const releaseBuild = process.env.SECUREPAY_MINI_RELEASE_BUILD !== '0';
 export default defineConfig({
   plugins: [react()],
   resolve: {
