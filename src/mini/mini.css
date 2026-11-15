@@ -618,3 +618,64 @@ textarea.spm-field { resize:vertical; }
 .spm-mini-seller-next { display:grid; gap:7px; border-top:1px solid #e2eadf; padding-top:12px; }
 .spm-mini-seller-next>strong { color:#315a40; font-size:12px; }
 .spm-mini-seller-next>p { color:#627767; font-size:11px; line-height:1.55; margin:0; }
+
+
+/* MINI CUSTOMER PRESENTATION — not a new design system.
+   Restore the agreed pocket-sized conversational Mini, without owner-demo
+   cards, with calm depth and the existing forest/ivory/gold palette. */
+.spm-clean .spm-frame { max-width:390px; }
+.spm-clean .spm-head {
+  padding:12px 15px;
+  background:linear-gradient(118deg,#183e2d,#285d41);
+  border-bottom:1px solid rgba(255,255,255,.11);
+}
+.spm-clean .spm-canonical-mark {
+  background:#fffdf8; border-radius:12px;
+  padding:3px; box-sizing:border-box;
+}
+.spm-clean .spm-name { color:#fffdf8; }
+.spm-clean .spm-name span { color:#e5cd9c; }
+.spm-clean .spm-brand-sub { color:#d4e5d4; }
+.spm-clean .spm-lang,.spm-clean .spm-icon-btn { color:#f7f3e7; }
+.spm-clean .spm-lang:hover,.spm-clean .spm-icon-btn:hover {
+  background:rgba(255,255,255,.13);
+}
+.spm-clean .spm-entrance { padding-top:19px; }
+.spm-clean .spm-hero { font-size:clamp(27px,6vw,31px); }
+.spm-clean .spm-entrance .spm-actions {
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:9px;
+}
+.spm-clean .spm-entrance .spm-option {
+  position:relative; min-width:0; min-height:118px;
+  padding:12px; display:flex; flex-direction:column;
+  align-items:flex-start; justify-content:flex-start; gap:9px;
+  border-color:#dbe5d8;
+  background:linear-gradient(150deg,#fff,#f6faf3);
+}
+.spm-clean .spm-entrance .spm-option:nth-child(even) {
+  background:linear-gradient(150deg,#fffdf8,#f5f0e5);
+}
+.spm-clean .spm-entrance .spm-option-icon {
+  height:33px; width:33px; border-radius:10px;
+}
+.spm-clean .spm-entrance .spm-option-text {
+  width:100%; gap:4px; padding-right:3px;
+}
+.spm-clean .spm-entrance .spm-option-text small {
+  font-size:11px; line-height:1.35;
+}
+.spm-clean .spm-entrance .spm-option > svg {
+  position:absolute; top:15px; right:10px; width:15px;
+}
+.spm-clean .spm-entrance .spm-foot-row {
+  border-top:1px solid #e9e9de; padding-top:7px;
+}
+.spm-clean .spm-footer {
+  padding:9px 12px 5px; flex-direction:column; gap:5px;
+}
+.spm-clean .spm-proudly-footer { padding-bottom:10px; }
+@media(max-width:340px) {
+  .spm-clean .spm-entrance .spm-option { min-height:127px; padding:10px; }
+  .spm-clean .spm-entrance .spm-option-text strong { font-size:13px; }
+}
