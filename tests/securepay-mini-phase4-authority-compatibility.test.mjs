@@ -51,7 +51,7 @@ test('existing Mini host and rail simulation do not invoke privileged funds or p
   assert.match(host,/NOT PAID/);
   assert.match(host,/realPaymentVerified!==false/);
   assert.match(fundingMini,/SIMULATION ONLY/);
-  assert.match(mainMini,/sandboxReconcile/);
+  assert.doesNotMatch(mainMini,/sandboxReconcile|<MiniGate2Sandbox|<MiniFundingPreview/);
   for(const src of [host,fundingMini,mainMini]){
     assert.doesNotMatch(src,/moneySession\.redeem\(|fundFromSelf\(|\.initiate\(paymentIntentId|POST\s*\/api\/v1\/money-sessions\/.+redeem/);
   }
