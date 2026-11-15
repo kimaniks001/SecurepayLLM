@@ -99,8 +99,8 @@ test('ordinary Mini collect payment remains baseline; mother intent is the optio
   assert.match(ui,/startSupportedCollection\(opening\)/);
   assert.match(ui,/Collecting for your mother or someone else\?/);
   assert.match(ui,/collectionReviewActive/);
-  assert.match(ui,/\{samplePreviewAllowed && !collectionReviewActive &&[^]*?setScreen\('funding'\)/);
-  assert.match(ui,/const gate3Session = samplePreviewAllowed \?/);
+  assert.doesNotMatch(ui,/samplePreviewAllowed|gate3Session|setScreen\('funding'\)|<MiniFundingPreview/);
+  assert.match(ui,/onClick=\{keepDraft\}/);
 });
 
 test('the guided interview is not a covert fundraising bot or a payment engine',()=>{
