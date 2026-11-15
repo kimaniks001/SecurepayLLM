@@ -150,7 +150,7 @@ test('the existing Mini owns schedule, evidence and next-action UI without a sep
   const mini=read('src/mini/MiniExperience.tsx');
   const view=read('src/mini/MiniHostedCheckoutDemo.tsx');
   const finance=read('src/mini/MiniFundingPreview.tsx');
-  assert.match(mini,/journeyMode=\{journeyMode\}/);
+  assert.doesNotMatch(mini,/journeyMode=\{journeyMode\}|<MiniHostedCheckoutDemo/);
   assert.match(view,/offlineObligations\(record.amountMinor,record.source,journey.plan\)/);
   assert.match(view,/Deposit \+ stages/);
   assert.match(view,/Submit sample evidence/);
