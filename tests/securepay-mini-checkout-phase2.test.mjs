@@ -136,7 +136,8 @@ test('same Mini entry accepts server checkout ref first; legacy local direct pre
   const ui = read('src/mini/MiniExperience.tsx');
   assert.match(ui, /urlParams\?\.get\('checkoutSession'\)/);
   assert.match(ui, /checkoutSession \? <MiniServerCheckout/);
-  assert.match(ui, /demoRequest \? \(demoRecord/);
+  assert.doesNotMatch(ui, /demoRequest \? \(demoRecord|<MiniHostedCheckoutDemo|Explore M1–M5/);
+  assert.match(read('vite.config.ts'),/process\.env\.SECUREPAY_MINI_RELEASE_BUILD !== '0'/);
   const view = read('src/mini/MiniServerCheckout.tsx');
   assert.match(view, /fetchMiniPreviewCheckout\(session, controller\.signal\)/);
   assert.match(view, /MiniHostedCheckoutDemo record=\{payload\.record\}/);
