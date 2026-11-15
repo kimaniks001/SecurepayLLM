@@ -129,7 +129,7 @@ test('approved SDK uses backend-generated reply and version-locked Agreement rev
 
 test('identity, invitation and actual settlement explicitly remain disabled in guest Mini',()=>{
   const ui=read('src/mini/MiniGuestChat.tsx');
-  assert.match(ui,/KS001 is not connected in this preview/);
+  assert.match(ui,/KS001 is not available here yet/);
   assert.match(ui,/No participant has accepted yet/);
   assert.match(ui,/Not signed, not invited, not accepted and not funded/);
   assert.match(ui,/does not transfer this guest conversation automatically/);
