@@ -152,14 +152,15 @@ test('spoofed origins, unrelated frames, wrong order and forged funded statuses 
   assert.equal(host.elements['demo-popup'].hidden,false);
 });
 
-test('Mini checkout is a reference-only mode of the same React shell and same funding component',()=>{
+test('owner checkout simulator remains a separate test fixture, never a Mini customer entry',()=>{
   const mini=read('src/mini/MiniExperience.tsx');
   const view=read('src/mini/MiniHostedCheckoutDemo.tsx');
   const funding=read('src/mini/MiniFundingPreview.tsx');
-  assert.match(mini,/getMiniDemoCheckout\(demoRequest\)/);
-  assert.match(mini,/<MiniHostedCheckoutDemo record=\{demoRecord\} language=\{lang\} journeyMode=\{journeyMode\}\/>/);
-  assert.match(mini,/journeyMode = urlParams\?\.get\('journey'\) === '1'/);
-  assert.match(mini,/Checkout unavailable/);
+  const vite=read('vite.config.ts');
+  assert.doesNotMatch(mini,/getMiniDemoCheckout\(demoRequest\)|<MiniHostedCheckoutDemo|<MiniFundingPreview/);
+  assert.doesNotMatch(mini,/demoCheckout|journeyMode|Explore M1–M5|SYNTHETIC DEMO/);
+  assert.match(vite,/process\.env\.SECUREPAY_MINI_RELEASE_BUILD !== '0'/);
+  assert.match(vite,/\.\.\.\(releaseBuild \? \{\} : \{/);
   assert.match(view,/<MiniFundingPreview/);
   assert.match(view,/<MiniGuestChat/);
   assert.match(view,/onDemoStateChange=\{onStatusChange\}/);
