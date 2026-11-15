@@ -83,7 +83,7 @@ test('Mini phase 1 does not expose merchant fixtures or a fake funded/success st
   const ui = read('src/mini/MiniExperience.tsx');
   const all = modelSource + ui;
   assert.doesNotMatch(all, /FUNDED_HELD|RELEASE_AUTHORISED|SETTLED|Payment Ready|fundedSuccessfully/);
-  assert.match(ui, /A trusted KS001 connection has not been set up/);
+  assert.match(read('src/mini/MiniGuestChat.tsx'), /A trusted KS001 connection has not been set up/);
   assert.match(ui, /Nothing is invited, accepted or paid from this draft/);
 });
 
