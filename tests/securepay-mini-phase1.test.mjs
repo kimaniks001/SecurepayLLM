@@ -69,7 +69,7 @@ test('Phase 1 is a separate multi-page preview, never a replaced main applicatio
   assert.match(config, /mini: fileURLToPath\(new URL\('\.\/mini\.html'/);
   assert.match(html, /src\/mini\/main\.tsx/);
   assert.match(main, /RuntimeApp\.tsx/);
-  assert.match(app, /No invitation, payment or fund release happens here/);
+  assert.match(app, /Nothing is invited, accepted or paid from this draft/);
   assert.doesNotMatch(app, /createPaymentIntent|settleAndRelease|fetch\(|window\.postMessage|trade\.ksNumber\s*=/);
   assert.doesNotMatch(app, /kenyan-trader-cohort|F01|TR-001|tomato|charger/i);
   assert.match(host, /iframe[^>]+sandbox="allow-scripts allow-same-origin allow-forms/);
@@ -83,8 +83,8 @@ test('Mini phase 1 does not expose merchant fixtures or a fake funded/success st
   const ui = read('src/mini/MiniExperience.tsx');
   const all = modelSource + ui;
   assert.doesNotMatch(all, /FUNDED_HELD|RELEASE_AUTHORISED|SETTLED|Payment Ready|fundedSuccessfully/);
-  assert.match(ui, /not yet connected to this Mini/);
-  assert.match(ui, /No invitation, payment or fund release happens here/);
+  assert.match(ui, /A trusted KS001 connection has not been set up/);
+  assert.match(ui, /Nothing is invited, accepted or paid from this draft/);
 });
 
 test('Mini is a compact pocket window without shrinking essential touch targets', () => {
