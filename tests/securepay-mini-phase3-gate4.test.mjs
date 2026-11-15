@@ -155,11 +155,10 @@ test('Gate 4 original checkout is the only source of truth, never a browser paid
   assert.doesNotMatch(code,/fundFromSelf\(|createIntent\(|PaymentInitiationService|releaseFunds\(/);
 });
 
-test('Gate 4 UI adds a separate Mini path and leaves Gate 3 and Gate 2 intact',()=>{
+test('Gate 4 sandbox remains isolated while customer Mini excludes simulated reconcile and payment paths',()=>{
   const mini=read('src/mini/MiniExperience.tsx');
-  assert.match(mini,/sandboxReconcile/);
-  assert.match(mini,/gate4Enabled/);
-  assert.match(mini,/sandboxPayment/);
+  assert.doesNotMatch(mini,/sandboxReconcile|sandboxPayment|gate4Enabled|<MiniGate2Sandbox/);
+  assert.match(read('vite.config.ts'),/process\.env\.SECUREPAY_MINI_RELEASE_BUILD !== '0'/);
   const shell=read('src/mini/MiniGate2Sandbox.tsx');
   assert.match(shell,/type:'SECUREPAY_MINI_GATE4_RETURN_V1'/);
   assert.match(shell,/type:'SECUREPAY_MINI_GATE4_ATTEMPT_REF_V1'/);
