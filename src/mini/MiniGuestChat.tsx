@@ -160,20 +160,20 @@ export function MiniGuestChat({ draft, language, onBack }: {
         <strong>{status === 'checking' ? (sw ? 'Inaunganisha...' : 'Checking secure connection…') :
           status === 'continuity-unavailable' ? 'Your previous conversation is temporarily unavailable.' :
           status === 'expired' ? 'Your previous conversation could not be found.' :
-          sw ? 'KS001 haijaunganishwa kwenye jaribio hili.' : 'KS001 is not connected in this preview.'}</strong>
+          sw ? 'KS001 bado haipatikani hapa.' : 'KS001 is not available here yet.'}</strong>
         <p>{status === 'continuity-unavailable'
           ? 'We will not start a new conversation or discard your saved one. Recheck the connection to recover its history.'
           : status === 'expired'
             ? 'Mini has not replaced your previous conversation. You can recheck it or explicitly clear it and start again.'
             : status === 'not-configured'
-          ? (sw ? 'Usajili wa eneo la majaribio na API haujawekwa. Hakuna jibu la kubuni.' : 'An approved staging site and API have not been configured. Mini will not invent an AI reply.')
+          ? (sw ? 'Muunganisho wa KS001 haujathibitishwa. Hakuna jibu la kubuni.' : 'A trusted KS001 connection has not been set up. We will not invent an answer.')
           : status === 'client-missing'
             ? 'The trusted SecurePay guest client could not load.'
             : status === 'disabled'
               ? 'The backend has not authorised guest KS001 for this website.'
               : status === 'checking'
-                ? 'Checking the registered SecurePay pilot installation.'
-                : 'The approved SecurePay staging service is unavailable or has refused the connection.'}</p>
+                ? 'Checking the SecurePay connection.'
+                : 'The SecurePay service could not confirm this connection. Your draft has not been sent.'}</p>
       </div>
     </div>}
 
