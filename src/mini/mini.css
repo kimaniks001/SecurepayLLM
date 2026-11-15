@@ -90,6 +90,21 @@ textarea.spm-field { resize:vertical; }
 .spm-footer { margin-top:auto; border-top:1px solid #eee9dc; display:flex; align-items:center; justify-content:center; gap:7px; color:#718173; padding:10px 13px; background:#fcfbf5; font-size:10px; line-height:1.4; text-align:center; }
 .spm-footer svg { flex:none; color:#51775a; }
 .spm-footer-dash { color:#b8bdb5; }
+/* One small signature below the established Checkout by SecurePay footer.
+   Matches Mini's warm-ivory / forest-green palette; never a new action. */
+.spm-proudly-footer {
+  display:flex; align-items:center; justify-content:center; gap:5px;
+  padding:2px 12px 8px; flex:none; min-height:23px;
+  background:#fcfbf5; color:#285d41;
+  font-family:'Fraunces',Georgia,serif;
+  font-size:10px; font-weight:500; letter-spacing:-.012em;
+  line-height:1; white-space:nowrap; user-select:none;
+}
+.spm-proudly-beads {
+  display:block; flex:none;
+  width:49px; height:14px; overflow:visible;
+}
+
 .spm-embedded { min-height:100%; height:100%; background:#fffdf8; padding:0; }
 .spm-embedded .spm-frame { border:0; border-radius:0; min-height:100vh; min-height:100dvh; box-shadow:none; max-width:none; }
 @media (max-width: 540px) {

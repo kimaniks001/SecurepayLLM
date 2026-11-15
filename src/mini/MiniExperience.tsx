@@ -10,6 +10,7 @@ import {
 import { MiniCaptureTools } from './MiniCaptureTools';
 import { MiniGuestChat } from './MiniGuestChat';
 import { MiniFirstPartyKs001 } from './MiniFirstPartyKs001';
+import { MiniProudlyKeMark } from './MiniProudlyKeMark';
 import { getMiniFirstPartyOrigin } from './miniFirstPartyConfig';
 import { isMiniExperiencePreviewHost } from './miniInteractiveDemo';
 import { MiniFundingPreview } from './MiniFundingPreview';
@@ -506,6 +507,10 @@ export function MiniExperience() {
           <span className="spm-imprint-visit" aria-hidden="true">↗</span>
         </a>
       </footer>
+      <div className="spm-proudly-footer" aria-label="Proudly Kenyan">
+        <MiniProudlyKeMark />
+        <span>proudly.ke</span>
+      </div>
     </div>
   </main>;
 }
