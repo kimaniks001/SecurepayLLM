@@ -94,14 +94,13 @@ test('never infer a real financial state or fee from a demo outcome', () => {
   assert.doesNotMatch(model,/FUNDED_HELD|PAYMENT_READY|SETTLED/);
 });
 
-test('Mini funding choice starts only after the owner explicitly reviews a local trade', () => {
+test('customer Mini reviews a draft without exposing locally simulated funding', () => {
   const main=read('src/mini/MiniExperience.tsx');
   assert.match(main,/screen === 'review'/);
   assert.match(main,/window\.scrollTo\(0, 0\)/);
   assert.match(main,/\.spm-frame'\)\?\.scrollTo\(0, 0\)/);
-  assert.match(main,/onClick=\{\(\) => setScreen\('funding'\)\}/);
-  assert.match(main,/screen === 'funding' && <MiniFundingPreview/);
-  assert.match(main,/onBack=\{\(\) => setScreen\('review'\)\}/);
+  assert.doesNotMatch(main,/setScreen\('funding'\)|screen === 'funding'|<MiniFundingPreview/);
+  assert.match(main,/<button className="spm-primary" type="button" onClick=\{keepDraft\}/);
   assert.match(main,/Not sent\. Not an agreement\./);
   assert.doesNotMatch(main,/setScreen\('funding'\).*useEffect/);
 });
