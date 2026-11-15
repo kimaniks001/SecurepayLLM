@@ -73,12 +73,12 @@ test('all financial/notification authority remains FALSE for the entire offline 
     assert.equal(v,false,k+' must be false');
   }
 });
-test('full-journey mode reuses existing Mini and funding simulator; default checkout is intact',()=>{
+test('the full-journey simulator remains test-only while customer Mini rejects fictional checkout paths',()=>{
   const mini=read('src/mini/MiniExperience.tsx');
   const checkout=read('src/mini/MiniHostedCheckoutDemo.tsx');
   const funding=read('src/mini/MiniFundingPreview.tsx');
-  assert.match(mini,/journeyMode = urlParams\?\.get\('journey'\) === '1'/);
-  assert.match(mini,/<MiniHostedCheckoutDemo record=\{demoRecord\} language=\{lang\} journeyMode=\{journeyMode\}/);
+  assert.doesNotMatch(mini,/journeyMode = urlParams|<MiniHostedCheckoutDemo|<MiniFundingPreview/);
+  assert.match(read('vite.config.ts'),/process\.env\.SECUREPAY_MINI_RELEASE_BUILD !== '0'/);
   assert.match(checkout,/journeyMode = false/);
   assert.match(checkout,/guidedDemo=\{!journeyMode\}/);
   assert.match(checkout,/reviewed\.CUSTOMER/);
