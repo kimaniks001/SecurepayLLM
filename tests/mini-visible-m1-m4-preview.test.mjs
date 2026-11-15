@@ -146,13 +146,12 @@ test('Synthetic-only adapter refuses all unknown or financial endpoints',async()
     method:'POST',auth:'required'}),/not simulated/);
   assert.doesNotMatch(read('src/mini/miniInteractiveDemo.ts'),/\bfetch\(/);
 });
-test('Approved Mini UI remains one shell; demo CTA is clear, gated and interactive',()=>{
+test('customer Mini has no fictional onboarding; separate owner adapter remains isolated for tests',()=>{
   const mini=read('src/mini/MiniExperience.tsx');
   const first=read('src/mini/MiniFirstPartyKs001.tsx');
-  assert.match(mini,/Explore M1–M5/);
-  assert.match(mini,/isMiniExperiencePreviewHost\(window\.location\.hostname\)/);
-  assert.match(mini,/samplePreviewOpen && samplePreviewAllowed/);
-  assert.match(mini,/MiniFirstPartyKs001 apiOrigin="synthetic-local-only" demo/);
+  assert.doesNotMatch(mini,/Explore M1–M5|samplePreviewOpen|synthetic-local-only|<MiniFundingPreview/);
+  assert.match(mini,/getMiniFirstPartyOrigin\(\)/);
+  assert.match(read('vite.config.ts'),/SECUREPAY_MINI_RELEASE_BUILD !== '0'/);
   assert.match(first,/createMiniDemoHttpClient/);
   assert.match(first,/createAgentGateway\(http,demoAccess\)/);
   assert.match(first,/MiniAgreementSlots formation=\{review\}/);
