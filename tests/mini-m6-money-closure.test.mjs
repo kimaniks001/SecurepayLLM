@@ -98,7 +98,7 @@ test('customer-facing Mini excludes developer notes; demo routes stay host-restr
   assert.doesNotMatch(experience,/samplePreviewAllowed|Explore M1–M5|SYNTHETIC DEMO/);
   assert.match(first,/\{demo && <button type="button" className="spm-quiet-button"/);
   assert.match(experience,/Agreement Commerce/);
-  assert.match(experience,/'SecurePay Mini'/);
+  assert.match(experience,/aria-label="SecurePay Mini/);
   assert.match(first,/Each party must confirm their Agreement/);
   assert.match(env,/VITE_SECUREPAY_M6_MONEY_STATUS=disabled/);
   assert.match(env,/VITE_SECUREPAY_M6_FEE_QUOTES=disabled/);
