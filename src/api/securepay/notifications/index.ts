@@ -120,6 +120,17 @@ export function createNotificationsGateway(http: HttpClient) {
       const suffix = query.toString();
       return http.request<NotificationEvent[]>(`/api/v1/notifications/me${suffix ? `?${suffix}` : ''}`, { auth: 'required' });
     },
+    /** B4 searches durable Inbox messages for the authenticated KSNumber. */
+    search: (params: { query: string; fromDate?: string; toDate?: string; page?: number; size?: number }) => {
+      const query = params.query.trim();
+      if (query.length < 2 || query.length > 160) throw new Error('Search needs 2–160 characters');
+      const search = new URLSearchParams({ query });
+      if (params.fromDate) search.set('fromDate', params.fromDate);
+      if (params.toDate) search.set('toDate', params.toDate);
+      if (params.page !== undefined) search.set('page', String(params.page));
+      if (params.size !== undefined) search.set('size', String(params.size));
+      return http.request<NotificationEvent[]>(`/api/v1/notifications/me/search?${search.toString()}`, { auth: 'required' });
+    },
     get: (notificationId: string) => http.request<NotificationEvent>(`/api/v1/notifications/me/${notificationId}`, { auth: 'required' }),
     markRead: (notificationId: string) => http.request<NotificationEvent>(`/api/v1/notifications/me/${notificationId}/read`, { method: 'POST', auth: 'required' }),
     resolve: (notificationId: string, resolutionAction: string) =>
