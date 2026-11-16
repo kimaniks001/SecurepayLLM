@@ -269,7 +269,7 @@ export function BusinessSettingsHub({onOpen}:{
           {section==='integrations' && <>
             <Heading title="Let your Business work wherever customers are">A Business can present eligible offers through other apps and use SecurePay Checkout, KS001 and SecureLinks without losing the original Agreement record.</Heading>
             <div className="space-y-2">{[
-              ['SecurePay Mini','The person's original Mini, acting for their verified Business'],
+              ['SecurePay Mini',"The person's original Mini, acting for their verified Business"],
               ['Varsityville Estate','Merchant offers under the community’s eligibility and rules'],
               ['Shortstays','Eligible guest and host services, separately vetted'],
               ['My Ride and Storage','Specialist providers and products require stronger independent verification'],
