@@ -22,7 +22,7 @@ export interface NetworkPublicationDecision {
   sellerKsNumber: string;
   offerId: string;
   targetSurface: BusinessConnectSurface;
-  status: 'ELIGIBLE' | 'NOT_PUBLISHED' | 'SUBSCRIPTION_INACTIVE' | 'VERIFICATION_REQUIRED' | 'NOT_SERVING_AREA';
+  status: 'ELIGIBLE' | 'NOT_ELIGIBLE';
   /** Server-specified limit for when this decision may be displayed. */
   validUntil: string;
   /** Version for audit/debug only; it never makes a client transaction authoritative. */
