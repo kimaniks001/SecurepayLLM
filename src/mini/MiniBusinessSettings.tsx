@@ -49,10 +49,11 @@ function Checkbox({label,detail,checked,onChange,disabled=false}:{
  <span><strong>{label}</strong><small>{detail}</small></span></label>;}
 function Badge({children}:{children:ReactNode}){return <span className="spm-bs-mini-badge">{children}</span>;}
 
-export function MiniBusinessSettings({language,onBack,demo,setDemo}:{
+export function MiniBusinessSettings({language,onBack,demo,setDemo,initialArea}:{
  language:MiniLanguage;onBack:()=>void;demo:BusinessDemo;setDemo:Dispatch<SetStateAction<BusinessDemo>>;
+ initialArea?: Area;
 }) {
- const [area,setArea]=useState<Area|null>(null);
+ const [area,setArea]=useState<Area|null>(initialArea??null);
  const [tab,setTab]=useState<StoreTab>('offers');
  const [profileName,setProfileName]=useState(demo.name);
  const [profilePlace,setProfilePlace]=useState(demo.place);
