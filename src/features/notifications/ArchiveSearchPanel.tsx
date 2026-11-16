@@ -181,7 +181,7 @@ export function ArchiveSearchPanel({
         <div className="space-y-3">
           {plan?.fromDate && (
             <p className="text-xs text-sand-600">
-              Looking around {new Date(plan.fromDate).getUTCFullYear()}
+              Time: {plan.original.match(/\\b(?:19|20)\\d{2}\\b/)?.[0] ?? 'specified period'}
               {plan.person ? ` · with ${plan.person}` : ''}
               {plan.subject ? ` · about ${plan.subject}` : ''}
             </p>
