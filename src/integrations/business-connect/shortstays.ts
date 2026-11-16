@@ -1,40 +1,48 @@
 /**
- * Shortstays B0 adapter: imports the shared Business Connect core rather than
- * copying SecurePay Checkout, Store Guide, SecureLink, or Agreement authority.
- *
- * This is a headless bridge. Shortstays Prototype 4 remains the visual authority.
- * A guest destination is a search hint, NOT delivery confirmation.
+ * Shortstays B1 adapter: read-only discovery from the approved cross-platform
+ * merchant network. Public Store listing alone is never network eligibility.
+ * Shortstays Prototype 4 remains the visual authority.
  */
 import type { StoreGateway } from '../../api/securepay/store';
 import {
-  createBusinessConnect, selectListedOffer,
-  type BusinessConnectInspection, type BusinessConnectNeed,
-} from './index';
+  createGovernedBusinessConnect,
+  type NetworkPublicationAuthority,
+} from './governed';
 
 export interface ShortstaysGuestStoreNeed {
-  /** A recognized catalogue category, e.g. "solar" or "electrical". */
+  /** A recognized catalogue category (not arbitrary AI-generated terms). */
   category: string;
-  /** The guest's permitted, sufficiently coarse location (not private room data). */
+  /** Coarse permitted guest area, not private room/booking details. */
   area?: string;
 }
 
-export function createShortstaysBusinessConnect(store: Pick<StoreGateway, 'search' | 'offer'>) {
-  const bridge = createBusinessConnect(store);
+/**
+ * Until SecurePayAPI provides the publication/entitlement gateway, Shortstays
+ * MUST NOT display outside merchants. Never provide a permissive stub.
+ */
+export function createShortstaysBusinessConnect(
+  store: Pick<StoreGateway, 'search' | 'offer'>,
+  publication: NetworkPublicationAuthority,
+) {
+  const bridge = createGovernedBusinessConnect(store, publication);
+
   return {
-    /** Candidate listings only; delivery to the campsite remains to be confirmed. */
     findCandidateListingsForGuest(input: ShortstaysGuestStoreNeed) {
-      const need: BusinessConnectNeed = {
+      return bridge.discover({
         surface: 'SHORTSTAYS',
         kind: 'PRODUCT',
         category: input.category,
         ...(input.area ? { location: input.area } : {}),
-      };
-      return bridge.discover(need);
+      });
     },
-    inspectMerchantOffer: bridge.inspect,
-    /** Does not create an Agreement. The host invokes the canonical Agent handoff. */
-    useThisOffer(inspection: BusinessConnectInspection, customerConfirmed: boolean) {
-      return selectListedOffer(inspection, customerConfirmed);
+
+    inspectMerchantOffer(sellerKsNumber: string, offerId: string) {
+      return bridge.inspect(sellerKsNumber, offerId, 'SHORTSTAYS');
+    },
+
+    /** Requires a fresh authoritative publication check and explicit choice. */
+    useThisOffer(sellerKsNumber: string, offerId: string, customerConfirmed: boolean) {
+      return bridge.select(sellerKsNumber, offerId, 'SHORTSTAYS', customerConfirmed);
     },
   };
 }
