@@ -33,7 +33,9 @@
     "test:vision-money-gap": "node --test tests/vision-money-gap.test.mjs",
     "test:trust-project-redo": "node --test tests/trust-project-community-redo.test.mjs tests/trust-project-programmes.test.mjs",
     "test:final-convergence": "node --test tests/*.test.mjs",
-    "test:business-connect": "node --test tests/business-connect.test.mjs"
+    "test:business-connect": "node --test tests/business-connect.test.mjs",
+    "test:b4": "node --test tests/b4-archive.test.mjs",
+    "prebuild": "npm run test:b4 && npm run typecheck"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
