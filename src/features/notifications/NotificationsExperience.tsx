@@ -253,12 +253,12 @@ export function NotificationsExperience({ controller, onNavigate, onOpenAgreemen
                   <SurfaceBody>
                     <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-1">Delivery channel</div>
                     <p className="text-[0.75rem] text-sand-500 mb-1">
-                      WhatsApp is SecurePay's preferred channel where available. Only one external
-                      channel is used per notification -- WhatsApp first, then SMS, then email -- never
-                      all three at once.
+                      SecurePay Mini is your authoritative Inbox. External channels are optional
+                      reminders, not required for Agreement communication. Where enabled, SecurePay
+                      chooses one available external channel; delivery is not proof of an Agreement action.
                     </p>
                     <div className="divide-y divide-cream-100">
-                      <Toggle label="WhatsApp" hint="Preferred channel." checked={state.preferencesDraft.whatsappEnabled} onChange={v => controller.setPreferencesDraft({ whatsappEnabled: v })} />
+                      <Toggle label="WhatsApp" hint="Optional external reminder. Not required to use Mini." checked={state.preferencesDraft.whatsappEnabled} onChange={v => controller.setPreferencesDraft({ whatsappEnabled: v })} />
                       <Toggle label="SMS" hint="Used if WhatsApp is off or unavailable." checked={state.preferencesDraft.smsEnabled} onChange={v => controller.setPreferencesDraft({ smsEnabled: v })} />
                       <Toggle label="Email" hint="Used if WhatsApp and SMS are both off." checked={state.preferencesDraft.emailEnabled} onChange={v => controller.setPreferencesDraft({ emailEnabled: v })} />
                     </div>
