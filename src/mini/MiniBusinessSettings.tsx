@@ -125,9 +125,8 @@ export function MiniBusinessSettings({language,onBack,demo,setDemo,initialArea,o
       <span className="spm-bs-icon"><Icon size={19}/></span><span className="spm-bs-item-title"><strong>{m.name}</strong><small>{m.hint}</small></span><ChevronRight size={16}/>
     </button>;})}</div>
     <Quiet>This is an interactive fictional Business, not a signed-in merchant. Changes here affect these example screens, not SecurePay accounts or live Store stock.</Quiet>
-    <div className="spm-bs-muted"><strong>Need the desktop Business Desk?</strong>
-    <p>More expansive administration, still on a separate read-only preview.</p>
-    <a href="/business-settings.html">Open the full Business Desk <ArrowRight size={14}/></a></div>
+    <div className="spm-bs-muted"><strong>One Mini. Your whole Business.</strong>
+    <p>When more space is useful, these same Mini tools can expand—without sending you to another product.</p></div>
   </> : <>
     <div className="spm-bs-subhead"><span>{title}</span><span>Try it here</span></div>
     <h1 className="spm-question">{title}</h1>
