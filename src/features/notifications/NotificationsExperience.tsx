@@ -10,6 +10,7 @@ import type { AppView } from '../../types';
 import { parseNotificationActionKey, type NotificationCategory, type NotificationEvent } from '../../api/securepay/notifications';
 import type { NotificationsController } from './controller';
 import type { AgreementGateway } from '../../api/securepay/agreements';
+import type { AgreementMessagesGateway } from '../../api/securepay/agreement-messages';
 import type { NotificationsGateway } from '../../api/securepay/notifications';
 import { ArchiveSearchPanel } from './ArchiveSearchPanel';
 
@@ -142,6 +143,7 @@ export function NotificationsExperience({ controller, onNavigate, onOpenAgreemen
   archiveGateway: {
     agreements: Pick<AgreementGateway, 'searchAgreements'>;
     notifications: Pick<NotificationsGateway, 'search' | 'get'>;
+    messages?: AgreementMessagesGateway;
   };
   onNavigate: (view: AppView) => void;
   onOpenAgreement: (agreementId: string) => void;
