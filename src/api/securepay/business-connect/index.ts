@@ -16,7 +16,7 @@ export interface MerchantNetworkPublication {
   businessKsNumber: string;
   enabledSurfaces: BusinessConnectSurface[];
   publicationVersion: number;
-  updatedAt: string;
+  updatedAt: string | null;
 }
 
 const merchantPath = (businessKsNumber: string) =>
