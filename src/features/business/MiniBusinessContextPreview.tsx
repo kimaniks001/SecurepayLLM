@@ -9,7 +9,6 @@ import {
 type Capacity = 'business' | 'personal';
 type Page = 'home' | 'agreements' | 'store' | 'inbox' | 'money';
 type Panel = 'none' | 'quote' | 'agreement' | 'ask' | 'payment' | 'offer';
-const baseGreen = '#173D31';
 const sampleWorks = [
   { id: 'lighting', title: 'Guesthouse solar floodlights', customer: 'Nyeri Guesthouse (sample)', status: 'Your reply needed', stage: 'Enquiry', amount: 'Quote needed', message: 'The buyer is asking whether you can deliver two outdoor lights next week.', next: 'Confirm stock and make a quotation', tone: 'orange' },
   { id: 'roof', title: 'Cement for roof repairs', customer: 'Mugo Builders (sample)', status: 'Terms under review', stage: 'Quotation', amount: 'KSh 15,000', message: 'The buyer is reviewing quantities, delivery and the price quoted.', next: 'Check whether the buyer has replied', tone: 'blue' },
