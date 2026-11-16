@@ -126,7 +126,7 @@ test('B1: a public store alone does not grant Shortstays publication', async () 
   const denyNetwork = createShortstaysBusinessConnect(store, {
     evaluate: async () => ({
       sellerKsNumber:'KS-101',offerId:'floodlight-1',
-      targetSurface:'SHORTSTAYS',status:'NOT_PUBLISHED',
+      targetSurface:'SHORTSTAYS',status:'NOT_ELIGIBLE',
       publicationVersion:1,validUntil:'2099-01-01T00:00:00Z',
     }),
   });
