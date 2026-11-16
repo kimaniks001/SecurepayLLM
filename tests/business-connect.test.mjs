@@ -107,3 +107,26 @@ test('Offer selection requires explicit customer choice and is source-only, neve
     assert.equal(Object.hasOwn(source, forbidden), false);
   }
 });
+
+
+test('Shortstays adapter calls the common Store API without adding holiday-specific payment logic', async () => {
+  const shortstaysBundle = await build({
+    stdin: { contents: "export * from './src/integrations/business-connect/shortstays';", resolveDir: process.cwd() },
+    bundle: true, write: false, format: 'esm', platform: 'node',
+  });
+  const { createShortstaysBusinessConnect } = await import(
+    `data:text/javascript;base64,${Buffer.from(shortstaysBundle.outputFiles[0].text).toString('base64')}`
+  );
+  const searches = [];
+  const bridge = createShortstaysBusinessConnect({
+    search: async q => { searches.push(q); return [result()]; },
+    offer: async () => detail(),
+  });
+  const listings = await bridge.findCandidateListingsForGuest({ category:'solar', area:'Naivasha' });
+  assert.equal(listings.status,'ready');
+  assert.deepEqual(searches,[{kind:'PRODUCT',category:'solar',location:'Naivasha',limit:10}]);
+  const inspected = await bridge.inspectMerchantOffer('KS-101','floodlight-1');
+  const selection = bridge.useThisOffer(inspected,true);
+  assert.equal(selection.sourceOwnerKsNumber,'KS-101');
+  assert.equal('agreement' in selection,false);
+});
