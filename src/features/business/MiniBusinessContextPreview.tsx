@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import {
-  ArrowLeft, ArrowRight, Bell, BriefcaseBusiness, Check, CheckCircle2, ChevronDown,
-  ChevronRight, ClipboardList, CreditCard, FileText, Handshake, Home,
-  Link2, MessageCircle, Package, Plus, Search, Send, Settings2,
+  ArrowRight, Bell, BriefcaseBusiness, Check, ChevronDown,
+  ChevronRight, CreditCard, Handshake, Home,
+  MessageCircle, Package, Plus, Search, Settings2,
   ShieldCheck, ShoppingBag, Sparkles, Store, UserRound, Wallet, X
 } from 'lucide-react';
 
@@ -67,6 +67,10 @@ export function MiniBusinessContextPreview() {
       </div>
       {mobileMenu && <div className="mx-auto flex max-w-[1250px] items-center justify-between border-t border-slate-100 px-5 py-3 text-xs"><span>Mini demo · No real account connected</span><button className="font-semibold text-[#1B513A] underline" onClick={()=>window.location.hash='#/business'}>Business settings demo</button></div>}
     </header>
+
+    <nav className="fixed bottom-0 left-0 right-0 z-20 border-t border-[#E7EBE5] bg-white pb-[env(safe-area-inset-bottom)] md:sticky md:bottom-auto md:top-[68px] md:mx-auto md:mt-1 md:max-w-[1150px] md:rounded-[18px] md:border">
+      <div className="mx-auto flex max-w-[1150px] justify-around gap-0 px-1 py-1.5 sm:px-3 md:justify-start md:gap-1.5">{nav.map(item=>{const Icon=item.icon;return <button type="button" key={item.id} onClick={()=>go(item.id)} className={'flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 text-[10px] font-medium sm:text-xs md:min-h-11 md:flex-initial md:flex-row md:gap-2 md:px-5 '+(page===item.id?'bg-[#E4F0E5] font-semibold text-[#1B5B3D]':'text-slate-500 hover:bg-[#F6F8F4]')}><Icon size={18}/><span>{item.title}</span></button>})}</div>
+    </nav>
 
     <main className="mx-auto max-w-[1190px] px-4 pt-5 md:px-7 md:pt-8">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
@@ -155,9 +159,7 @@ export function MiniBusinessContextPreview() {
       <div className="mt-7 flex flex-wrap items-center justify-between gap-3 border-t border-[#E7EAE5] py-4 text-[11px] text-slate-500"><span><ShieldCheck size={13} className="mr-1 inline"/>Read-only demonstration · No KSNumber or business is signed in</span><span>Trust is the currency · <strong>proudly.ke</strong></span></div>
     </main>
 
-    <nav className="fixed bottom-0 left-0 right-0 z-20 border-t border-[#E7EBE5] bg-white pb-[env(safe-area-inset-bottom)] md:sticky md:bottom-auto md:top-[68px] md:mx-auto md:mt-1 md:max-w-[1150px] md:rounded-[18px] md:border">
-      <div className="mx-auto flex max-w-[1150px] justify-around gap-0 px-1 py-1.5 sm:px-3 md:justify-start md:gap-1.5">{nav.map(item=>{const Icon=item.icon;return <button type="button" key={item.id} onClick={()=>go(item.id)} className={'flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 text-[10px] font-medium sm:text-xs md:min-h-11 md:flex-initial md:flex-row md:gap-2 md:px-5 '+(page===item.id?'bg-[#E4F0E5] font-semibold text-[#1B5B3D]':'text-slate-500 hover:bg-[#F6F8F4]')}><Icon size={18}/><span>{item.title}</span></button>})}</div>
-    </nav>
+
 
     {panel !== 'none' && <div className="fixed inset-0 z-40 flex items-center justify-center bg-[#182B20]/40 p-3" role="presentation" onClick={()=>setPanel('none')}>
       <div className="w-full max-w-[520px] overflow-hidden rounded-[23px] border border-[#E6EAE2] bg-white shadow-2xl" role="dialog" aria-modal="true" aria-label="Example detail" onClick={e=>e.stopPropagation()}>
