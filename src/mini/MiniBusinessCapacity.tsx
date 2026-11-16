@@ -30,13 +30,14 @@ const sampleOffers = [
  * representation. Real Business scope and Inbox visibility remain server-owned.
  */
 export function MiniBusinessCapacity({
-  language, capacity, onChange, onStartSelling, onAskKs001, part
+  language, capacity, onChange, onStartSelling, onAskKs001, onOpenSettings, part
 }: {
   language: MiniLanguage;
   capacity: MiniPreviewCapacity;
   onChange: (next: MiniPreviewCapacity) => void;
   onStartSelling: () => void;
   onAskKs001: () => void;
+  onOpenSettings: () => void;
   part: 'identity' | 'activity';
 }) {
   const [chooseOpen, setChooseOpen] = useState(false);
@@ -170,12 +171,12 @@ export function MiniBusinessCapacity({
         <button className="spm-business-text-link" type="button" onClick={onStartSelling}>Start a seller draft <ArrowRight size={14}/></button>
         <p className="spm-business-small-note">Store offers shown here are sample data, not verified stock or real prices.</p>
       </div>}
-      <a className="spm-business-settings-line spm-business-settings-link" href="/business-settings.html"
-         aria-label="Open SecurePay Business Settings visual preview">
+      <button type="button" className="spm-business-settings-line spm-business-settings-link"
+        onClick={onOpenSettings} aria-label="Open Business Settings inside Mini">
         <Settings2 size={16}/>
         <span><strong>Business Settings</strong><small>Identity, staff, Store, KS001, integrations & billing</small></span>
         <ChevronRight size={16}/>
-      </a>
+      </button>
     </div>}
   </>;
 }
