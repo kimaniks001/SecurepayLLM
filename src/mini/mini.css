@@ -679,3 +679,79 @@ textarea.spm-field { resize:vertical; }
   .spm-clean .spm-entrance .spm-option { min-height:127px; padding:10px; }
   .spm-clean .spm-entrance .spm-option-text strong { font-size:13px; }
 }
+
+
+/* Owner-only review of an acting-for-Business capacity inside the ORIGINAL
+   frozen SecurePay Mini. Enabled only by ?miniBusinessPreview=1.
+   This deliberately adds no new dashboard or permanent nav. */
+.spm-business-capacity { position:relative; margin:-8px 0 17px; }
+.spm-business-switch {
+  display:flex; align-items:center; gap:9px; width:100%; min-height:49px;
+  background:#f1f6ed; border:1px solid #d7e5d7; border-radius:13px;
+  padding:7px 10px; color:#285b41; text-align:left;
+}
+.spm-business-switch:hover { background:#eaf2e6; }
+.spm-business-switch-icon {
+  flex:none; width:31px; height:31px; display:grid; place-items:center;
+  color:#285e43; background:#e0ebdf; border-radius:10px;
+}
+.spm-business-switch-text { display:grid; gap:2px; flex:1; min-width:0; }
+.spm-business-switch-text small { color:#6b8171; font-size:10px; }
+.spm-business-switch-text strong { color:#244c35; font-size:12px; font-weight:700; }
+.spm-business-choices {
+  position:absolute; z-index:5; top:calc(100% + 4px); left:0; right:0;
+  border:1px solid #dbe5d8; background:#fffdf8; border-radius:13px;
+  box-shadow:0 12px 30px rgba(24,58,39,.13); padding:6px;
+}
+.spm-business-choices button {
+  display:flex; gap:9px; align-items:center; width:100%; min-height:44px;
+  color:#2c563e; background:transparent; border:0; border-radius:9px;
+  padding:8px; text-align:left; font-size:12px; font-weight:650;
+}
+.spm-business-choices button span { flex:1; }
+.spm-business-choices button:hover { background:#eef4ec; }
+.spm-business-choices p { border-top:1px solid #edf0e9; margin:4px 5px 0; padding:8px 3px 3px; color:#738273; font-size:10px; line-height:1.5; }
+.spm-business-sample-note {
+  display:flex; align-items:center; gap:5px; color:#8a7651;
+  font-size:10px; margin:-10px 0 13px;
+}
+.spm-business-mini-helper { border-top:1px solid #e8e9df; margin-top:12px; padding-top:17px; }
+.spm-business-heading { display:flex; align-items:center; justify-content:space-between; gap:7px; color:#315c42; font-size:12px; font-weight:700; }
+.spm-business-little-tag { padding:4px 7px; border-radius:7px; color:#7d724e; background:#fbf4e7; font-size:9px; text-transform:uppercase; letter-spacing:.05em; }
+.spm-business-blurb { color:#7b8678; font-size:11px; line-height:1.55; margin:6px 0 10px; }
+.spm-business-reveal {
+  display:flex; align-items:center; gap:9px; width:100%; min-height:55px;
+  border:1px solid #e0e6da; border-radius:12px; background:#fffefa;
+  padding:9px 10px; color:#346349; text-align:left; margin:7px 0;
+}
+.spm-business-reveal > span { display:grid; flex:1; gap:4px; }
+.spm-business-reveal strong { color:#254936; font-size:12px; font-weight:700; }
+.spm-business-reveal small { color:#748478; font-size:10px; font-weight:400; }
+.spm-business-reveal:hover { border-color:#abc7ad; }
+.spm-business-reveal .spm-business-down { transform:rotate(90deg); }
+.spm-business-expand { background:#f8faf5; border:1px solid #e4ebe1; border-radius:12px; padding:6px; margin-top:-1px; }
+.spm-business-work-item {
+  display:flex; align-items:center; gap:9px; width:100%; min-height:47px;
+  border:0; border-bottom:1px solid #e5ebdf; text-align:left;
+  padding:8px; background:transparent; color:#467051;
+}
+.spm-business-work-item:last-child { border-bottom:0; }
+.spm-business-work-item:hover,.spm-business-work-item.selected { background:#edf4e9; border-radius:8px; }
+.spm-business-work-item span { display:grid; gap:5px; flex:1; }
+.spm-business-work-item strong { color:#2a4b38; font-size:11px; font-weight:650; }
+.spm-business-work-item small { color:#9a6d45; font-size:10px; }
+.spm-business-detail { padding:11px; border-radius:10px; border:1px solid #d5e2d0; margin-top:7px; background:#fffdf8; }
+.spm-business-detail > strong { color:#254a35; font-size:12px; }
+.spm-business-detail p { font-size:11px; color:#637a66; line-height:1.6; margin:9px 0; }
+.spm-business-detail button,.spm-business-text-link {
+  display:inline-flex; align-items:center; justify-content:center; gap:7px; min-height:44px;
+  border:0; color:#2a6746; font-size:11px; font-weight:700; background:transparent; padding:8px 1px;
+}
+.spm-business-detail small { display:block; color:#94856c; font-size:9px; }
+.spm-business-offer { display:flex; align-items:flex-start; gap:8px; padding:10px 5px; border-bottom:1px solid #e7eddf; color:#397351; }
+.spm-business-offer span { display:grid; gap:5px; }
+.spm-business-offer strong { color:#244f36; font-size:11px; }
+.spm-business-offer small { color:#77877b; font-size:10px; line-height:1.4; }
+.spm-business-small-note { margin:0 3px 6px; color:#927d5c; font-size:10px; line-height:1.4; }
+.spm-business-settings-line { display:flex; gap:7px; align-items:flex-start; margin-top:12px; padding:0 2px; color:#7e897d; font-size:10px; line-height:1.5; }
+.spm-business-settings-line svg { flex:none; margin-top:1px; }
