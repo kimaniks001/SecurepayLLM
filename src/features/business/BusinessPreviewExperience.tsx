@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import {
-  ArrowRight, Bell, BookOpenText, CheckCircle2, ChevronRight,
+  ArrowRight, BookOpenText, CheckCircle2, ChevronRight,
   ClipboardCheck, CreditCard, FileText, Globe2, Handshake,
-  LayoutDashboard, Link2, Menu, MessageCircle, Package,
-  Plus, Search, Settings2, ShieldCheck, ShoppingBag,
+  LayoutDashboard, Link2, Menu, Package,
+  ShieldCheck, ShoppingBag,
   Sparkles, Store, X
 } from 'lucide-react';
 
@@ -28,8 +28,7 @@ const work = [
   { title: 'Materials supply · roof repair', person: 'Buyer and seller', status: 'Reviewing terms', note: 'Agreement awaits both parties', tag: 'review' },
   { title: 'Hardware delivery to an estate', person: 'Confirmed agreement', status: 'In progress', note: 'Delivery evidence to be added', tag: 'progress' },
 ];
-const button = 'inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-300';
-function SamplePill({ children }: { children: React.ReactNode }) {
+function SamplePill({ children }: { children: ReactNode }) {
   return <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-900">{children}</span>;
 }
 function SectionHeading({ eyebrow, title, children }: { eyebrow: string; title: string; children: React.ReactNode }) {
