@@ -2,6 +2,7 @@ import { createPreviewWorkspaceGateways } from './features/living-workspace/prev
 import { createPreviewAgentGateway } from './features/living-workspace/previewAgentGateway';
 import { Phase1LivingWorkspacePreview } from './features/living-workspace/Phase1LivingWorkspacePreview';
 import { BusinessPreviewExperience } from './features/business/BusinessPreviewExperience';
+import { MiniBusinessContextPreview } from './features/business/MiniBusinessContextPreview';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { storeAgreementEntry, storeEntryView, storeKs001EntryMessage, hasWorkspaceMoneyReturn, clearWorkspaceMoneyReturn } from './features/experience/entryIntent';
 import { AgentExperience } from './features/agent/AgentExperience';
@@ -370,6 +371,13 @@ export default function RuntimeApp() {
   // Owner-facing read-only visual walkthrough. It does NOT sign in, query private
   // merchants, create Agreements, change Store publication or initiate payments.
   // Exists only in this isolated preview branch, not the production application.
+  // Illustrative Mini Business context only; distinct from authenticated Mini and the
+  // canonical Personal KSNumber session. Do not call real merchant or payment endpoints.
+  if (typeof window !== 'undefined' &&
+      window.location.hostname.endsWith('.vercel.app') &&
+      /^#\/?preview\/mini-business\/?$/.test(window.location.hash)) {
+    return <MiniBusinessContextPreview />;
+  }
   if (directSurfaceRoute === 'business' && typeof window !== 'undefined' && window.location.hostname.endsWith('.vercel.app')) {
     return <BusinessPreviewExperience />;
   }
