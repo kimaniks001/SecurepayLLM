@@ -63,6 +63,10 @@ export function ArchiveSearchPanel({
   const [threadId, setThreadId] = useState<string | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [moreBusy, setMoreBusy] = useState(false);
+  const [nextNotificationPage, setNextNotificationPage] = useState(1);
+  const [nextConversationPage, setNextConversationPage] = useState(1);
+  const [hasOlderConversations, setHasOlderConversations] = useState(false);
+  const [moreConversationsBusy, setMoreConversationsBusy] = useState(false);
   const serial = useRef(0);
   const owner = useSyncExternalStore(session.subscribe,session.getSnapshot,session.getSnapshot);
   const [resultOwner, setResultOwner] = useState(owner);
@@ -70,6 +74,8 @@ export function ArchiveSearchPanel({
     serial.current++;
     setPhase('idle'); setResults(empty); setOpened(null); setThreadId(null); setResultOwner(owner);
     setMessage(null); setDetailError(null); setPlan(null); setQuery('');
+    setNextNotificationPage(1); setNextConversationPage(1);
+    setHasOlderConversations(false); setMoreConversationsBusy(false);
   }, [owner]);
 
   async function find(event?: React.FormEvent<HTMLFormElement>) {
@@ -85,6 +91,8 @@ export function ArchiveSearchPanel({
     }
     setPlan(criteria); setPhase('loading'); setMessage(null); setOpened(null); setThreadId(null);
     setDetailError(null); setResults(empty); setMoreBusy(false);
+    setNextNotificationPage(1); setNextConversationPage(1);
+    setHasOlderConversations(false); setMoreConversationsBusy(false);
     const agreementArgs = {
       subject: criteria.subject ?? undefined,
       person: criteria.person ?? undefined,
@@ -129,9 +137,11 @@ export function ArchiveSearchPanel({
     }
     const items = uniqueAgreements(agreementPages);
     const messages = notification.status === 'fulfilled' ? notification.value : [];
+    const authenticConversations = conversation.status === 'fulfilled' ? (conversation.value ?? []) : [];
+    setHasOlderConversations(authenticConversations.length === 20);
     setResults({
       agreements: items, notifications: messages,
-      conversations: conversation.status === 'fulfilled' ? (conversation.value ?? []) : [],
+      conversations: authenticConversations,
       conversationsError: !gateway.messages ? 'Agreement messaging is not connected here.'
         : conversation.status === 'rejected' ? 'Conversation search is unavailable right now.' : null,
       agreementCount, notificationsHasMore: messages.length === 20,
@@ -158,7 +168,8 @@ export function ArchiveSearchPanel({
   async function loadOlder() {
     if (!plan || moreBusy || !results.notificationsHasMore) return;
     const request = serial.current;
-    const page = Math.floor(results.notifications.length / 20);
+    const identity = session.getSnapshot();
+    const page = nextNotificationPage;
     setMoreBusy(true);
     try {
       const next = await gateway.notifications.search({
@@ -166,16 +177,54 @@ export function ArchiveSearchPanel({
         fromDate: plan.fromDate ?? undefined,
         toDate: plan.toDate ?? undefined, page, size: 20,
       });
-      if (request !== serial.current) return;
-      const ids = new Set(results.notifications.map(n => n.id));
-      setResults(previous => ({
-        ...previous,
-        notifications: [...previous.notifications, ...next.filter(n => !ids.has(n.id))],
-        notificationsHasMore: next.length === 20,
-      }));
+      if (request !== serial.current || session.getSnapshot() !== identity) return;
+      setResults(previous => {
+        const ids = new Set(previous.notifications.map(n => n.id));
+        return {
+          ...previous,
+          notifications: [...previous.notifications, ...next.filter(n => !ids.has(n.id))],
+          notificationsHasMore: next.length === 20,
+        };
+      });
+      // A full page can overlap with earlier pages; never derive the next
+      // offset from the number of unique records displayed.
+      setNextNotificationPage(value => value + 1);
     } catch {
-      if (request === serial.current) setMessage('Could not retrieve older Inbox messages. Try again.');
-    } finally { if (request === serial.current) setMoreBusy(false); }
+      if (request === serial.current && session.getSnapshot() === identity)
+        setMessage('Could not retrieve older Inbox messages. Try again.');
+    } finally {
+      if (request === serial.current && session.getSnapshot() === identity) setMoreBusy(false);
+    }
+  }
+
+  async function loadOlderConversations() {
+    if (!gateway.messages || !plan || moreConversationsBusy || !hasOlderConversations) return;
+    const request = serial.current;
+    const identity = session.getSnapshot();
+    const page = nextConversationPage;
+    setMoreConversationsBusy(true);
+    try {
+      const next = await gateway.messages.search({
+        query: plan.notificationQuery,
+        fromDate: plan.fromDate ?? undefined,
+        toDate: plan.toDate ?? undefined,
+        page, size: 20,
+      });
+      if (request !== serial.current || session.getSnapshot() !== identity) return;
+      setResults(previous => {
+        const ids = new Set(previous.conversations.map(x => x.id));
+        return { ...previous, conversations: [...previous.conversations,
+          ...next.filter(x => !ids.has(x.id))] };
+      });
+      setHasOlderConversations(next.length === 20);
+      setNextConversationPage(value => value + 1);
+    } catch {
+      if (request === serial.current && session.getSnapshot() === identity)
+        setMessage('Could not retrieve older Agreement conversations. Try again.');
+    } finally {
+      if (request === serial.current && session.getSnapshot() === identity)
+        setMoreConversationsBusy(false);
+    }
   }
 
   return (
@@ -264,8 +313,12 @@ export function ArchiveSearchPanel({
                 </button>}
               </div>
             ))}
-            {results.conversations.length === 20 &&
-              <p className="text-xs text-sand-600">Showing the first 20 matching messages. Refine the search to find older conversations.</p>}
+            {hasOlderConversations &&
+              <button type="button" disabled={moreConversationsBusy}
+                onClick={() => void loadOlderConversations()}
+                className="w-full text-xs text-forest-700 underline py-2 disabled:opacity-50">
+                {moreConversationsBusy ? 'Loading…' : 'Load earlier conversations'}
+              </button>}
           </div>
           {gateway.messages && threadId && (
             <AgreementThreadPanel key={threadId}

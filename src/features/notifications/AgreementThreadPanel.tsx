@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { AgreementConversationMessage, AgreementMessagesGateway } from '../../api/securepay/agreement-messages';
+import { canSendAgreementMessageInPreview } from './b5MessagingGate';
 
 function time(iso: string) {
   const date = new Date(iso);
@@ -30,6 +31,11 @@ export function AgreementThreadPanel({
   const [hasMore, setHasMore] = useState(false);
   const pending = useRef<{ key: string; body: string } | null>(null);
   const serial = useRef(0);
+  const canSend = canSendAgreementMessageInPreview({
+    enabled: import.meta.env.VITE_B5_MESSAGE_SEND_ENABLED,
+    apiOrigin: import.meta.env.VITE_SECUREPAY_API_BASE_URL,
+    pageHostname: typeof window === 'undefined' ? '' : window.location.hostname,
+  });
 
   async function refresh() {
     const request = ++serial.current;
@@ -72,7 +78,7 @@ export function AgreementThreadPanel({
   }
 
   async function send() {
-    if (sending) return;
+    if (!canSend || sending) return;
     const next = pending.current ?? { body: body.trim(), key: crypto.randomUUID() };
     if (next.body.length < 1 || next.body.length > 2000) {
       setError('Write a message of up to 2,000 characters.'); return;
@@ -122,7 +128,10 @@ export function AgreementThreadPanel({
             ))}
             {messages.length === 0 && <p className="text-xs text-sand-600">No saved messages in this Agreement yet.</p>}
           </div>
-          <form onSubmit={e => { e.preventDefault(); void send(); }} className="space-y-2">
+          {!canSend && <p role="status" className="text-xs text-sand-600">
+            You can review saved messages here. Sending new messages will open after SecurePay's safety checks.
+          </p>}
+          {canSend && <form onSubmit={e => { e.preventDefault(); void send(); }} className="space-y-2">
             <label className="block text-xs text-forest-800">
               Message
               <textarea value={body} onChange={e => {
@@ -144,7 +153,7 @@ export function AgreementThreadPanel({
                 Review conversation instead
               </button>
             )}
-          </form>
+          </form>}
         </>
       )}
       {error && <p role="alert" className="text-xs text-ember-700">{error}</p>}
