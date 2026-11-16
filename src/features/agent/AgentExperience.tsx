@@ -117,6 +117,7 @@ import { BusinessExperience } from '../business/BusinessExperience';
 import type { OrganizationGateway } from '../../api/securepay/organization';
 import { createBusinessController } from '../business/controller';
 import type { BusinessGateway } from '../../api/securepay/business';
+import type { createBusinessConnectGateway } from '../../api/securepay/business-connect';
 import type { AuthorizationGateway } from '../../api/securepay/authorization';
 import { DeveloperExperience } from '../developer/DeveloperExperience';
 import { createDeveloperController } from '../developer/controller';
@@ -179,7 +180,7 @@ export function AgentExperience(props: Omit<Parameters<typeof AgentExperienceRou
   );
 }
 
-function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGateway, paymentReleaseGateway, agreementReviewGateway, storeGateway, fulfilmentNeedsGateway, circleGateway, communityGateway, discoveryGateway, masterGateway, marketNetworkGateway, referralGateway, projectGateway, visionBoardGateway, visionDreamGateway, settingsGateway, businessGateway, organizationGateway, developerGateway, notificationsGateway, subscriptionGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
+function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGateway, paymentReleaseGateway, agreementReviewGateway, storeGateway, fulfilmentNeedsGateway, circleGateway, communityGateway, discoveryGateway, masterGateway, marketNetworkGateway, referralGateway, projectGateway, visionBoardGateway, visionDreamGateway, settingsGateway, businessGateway, businessConnectGateway, organizationGateway, developerGateway, notificationsGateway, subscriptionGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
   gateway: AgentGateway; agreementGateway: AgreementGateway; moneyGateway: MoneyGateway; paymentReleaseGateway?: Pick<PaymentReleaseGateway, 'releaseAuthority'>; agreementReviewGateway: AgreementReviewGateway; storeGateway: StoreGateway; fulfilmentNeedsGateway?: FulfilmentNeedsGateway; circleGateway: CircleGateway;
   communityGateway: CommunityGateway;
   /** Phase 6 Slice 5 (Discovery & Identity) -- Community/Circle/Store/People search. */
@@ -187,7 +188,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   masterGateway: MasterGateway; marketNetworkGateway: MarketNetworkGateway; referralGateway: ReferralGateway; projectGateway: ProjectGateway;
   visionBoardGateway: VisionBoardGateway;
   visionDreamGateway: VisionDreamGateway;
-  settingsGateway: SettingsGateway; businessGateway: BusinessGateway; authorizationGateway: AuthorizationGateway; developerGateway: DeveloperGateway;
+  settingsGateway: SettingsGateway; businessGateway: BusinessGateway; businessConnectGateway?: ReturnType<typeof createBusinessConnectGateway>; authorizationGateway: AuthorizationGateway; developerGateway: DeveloperGateway;
   /** Phase 4D (API ADR-0024) -- Organization KS onboarding and representation; absent means no Organization capacity. */
   organizationGateway?: OrganizationGateway;
   notificationsGateway: NotificationsGateway;
@@ -1191,7 +1192,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   }
 
   if (businessView && sessionState.status === 'signed-in') {
-    return <BusinessExperience controller={businessController} onNavigate={navigateTo} onOpenJoin={() => { setBusinessView(false); joinRoute.open(); }} />;
+    return <BusinessExperience controller={businessController} networkGateway={businessConnectGateway} onNavigate={navigateTo} onOpenJoin={() => { setBusinessView(false); joinRoute.open(); }} />;
   }
 
   if (developerView && sessionState.status === 'signed-in') {
