@@ -755,3 +755,42 @@ textarea.spm-field { resize:vertical; }
 .spm-business-small-note { margin:0 3px 6px; color:#927d5c; font-size:10px; line-height:1.4; }
 .spm-business-settings-line { display:flex; gap:7px; align-items:flex-start; margin-top:12px; padding:0 2px; color:#7e897d; font-size:10px; line-height:1.5; }
 .spm-business-settings-line svg { flex:none; margin-top:1px; }
+
+
+/* Add KSNumber / Business journey -- nested only within Mini's existing
+   capacity selector, with no authority or account mutation. */
+.spm-business-choices {
+  max-height:min(76dvh,470px);
+  overflow-y:auto;
+  overscroll-behavior:contain;
+}
+.spm-business-choice-divider { border-top:1px solid #e8ede5; margin:4px 4px 5px; }
+.spm-business-choices .spm-business-add-trigger { color:#285e45; font-weight:750; background:#eff5ec; }
+.spm-business-add-trigger svg:last-child { margin-left:auto; }
+.spm-business-add-header { display:flex; align-items:center; gap:6px; border-bottom:1px solid #e9ede6; padding:2px 0 6px; }
+.spm-business-add-header strong { color:#254936; font-size:12px; flex:1; line-height:1.4; }
+.spm-business-choices .spm-business-add-header button { width:35px; min-height:35px; flex:none; justify-content:center; padding:5px; }
+.spm-business-choices .spm-business-add-intro { border:0; color:#647767; margin:7px 0; padding:4px; font-size:11px; line-height:1.55; font-weight:400; }
+.spm-business-choices button.spm-business-add-option { gap:8px; border:1px solid #e2e9df; margin:6px 0; background:#fff; border-radius:11px; }
+.spm-business-choices button.spm-business-add-option:hover { background:#f0f6ed; border-color:#bdcfc0; }
+.spm-business-add-option > span { display:grid; flex:1; gap:4px; min-width:0; }
+.spm-business-add-option strong { font-size:11px; color:#294b35; font-weight:700; line-height:1.35; }
+.spm-business-add-option small { font-size:10px; color:#728471; line-height:1.4; font-weight:400; }
+.spm-business-add-field { display:grid; gap:7px; margin-top:12px; padding:1px 4px; }
+.spm-business-add-field > span { font-size:11px; font-weight:700; color:#385941; }
+.spm-business-add-field input {
+  width:100%; min-width:0; border:1px solid #d9e5d8; border-radius:11px;
+  background:#fff; font-size:13px; color:#294a34; min-height:44px; padding:9px 10px;
+}
+.spm-business-choices button.spm-business-add-submit {
+  margin-top:10px; width:100%; display:flex; align-items:center; justify-content:center; gap:8px;
+  min-height:44px; background:#285d41; color:#fff; border:0; border-radius:11px;
+  font-weight:700; font-size:12px;
+}
+.spm-business-choices button.spm-business-add-submit:hover { background:#1e4b35; }
+.spm-business-choices button.spm-business-add-submit:disabled { opacity:.55; cursor:not-allowed; }
+.spm-business-add-safety { display:block; margin:10px 4px 4px; font-size:10px; color:#887859; line-height:1.55; }
+.spm-business-add-result { display:grid; gap:8px; padding:12px; margin-top:9px; border:1px solid #dfebdc; border-radius:12px; background:#f4f8f0; color:#2f664a; }
+.spm-business-add-result strong { font-size:12px; color:#28533b; }
+.spm-business-add-result p { font-size:11px; color:#58715e; line-height:1.55; margin:0; padding:0; border:0; }
+.spm-business-add-result small { font-size:10px; color:#85704a; line-height:1.5; }
