@@ -49,9 +49,11 @@ function Checkbox({label,detail,checked,onChange,disabled=false}:{
  <span><strong>{label}</strong><small>{detail}</small></span></label>;}
 function Badge({children}:{children:ReactNode}){return <span className="spm-bs-mini-badge">{children}</span>;}
 
-export function MiniBusinessSettings({language,onBack,demo,setDemo,initialArea}:{
+export function MiniBusinessSettings({language,onBack,demo,setDemo,initialArea,onOpenVerifiedStore,verifiedStoreAvailable}:{
  language:MiniLanguage;onBack:()=>void;demo:BusinessDemo;setDemo:Dispatch<SetStateAction<BusinessDemo>>;
  initialArea?: Area;
+ onOpenVerifiedStore: () => void;
+ verifiedStoreAvailable: boolean;
 }) {
  const [area,setArea]=useState<Area|null>(initialArea??null);
  const [tab,setTab]=useState<StoreTab>('offers');
@@ -155,6 +157,14 @@ export function MiniBusinessSettings({language,onBack,demo,setDemo,initialArea}:
     </>}
     {area==='store'&&<>
       <p className="spm-lead">Your Store is where customers learn what you actually offer. See, edit, and test what they can discover.</p>
+      <div className="spm-bs-offer">
+        <strong>Your verified SecurePay Store</strong>
+        <p>Open the actual seller tool inside Mini to load authorised offers, update your Store, and prepare buyer quotations.</p>
+        <MiniButton onClick={onOpenVerifiedStore} disabled={!verifiedStoreAvailable}>
+          <Store size={15}/> Open verified Store <ArrowRight size={15}/>
+        </MiniButton>
+        {!verifiedStoreAvailable && <small>The authorised Store connection is not configured on this preview. No live account can be opened here.</small>}
+      </div>
       <div className="spm-bs-tabs">{([['offers','My offers'],['customer','Customer view'],['enquiries','Enquiries']] as const).map(([id,label])=>
         <button type="button" key={id} className={tab===id?'active':''} onClick={()=>{setTab(id);setDraft(null);setNotice('');}}>{label}{id==='enquiries'&&newEnquiries.length>0?' ('+newEnquiries.length+')':''}</button>)}</div>
       {tab==='offers'&&!draft&&<>
