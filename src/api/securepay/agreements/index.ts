@@ -106,6 +106,20 @@ export function createAgreementGateway(http: HttpClient) {
   };
   return {
     currentUserAgreements: (page = 0, size = 20) => http.request<Page<CurrentUserAgreementSummaryResponse>>(`/api/v1/me/agreements${pagination(page, size)}`, { auth: 'required' }),
+    /** Existing SecurePayAPI self-scoped Agreement search, not local guessing. */
+    searchAgreements: (params: {
+      person?: string; subject?: string; fromDate?: string; toDate?: string; page?: number; size?: number;
+    }) => {
+      const query = new URLSearchParams();
+      if (params.person?.trim()) query.set('person', params.person.trim());
+      if (params.subject?.trim()) query.set('subject', params.subject.trim());
+      if (params.fromDate) query.set('fromDate', params.fromDate);
+      if (params.toDate) query.set('toDate', params.toDate);
+      query.set('page', String(params.page ?? 0));
+      query.set('size', String(params.size ?? 20));
+      return http.request<Page<CurrentUserAgreementSummaryResponse>>(
+        `/api/v1/me/agreements/search?${query.toString()}`, { auth: 'required' });
+    },
     currentUserActions: (page = 0, size = 20) => http.request<Page<CurrentUserActionResponse>>(`/api/v1/me/actions${pagination(page, size)}`, { auth: 'required' }),
     hub: () => http.request<HubDto>('/api/v1/me/agreements/hub', { auth: 'required' }),
     // Final Phase 3 correction (Section 9) -- the complete Agreements Home composition (needs

@@ -8,7 +8,7 @@ import type { AgreementGateway } from './index';
  */
 export const AUTHENTICATED_AGREEMENT_METHODS = [
   // Hub / Home / Detail
-  'currentUserAgreements', 'currentUserActions', 'hub', 'home', 'detail', 'confirmationStatus', 'confirmations', 'participants',
+  'currentUserAgreements', 'searchAgreements', 'currentUserActions', 'hub', 'home', 'detail', 'confirmationStatus', 'confirmations', 'participants',
   // Recipient: Join, exact version review, confirmation
   'join', 'versions', 'version', 'confirmVersion',
   // Creator invitations

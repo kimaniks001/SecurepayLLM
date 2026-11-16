@@ -43,6 +43,7 @@ if (api && typeof window !== 'undefined' && window.location.hostname.endsWith('.
 }
 const agentGateway = api ? withSessionRefresh(api.agent, ['adoptHandoff', 'reviewHandoff', 'continueHandoff', 'useCurrentSource', 'agreementWorkspaceView', 'createAccessGrant', 'switchAccessGrant'], session, api.auth) : undefined;
 const agreementGateway = api ? withSessionRefresh(api.agreements, AUTHENTICATED_AGREEMENT_METHODS, session, api.auth) : undefined;
+const agreementMessagesGateway = api ? withSessionRefresh(api.agreementMessages, ['thread', 'send', 'search'], session, api.auth) : undefined;
 const moneyGateway = api ? withSessionRefresh(api.money, MONEY_AUTHENTICATED_METHODS.money, session, api.auth) : undefined;
 const moneySnapshotGateway = api ? withSessionRefresh(api.moneySnapshot, MONEY_AUTHENTICATED_METHODS.moneySnapshot, session, api.auth) : undefined;
 const storeGateway = api ? withSessionRefresh(api.store, ['myProfile', 'updateMyProfile', 'myOffers', 'createOffer', 'updateOffer', 'confirmAvailability'], session, api.auth) : undefined;
@@ -72,7 +73,7 @@ const projectGateway = api ? withSessionRefresh(api.projects, ['create', 'list',
 const visionBoardGateway = api ? withSessionRefresh(api.visionBoard, ['shelves', 'items', 'get', 'create', 'update', 'lock', 'unlock', 'supersede', 'generateQuotation', 'generateInvoice', 'generateReceipt'], session, api.auth) : undefined;
 const visionDreamGateway = api ? withSessionRefresh(api.visionDreams, ['create', 'mine', 'get', 'update'], session, api.auth) : undefined;
 const settingsGateway = api ? withSessionRefresh(api.settings, ['get', 'update'], session, api.auth) : undefined;
-const notificationsGateway = api ? withSessionRefresh(api.notifications, ['list', 'get', 'markRead', 'resolve', 'getPreferences', 'updatePreferences'], session, api.auth) : undefined;
+const notificationsGateway = api ? withSessionRefresh(api.notifications, ['list', 'search', 'get', 'markRead', 'resolve', 'getPreferences', 'updatePreferences'], session, api.auth) : undefined;
 const businessGateway = api ? withSessionRefresh(api.business, ['activate', 'get', 'members', 'inviteMember', 'acceptInvitation', 'removeMember'], session, api.auth) : undefined;
 const businessConnectGateway = api ? withSessionRefresh(api.businessConnect, ['myPublication', 'replaceMyPublication'], session, api.auth) : undefined;
 // Phase 4D (API ADR-0024) -- Organization KS onboarding and representation (reads refresh the session; create reuses one key).
@@ -192,6 +193,7 @@ function useDirectSurfaceRoute(): AppView | null {
   const parse = (): AppView | null => {
     if (typeof window === 'undefined') return null;
     if (/^#\/?store\/?$/.test(window.location.hash)) return 'store';
+    if (window.location.hash === '#/inbox' || window.location.hash === '#inbox') return 'notifications';
     if (/^#\/?(?:vision|vision-board)\/?$/.test(window.location.hash)) return 'vision-board';
     if (/^#\/?community\/?$/.test(window.location.hash)) return 'community';
     return null;
@@ -476,7 +478,7 @@ export default function RuntimeApp() {
   }
   if (directSurfaceRoute) storeEntryView(directSurfaceRoute);
   return api && agentGateway && agreementGateway && moneyGateway && agreementReviewGateway && storeGateway && fulfilmentNeedsGateway && circleGateway && communityGateway && discoveryGateway && masterGateway && marketNetworkGateway && referralGateway && projectGateway && visionBoardGateway && visionDreamGateway && settingsGateway && businessGateway && authorizationGateway && developerGateway && notificationsGateway && subscriptionGateway
-    ? <AgentExperience key={directSurfaceRoute ?? 'app'} gateway={agentGateway} agreementGateway={agreementGateway} moneyGateway={moneyGateway} paymentReleaseGateway={paymentReleaseGateway} agreementReviewGateway={agreementReviewGateway} storeGateway={storeGateway} fulfilmentNeedsGateway={fulfilmentNeedsGateway} circleGateway={circleGateway} communityGateway={communityGateway} discoveryGateway={discoveryGateway} masterGateway={masterGateway} marketNetworkGateway={marketNetworkGateway} referralGateway={referralGateway} projectGateway={projectGateway} visionBoardGateway={visionBoardGateway} visionDreamGateway={visionDreamGateway} settingsGateway={settingsGateway} businessGateway={businessGateway} businessConnectGateway={businessConnectGateway} organizationGateway={organizationGateway} authorizationGateway={authorizationGateway} developerGateway={developerGateway} notificationsGateway={notificationsGateway} subscriptionGateway={subscriptionGateway} auth={api.auth} session={session} initialStoreOfferRoute={storeOfferRoute} trustedMediaOrigin={trustedMediaOrigin} />
+    ? <AgentExperience key={directSurfaceRoute ?? 'app'} gateway={agentGateway} agreementGateway={agreementGateway} agreementMessagesGateway={agreementMessagesGateway} moneyGateway={moneyGateway} paymentReleaseGateway={paymentReleaseGateway} agreementReviewGateway={agreementReviewGateway} storeGateway={storeGateway} fulfilmentNeedsGateway={fulfilmentNeedsGateway} circleGateway={circleGateway} communityGateway={communityGateway} discoveryGateway={discoveryGateway} masterGateway={masterGateway} marketNetworkGateway={marketNetworkGateway} referralGateway={referralGateway} projectGateway={projectGateway} visionBoardGateway={visionBoardGateway} visionDreamGateway={visionDreamGateway} settingsGateway={settingsGateway} businessGateway={businessGateway} businessConnectGateway={businessConnectGateway} organizationGateway={organizationGateway} authorizationGateway={authorizationGateway} developerGateway={developerGateway} notificationsGateway={notificationsGateway} subscriptionGateway={subscriptionGateway} auth={api.auth} session={session} initialStoreOfferRoute={storeOfferRoute} trustedMediaOrigin={trustedMediaOrigin} />
     : <Unavailable />;
 }
 function Unavailable() {

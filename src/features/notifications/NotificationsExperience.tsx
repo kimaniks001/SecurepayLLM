@@ -9,6 +9,11 @@ import { PageHeader } from '../../components/dna/PageHeader';
 import type { AppView } from '../../types';
 import { parseNotificationActionKey, type NotificationCategory, type NotificationEvent } from '../../api/securepay/notifications';
 import type { NotificationsController } from './controller';
+import type { SessionStore } from '../../api/securepay/session';
+import type { AgreementGateway } from '../../api/securepay/agreements';
+import type { AgreementMessagesGateway } from '../../api/securepay/agreement-messages';
+import type { NotificationsGateway } from '../../api/securepay/notifications';
+import { ArchiveSearchPanel } from './ArchiveSearchPanel';
 
 const CATEGORY_LABEL: Record<NotificationCategory, string> = {
   AGREEMENTS: 'Agreements',
@@ -134,8 +139,14 @@ function Toggle({ label, hint, checked, onChange }: { label: string; hint?: stri
  * This screen is the durable, ownership-of-truth surface; it does not claim WhatsApp delivered
  * anything -- see the Preferences tab's own note on today's real backend delivery gap.
  */
-export function NotificationsExperience({ controller, onNavigate, onOpenAgreement }: {
+export function NotificationsExperience({ controller, onNavigate, onOpenAgreement, archiveGateway, session }: {
   controller: NotificationsController;
+  session: SessionStore;
+  archiveGateway: {
+    agreements: Pick<AgreementGateway, 'searchAgreements'>;
+    notifications: Pick<NotificationsGateway, 'search' | 'get'>;
+    messages?: AgreementMessagesGateway;
+  };
   onNavigate: (view: AppView) => void;
   onOpenAgreement: (agreementId: string) => void;
 }) {
@@ -161,7 +172,7 @@ export function NotificationsExperience({ controller, onNavigate, onOpenAgreemen
     <div className="min-h-dvh flex flex-col bg-cream-100 pb-16 md:pb-0">
       <NavBar view="notifications" onNavigate={onNavigate} />
       <div className="max-w-2xl mx-auto px-4 md:px-6 py-4 space-y-4 w-full">
-        <PageHeader title="Notifications" description="What needs your attention in SecurePay." />
+        <PageHeader title="Inbox" description="Your SecurePay updates, agreement actions and commercial records." />
 
         <div className="flex border-b border-cream-200/60">
           <button onClick={() => setTab('inbox')} aria-current={tab === 'inbox'} className={`flex-1 py-2 text-[0.8rem] font-medium ${tab === 'inbox' ? 'text-forest-700 border-b-2 border-forest-600' : 'text-sand-500 border-b-2 border-transparent'}`}>Inbox</button>
@@ -170,6 +181,7 @@ export function NotificationsExperience({ controller, onNavigate, onOpenAgreemen
 
         {tab === 'inbox' && (
           <>
+            <ArchiveSearchPanel session={session} gateway={archiveGateway} onOpenAgreement={onOpenAgreement} />
             <div className="flex flex-wrap gap-1.5">
               <button
                 onClick={() => controller.setCategoryFilter(null)}
@@ -241,12 +253,12 @@ export function NotificationsExperience({ controller, onNavigate, onOpenAgreemen
                   <SurfaceBody>
                     <div className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-1">Delivery channel</div>
                     <p className="text-[0.75rem] text-sand-500 mb-1">
-                      WhatsApp is SecurePay's preferred channel where available. Only one external
-                      channel is used per notification -- WhatsApp first, then SMS, then email -- never
-                      all three at once.
+                      SecurePay Mini is your authoritative Inbox. External channels are optional
+                      reminders, not required for Agreement communication. Where enabled, SecurePay
+                      chooses one available external channel; delivery is not proof of an Agreement action.
                     </p>
                     <div className="divide-y divide-cream-100">
-                      <Toggle label="WhatsApp" hint="Preferred channel." checked={state.preferencesDraft.whatsappEnabled} onChange={v => controller.setPreferencesDraft({ whatsappEnabled: v })} />
+                      <Toggle label="WhatsApp" hint="Optional external reminder. Not required to use Mini." checked={state.preferencesDraft.whatsappEnabled} onChange={v => controller.setPreferencesDraft({ whatsappEnabled: v })} />
                       <Toggle label="SMS" hint="Used if WhatsApp is off or unavailable." checked={state.preferencesDraft.smsEnabled} onChange={v => controller.setPreferencesDraft({ smsEnabled: v })} />
                       <Toggle label="Email" hint="Used if WhatsApp and SMS are both off." checked={state.preferencesDraft.emailEnabled} onChange={v => controller.setPreferencesDraft({ emailEnabled: v })} />
                     </div>
