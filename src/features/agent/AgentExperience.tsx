@@ -1201,7 +1201,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, agreeme
   }
 
   if (notificationsView && sessionState.status === 'signed-in') {
-    return <NotificationsExperience controller={notificationsController}
+    return <NotificationsExperience session={session} controller={notificationsController}
       archiveGateway={{ agreements: agreementGateway, notifications: notificationsGateway, messages: agreementMessagesGateway }}
       onNavigate={navigateTo} onOpenAgreement={openAgreementFromNotification} />;
   }
