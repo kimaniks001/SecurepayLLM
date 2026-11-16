@@ -65,6 +65,21 @@ export function BusinessExperience({ controller, networkGateway, onNavigate, onO
           <ArrowLeft className="w-3.5 h-3.5" aria-hidden="true" /> Account
         </button>
         <PageHeader title="Businesses and Organizations" description="You are signed in as yourself. Create a Business or an Organization, or act for one SecurePay confirms you run." />
+        <Surface>
+          <SurfaceBody>
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-forest-800">My SecurePay Inbox</p>
+                <p className="text-xs text-sand-600 mt-1">
+                  Find your Agreement conversations and original messages in one place.
+                  Business-wide staff messages require their own verified access.
+                </p>
+              </div>
+              <button type="button" onClick={() => onNavigate('notifications')}
+                className={secondary}>Open Inbox</button>
+            </div>
+          </SurfaceBody>
+        </Surface>
 
         <Surface>
           <SurfaceBody>
