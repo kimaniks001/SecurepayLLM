@@ -101,6 +101,7 @@ export function MiniExperience() {
   const [lang, setLang] = useState<MiniLanguage>('en');
   const [previewCapacity, setPreviewCapacity] = useState<MiniPreviewCapacity>('business');
   const [demoBusiness,setDemoBusiness] = useState(copyDemo);
+  const [settingsEntry,setSettingsEntry] = useState<'store'|null>(null);
   const t = words[lang];
   const [screen, setScreen] = useState<View>('home');
   const [buyPrefill, setBuyPrefill] = useState('');
@@ -289,7 +290,9 @@ export function MiniExperience() {
             capacity={previewCapacity} onChange={setPreviewCapacity}
             onStartSelling={() => begin('sell')}
             onAskKs001={() => { setDiscussDraft(null); setScreen('help'); }}
-            onOpenSettings={() => setScreen('business-settings')} />}
+            demo={demoBusiness}
+            onOpenStore={() => {setSettingsEntry('store');setScreen('business-settings');}}
+            onOpenSettings={() => {setSettingsEntry(null);setScreen('business-settings');}} />}
           <div className="spm-persona"><Sparkles size={16}/><span>KS001</span><span className="spm-dot"/><span>Agreement Commerce</span></div>
           <h1 className="spm-hero">{t.hello}</h1>
           <p className="spm-lead">{t.intro}</p>
@@ -323,12 +326,14 @@ export function MiniExperience() {
             capacity={previewCapacity} onChange={setPreviewCapacity}
             onStartSelling={() => begin('sell')}
             onAskKs001={() => { setDiscussDraft(null); setScreen('help'); }}
-            onOpenSettings={() => setScreen('business-settings')} />}
+            demo={demoBusiness}
+            onOpenStore={() => {setSettingsEntry('store');setScreen('business-settings');}}
+            onOpenSettings={() => {setSettingsEntry(null);setScreen('business-settings');}} />}
         </section>}
 
         {businessDemo && screen === 'business-settings' && previewCapacity === 'business' &&
           <MiniBusinessSettings language={lang} onBack={() => setScreen('home')}
-            demo={demoBusiness} setDemo={setDemoBusiness} />}
+            demo={demoBusiness} setDemo={setDemoBusiness} initialArea={settingsEntry ?? undefined} />}
 
         {screen === 'choose' && <section className="spm-content">
           <button type="button" className="spm-back" onClick={() => setScreen('home')}><ArrowLeft size={18}/>{t.back}</button>
