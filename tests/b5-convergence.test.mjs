@@ -89,4 +89,8 @@ test('B5 surfaces only canonical original communication, not financial instructi
   assert.doesNotMatch(src,/initiatePayment\(|issuePublicLocator\(|authoriseFundRelease/);
   const route=readFileSync('src/RuntimeApp.tsx','utf8');
   assert.match(route,/#\/inbox/);
+  const business=readFileSync('src/features/business/BusinessExperience.tsx','utf8');
+  assert.match(business,/My SecurePay Inbox/);
+  assert.match(business,/onNavigate\('notifications'\)/);
+  assert.doesNotMatch(business,/createSecondInbox|businessMessageStore/);
 });
