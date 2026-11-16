@@ -81,7 +81,7 @@ export function BusinessNetworkVisibilityPanel({
     return <p className="text-sm text-sand-600" role="alert">Store sharing controls are not available just now. Your store has not been newly enrolled.</p>;
   }
 
-  const unchanged = saved && selected.length === saved.enabledSurfaces.length
+  const unchanged = !!saved && selected.length === saved.enabledSurfaces.length
     && selected.every(surface => saved.enabledSurfaces.includes(surface));
 
   return (
