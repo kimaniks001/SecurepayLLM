@@ -13,6 +13,7 @@ import { MiniFirstPartyKs001 } from './MiniFirstPartyKs001';
 import { MiniProudlyKeMark } from './MiniProudlyKeMark';
 import { MiniBusinessCapacity, type MiniPreviewCapacity } from './MiniBusinessCapacity';
 import { MiniBusinessSettings } from './MiniBusinessSettings';
+import {copyDemo} from './MiniBusinessDemoModel';
 import { getMiniFirstPartyOrigin } from './miniFirstPartyConfig';
 import { MiniServerCheckout } from './MiniServerCheckout';
 import { MiniRealStoreOffer } from './MiniRealStoreOffer';
@@ -99,6 +100,7 @@ function readSavedMiniDraft(): MiniDraft | null {
 export function MiniExperience() {
   const [lang, setLang] = useState<MiniLanguage>('en');
   const [previewCapacity, setPreviewCapacity] = useState<MiniPreviewCapacity>('business');
+  const [demoBusiness,setDemoBusiness] = useState(copyDemo);
   const t = words[lang];
   const [screen, setScreen] = useState<View>('home');
   const [buyPrefill, setBuyPrefill] = useState('');
@@ -325,7 +327,8 @@ export function MiniExperience() {
         </section>}
 
         {businessDemo && screen === 'business-settings' && previewCapacity === 'business' &&
-          <MiniBusinessSettings language={lang} onBack={() => setScreen('home')} />}
+          <MiniBusinessSettings language={lang} onBack={() => setScreen('home')}
+            demo={demoBusiness} setDemo={setDemoBusiness} />}
 
         {screen === 'choose' && <section className="spm-content">
           <button type="button" className="spm-back" onClick={() => setScreen('home')}><ArrowLeft size={18}/>{t.back}</button>
