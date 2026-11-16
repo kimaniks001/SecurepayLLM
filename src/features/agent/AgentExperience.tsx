@@ -25,6 +25,7 @@ import type { AgentComponentView } from '../../api/securepay/agent/adapters';
 import type { InstrumentPromptView } from '../../api/securepay/agent/instruments';
 import type { AgentGateway } from '../../api/securepay/agent';
 import type { AgreementGateway } from '../../api/securepay/agreements';
+import type { AgreementMessagesGateway } from '../../api/securepay/agreement-messages';
 import type { MoneyGateway } from '../../api/securepay/money';
 import type { PaymentReleaseGateway } from '../../api/securepay/payment-release';
 import type { StoreGateway } from '../../api/securepay/store';
@@ -180,8 +181,8 @@ export function AgentExperience(props: Omit<Parameters<typeof AgentExperienceRou
   );
 }
 
-function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGateway, paymentReleaseGateway, agreementReviewGateway, storeGateway, fulfilmentNeedsGateway, circleGateway, communityGateway, discoveryGateway, masterGateway, marketNetworkGateway, referralGateway, projectGateway, visionBoardGateway, visionDreamGateway, settingsGateway, businessGateway, businessConnectGateway, organizationGateway, developerGateway, notificationsGateway, subscriptionGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
-  gateway: AgentGateway; agreementGateway: AgreementGateway; moneyGateway: MoneyGateway; paymentReleaseGateway?: Pick<PaymentReleaseGateway, 'releaseAuthority'>; agreementReviewGateway: AgreementReviewGateway; storeGateway: StoreGateway; fulfilmentNeedsGateway?: FulfilmentNeedsGateway; circleGateway: CircleGateway;
+function AgentExperienceRouter({ publicShell, gateway, agreementGateway, agreementMessagesGateway, moneyGateway, paymentReleaseGateway, agreementReviewGateway, storeGateway, fulfilmentNeedsGateway, circleGateway, communityGateway, discoveryGateway, masterGateway, marketNetworkGateway, referralGateway, projectGateway, visionBoardGateway, visionDreamGateway, settingsGateway, businessGateway, businessConnectGateway, organizationGateway, developerGateway, notificationsGateway, subscriptionGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
+  gateway: AgentGateway; agreementGateway: AgreementGateway; agreementMessagesGateway?: AgreementMessagesGateway; moneyGateway: MoneyGateway; paymentReleaseGateway?: Pick<PaymentReleaseGateway, 'releaseAuthority'>; agreementReviewGateway: AgreementReviewGateway; storeGateway: StoreGateway; fulfilmentNeedsGateway?: FulfilmentNeedsGateway; circleGateway: CircleGateway;
   communityGateway: CommunityGateway;
   /** Phase 6 Slice 5 (Discovery & Identity) -- Community/Circle/Store/People search. */
   discoveryGateway: DiscoveryGateway;
@@ -1201,7 +1202,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
 
   if (notificationsView && sessionState.status === 'signed-in') {
     return <NotificationsExperience controller={notificationsController}
-      archiveGateway={{ agreements: agreementGateway, notifications: notificationsGateway }}
+      archiveGateway={{ agreements: agreementGateway, notifications: notificationsGateway, messages: agreementMessagesGateway }}
       onNavigate={navigateTo} onOpenAgreement={openAgreementFromNotification} />;
   }
 
