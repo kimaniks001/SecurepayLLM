@@ -275,7 +275,7 @@ export function MiniExperience() {
         <div className="spm-head-actions">
           <button className="spm-lang" type="button" onClick={() => setLang(lang === 'en' ? 'sw' : 'en')}
             aria-label={lang === 'en' ? 'Badili kwa Kiswahili' : 'Switch to English'}>{lang === 'en' ? 'Kiswahili' : 'English'}</button>
-          {!storeOfferSession && !checkoutSession && screen !== 'home' && <button type="button" className="spm-icon-btn" aria-label={t.clear} onClick={reset}><X size={19}/></button>}
+          {!storeOfferSession && !checkoutSession && screen !== 'home' && <button type="button" className="spm-icon-btn" aria-label={screen === 'business-settings' ? 'Close Business Settings' : t.clear} onClick={screen === 'business-settings' ? () => setScreen('home') : reset}><X size={19}/></button>}
         </div>
       </header>
 
