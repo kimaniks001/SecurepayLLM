@@ -94,3 +94,19 @@ test('B5 surfaces only canonical original communication, not financial instructi
   assert.match(business,/onNavigate\('notifications'\)/);
   assert.doesNotMatch(business,/createSecondInbox|businessMessageStore/);
 });
+
+test('B5 Mini cannot send Agreement messages to live or unverified backend from preview', async () => {
+  const { canSendAgreementMessageInPreview: allowed } =
+    await moduleFrom('src/features/notifications/b5MessagingGate.ts');
+  const preview='securepay-example123-james-8078.vercel.app';
+  assert.equal(allowed({enabled:undefined,apiOrigin:'https://api-staging.securepay.ke',pageHostname:preview}),false);
+  assert.equal(allowed({enabled:'true',apiOrigin:'https://api.securepay.ke',pageHostname:preview}),false);
+  assert.equal(allowed({enabled:'true',apiOrigin:'https://api-staging.securepay.ke',pageHostname:'www.securepay.ke'}),false);
+  assert.equal(allowed({enabled:'true',apiOrigin:'https://api-staging.securepay.ke',pageHostname:preview}),true);
+  assert.equal(allowed({enabled:'true',apiOrigin:'https://example.com',pageHostname:preview}),false);
+  assert.equal(allowed({enabled:'true',apiOrigin:'http://sandbox.example.com',pageHostname:preview}),false);
+  assert.equal(allowed({enabled:'true',apiOrigin:'https://sandbox.example.com/?token=secret',pageHostname:preview}),false);
+  const src=readFileSync('src/features/notifications/AgreementThreadPanel.tsx','utf8');
+  assert.match(src,/if \(!canSend \|\| sending\) return;/);
+  assert.match(src,/\{canSend && <form/);
+});
