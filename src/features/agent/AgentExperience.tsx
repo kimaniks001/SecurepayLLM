@@ -421,7 +421,14 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, agreeme
   const [account, setAccount] = useState(false);
   const [settingsView, setSettingsView] = useState(false);
   const [recoveryView, setRecoveryView] = useState(false);
-  const [businessView, setBusinessView] = useState(false);
+  const [businessView, setBusinessView] = useState(externalEntryView === 'business' && signedIn);
+  // A direct Business URL is a navigation request, never a grant of Business authority.
+  // Signed-out owners use the existing single-session sign-in flow and return to Business.
+  useEffect(() => {
+    if (externalEntryView === 'business' && !signedIn) signInRoute.open('business');
+    // Capture the one-shot deep-link request on mount; login continuation holds the intent.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [developerView, setDeveloperView] = useState(false);
   const [notificationsView, setNotificationsView] = useState(false);
   // Help & Support. A context is pending when Help was opened from the Money route (which sits outside this shell); it is held in memory only.
