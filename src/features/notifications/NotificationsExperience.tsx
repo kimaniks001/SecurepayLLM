@@ -9,6 +9,7 @@ import { PageHeader } from '../../components/dna/PageHeader';
 import type { AppView } from '../../types';
 import { parseNotificationActionKey, type NotificationCategory, type NotificationEvent } from '../../api/securepay/notifications';
 import type { NotificationsController } from './controller';
+import type { SessionStore } from '../../api/securepay/session';
 import type { AgreementGateway } from '../../api/securepay/agreements';
 import type { AgreementMessagesGateway } from '../../api/securepay/agreement-messages';
 import type { NotificationsGateway } from '../../api/securepay/notifications';
@@ -138,8 +139,9 @@ function Toggle({ label, hint, checked, onChange }: { label: string; hint?: stri
  * This screen is the durable, ownership-of-truth surface; it does not claim WhatsApp delivered
  * anything -- see the Preferences tab's own note on today's real backend delivery gap.
  */
-export function NotificationsExperience({ controller, onNavigate, onOpenAgreement, archiveGateway }: {
+export function NotificationsExperience({ controller, onNavigate, onOpenAgreement, archiveGateway, session }: {
   controller: NotificationsController;
+  session: SessionStore;
   archiveGateway: {
     agreements: Pick<AgreementGateway, 'searchAgreements'>;
     notifications: Pick<NotificationsGateway, 'search' | 'get'>;
@@ -179,7 +181,7 @@ export function NotificationsExperience({ controller, onNavigate, onOpenAgreemen
 
         {tab === 'inbox' && (
           <>
-            <ArchiveSearchPanel gateway={archiveGateway} onOpenAgreement={onOpenAgreement} />
+            <ArchiveSearchPanel session={session} gateway={archiveGateway} onOpenAgreement={onOpenAgreement} />
             <div className="flex flex-wrap gap-1.5">
               <button
                 onClick={() => controller.setCategoryFilter(null)}
