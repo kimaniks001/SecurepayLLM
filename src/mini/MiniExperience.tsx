@@ -102,6 +102,7 @@ export function MiniExperience() {
   const [previewCapacity, setPreviewCapacity] = useState<MiniPreviewCapacity>('business');
   const [demoBusiness,setDemoBusiness] = useState(copyDemo);
   const [settingsEntry,setSettingsEntry] = useState<'store'|null>(null);
+  const [verifiedStoreRequested,setVerifiedStoreRequested] = useState(false);
   const t = words[lang];
   const [screen, setScreen] = useState<View>('home');
   const [buyPrefill, setBuyPrefill] = useState('');
@@ -333,7 +334,14 @@ export function MiniExperience() {
 
         {businessDemo && screen === 'business-settings' && previewCapacity === 'business' &&
           <MiniBusinessSettings language={lang} onBack={() => setScreen('home')}
-            demo={demoBusiness} setDemo={setDemoBusiness} initialArea={settingsEntry ?? undefined} />}
+            demo={demoBusiness} setDemo={setDemoBusiness} initialArea={settingsEntry ?? undefined}
+            verifiedStoreAvailable={!!getMiniFirstPartyOrigin()}
+            onOpenVerifiedStore={()=>{
+              if (!getMiniFirstPartyOrigin()) return;
+              setDiscussDraft(null);
+              setVerifiedStoreRequested(true);
+              setScreen('help');
+            }} />}
 
         {screen === 'choose' && <section className="spm-content">
           <button type="button" className="spm-back" onClick={() => setScreen('home')}><ArrowLeft size={18}/>{t.back}</button>
@@ -461,7 +469,8 @@ export function MiniExperience() {
 
         {screen === 'help' && (getMiniFirstPartyOrigin()
           ? <MiniFirstPartyKs001 apiOrigin={getMiniFirstPartyOrigin()!} draft={discussDraft} language={lang}
-              onBack={() => setScreen(discussDraft ? 'review' : 'home')}/>
+              startInStore={verifiedStoreRequested}
+              onBack={() => {setVerifiedStoreRequested(false);setScreen(discussDraft ? 'review' : 'home');}}/>
           : <MiniGuestChat draft={discussDraft} language={lang}
               onBack={() => setScreen(discussDraft ? 'review' : 'home')}/>)} 
         </>}
