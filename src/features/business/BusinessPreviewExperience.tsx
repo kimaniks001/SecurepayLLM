@@ -1,15 +1,17 @@
 import { useState, type ReactNode } from 'react';
+import { BusinessSettingsHub } from './BusinessSettingsHub';
 import {
   ArrowRight, BookOpenText, CheckCircle2, ChevronRight,
   ClipboardCheck, CreditCard, FileText, Globe2, Handshake,
   LayoutDashboard, Link2, Menu, Package,
   ShieldCheck, ShoppingBag,
-  Sparkles, Store, X
+  Settings2, Sparkles, Store, X
 } from 'lucide-react';
 
-type BusinessPage = 'overview' | 'store' | 'agreements' | 'links' | 'checkout' | 'network' | 'guide' | 'tax';
+type BusinessPage = 'settings' | 'overview' | 'store' | 'agreements' | 'links' | 'checkout' | 'network' | 'guide' | 'tax';
 const links: { key: BusinessPage; label: string; icon: typeof Store }[] = [
   { key: 'overview', label: 'Overview', icon: LayoutDashboard },
+  { key: 'settings', label: 'Business Settings', icon: Settings2 },
   { key: 'store', label: 'My Store', icon: Store },
   { key: 'agreements', label: 'Living Agreements', icon: Handshake },
   { key: 'links', label: 'SecureLinks', icon: Link2 },
@@ -45,7 +47,7 @@ function ExampleBanner() {
   </div>;
 }
 export function BusinessPreviewExperience() {
-  const [page, setPage] = useState<BusinessPage>('network');
+  const [page, setPage] = useState<BusinessPage>('settings');
   const [mobileMenu, setMobileMenu] = useState(false);
   const title = links.find(x => x.key === page)?.label ?? 'Overview';
   const navigate = (to: BusinessPage) => { setPage(to); setMobileMenu(false); window.scrollTo({ top: 0, behavior: 'smooth' }); };
@@ -90,6 +92,8 @@ export function BusinessPreviewExperience() {
           <SamplePill>Preview · Not connected to real records</SamplePill>
         </div>
         <ExampleBanner />
+
+        {page === 'settings' && <BusinessSettingsHub onOpen={navigate}/>}
 
         {page === 'overview' && <div className="pt-8">
           <SectionHeading eyebrow="Good business starts with a clear agreement" title="Good evening, Kamakis Traders.">
