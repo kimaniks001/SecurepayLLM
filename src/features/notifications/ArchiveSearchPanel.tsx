@@ -3,24 +3,29 @@ import { Search, FileText, MessageSquareText } from 'lucide-react';
 import type { AgreementGateway } from '../../api/securepay/agreements';
 import type { CurrentUserAgreementSummaryResponse } from '../../api/securepay/agreements/dto';
 import type { NotificationEvent, NotificationsGateway } from '../../api/securepay/notifications';
+import type { AgreementConversationHit, AgreementMessagesGateway } from '../../api/securepay/agreement-messages';
+import { AgreementThreadPanel } from './AgreementThreadPanel';
 import { parseNotificationActionKey } from '../../api/securepay/notifications';
 import { parseArchiveSearch, uniqueAgreements, type ArchiveSearchPlan } from './archiveSearch';
 
 type HistoryGateways = {
   agreements: Pick<AgreementGateway, 'searchAgreements'>;
   notifications: Pick<NotificationsGateway, 'search' | 'get'>;
+  messages?: AgreementMessagesGateway;
 };
 
 type SearchOutcome = {
   agreements: CurrentUserAgreementSummaryResponse[];
   notifications: NotificationEvent[];
+  conversations: AgreementConversationHit[];
+  conversationsError: string | null;
   agreementCount: number | null;
   notificationsHasMore: boolean;
   agreementsError: string | null;
   notificationsError: string | null;
 };
 const empty: SearchOutcome = {
-  agreements: [], notifications: [], agreementCount: null,
+  agreements: [], notifications: [], conversations: [], conversationsError: null, agreementCount: null,
   notificationsHasMore: false, agreementsError: null, notificationsError: null,
 };
 function dateLabel(iso: string) {
@@ -53,6 +58,7 @@ export function ArchiveSearchPanel({
   const [results, setResults] = useState<SearchOutcome>(empty);
   const [message, setMessage] = useState<string | null>(null);
   const [opened, setOpened] = useState<NotificationEvent | null>(null);
+  const [threadId, setThreadId] = useState<string | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [moreBusy, setMoreBusy] = useState(false);
   const serial = useRef(0);
@@ -66,7 +72,7 @@ export function ArchiveSearchPanel({
       setPhase('invalid'); setMessage('Describe a deal, a person, a product or a year to search.');
       setResults(empty); return;
     }
-    setPlan(criteria); setPhase('loading'); setMessage(null); setOpened(null);
+    setPlan(criteria); setPhase('loading'); setMessage(null); setOpened(null); setThreadId(null);
     setDetailError(null); setResults(empty); setMoreBusy(false);
     const agreementArgs = {
       subject: criteria.subject ?? undefined,
@@ -83,7 +89,7 @@ export function ArchiveSearchPanel({
           toDate: criteria.toDate ?? undefined, page: 0, size: 20,
         })
       : null;
-    const [agreement, notification, other] = await Promise.allSettled([
+    const [agreement, notification, other, conversation] = await Promise.allSettled([
       gateway.agreements.searchAgreements(agreementArgs),
       gateway.notifications.search({
         query: criteria.notificationQuery,
@@ -91,6 +97,11 @@ export function ArchiveSearchPanel({
         page: 0, size: 20,
       }),
       fallbackPerson,
+      gateway.messages ? gateway.messages.search({
+        query: criteria.notificationQuery,
+        fromDate: criteria.fromDate ?? undefined, toDate: criteria.toDate ?? undefined,
+        page: 0, size: 20,
+      }) : Promise.resolve(null),
     ]);
     if (serial.current !== request) return;
 
@@ -109,6 +120,9 @@ export function ArchiveSearchPanel({
     const messages = notification.status === 'fulfilled' ? notification.value : [];
     setResults({
       agreements: items, notifications: messages,
+      conversations: conversation.status === 'fulfilled' ? (conversation.value ?? []) : [],
+      conversationsError: !gateway.messages ? 'Agreement messaging is not connected here.'
+        : conversation.status === 'rejected' ? 'Conversation search is unavailable right now.' : null,
       agreementCount, notificationsHasMore: messages.length === 20,
       agreementsError, notificationsError: notification.status === 'rejected'
         ? 'Inbox search is unavailable right now.' : null,
@@ -194,15 +208,22 @@ export function ArchiveSearchPanel({
             {!results.agreementsError && results.agreements.length === 0 &&
               <p className="text-xs text-sand-600">No matching SecurePay agreements were returned.</p>}
             {results.agreements.map(item => (
-              <button key={item.agreementId} type="button"
-                onClick={() => onOpenAgreement(item.agreementId)}
-                className="block w-full text-left border border-cream-200 rounded-xl p-3 hover:border-forest-400">
-                <span className="block text-sm font-semibold text-forest-800">{item.title || item.publicReference}</span>
-                <span className="block text-xs text-sand-600">
-                  {item.counterparty?.displayName || 'Agreement'} · {item.status} · {dateLabel(item.createdAt)}
-                </span>
-                <span className="block text-xs text-forest-700 mt-1">Open original Agreement</span>
-              </button>
+              <div key={item.agreementId} className="border border-cream-200 rounded-xl p-3 space-y-2">
+                <button type="button" onClick={() => onOpenAgreement(item.agreementId)}
+                  className="block w-full text-left">
+                  <span className="block text-sm font-semibold text-forest-800">{item.title || item.publicReference}</span>
+                  <span className="block text-xs text-sand-600">
+                    {item.counterparty?.displayName || 'Agreement'} · {item.status} · {dateLabel(item.createdAt)}
+                  </span>
+                  <span className="block text-xs text-forest-700 mt-1 underline">Open original Agreement</span>
+                </button>
+                {gateway.messages && (
+                  <button type="button" className="text-xs underline text-forest-700"
+                    onClick={() => setThreadId(item.agreementId)}>
+                    Read agreement conversation
+                  </button>
+                )}
+              </div>
             ))}
             {results.agreementCount !== null && results.agreementCount > results.agreements.length &&
               <p className="text-xs text-sand-600">
@@ -210,6 +231,34 @@ export function ArchiveSearchPanel({
                 Refine the search for older records.
               </p>}
           </div>
+          <div className="space-y-2">
+            <h3 className="text-[0.78rem] font-semibold text-forest-800 flex items-center gap-2">
+              <MessageSquareText className="w-4 h-4" /> Agreement conversations
+            </h3>
+            {results.conversationsError && <p role="alert" className="text-xs text-ember-700">{results.conversationsError}</p>}
+            {!results.conversationsError && results.conversations.length === 0 &&
+              <p className="text-xs text-sand-600">No matching saved Agreement messages were returned.</p>}
+            {results.conversations.map(item => (
+              <div key={item.id} className="rounded-xl border border-cream-200 p-3 space-y-1">
+                <p className="text-xs text-sand-500">
+                  {item.agreementTitle} · {dateLabel(item.createdAt)} · {item.mine ? 'You' : 'Agreement participant'}
+                </p>
+                <p className="text-sm whitespace-pre-wrap break-words">{item.body}</p>
+                {gateway.messages && <button type="button" className="text-xs underline text-forest-700"
+                  onClick={() => setThreadId(item.agreementId)}>
+                  Read original conversation
+                </button>}
+              </div>
+            ))}
+            {results.conversations.length === 20 &&
+              <p className="text-xs text-sand-600">Showing the first 20 matching messages. Refine the search to find older conversations.</p>}
+          </div>
+          {gateway.messages && threadId && (
+            <AgreementThreadPanel key={threadId}
+              agreementId={threadId} gateway={gateway.messages}
+              onOpenAgreement={onOpenAgreement}
+              onClose={() => setThreadId(null)} />
+          )}
           <div className="space-y-2">
             <h3 className="text-[0.78rem] font-semibold text-forest-800 flex items-center gap-2">
               <MessageSquareText className="w-4 h-4" /> Inbox messages and updates
