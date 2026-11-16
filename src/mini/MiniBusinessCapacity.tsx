@@ -1,8 +1,16 @@
 import { useState } from 'react';
-import { ArrowRight, BriefcaseBusiness, Check, ChevronDown, ChevronRight, MessageCircle, Package, Settings2, ShieldCheck, Store, UserRound } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BriefcaseBusiness, Check, ChevronDown, ChevronRight, LockKeyhole, MessageCircle, Package, Plus, Settings2, ShieldCheck, Store, UserRound, X } from 'lucide-react';
 import type { MiniLanguage } from './miniModel';
 
 export type MiniPreviewCapacity = 'business' | 'personal';
+type AddChoice = 'another-ks' | 'existing-business' | 'new-business';
+type AddStage = 'select' | 'details' | 'next';
+const addOptions: { id: AddChoice; title: string; detail: string; icon: typeof UserRound }[] = [
+  { id: 'another-ks', title: 'Use another KSNumber', detail: 'Sign in to a KSNumber you own', icon: UserRound },
+  { id: 'existing-business', title: 'Connect an existing Business', detail: 'A Business you are authorised to represent', icon: BriefcaseBusiness },
+  { id: 'new-business', title: 'Create a new Business', detail: 'SecurePay issues a Business KSNumber', icon: Plus },
+];
+
 
 const exampleTasks = [
   { id:'inquiry', title:'Solar lights for a guesthouse', state:'Customer needs a reply', detail:'A sample customer asks about two outdoor lights and delivery to a guesthouse. Confirm availability before offering any price or delivery promise.', next:'Confirm stock and offer to prepare a quotation.' },
@@ -32,6 +40,20 @@ export function MiniBusinessCapacity({
   part: 'identity' | 'activity';
 }) {
   const [chooseOpen, setChooseOpen] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [addChoice, setAddChoice] = useState<AddChoice | null>(null);
+  const [addStage, setAddStage] = useState<AddStage>('select');
+  const [draftInput, setDraftInput] = useState('');
+  const closeAdd = () => {
+    setAdding(false);
+    setAddChoice(null);
+    setDraftInput('');
+    setAddStage('select');
+  };
+  const closeMenu = () => { setChooseOpen(false); closeAdd(); };
+  const beginAdd = () => { setAdding(true); setAddChoice(null); setDraftInput(''); setAddStage('select'); };
+  const selectedAdd = addOptions.find(x => x.id === addChoice);
+
   const [openSection, setOpenSection] = useState<'work'|'store'|null>('work');
   const [selectedTask, setSelectedTask] = useState<string|null>(null);
   const isSw = language === 'sw';
@@ -39,7 +61,7 @@ export function MiniBusinessCapacity({
   const selected = exampleTasks.find(t=>t.id === selectedTask);
   return <>
     {part === 'identity' && <div className="spm-business-capacity">
-      <button type="button" className="spm-business-switch" aria-expanded={chooseOpen} onClick={()=>setChooseOpen(v=>!v)}>
+      <button type="button" className="spm-business-switch" aria-expanded={chooseOpen} onClick={()=>{ if(chooseOpen) closeMenu(); else setChooseOpen(true); }}>
         <span className="spm-business-switch-icon">{business?<BriefcaseBusiness size={16}/>:<UserRound size={16}/>}</span>
         <span className="spm-business-switch-text">
           <small>{isSw?'Unafanya kazi kama':'You’re acting as'}</small>
@@ -48,9 +70,71 @@ export function MiniBusinessCapacity({
         <ChevronDown size={16}/>
       </button>
       {chooseOpen && <div className="spm-business-choices" aria-label="Choose example acting capacity">
-        <button type="button" onClick={()=>{onChange('personal');setChooseOpen(false);setSelectedTask(null);}}><UserRound size={17}/><span>My personal KSNumber</span>{!business&&<Check size={16}/>}</button>
-        <button type="button" onClick={()=>{onChange('business');setChooseOpen(false);}}><Store size={17}/><span>Kamakis Traders · Business</span>{business&&<Check size={16}/>}</button>
-        <p>Illustrative switch only. A real Business must confirm that you can act for it.</p>
+        {!adding ? <>
+          <button type="button" onClick={()=>{onChange('personal');closeMenu();setSelectedTask(null);}}>
+            <UserRound size={17}/><span>My personal KSNumber</span>{!business&&<Check size={16}/>}
+          </button>
+          <button type="button" onClick={()=>{onChange('business');closeMenu();}}>
+            <Store size={17}/><span>Kamakis Traders · Business</span>{business&&<Check size={16}/>}
+          </button>
+          <div className="spm-business-choice-divider" />
+          <button type="button" className="spm-business-add-trigger" onClick={beginAdd}>
+            <Plus size={18}/><span>Add KSNumber or Business</span><ChevronRight size={15}/>
+          </button>
+          <p>Preview only. Switching here does not verify or connect an account.</p>
+        </> : <>
+          <div className="spm-business-add-header">
+            <button type="button" aria-label="Go back" onClick={()=>{
+              if(addStage==='next')setAddStage('details');
+              else if(addStage==='details'){setAddStage('select');setDraftInput('');setAddChoice(null);}
+              else closeAdd();
+            }}><ArrowLeft size={17}/></button>
+            <strong>{addStage==='select'?'Add KSNumber or Business':selectedAdd?.title}</strong>
+            <button type="button" aria-label="Close" onClick={closeMenu}><X size={17}/></button>
+          </div>
+          {addStage==='select' && <>
+            <p className="spm-business-add-intro">How would you like to continue?</p>
+            {addOptions.map(option=> {
+              const Icon=option.icon;
+              return <button type="button" className="spm-business-add-option" key={option.id} onClick={()=>{setAddChoice(option.id);setAddStage('details');setDraftInput('');}}>
+                <Icon size={17}/><span><strong>{option.title}</strong><small>{option.detail}</small></span><ChevronRight size={15}/>
+              </button>;
+            })}
+          </>}
+          {addStage==='details' && addChoice && <>
+            <p className="spm-business-add-intro">
+              {addChoice==='another-ks'
+                ? 'An existing personal KSNumber requires its own secure sign-in. This does not merge identities or their private work.'
+                : addChoice==='existing-business'
+                  ? 'SecurePay must confirm your membership and permissions before this Business can appear in your switcher.'
+                  : 'A new Business gets its own KSNumber when SecurePay accepts the creation request. It does not inherit payment authority.'}
+            </p>
+            <label className="spm-business-add-field">
+              <span>{addChoice==='new-business'?'Business name':'KSNumber (example only)'}</span>
+              <input value={draftInput} maxLength={addChoice==='new-business'?80:40}
+                placeholder={addChoice==='new-business'?'For example: New Traders':'Example KSNumber (not your real one)'}
+                onChange={e=>setDraftInput(e.target.value)}/>
+            </label>
+            <button type="button" className="spm-business-add-submit"
+              disabled={!draftInput.trim()} onClick={()=>setAddStage('next')}>
+              See the next step <ArrowRight size={15}/>
+            </button>
+            <small className="spm-business-add-safety">For this demonstration, please use invented details. Your entry stays on this page and is not submitted or saved.</small>
+          </>}
+          {addStage==='next' && addChoice && <>
+            <div className="spm-business-add-result">
+              <LockKeyhole size={22}/>
+              <strong>{addChoice==='another-ks'?'Secure sign-in is required':addChoice==='existing-business'?'Business authority must be checked':'Business creation requires confirmation'}</strong>
+              <p>{addChoice==='another-ks'
+                ? 'In the connected application, SecurePay would authenticate that KSNumber separately. Your other identity would remain private and independent.'
+                : addChoice==='existing-business'
+                  ? 'SecurePay would check your actual representation rights. Only authorised Businesses would be added to your list.'
+                  : 'You would review the Business details, confirm creation and receive a server-issued Business KSNumber. No real Business has been created here.'}</p>
+              <small>No KSNumber or Business was added. This preview cannot verify identity, assign roles or create records.</small>
+            </div>
+            <button className="spm-business-add-submit" type="button" onClick={closeMenu}>Return to Mini <Check size={15}/></button>
+          </>}
+        </>}
       </div>}
     </div>}
     {part === 'identity' && business && <p className="spm-business-sample-note"><ShieldCheck size={13}/> Business example · not a signed-in account</p>}
