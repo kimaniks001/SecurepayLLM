@@ -235,3 +235,52 @@ test('B1 knowledge: no cross-store leakage, unapproved drafts, private policy or
   assert.equal(JSON.stringify(ctx).includes('Supplier cost price'),false);
   assert.equal(JSON.stringify(ctx).includes('KS-999'),false);
 });
+
+test('B1 gateway: merchant settings use authenticated APIs and public offer reads never grant authority', async () => {
+  const clientBundle = await build({
+    stdin: { contents:"export * from './src/api/securepay/business-connect';", resolveDir:process.cwd() },
+    bundle:true,write:false,format:'esm',platform:'node',
+  });
+  const { createBusinessConnectGateway } = await import(
+    `data:text/javascript;base64,${Buffer.from(clientBundle.outputFiles[0].text).toString('base64')}`
+  );
+  const calls = [];
+  const http = { request: async (path, options) => {
+    calls.push({path,options});
+    if(path.includes('network-eligibility')) return {
+      sellerKsNumber:'KS101',offerId:'offer-1',targetSurface:'SHORTSTAYS',
+      status:'NOT_ELIGIBLE',publicationVersion:1,validUntil:'2026-11-16T18:00:00Z',
+    };
+    return {businessKsNumber:'KS101', enabledSurfaces:[],
+      publicationVersion:1,updatedAt:'2026-11-16T18:00:00Z'};
+  }};
+  const gateway = createBusinessConnectGateway(http);
+  const result = await gateway.publication.evaluate({
+    sellerKsNumber:'KS101',offerId:'offer-1',targetSurface:'SHORTSTAYS',
+  });
+  assert.equal(result.status,'NOT_ELIGIBLE');
+  await gateway.myPublication('KS101');
+  await gateway.replaceMyPublication('KS101',['SHORTSTAYS'],1);
+  assert.equal(calls[0].options.auth,'none');
+  assert.match(calls[0].path,/network-eligibility\\?surface=SHORTSTAYS$/);
+  assert.equal(calls[1].options.auth,'required');
+  assert.equal(calls[2].options.auth,'required');
+  assert.equal(calls[2].options.method,'PUT');
+  assert.equal(calls[2].options.body.expectedVersion,1);
+  assert.deepEqual(calls[2].options.body.enabledSurfaces,['SHORTSTAYS']);
+  assert.equal(calls[2].options.body.acknowledgement,'I_APPROVE_SELECTED_SECUREPAY_APP_DISTRIBUTION');
+});
+
+test('B1 UI: Business settings and Shortstays adapter are both wired through shared connectors', async () => {
+  const fs = await import('node:fs/promises');
+  const experience = await fs.readFile('src/features/business/BusinessExperience.tsx','utf8');
+  const runtime = await fs.readFile('src/RuntimeApp.tsx','utf8');
+  const router = await fs.readFile('src/features/agent/AgentExperience.tsx','utf8');
+  const core = await fs.readFile('src/api/securepay/index.ts','utf8');
+  const shortstays = await fs.readFile('src/integrations/business-connect/shortstays.ts','utf8');
+  assert.match(experience,/BusinessNetworkVisibilityPanel/);
+  assert.match(runtime,/businessConnectGateway=\\{businessConnectGateway\\}/);
+  assert.match(router,/networkGateway=\\{businessConnectGateway\\}/);
+  assert.match(core,/businessConnect: createBusinessConnectGateway/);
+  assert.match(shortstays,/createGovernedBusinessConnect/);
+});
