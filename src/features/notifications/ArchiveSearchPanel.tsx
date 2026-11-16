@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Search, FileText, MessageSquareText } from 'lucide-react';
 import type { AgreementGateway } from '../../api/securepay/agreements';
 import type { CurrentUserAgreementSummaryResponse } from '../../api/securepay/agreements/dto';
@@ -8,6 +8,7 @@ import { AgreementThreadPanel } from './AgreementThreadPanel';
 import { parseNotificationActionKey } from '../../api/securepay/notifications';
 import { parseArchiveSearch, uniqueAgreements, type ArchiveSearchPlan } from './archiveSearch';
 
+import type { SessionStore } from '../../api/securepay/session';
 type HistoryGateways = {
   agreements: Pick<AgreementGateway, 'searchAgreements'>;
   notifications: Pick<NotificationsGateway, 'search' | 'get'>;
@@ -47,9 +48,10 @@ function dateLabel(iso: string) {
  * Historical data not imported to SecurePay is unavailable, never invented.
  */
 export function ArchiveSearchPanel({
-  gateway, onOpenAgreement,
+  gateway, onOpenAgreement, session,
 }: {
   gateway: HistoryGateways;
+  session: SessionStore;
   onOpenAgreement: (agreementId: string) => void;
 }) {
   const [query, setQuery] = useState('');
@@ -62,10 +64,17 @@ export function ArchiveSearchPanel({
   const [detailError, setDetailError] = useState<string | null>(null);
   const [moreBusy, setMoreBusy] = useState(false);
   const serial = useRef(0);
+  const owner = useSyncExternalStore(session.subscribe,session.getSnapshot,session.getSnapshot);
+  useEffect(() => {
+    serial.current++;
+    setPhase('idle'); setResults(empty); setOpened(null); setThreadId(null);
+    setMessage(null); setDetailError(null); setPlan(null); setQuery('');
+  }, [owner]);
 
   async function find(event?: React.FormEvent<HTMLFormElement>) {
     event?.preventDefault();
     const request = ++serial.current;
+    const ownerAtRequest = session.getSnapshot();
     let criteria: ArchiveSearchPlan;
     try { criteria = parseArchiveSearch(query); }
     catch {
@@ -103,7 +112,7 @@ export function ArchiveSearchPanel({
         page: 0, size: 20,
       }) : Promise.resolve(null),
     ]);
-    if (serial.current !== request) return;
+    if (serial.current !== request || session.getSnapshot() !== ownerAtRequest) return;
 
     const agreementPages = [];
     let agreementsError: string | null = null;
