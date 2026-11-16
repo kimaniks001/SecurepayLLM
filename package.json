@@ -35,7 +35,8 @@
     "test:final-convergence": "node --test tests/*.test.mjs",
     "test:business-connect": "node --test tests/business-connect.test.mjs",
     "test:b4": "node --test tests/b4-archive.test.mjs",
-    "prebuild": "npm run test:b4 && npm run typecheck"
+    "prebuild": "npm run test:b4 && npm run test:b5 && npm run typecheck",
+    "test:b5": "node --test tests/b5-convergence.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
