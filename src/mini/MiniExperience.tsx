@@ -12,6 +12,7 @@ import { MiniGuestChat } from './MiniGuestChat';
 import { MiniFirstPartyKs001 } from './MiniFirstPartyKs001';
 import { MiniProudlyKeMark } from './MiniProudlyKeMark';
 import { MiniBusinessCapacity, type MiniPreviewCapacity } from './MiniBusinessCapacity';
+import { MiniBusinessSettings } from './MiniBusinessSettings';
 import { getMiniFirstPartyOrigin } from './miniFirstPartyConfig';
 import { MiniServerCheckout } from './MiniServerCheckout';
 import { MiniRealStoreOffer } from './MiniRealStoreOffer';
@@ -20,7 +21,7 @@ import { MiniCollectConversation } from './MiniCollectConversation';
 import { miniMergeUserDescription, miniCaptureText, type MiniCaptureSource, type MiniCaptureKind } from './miniCapture';
 import './mini.css';
 
-type View = MiniScreen | 'choose' | 'buy' | 'collect-interview';
+type View = MiniScreen | 'choose' | 'buy' | 'collect-interview' | 'business-settings';
 const STORE_KEY = 'securepay-mini-phase1-local-draft-v1';
 const words = {
   en: {
@@ -285,7 +286,8 @@ export function MiniExperience() {
           {businessDemo && <MiniBusinessCapacity part="identity" language={lang}
             capacity={previewCapacity} onChange={setPreviewCapacity}
             onStartSelling={() => begin('sell')}
-            onAskKs001={() => { setDiscussDraft(null); setScreen('help'); }} />}
+            onAskKs001={() => { setDiscussDraft(null); setScreen('help'); }}
+            onOpenSettings={() => setScreen('business-settings')} />}
           <div className="spm-persona"><Sparkles size={16}/><span>KS001</span><span className="spm-dot"/><span>Agreement Commerce</span></div>
           <h1 className="spm-hero">{t.hello}</h1>
           <p className="spm-lead">{t.intro}</p>
@@ -318,8 +320,12 @@ export function MiniExperience() {
           {businessDemo && <MiniBusinessCapacity part="activity" language={lang}
             capacity={previewCapacity} onChange={setPreviewCapacity}
             onStartSelling={() => begin('sell')}
-            onAskKs001={() => { setDiscussDraft(null); setScreen('help'); }} />}
+            onAskKs001={() => { setDiscussDraft(null); setScreen('help'); }}
+            onOpenSettings={() => setScreen('business-settings')} />}
         </section>}
+
+        {businessDemo && screen === 'business-settings' && previewCapacity === 'business' &&
+          <MiniBusinessSettings language={lang} onBack={() => setScreen('home')} />}
 
         {screen === 'choose' && <section className="spm-content">
           <button type="button" className="spm-back" onClick={() => setScreen('home')}><ArrowLeft size={18}/>{t.back}</button>
