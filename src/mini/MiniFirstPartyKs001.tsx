@@ -48,12 +48,14 @@ import type { MiniDraft, MiniLanguage } from './miniModel';
  * Unlike the legacy guest installation contract, this route exists in the
  * currently inspected SecurePayAPI main source as /api/agent/conversations.
  */
-export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo = false }: {
+export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo = false, startInStore = false }: {
   apiOrigin: string;
   draft: MiniDraft | null;
   language: MiniLanguage;
   onBack: () => void;
   demo?: boolean;
+  /** One-shot explicit handoff from Mini Business Settings, not an authority grant. */
+  startInStore?: boolean;
 }) {
   const sw = language === 'sw';
   const expiredKey = 'securepay.mini.firstparty.expired.v1:' + apiOrigin;
@@ -328,6 +330,18 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
     }
     setSellerOpen(true);
   };
+  const initialStoreHandled = useRef(false);
+  useEffect(() => {
+    // A merchant deliberately chose "Open verified Store". Reuse the SAME
+    // canonical Store and Business gateways, including sign-in/role checks.
+    // Do not try this until the first-party KS001 route is ready.
+    if (!startInStore || status !== 'ready' || initialStoreHandled.current) return;
+    initialStoreHandled.current = true;
+    openSeller();
+    // openSeller is the existing trusted Store navigation action; run once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startInStore, status]);
+
   const openAgreements = () => {
     setOwnedOpen(false);setOwnedList([]);setOwnedStatus('idle');
     setPeopleOpen(null);setSellerOpen(false);
