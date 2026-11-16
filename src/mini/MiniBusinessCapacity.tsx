@@ -170,9 +170,12 @@ export function MiniBusinessCapacity({
         <button className="spm-business-text-link" type="button" onClick={onStartSelling}>Start a seller draft <ArrowRight size={14}/></button>
         <p className="spm-business-small-note">Store offers shown here are sample data, not verified stock or real prices.</p>
       </div>}
-      <div className="spm-business-settings-line">
-        <Settings2 size={14}/><span>Business settings, networks and staff permissions live separately from everyday Mini.</span>
-      </div>
+      <a className="spm-business-settings-line spm-business-settings-link" href="/business-settings.html"
+         aria-label="Open SecurePay Business Settings visual preview">
+        <Settings2 size={16}/>
+        <span><strong>Business Settings</strong><small>Store Network, Store Guide, eTIMS and permissions</small></span>
+        <ChevronRight size={16}/>
+      </a>
     </div>}
   </>;
 }
