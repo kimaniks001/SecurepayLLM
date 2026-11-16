@@ -173,7 +173,7 @@ export function MiniBusinessCapacity({
       <a className="spm-business-settings-line spm-business-settings-link" href="/business-settings.html"
          aria-label="Open SecurePay Business Settings visual preview">
         <Settings2 size={16}/>
-        <span><strong>Business Settings</strong><small>Store Network, Store Guide, eTIMS and permissions</small></span>
+        <span><strong>Business Settings</strong><small>Identity, staff, Store, KS001, integrations & billing</small></span>
         <ChevronRight size={16}/>
       </a>
     </div>}
