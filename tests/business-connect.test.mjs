@@ -191,3 +191,47 @@ test('B1: wrong surface, identity, expired permission and lookup failures all fa
   const found=await broken.discover({surface:'SHORTSTAYS',kind:'PRODUCT',category:'solar'});
   assert.deepEqual(found.results,[]);
 });
+
+test('B1 knowledge: merchant teaching drafts are private until backend review', async () => {
+  const bundle=await build({
+    stdin:{contents:"export * from './src/integrations/business-connect/knowledge';",resolveDir:process.cwd()},
+    bundle:true,write:false,format:'esm',platform:'node',
+  });
+  const know=await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString('base64')}`);
+  const drafted=know.prepareBusinessKnowledgeDraft({
+    businessKsNumber:'KS-101',topic:'DELIVERY',origin:'MERCHANT_ENTRY',
+    content:'  Confirm same-day delivery with the merchant.  ',
+  });
+  assert.equal(drafted.audience,'MERCHANT_PRIVATE');
+  assert.equal(drafted.content,'Confirm same-day delivery with the merchant.');
+  assert.equal(Object.hasOwn(drafted,'status'),false);
+  assert.throws(()=>know.prepareBusinessKnowledgeDraft({
+    businessKsNumber:'INVALID',topic:'FAQ',origin:'MERCHANT_ENTRY',content:'Hello',
+  }),/Business KSNumber/);
+});
+
+test('B1 knowledge: no cross-store leakage, unapproved drafts, private policy or stale facts', async () => {
+  const bundle=await build({
+    stdin:{contents:"export * from './src/integrations/business-connect/knowledge';",resolveDir:process.cwd()},
+    bundle:true,write:false,format:'esm',platform:'node',
+  });
+  const know=await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString('base64')}`);
+  const shared={businessKsNumber:'KS-101',topic:'DELIVERY',audience:'CUSTOMER_VISIBLE',
+    origin:'MERCHANT_ENTRY',content:'Deliver to approved areas',sourceReference:'catalogue-3',
+    recordId:'know-1',status:'APPROVED',approvedByIdentityId:'owner-1',
+    approvedAt:'2026-11-16T10:00:00Z',currentUntil:'2026-11-17T00:00:00Z',version:2};
+  const records=[
+    shared,
+    {...shared,recordId:'other',businessKsNumber:'KS-999'},
+    {...shared,recordId:'draft',status:'DRAFT'},
+    {...shared,recordId:'expired',currentUntil:'2026-11-15T00:00:00Z'},
+    {...shared,recordId:'not-reviewed',approvedByIdentityId:null},
+    {...shared,recordId:'private',audience:'MERCHANT_PRIVATE',content:'Supplier cost price'},
+    {...shared,recordId:'internal',audience:'ASSISTANT_INSTRUCTION',content:'Ask before promising delivery'},
+  ];
+  const ctx=know.storeGuideKnowledgeContext('KS-101',records,Date.parse('2026-11-16T17:00:00Z'));
+  assert.deepEqual(ctx.customerFacts.map(x=>x.recordId),['know-1']);
+  assert.deepEqual(ctx.privateInstructions.map(x=>x.recordId),['internal']);
+  assert.equal(JSON.stringify(ctx).includes('Supplier cost price'),false);
+  assert.equal(JSON.stringify(ctx).includes('KS-999'),false);
+});
