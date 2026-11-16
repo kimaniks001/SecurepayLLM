@@ -5,6 +5,8 @@ import { Surface, SurfaceBody } from '../../components/dna/Surface';
 import { StatusNotice } from '../../components/dna/StatusNotice';
 import { PageHeader } from '../../components/dna/PageHeader';
 import type { AppView } from '../../types';
+import type { createBusinessConnectGateway } from '../../api/securepay/business-connect';
+import { BusinessNetworkVisibilityPanel } from './BusinessNetworkVisibilityPanel';
 import { BUSINESS_NAME_MAX, ORGANIZATION_NAME_MAX, type BusinessController, type BusinessState } from './controller';
 
 const focusRing = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-forest-300 focus-visible:ring-offset-2 focus-visible:ring-offset-cream-50';
@@ -28,8 +30,9 @@ const label = 'text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide m
  * and acting for it shows only who it is and its own Trust Project membership. No Organization login, member
  * management, governance or money is offered here.
  */
-export function BusinessExperience({ controller, onNavigate, onOpenJoin }: {
+export function BusinessExperience({ controller, networkGateway, onNavigate, onOpenJoin }: {
   controller: BusinessController;
+  networkGateway?: Pick<ReturnType<typeof createBusinessConnectGateway>, 'myPublication' | 'replaceMyPublication'>;
   onNavigate: (view: AppView) => void;
   /** Phase 4C -- open The Trust Project page, which then decides for the Business the person is acting for. */
   onOpenJoin?: () => void;
@@ -149,6 +152,18 @@ export function BusinessExperience({ controller, onNavigate, onOpenJoin }: {
                 <button onClick={() => controller.actAsSelf()} className={`${secondary} mt-3 w-full sm:w-auto`}>Switch back to yourself</button>
               </SurfaceBody>
             </Surface>
+
+            {networkGateway && (
+              <Surface>
+                <SurfaceBody>
+                  <BusinessNetworkVisibilityPanel
+                    key={acting.businessKsNumber}
+                    businessKsNumber={acting.businessKsNumber}
+                    gateway={networkGateway}
+                  />
+                </SurfaceBody>
+              </Surface>
+            )}
 
             {state.organization.status === 'loading' && <p role="status" className="text-sm text-sand-500">Loading this Business…</p>}
             {state.organization.status === 'error' && <StatusNotice tone="warning" icon={false}>{state.organization.error}</StatusNotice>}
