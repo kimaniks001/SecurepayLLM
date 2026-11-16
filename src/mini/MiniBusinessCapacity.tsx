@@ -52,9 +52,9 @@ export function MiniBusinessCapacity({
         <button type="button" onClick={()=>{onChange('business');setChooseOpen(false);}}><Store size={17}/><span>Kamakis Traders · Business</span>{business&&<Check size={16}/>}</button>
         <p>Illustrative switch only. A real Business must confirm that you can act for it.</p>
       </div>}
-    </div>
-    {business && <p className="spm-business-sample-note"><ShieldCheck size={13}/> Business example · not a signed-in account</p>}
-    {!business && <p className="spm-business-sample-note"><ShieldCheck size={13}/> Personal example · not a signed-in account</p>}
+    </div>}
+    {part === 'identity' && business && <p className="spm-business-sample-note"><ShieldCheck size={13}/> Business example · not a signed-in account</p>}
+    {part === 'identity' && !business && <p className="spm-business-sample-note"><ShieldCheck size={13}/> Personal example · not a signed-in account</p>}
     {part === 'activity' && business && <div className="spm-business-mini-helper">
       <div className="spm-business-heading">
         <span>{isSw?'Kwa biashara yako':'For your business'}</span>
