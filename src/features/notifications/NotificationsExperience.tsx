@@ -9,6 +9,9 @@ import { PageHeader } from '../../components/dna/PageHeader';
 import type { AppView } from '../../types';
 import { parseNotificationActionKey, type NotificationCategory, type NotificationEvent } from '../../api/securepay/notifications';
 import type { NotificationsController } from './controller';
+import type { AgreementGateway } from '../../api/securepay/agreements';
+import type { NotificationsGateway } from '../../api/securepay/notifications';
+import { ArchiveSearchPanel } from './ArchiveSearchPanel';
 
 const CATEGORY_LABEL: Record<NotificationCategory, string> = {
   AGREEMENTS: 'Agreements',
@@ -134,8 +137,12 @@ function Toggle({ label, hint, checked, onChange }: { label: string; hint?: stri
  * This screen is the durable, ownership-of-truth surface; it does not claim WhatsApp delivered
  * anything -- see the Preferences tab's own note on today's real backend delivery gap.
  */
-export function NotificationsExperience({ controller, onNavigate, onOpenAgreement }: {
+export function NotificationsExperience({ controller, onNavigate, onOpenAgreement, archiveGateway }: {
   controller: NotificationsController;
+  archiveGateway: {
+    agreements: Pick<AgreementGateway, 'searchAgreements'>;
+    notifications: Pick<NotificationsGateway, 'search' | 'get'>;
+  };
   onNavigate: (view: AppView) => void;
   onOpenAgreement: (agreementId: string) => void;
 }) {
@@ -161,7 +168,7 @@ export function NotificationsExperience({ controller, onNavigate, onOpenAgreemen
     <div className="min-h-dvh flex flex-col bg-cream-100 pb-16 md:pb-0">
       <NavBar view="notifications" onNavigate={onNavigate} />
       <div className="max-w-2xl mx-auto px-4 md:px-6 py-4 space-y-4 w-full">
-        <PageHeader title="Notifications" description="What needs your attention in SecurePay." />
+        <PageHeader title="Inbox" description="Your SecurePay updates, agreement actions and commercial records." />
 
         <div className="flex border-b border-cream-200/60">
           <button onClick={() => setTab('inbox')} aria-current={tab === 'inbox'} className={`flex-1 py-2 text-[0.8rem] font-medium ${tab === 'inbox' ? 'text-forest-700 border-b-2 border-forest-600' : 'text-sand-500 border-b-2 border-transparent'}`}>Inbox</button>
@@ -170,6 +177,7 @@ export function NotificationsExperience({ controller, onNavigate, onOpenAgreemen
 
         {tab === 'inbox' && (
           <>
+            <ArchiveSearchPanel gateway={archiveGateway} onOpenAgreement={onOpenAgreement} />
             <div className="flex flex-wrap gap-1.5">
               <button
                 onClick={() => controller.setCategoryFilter(null)}
