@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ArrowLeft, ArrowRight, BriefcaseBusiness, Check, ChevronDown, ChevronRight, LockKeyhole, MessageCircle, Package, Plus, Settings2, ShieldCheck, Store, UserRound, X } from 'lucide-react';
 import type { MiniLanguage } from './miniModel';
+import { listed, amount, type BusinessDemo } from './MiniBusinessDemoModel';
 
 export type MiniPreviewCapacity = 'business' | 'personal';
 type AddChoice = 'another-ks' | 'existing-business' | 'new-business';
@@ -12,25 +13,13 @@ const addOptions: { id: AddChoice; title: string; detail: string; icon: typeof U
 ];
 
 
-const exampleTasks = [
-  { id:'inquiry', title:'Solar lights for a guesthouse', state:'Customer needs a reply', detail:'A sample customer asks about two outdoor lights and delivery to a guesthouse. Confirm availability before offering any price or delivery promise.', next:'Confirm stock and offer to prepare a quotation.' },
-  { id:'quote', title:'Cement for roof repairs', state:'Quotation being reviewed', detail:'A sample buyer is considering quantities, delivery and a proposed price. No acceptance has taken place.', next:'Check the buyer’s response before changing any terms.' },
-  { id:'delivery', title:'Hardware delivery to Varsityville', state:'Work in progress', detail:'An illustrative Living Agreement is awaiting evidence of delivery and confirmation of completion.', next:'Review the delivery evidence with the parties.' },
-] as const;
-
-const sampleOffers = [
-  { title:'Solar floodlight · 200W', detail:'Availability to confirm · Illustrative price KSh 8,500' },
-  { title:'Cement · 50 kg', detail:'Availability to confirm · Illustrative price KSh 750' },
-  { title:'Local hardware delivery', detail:'Price depends on place and the terms agreed' },
-] as const;
-
 /**
  * A read-only owner review of how acting for a Business could feel in the
  * existing SecurePay Mini. Never treats this local choice as verified
  * representation. Real Business scope and Inbox visibility remain server-owned.
  */
 export function MiniBusinessCapacity({
-  language, capacity, onChange, onStartSelling, onAskKs001, onOpenSettings, part
+  language, capacity, onChange, onStartSelling, onAskKs001, onOpenSettings, onOpenStore, demo, part
 }: {
   language: MiniLanguage;
   capacity: MiniPreviewCapacity;
@@ -38,6 +27,8 @@ export function MiniBusinessCapacity({
   onStartSelling: () => void;
   onAskKs001: () => void;
   onOpenSettings: () => void;
+  onOpenStore: () => void;
+  demo: BusinessDemo;
   part: 'identity' | 'activity';
 }) {
   const [chooseOpen, setChooseOpen] = useState(false);
@@ -59,6 +50,17 @@ export function MiniBusinessCapacity({
   const [selectedTask, setSelectedTask] = useState<string|null>(null);
   const isSw = language === 'sw';
   const business = capacity === 'business';
+  const exampleTasks=[
+    ...demo.enquiries.filter(q=>q.status==='new').map(q=>({
+      id:q.id,title:demo.offers.find(o=>o.id===q.offerId)?.title||'Customer enquiry',
+      state:'Buyer enquiry',detail:q.question,next:'Open Business Settings → My Store → Enquiries to prepare terms.'
+    })),
+    ...demo.agreements.map(a=>({
+      id:a.id,title:demo.offers.find(o=>o.id===a.offerId)?.title||'Living Agreement',
+      state:a.state.replace('_',' '),detail:'Example Agreement '+a.id+' · '+amount(a.quantity*a.unitPrice),
+      next:'Open Business Settings → Living Agreements to review its next stage.'
+    }))
+  ];
   const selected = exampleTasks.find(t=>t.id === selectedTask);
   return <>
     {part === 'identity' && <div className="spm-business-capacity">
@@ -66,7 +68,7 @@ export function MiniBusinessCapacity({
         <span className="spm-business-switch-icon">{business?<BriefcaseBusiness size={16}/>:<UserRound size={16}/>}</span>
         <span className="spm-business-switch-text">
           <small>{isSw?'Unafanya kazi kama':'You’re acting as'}</small>
-          <strong>{business?'Kamakis Traders':isSw?'Wewe binafsi':'Yourself · Personal'}</strong>
+          <strong>{business?demo.name:isSw?'Wewe binafsi':'Yourself · Personal'}</strong>
         </span>
         <ChevronDown size={16}/>
       </button>
@@ -76,7 +78,7 @@ export function MiniBusinessCapacity({
             <UserRound size={17}/><span>My personal KSNumber</span>{!business&&<Check size={16}/>}
           </button>
           <button type="button" onClick={()=>{onChange('business');closeMenu();}}>
-            <Store size={17}/><span>Kamakis Traders · Business</span>{business&&<Check size={16}/>}
+            <Store size={17}/><span>{demo.name} · Business</span>{business&&<Check size={16}/>}
           </button>
           <div className="spm-business-choice-divider" />
           <button type="button" className="spm-business-add-trigger" onClick={beginAdd}>
@@ -147,9 +149,10 @@ export function MiniBusinessCapacity({
       </div>
       <p className="spm-business-blurb">Nothing changes about how Mini works. When you need more, your business work opens here.</p>
       <button type="button" className="spm-business-reveal" aria-expanded={openSection === 'work'} onClick={()=>{setOpenSection(openSection==='work'?null:'work');setSelectedTask(null);}}>
-        <MessageCircle size={17}/><span><strong>Things needing your attention</strong><small>3 sample enquiries and Agreements</small></span><ChevronRight size={16} className={openSection==='work'?'spm-business-down':''}/>
+        <MessageCircle size={17}/><span><strong>Things needing your attention</strong><small>{exampleTasks.length} sample enquiries and Agreements</small></span><ChevronRight size={16} className={openSection==='work'?'spm-business-down':''}/>
       </button>
       {openSection === 'work' && <div className="spm-business-expand">
+        {exampleTasks.length===0 && <p className="spm-business-small-note">No pending example work. Open My Store to create a buyer enquiry.</p>}
         {exampleTasks.map(item=><button key={item.id} type="button" className={'spm-business-work-item'+(selectedTask===item.id?' selected':'')} onClick={()=>setSelectedTask(selectedTask===item.id?null:item.id)}>
           <span><strong>{item.title}</strong><small>{item.state}</small></span><ChevronRight size={14}/>
         </button>)}
@@ -165,10 +168,10 @@ export function MiniBusinessCapacity({
         <Store size={17}/><span><strong>Your Store</strong><small>Show offers and help buyers agree</small></span><ChevronRight size={16} className={openSection==='store'?'spm-business-down':''}/>
       </button>
       {openSection === 'store' && <div className="spm-business-expand">
-        {sampleOffers.map(item=><div key={item.title} className="spm-business-offer">
-          <Package size={15}/><span><strong>{item.title}</strong><small>{item.detail}</small></span>
+        {demo.offers.map(item=><div key={item.id} className="spm-business-offer">
+          <Package size={15}/><span><strong>{item.title}</strong><small>{listed(item)?'In sample customer view':'Hidden from sample buyers'} · {amount(item.price)} · stock {item.quantity}</small></span>
         </div>)}
-        <button className="spm-business-text-link" type="button" onClick={onStartSelling}>Start a seller draft <ArrowRight size={14}/></button>
+        <button className="spm-business-text-link" type="button" onClick={onOpenStore}>Manage Store offers <ArrowRight size={14}/></button>
         <p className="spm-business-small-note">Store offers shown here are sample data, not verified stock or real prices.</p>
       </div>}
       <button type="button" className="spm-business-settings-line spm-business-settings-link"
