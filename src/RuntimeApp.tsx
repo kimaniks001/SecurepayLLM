@@ -1,6 +1,7 @@
 import { createPreviewWorkspaceGateways } from './features/living-workspace/previewWorkspaceGateways';
 import { createPreviewAgentGateway } from './features/living-workspace/previewAgentGateway';
 import { Phase1LivingWorkspacePreview } from './features/living-workspace/Phase1LivingWorkspacePreview';
+import { BusinessPreviewExperience } from './features/business/BusinessPreviewExperience';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { storeAgreementEntry, storeEntryView, storeKs001EntryMessage, hasWorkspaceMoneyReturn, clearWorkspaceMoneyReturn } from './features/experience/entryIntent';
 import { AgentExperience } from './features/agent/AgentExperience';
@@ -330,7 +331,8 @@ function useMoneySessionRoute(): string | null {
  * captured by this rule. No token-bearing route is inspected or rewritten.
  */
 export function isCandidateWorkspaceEntry(hash:string,hostname:string):boolean {
-  return hostname.endsWith('.vercel.app') && (hash==='' || hash==='#' || hash==='#/' || /^#\/?sign-(?:in|up)\/?$/.test(hash));
+  // Do not intercept #/sign-in or #/sign-up: the Business owner sign-in flow is distinct.
+  return hostname.endsWith('.vercel.app') && (hash==='' || hash==='#' || hash==='#/');
 }
 export default function RuntimeApp() {
   const [phase1Preview, setPhase1Preview] = useState(() => typeof window !== 'undefined' &&
@@ -365,6 +367,12 @@ export default function RuntimeApp() {
     const host=new URL(api.baseUrl).hostname.toLowerCase();
     return host.endsWith('.securepay.ke') && /(?:^|[.-])(?:staging|sandbox|qa|test)(?:[.-]|$)/.test(host);
   })();
+  // Owner-facing read-only visual walkthrough. It does NOT sign in, query private
+  // merchants, create Agreements, change Store publication or initiate payments.
+  // Exists only in this isolated preview branch, not the production application.
+  if (directSurfaceRoute === 'business' && typeof window !== 'undefined' && window.location.hostname.endsWith('.vercel.app')) {
+    return <BusinessPreviewExperience />;
+  }
   if (phase1Preview) return <Phase1LivingWorkspacePreview
     gateway={previewAgentGateway} workspaceGateways={previewWorkspaceGateways}
     identityStagingReady={identityStagingReady} session={session} />;
