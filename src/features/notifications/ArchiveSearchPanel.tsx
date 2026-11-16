@@ -65,9 +65,10 @@ export function ArchiveSearchPanel({
   const [moreBusy, setMoreBusy] = useState(false);
   const serial = useRef(0);
   const owner = useSyncExternalStore(session.subscribe,session.getSnapshot,session.getSnapshot);
+  const [resultOwner, setResultOwner] = useState(owner);
   useEffect(() => {
     serial.current++;
-    setPhase('idle'); setResults(empty); setOpened(null); setThreadId(null);
+    setPhase('idle'); setResults(empty); setOpened(null); setThreadId(null); setResultOwner(owner);
     setMessage(null); setDetailError(null); setPlan(null); setQuery('');
   }, [owner]);
 
@@ -75,6 +76,7 @@ export function ArchiveSearchPanel({
     event?.preventDefault();
     const request = ++serial.current;
     const ownerAtRequest = session.getSnapshot();
+    setResultOwner(ownerAtRequest);
     let criteria: ArchiveSearchPlan;
     try { criteria = parseArchiveSearch(query); }
     catch {
@@ -140,13 +142,16 @@ export function ArchiveSearchPanel({
   }
 
   async function openOriginal(notificationId: string) {
+    const ownerAtRequest = session.getSnapshot();
     setDetailError(null); setOpened(null);
     try {
       const event = await gateway.notifications.get(notificationId);
+      if (session.getSnapshot() !== ownerAtRequest) return;
       if (event.id !== notificationId) throw new Error('Mismatched Inbox record');
       setOpened(event);
     } catch {
-      setDetailError('SecurePay could not retrieve that original Inbox record under this KSNumber.');
+      if (session.getSnapshot() === ownerAtRequest)
+        setDetailError('SecurePay could not retrieve that original Inbox record under this KSNumber.');
     }
   }
 
@@ -200,7 +205,7 @@ export function ArchiveSearchPanel({
       </p>
       {phase === 'invalid' && <p role="alert" className="text-xs text-ember-700">{message}</p>}
       {phase === 'loading' && <p role="status" className="text-xs text-sand-600">Checking your records…</p>}
-      {phase === 'ready' && (
+      {phase === 'ready' && resultOwner === owner && (
         <div className="space-y-3">
           {plan?.fromDate && (
             <p className="text-xs text-sand-600">
