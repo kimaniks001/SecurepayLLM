@@ -22,13 +22,14 @@ const sampleOffers = [
  * representation. Real Business scope and Inbox visibility remain server-owned.
  */
 export function MiniBusinessCapacity({
-  language, capacity, onChange, onStartSelling, onAskKs001
+  language, capacity, onChange, onStartSelling, onAskKs001, part
 }: {
   language: MiniLanguage;
   capacity: MiniPreviewCapacity;
   onChange: (next: MiniPreviewCapacity) => void;
   onStartSelling: () => void;
   onAskKs001: () => void;
+  part: 'identity' | 'activity';
 }) {
   const [chooseOpen, setChooseOpen] = useState(false);
   const [openSection, setOpenSection] = useState<'work'|'store'|null>('work');
@@ -37,7 +38,7 @@ export function MiniBusinessCapacity({
   const business = capacity === 'business';
   const selected = exampleTasks.find(t=>t.id === selectedTask);
   return <>
-    <div className="spm-business-capacity">
+    {part === 'identity' && <div className="spm-business-capacity">
       <button type="button" className="spm-business-switch" aria-expanded={chooseOpen} onClick={()=>setChooseOpen(v=>!v)}>
         <span className="spm-business-switch-icon">{business?<BriefcaseBusiness size={16}/>:<UserRound size={16}/>}</span>
         <span className="spm-business-switch-text">
@@ -54,7 +55,7 @@ export function MiniBusinessCapacity({
     </div>
     {business && <p className="spm-business-sample-note"><ShieldCheck size={13}/> Business example · not a signed-in account</p>}
     {!business && <p className="spm-business-sample-note"><ShieldCheck size={13}/> Personal example · not a signed-in account</p>}
-    {business && <div className="spm-business-mini-helper">
+    {part === 'activity' && business && <div className="spm-business-mini-helper">
       <div className="spm-business-heading">
         <span>{isSw?'Kwa biashara yako':'For your business'}</span>
         <span className="spm-business-little-tag">Examples</span>
