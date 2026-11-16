@@ -193,6 +193,7 @@ function useDirectSurfaceRoute(): AppView | null {
   const parse = (): AppView | null => {
     if (typeof window === 'undefined') return null;
     if (/^#\/?store\/?$/.test(window.location.hash)) return 'store';
+    if (/^#\\/?inbox\\/?$/.test(window.location.hash)) return 'notifications';
     if (/^#\/?(?:vision|vision-board)\/?$/.test(window.location.hash)) return 'vision-board';
     if (/^#\/?community\/?$/.test(window.location.hash)) return 'community';
     return null;
