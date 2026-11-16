@@ -11,6 +11,7 @@ import { MiniCaptureTools } from './MiniCaptureTools';
 import { MiniGuestChat } from './MiniGuestChat';
 import { MiniFirstPartyKs001 } from './MiniFirstPartyKs001';
 import { MiniProudlyKeMark } from './MiniProudlyKeMark';
+import { MiniBusinessCapacity, type MiniPreviewCapacity } from './MiniBusinessCapacity';
 import { getMiniFirstPartyOrigin } from './miniFirstPartyConfig';
 import { MiniServerCheckout } from './MiniServerCheckout';
 import { MiniRealStoreOffer } from './MiniRealStoreOffer';
@@ -96,6 +97,7 @@ function readSavedMiniDraft(): MiniDraft | null {
 
 export function MiniExperience() {
   const [lang, setLang] = useState<MiniLanguage>('en');
+  const [previewCapacity, setPreviewCapacity] = useState<MiniPreviewCapacity>('business');
   const t = words[lang];
   const [screen, setScreen] = useState<View>('home');
   const [buyPrefill, setBuyPrefill] = useState('');
@@ -121,6 +123,8 @@ export function MiniExperience() {
   const quantityField = useRef<HTMLInputElement | null>(null);
   const urlParams = typeof window === 'undefined' ? null : new URLSearchParams(window.location.search);
   const compact = urlParams?.get('embedded') === '1';
+  // Explicitly opt-in visual review only. Ordinary /mini.html remains unchanged.
+  const businessDemo = urlParams?.get('miniBusinessPreview') === '1';
   const storeOfferSession = urlParams?.get('storeOfferSession') ?? null;
   const checkoutSession = urlParams?.get('checkoutSession') ?? null;
 
@@ -278,6 +282,10 @@ export function MiniExperience() {
         {storeOfferSession ? <MiniRealStoreOffer session={storeOfferSession} language={lang}/> :
           checkoutSession ? <MiniServerCheckout session={checkoutSession} language={lang}/> : <>
         {screen === 'home' && <section className="spm-entrance">
+          {businessDemo && <MiniBusinessCapacity part="identity" language={lang}
+            capacity={previewCapacity} onChange={setPreviewCapacity}
+            onStartSelling={() => begin('sell')}
+            onAskKs001={() => { setDiscussDraft(null); setScreen('help'); }} />}
           <div className="spm-persona"><Sparkles size={16}/><span>KS001</span><span className="spm-dot"/><span>Agreement Commerce</span></div>
           <h1 className="spm-hero">{t.hello}</h1>
           <p className="spm-lead">{t.intro}</p>
@@ -307,6 +315,10 @@ export function MiniExperience() {
             <button type="button" className="spm-text-btn" onClick={() => { setDiscussDraft(null); setScreen('help'); }}><MessageCircle size={17}/>{t.ask}</button>
             {hasSaved && <button type="button" className="spm-text-btn" onClick={resume}><RotateCcw size={17}/>{t.resume}</button>}
           </div>
+          {businessDemo && <MiniBusinessCapacity part="activity" language={lang}
+            capacity={previewCapacity} onChange={setPreviewCapacity}
+            onStartSelling={() => begin('sell')}
+            onAskKs001={() => { setDiscussDraft(null); setScreen('help'); }} />}
         </section>}
 
         {screen === 'choose' && <section className="spm-content">
