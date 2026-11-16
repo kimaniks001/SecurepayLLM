@@ -878,3 +878,48 @@ textarea.spm-field { resize:vertical; }
 .spm-bs-plan strong { display:block; font-size:26px; margin-top:8px; color:#1b4a31; }
 .spm-bs-plan strong span { font-size:12px; font-weight:400; }
 .spm-bs-plan p { font-size:11px; line-height:1.55; color:#637e66; margin:8px 0 0; }
+
+
+/* Functional owner demo of merchant work in the EXISTING pocket-sized Mini.
+   All content is fictional; no network writes, payment or external publication. */
+.spm-bs-working .spm-bs-input-label { display:grid; gap:7px; margin:13px 0; }
+.spm-bs-working .spm-bs-input-label > span { color:#365842; font-size:11px; font-weight:700; }
+.spm-bs-working .spm-bs-input-label .spm-field { max-width:100%; min-width:0; }
+.spm-bs-tabs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:5px; padding:4px; background:#f3f6ee; border-radius:12px; margin:15px 0 10px; }
+.spm-bs-tabs button { min-height:43px; font-size:10px; font-weight:700; border:0; border-radius:9px; background:transparent; color:#6c806f; padding:4px; }
+.spm-bs-tabs button.active { background:#fff; color:#275c3f; box-shadow:0 1px 3px rgba(30,70,40,.1); }
+.spm-bs-summary { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:5px; color:#285c42; font-size:11px; margin:12px 0; }
+.spm-bs-summary span { color:#718474; }
+.spm-bs-small-button { display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:42px; border:1px solid #285d41; background:#285d41; color:#fff; padding:9px 11px; border-radius:11px; font-size:11px; font-weight:700; text-align:center; line-height:1.35; margin:5px 0; }
+.spm-bs-small-button:hover { background:#1d4933; }
+.spm-bs-small-button.secondary { background:#fff; color:#2d6244; border-color:#c7d9c7; }
+.spm-bs-small-button.secondary:hover { background:#f2f7ef; }
+.spm-bs-small-button:disabled { opacity:.48; cursor:not-allowed; }
+.spm-bs-stack { display:grid; gap:9px; margin:13px 0; }
+.spm-bs-offer { display:grid; gap:8px; padding:13px; background:#fffefa; border:1px solid #e0e6d9; border-radius:13px; margin:10px 0; min-width:0; overflow-wrap:anywhere; }
+.spm-bs-offer > strong { font-size:12px; line-height:1.4; color:#2a4a35; }
+.spm-bs-offer > p { margin:0; color:#677b68; font-size:11px; line-height:1.55; white-space:pre-wrap; }
+.spm-bs-offer > small { font-size:10px; color:#728474; line-height:1.5; display:block; }
+.spm-bs-offer-heading { display:flex; gap:7px; align-items:flex-start; justify-content:space-between; }
+.spm-bs-offer-heading strong { flex:1; font-size:12px; color:#2a4a35; line-height:1.45; }
+.spm-bs-mini-badge { background:#e7f1e7; color:#3b7251; border-radius:8px; padding:5px 7px; font-size:9px; font-weight:700; white-space:nowrap; }
+.spm-bs-actions { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+.spm-bs-link { display:inline-flex; align-items:center; gap:5px; min-height:37px; border:0; background:transparent; color:#2c684a; font-size:11px; font-weight:700; padding:3px 0; text-align:left; }
+.spm-bs-link:hover { text-decoration:underline; }
+.spm-bs-check { display:flex; align-items:flex-start; gap:10px; min-height:51px; padding:10px 1px; border-bottom:1px solid #e8ece4; }
+.spm-bs-check input { width:19px; height:19px; margin:0; flex:none; accent-color:#285d41; }
+.spm-bs-check > span { display:grid; gap:4px; }
+.spm-bs-check strong { font-size:12px; color:#2d5339; line-height:1.4; }
+.spm-bs-check small { font-size:10px; color:#758778; line-height:1.5; }
+.spm-bs-buyer-header { display:flex; gap:10px; align-items:center; margin-top:12px; background:#edf4e9; border-radius:12px; padding:12px; color:#286344; }
+.spm-bs-buyer-header span { display:grid; gap:4px; }
+.spm-bs-buyer-header strong { font-size:12px; color:#254c35; }
+.spm-bs-buyer-header small { font-size:10px; color:#698571; }
+.spm-bs-caption { font-size:11px; line-height:1.55; color:#667b69; margin:10px 0; }
+.spm-bs-empty { font-size:12px; line-height:1.65; padding:14px 12px; color:#6f8273; background:#f5f8f2; border:1px dashed #cddac9; border-radius:12px; }
+.spm-bs-guide-reply { background:#f0f6ed; border:1px solid #d1e0cf; border-radius:14px; padding:13px; margin-top:12px; }
+.spm-bs-guide-reply strong { display:block; color:#2c6144; font-size:11px; }
+.spm-bs-guide-reply p { color:#435e49; font-size:11px; line-height:1.7; white-space:pre-line; margin:8px 0 0; }
+.spm-bs-working .spm-bs-note { padding:11px; white-space:pre-wrap; }
+.spm-bs-working .spm-bs-feature { margin:12px 0; }
+.spm-bs-working .spm-bs-plan { margin:14px 0; }
