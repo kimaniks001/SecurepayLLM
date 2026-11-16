@@ -806,3 +806,75 @@ textarea.spm-field { resize:vertical; }
 .spm-business-settings-link span { display:grid; flex:1; gap:4px; }
 .spm-business-settings-link strong { font-size:12px; color:#29553b; }
 .spm-business-settings-link small { font-size:10px; color:#738274; line-height:1.4; }
+
+
+/* Mini-native Business Settings: inside the approved 390px Mini card,
+   separate from the full desktop Business Desk. Review-only prototype. */
+.spm-bs .spm-question { margin-bottom:11px; }
+.spm-bs-context, .spm-bs-feature {
+  display:flex; align-items:center; gap:10px; padding:12px;
+  border:1px solid #dce7d8; background:#f4f8f1; border-radius:13px;
+  color:#2e6344; margin:11px 0;
+}
+.spm-bs-context svg, .spm-bs-feature svg { flex:none; }
+.spm-bs-context span,.spm-bs-feature span { min-width:0; display:grid; gap:4px; }
+.spm-bs-context strong,.spm-bs-feature strong { font-size:12px; font-weight:700; color:#254632; }
+.spm-bs-context small,.spm-bs-feature small { font-size:10px; line-height:1.45; color:#738273; }
+.spm-bs-menu { display:grid; gap:7px; margin:17px 0 18px; }
+.spm-bs-item {
+  display:flex; align-items:center; gap:10px; width:100%; min-height:61px;
+  padding:10px; text-align:left; border:1px solid #e1e7dc;
+  border-radius:13px; background:#fffefa; color:#6f8b76;
+}
+.spm-bs-item:hover { background:#f4f8ef; border-color:#a9c7ad; }
+.spm-bs-icon { display:grid; place-items:center; width:37px; height:37px; flex:none; border-radius:11px; background:#edf4ec; color:#2e6547; }
+.spm-bs-item-title { display:grid; gap:4px; min-width:0; flex:1; }
+.spm-bs-item-title strong { font-size:12px; color:#254733; font-weight:700; }
+.spm-bs-item-title small { color:#7c8b7a; font-size:10px; font-weight:400; line-height:1.4; }
+.spm-bs-simple { margin:12px 0; background:#f8faf5; }
+.spm-bs-simple > svg { flex:none; }
+.spm-bs-muted {
+  border-top:1px solid #e5e9df; padding:14px 2px 4px;
+  font-size:11px; color:#738174; line-height:1.55;
+}
+.spm-bs-muted strong { display:block; color:#345b43; font-size:12px; }
+.spm-bs-muted p { margin:6px 0 8px; }
+.spm-bs-muted a { display:inline-flex; align-items:center; gap:6px; min-height:35px; color:#35694c; font-weight:700; font-size:11px; }
+.spm-bs-subhead { display:flex; justify-content:space-between; gap:7px; color:#517a5b; font-size:10px; margin:0 0 8px; font-weight:700; }
+.spm-bs-subhead span:last-child { color:#998159; font-weight:500; }
+.spm-bs-setting-line {
+  display:flex; justify-content:space-between; align-items:center; gap:13px;
+  padding:15px 1px; border-bottom:1px solid #e8ece4;
+}
+.spm-bs-setting-line > span { display:grid; flex:1; gap:5px; min-width:0; }
+.spm-bs-setting-line strong { color:#2d4e38; font-size:12px; font-weight:650; line-height:1.35; }
+.spm-bs-setting-line small { color:#7a8877; font-size:10px; line-height:1.55; }
+.spm-bs-switch {
+  display:block; position:relative; flex:none; width:47px; height:28px;
+  background:#c6cfc4; border:1px solid transparent; border-radius:20px;
+  transition:background .15s; padding:0;
+}
+.spm-bs-switch.active { background:#2a6948; }
+.spm-bs-switch:disabled { cursor:not-allowed; opacity:.6; }
+.spm-bs-switch span {
+  display:block; position:absolute; top:3px; left:3px; width:20px; height:20px;
+  background:#fff; border-radius:50%; box-shadow:0 1px 2px rgba(0,0,0,.12);
+  transition:transform .15s;
+}
+.spm-bs-switch.active span { transform:translateX(19px); }
+.spm-bs-hint {
+  display:flex; align-items:flex-start; gap:8px; margin-top:18px; padding:13px 12px;
+  border-radius:12px; background:#eef5eb; color:#4f6b53; font-size:11px; line-height:1.55;
+}
+.spm-bs-hint svg { flex:none; margin-top:2px; }
+.spm-bs-note { background:#fff8e8; color:#8f703f; border:1px solid #f1dfc1; border-radius:12px; padding:11px; font-size:11px; line-height:1.55; }
+.spm-bs-details { display:grid; gap:2px; padding:3px 12px; border-radius:11px; background:#f7f9f4; }
+.spm-bs-details p { font-size:11px; color:#617664; line-height:1.55; margin:8px 0; }
+.spm-bs-preview-foot { display:flex; align-items:flex-start; gap:8px; margin-top:20px; padding:12px 1px 0; border-top:1px solid #e8ece3; color:#867b60; font-size:10px; line-height:1.5; }
+.spm-bs-preview-foot svg { flex:none; margin-top:1px; }
+.spm-bs-done { width:100%; margin-top:14px; justify-content:center; }
+.spm-bs-plan { background:#eef4e9; border:1px solid #d8e5d4; border-radius:15px; padding:16px; margin:10px 0 14px; }
+.spm-bs-plan small { font-size:11px; color:#59775d; }
+.spm-bs-plan strong { display:block; font-size:26px; margin-top:8px; color:#1b4a31; }
+.spm-bs-plan strong span { font-size:12px; font-weight:400; }
+.spm-bs-plan p { font-size:11px; line-height:1.55; color:#637e66; margin:8px 0 0; }
