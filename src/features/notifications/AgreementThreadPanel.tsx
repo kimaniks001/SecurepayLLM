@@ -85,7 +85,7 @@ export function AgreementThreadPanel({
       setBody('');
       setMessages(previous => [confirmed, ...previous.filter(x => x.id !== confirmed.id)]);
       setState('ready');
-      setHasMore(previous => previous);
+      // Earlier pages remain available; an inserted message is not older history.
     } catch {
       setError('SecurePay could not confirm if your message arrived. Use “Check again” to retry the same message safely.');
     } finally { setSending(false); }
