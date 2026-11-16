@@ -794,3 +794,15 @@ textarea.spm-field { resize:vertical; }
 .spm-business-add-result strong { font-size:12px; color:#28533b; }
 .spm-business-add-result p { font-size:11px; color:#58715e; line-height:1.55; margin:0; padding:0; border:0; }
 .spm-business-add-result small { font-size:10px; color:#85704a; line-height:1.5; }
+
+
+/* Open the approved Business Settings page from the unobtrusive Mini link. */
+.spm-business-settings-link {
+  text-decoration:none; align-items:center; min-height:54px;
+  padding:8px 9px; border:1px solid #e1e9df; border-radius:12px;
+  background:#fafcf7; color:#315d42;
+}
+.spm-business-settings-link:hover { background:#eef5e9; border-color:#b8d1bb; }
+.spm-business-settings-link span { display:grid; flex:1; gap:4px; }
+.spm-business-settings-link strong { font-size:12px; color:#29553b; }
+.spm-business-settings-link small { font-size:10px; color:#738274; line-height:1.4; }
