@@ -21,7 +21,7 @@ The single source of truth remains `kimaniks001/SecurePayAPI`. This repository i
 import { createShortstaysBusinessConnect } from './integrations/business-connect/shortstays';
 import { createStoreGateway } from './api/securepay/store';
 
-const business = createShortstaysBusinessConnect(createStoreGateway(existingHttpClient));
+// B1: publicationAuthority MUST be a real SecurePayAPI-backed gateway.\n// Until the backend exists, do not instantiate the cross-platform adapter.\nconst business = createShortstaysBusinessConnect(\n  createStoreGateway(existingHttpClient), publicationAuthority,\n);
 
 // A guest asked for a solar floodlight. A *verified catalogue category*
 // comes from Shortstays, not a guessed semantic match.

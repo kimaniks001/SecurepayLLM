@@ -109,24 +109,178 @@ test('Offer selection requires explicit customer choice and is source-only, neve
 });
 
 
-test('Shortstays adapter calls the common Store API without adding holiday-specific payment logic', async () => {
-  const shortstaysBundle = await build({
+
+test('B1: a public store alone does not grant Shortstays publication', async () => {
+  const b = await build({
     stdin: { contents: "export * from './src/integrations/business-connect/shortstays';", resolveDir: process.cwd() },
-    bundle: true, write: false, format: 'esm', platform: 'node',
+    bundle:true, write:false, format:'esm',platform:'node',
   });
   const { createShortstaysBusinessConnect } = await import(
-    `data:text/javascript;base64,${Buffer.from(shortstaysBundle.outputFiles[0].text).toString('base64')}`
+    `data:text/javascript;base64,${Buffer.from(b.outputFiles[0].text).toString('base64')}`
   );
   const searches = [];
-  const bridge = createShortstaysBusinessConnect({
+  const store = {
     search: async q => { searches.push(q); return [result()]; },
     offer: async () => detail(),
+  };
+  const denyNetwork = createShortstaysBusinessConnect(store, {
+    evaluate: async () => ({
+      sellerKsNumber:'KS-101',offerId:'floodlight-1',
+      targetSurface:'SHORTSTAYS',status:'NOT_ELIGIBLE',
+      publicationVersion:1,validUntil:'2099-01-01T00:00:00Z',
+    }),
   });
-  const listings = await bridge.findCandidateListingsForGuest({ category:'solar', area:'Naivasha' });
-  assert.equal(listings.status,'ready');
+  const noMatches = await denyNetwork.findCandidateListingsForGuest({category:'solar',area:'Naivasha'});
+  assert.equal(noMatches.status,'ready');
+  assert.equal(noMatches.results.length,0);
+  assert.equal(noMatches.filteredCount,1);
   assert.deepEqual(searches,[{kind:'PRODUCT',category:'solar',location:'Naivasha',limit:10}]);
-  const inspected = await bridge.inspectMerchantOffer('KS-101','floodlight-1');
-  const selection = bridge.useThisOffer(inspected,true);
-  assert.equal(selection.sourceOwnerKsNumber,'KS-101');
-  assert.equal('agreement' in selection,false);
+  await assert.rejects(() => denyNetwork.useThisOffer('KS-101','floodlight-1',true), /not available/);
+});
+
+test('B1: only fresh matching server approval permits a Shortstays offer to be selected', async () => {
+  const b = await build({
+    stdin: { contents: "export * from './src/integrations/business-connect/governed';", resolveDir: process.cwd() },
+    bundle:true, write:false, format:'esm',platform:'node',
+  });
+  const { createGovernedBusinessConnect } = await import(
+    `data:text/javascript;base64,${Buffer.from(b.outputFiles[0].text).toString('base64')}`
+  );
+  let decisions = 0;
+  let allowed = true;
+  const store = {search:async () => [result()],offer:async () => detail()};
+  const authority = {evaluate:async inp => {
+    decisions++;
+    return {...inp, status:allowed?'ELIGIBLE':'NOT_PUBLISHED', publicationVersion:3,validUntil:'2026-11-16T20:00:00Z'};
+  }};
+  const connector = createGovernedBusinessConnect(store,authority,()=>Date.parse('2026-11-16T17:00:00Z'));
+  const found = await connector.discover({surface:'SHORTSTAYS',kind:'PRODUCT',category:'solar'});
+  assert.equal(found.results.length,1);
+  await assert.rejects(() => connector.select('KS-101','floodlight-1','SHORTSTAYS',false), /Customer selection/);
+  const choice = await connector.select('KS-101','floodlight-1','SHORTSTAYS',true);
+  assert.equal(choice.sourceType,'STORE_LISTING');
+  assert.equal(choice.sourceOwnerKsNumber,'KS-101');
+  assert.equal(Object.hasOwn(choice,'agreementId'),false);
+  allowed=false; // Merchant withdraws cross-app permission.
+  await assert.rejects(() => connector.select('KS-101','floodlight-1','SHORTSTAYS',true),/not available/);
+  assert.ok(decisions>=3);
+});
+
+test('B1: wrong surface, identity, expired permission and lookup failures all fail closed', async () => {
+  const b = await build({
+    stdin: { contents: "export * from './src/integrations/business-connect/governed';", resolveDir: process.cwd() },
+    bundle:true, write:false,format:'esm',platform:'node',
+  });
+  const { createGovernedBusinessConnect } = await import(
+    `data:text/javascript;base64,${Buffer.from(b.outputFiles[0].text).toString('base64')}`
+  );
+  const store={search:async()=>[result()],offer:async()=>detail()};
+  const baseline={sellerKsNumber:'KS-101',offerId:'floodlight-1',targetSurface:'SHORTSTAYS',
+    status:'ELIGIBLE',publicationVersion:1,validUntil:'2026-11-17T00:00:00Z'};
+  for(const altered of [
+    {...baseline,sellerKsNumber:'KS-999'},
+    {...baseline,targetSurface:'ESTATE'},
+    {...baseline,validUntil:'2026-11-15T00:00:00Z'},
+    {...baseline,publicationVersion:0},
+  ]) {
+    const guarded=createGovernedBusinessConnect(store,{evaluate:async()=>altered},()=>Date.parse('2026-11-16T17:00:00Z'));
+    const found=await guarded.discover({surface:'SHORTSTAYS',kind:'PRODUCT',category:'solar'});
+    assert.deepEqual(found.results,[]);
+  }
+  const broken=createGovernedBusinessConnect(store,{evaluate:async()=>{throw Error('network offline')}});
+  const found=await broken.discover({surface:'SHORTSTAYS',kind:'PRODUCT',category:'solar'});
+  assert.deepEqual(found.results,[]);
+});
+
+test('B1 knowledge: merchant teaching drafts are private until backend review', async () => {
+  const bundle=await build({
+    stdin:{contents:"export * from './src/integrations/business-connect/knowledge';",resolveDir:process.cwd()},
+    bundle:true,write:false,format:'esm',platform:'node',
+  });
+  const know=await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString('base64')}`);
+  const drafted=know.prepareBusinessKnowledgeDraft({
+    businessKsNumber:'KS-101',topic:'DELIVERY',origin:'MERCHANT_ENTRY',
+    content:'  Confirm same-day delivery with the merchant.  ',
+  });
+  assert.equal(drafted.audience,'MERCHANT_PRIVATE');
+  assert.equal(drafted.content,'Confirm same-day delivery with the merchant.');
+  assert.equal(Object.hasOwn(drafted,'status'),false);
+  assert.throws(()=>know.prepareBusinessKnowledgeDraft({
+    businessKsNumber:'INVALID',topic:'FAQ',origin:'MERCHANT_ENTRY',content:'Hello',
+  }),/Business KSNumber/);
+});
+
+test('B1 knowledge: no cross-store leakage, unapproved drafts, private policy or stale facts', async () => {
+  const bundle=await build({
+    stdin:{contents:"export * from './src/integrations/business-connect/knowledge';",resolveDir:process.cwd()},
+    bundle:true,write:false,format:'esm',platform:'node',
+  });
+  const know=await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString('base64')}`);
+  const shared={businessKsNumber:'KS-101',topic:'DELIVERY',audience:'CUSTOMER_VISIBLE',
+    origin:'MERCHANT_ENTRY',content:'Deliver to approved areas',sourceReference:'catalogue-3',
+    recordId:'know-1',status:'APPROVED',approvedByIdentityId:'owner-1',
+    approvedAt:'2026-11-16T10:00:00Z',currentUntil:'2026-11-17T00:00:00Z',version:2};
+  const records=[
+    shared,
+    {...shared,recordId:'other',businessKsNumber:'KS-999'},
+    {...shared,recordId:'draft',status:'DRAFT'},
+    {...shared,recordId:'expired',currentUntil:'2026-11-15T00:00:00Z'},
+    {...shared,recordId:'not-reviewed',approvedByIdentityId:null},
+    {...shared,recordId:'private',audience:'MERCHANT_PRIVATE',content:'Supplier cost price'},
+    {...shared,recordId:'internal',audience:'ASSISTANT_INSTRUCTION',content:'Ask before promising delivery'},
+  ];
+  const ctx=know.storeGuideKnowledgeContext('KS-101',records,Date.parse('2026-11-16T17:00:00Z'));
+  assert.deepEqual(ctx.customerFacts.map(x=>x.recordId),['know-1']);
+  assert.deepEqual(ctx.privateInstructions.map(x=>x.recordId),['internal']);
+  assert.equal(JSON.stringify(ctx).includes('Supplier cost price'),false);
+  assert.equal(JSON.stringify(ctx).includes('KS-999'),false);
+});
+
+test('B1 gateway: merchant settings use authenticated APIs and public offer reads never grant authority', async () => {
+  const clientBundle = await build({
+    stdin: { contents:"export * from './src/api/securepay/business-connect';", resolveDir:process.cwd() },
+    bundle:true,write:false,format:'esm',platform:'node',
+  });
+  const { createBusinessConnectGateway } = await import(
+    `data:text/javascript;base64,${Buffer.from(clientBundle.outputFiles[0].text).toString('base64')}`
+  );
+  const calls = [];
+  const http = { request: async (path, options) => {
+    calls.push({path,options});
+    if(path.includes('network-eligibility')) return {
+      sellerKsNumber:'KS101',offerId:'offer-1',targetSurface:'SHORTSTAYS',
+      status:'NOT_ELIGIBLE',publicationVersion:1,validUntil:'2026-11-16T18:00:00Z',
+    };
+    return {businessKsNumber:'KS101', enabledSurfaces:[],
+      publicationVersion:1,updatedAt:'2026-11-16T18:00:00Z'};
+  }};
+  const gateway = createBusinessConnectGateway(http);
+  const result = await gateway.publication.evaluate({
+    sellerKsNumber:'KS101',offerId:'offer-1',targetSurface:'SHORTSTAYS',
+  });
+  assert.equal(result.status,'NOT_ELIGIBLE');
+  await gateway.myPublication('KS101');
+  await gateway.replaceMyPublication('KS101',['SHORTSTAYS'],1);
+  assert.equal(calls[0].options.auth,'none');
+  assert.match(calls[0].path,/network-eligibility\\?surface=SHORTSTAYS$/);
+  assert.equal(calls[1].options.auth,'required');
+  assert.equal(calls[2].options.auth,'required');
+  assert.equal(calls[2].options.method,'PUT');
+  assert.equal(calls[2].options.body.expectedVersion,1);
+  assert.deepEqual(calls[2].options.body.enabledSurfaces,['SHORTSTAYS']);
+  assert.equal(calls[2].options.body.acknowledgement,'I_APPROVE_SELECTED_SECUREPAY_APP_DISTRIBUTION');
+});
+
+test('B1 UI: Business settings and Shortstays adapter are both wired through shared connectors', async () => {
+  const fs = await import('node:fs/promises');
+  const experience = await fs.readFile('src/features/business/BusinessExperience.tsx','utf8');
+  const runtime = await fs.readFile('src/RuntimeApp.tsx','utf8');
+  const router = await fs.readFile('src/features/agent/AgentExperience.tsx','utf8');
+  const core = await fs.readFile('src/api/securepay/index.ts','utf8');
+  const shortstays = await fs.readFile('src/integrations/business-connect/shortstays.ts','utf8');
+  assert.match(experience,/BusinessNetworkVisibilityPanel/);
+  assert.match(runtime,/businessConnectGateway=\\{businessConnectGateway\\}/);
+  assert.match(router,/networkGateway=\\{businessConnectGateway\\}/);
+  assert.match(core,/businessConnect: createBusinessConnectGateway/);
+  assert.match(shortstays,/createGovernedBusinessConnect/);
 });
