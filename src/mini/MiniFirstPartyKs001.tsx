@@ -611,8 +611,8 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
         onBack={()=>setSellerOpen(false)}
         onInvitations={()=>{setSellerOpen(false);openPeople('inbox');}}
         onSellerDiscuss={discussSellerQuotation}
-        onPrepareOffer={context=>{if(!signedIn||demo)return;
-          setSellerOfferContext(context);}}
+        onPrepareOffer={!demo&&signedIn
+          ?context=>setSellerOfferContext(context):undefined}
       />}
     {status==='ready' && !identityOpen && sellerOpen && sellerOfferContext && signedIn && !demo &&
       <MiniSellSomething
