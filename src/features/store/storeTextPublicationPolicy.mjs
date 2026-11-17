@@ -61,3 +61,22 @@ export function storePublishedTextEditReview(current,draft) {
     return {ok:false,reason:'LEGACY_LISTING_REQUIRES_SEPARATE_EDIT'};
   return {ok:true,offerId:current.id,expectedUpdatedAt:current.updatedAt};
 }
+
+/** Independently recheck an already-public listing before a CAS text edit. */
+export function storePublishedTextEditFresh(original,current) {
+  if(!original || !current ||
+     original.published !== true || current.published !== true ||
+     current.id !== original.id ||
+     current.updatedAt !== original.updatedAt ||
+     current.kind !== original.kind ||
+     current.title !== original.title ||
+     (current.description??'') !== (original.description??'') ||
+     current.priceMinor !== original.priceMinor ||
+     current.quantityAvailable !== null || original.quantityAvailable !== null ||
+     current.availabilityState !== 'NEEDS_CONFIRMATION' ||
+     original.availabilityState !== 'NEEDS_CONFIRMATION' ||
+     !Array.isArray(current.mediaRefs) || current.mediaRefs.length !== 0 ||
+     !Array.isArray(original.mediaRefs) || original.mediaRefs.length !== 0)
+     return {ok:false,reason:'PUBLISHED_STORE_REVISION_CHANGED'};
+  return {ok:true,expectedUpdatedAt:current.updatedAt};
+}
