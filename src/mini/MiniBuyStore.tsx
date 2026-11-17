@@ -290,7 +290,11 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
   const deliveryNeedsQuote=readiness.goods&&fulfilmentChoice!=='collect';
   const deliveryComplete=!deliveryNeedsQuote||
     (playground&&deliveryContractConfirmed&&deliveryContractState.ready);
-  const deliveryFeeMinor=playground?deliveryContractState.feeMinor:0;
+  const goodsSellers=[...new Set(cart.filter(line=>line.kind==='PRODUCT')
+    .map(line=>line.sellerKsNumber))];
+  const deliveryFeeMinor=playground&&deliveryQuoteSelected?
+    (fulfilmentChoice==='explore_combined'?45000:
+      fulfilmentChoice==='ask_sellers'?25000*goodsSellers.length:0):0;
   const unpriced=cart.filter(line=>line.priceMinor===null);
   const allPricesResolved=unpriced.every(line=>quoteAccepted[line.sellerKsNumber+':'+line.offerId]>0);
   const quotedMinor=cart.reduce((sum,line)=>sum+
@@ -300,7 +304,9 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
     ...(fulfilmentChoice==='explore_combined'&&deliveryQuoteSelected?['KS90004']:[])];
   const sampleMoneyReady=playground&&reviewed&&!checking&&!freshnessError&&
     readiness.readyToReview&&basketQuestions.complete&&sampleRequests&&allSampleAccepted&&
-    deliveryComplete&&allPricesResolved&&Number.isSafeInteger(sampleTotalMinor);
+    deliveryComplete&&allPricesResolved&&
+    (!deliveryNeedsQuote||deliveryContractState.feeMinor===deliveryFeeMinor)&&
+    Number.isSafeInteger(sampleTotalMinor);
   // A displayed total is illustrative: it is not a seller quote or provider amount.
   const total=readiness.totalMinor!==null&&readiness.currency==='KES'
     ? money(readiness.totalMinor,'KES'):null;
@@ -468,7 +474,7 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
                     <small>{fulfilmentChoice==='explore_combined'?
                       'One example trip to '+deliveryArea:
                       'Example delivery by each Store to '+deliveryArea}</small></span>
-                  <b>{money(fulfilmentChoice==='explore_combined'?45000:25000*sampleSellers.length,'KES')}</b>
+                  <b>{money(fulfilmentChoice==='explore_combined'?45000:25000*goodsSellers.length,'KES')}</b>
                   <button type="button" className="spm-secondary" disabled={deliveryQuoteSelected}
                     onClick={()=>{setDeliveryQuoteSelected(true);setDeliveryContractConfirmed(false);
                       setSavedNotice(false);resetSample();}}>
