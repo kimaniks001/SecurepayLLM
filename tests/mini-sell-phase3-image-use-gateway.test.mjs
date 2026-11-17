@@ -10,7 +10,8 @@ test('private pending image-use contract is typed and never a verified Identimar
   for(const field of ['conversationId','sourceArtifactId','expectedOfferUpdatedAt','origin','permissionToUse'])
     assert.match(dto,new RegExp(field));
   for(const status of ['PENDING_REVIEW','STALE_OFFER_REVIEW_REQUIRED',
-    'SOURCE_CHANGED_REVIEW_REQUIRED','REVOKED'])
+    'SOURCE_CHANGED_REVIEW_REQUIRED','REVOKED',
+    'MORE_INFORMATION_REQUIRED','ESCALATED','REJECTED'])
     assert.ok(dto.includes(status),status);
   assert.ok(!dto.includes("'VERIFIED'"));
   assert.ok(!dto.includes("'APPROVED'"));
@@ -33,4 +34,13 @@ test('seller demo does not pretend to activate an unshipped image endpoint or pu
   assert.ok(!seller.includes('registerBusinessImageUse('));
   assert.ok(!seller.includes('StoreImageUseResponse'));
   assert.match(seller,/image registration pending/);
+});
+
+
+test('independent image review is typed as owner-private remediation, never a server approval',()=>{
+  for(const outcome of ['MORE_INFORMATION_REQUIRED','ESCALATED','REJECTED'])
+    assert.ok(dto.includes("'"+outcome+"'"),outcome);
+  assert.ok(!dto.includes("'APPROVED'"));
+  assert.ok(!dto.includes("'VERIFIED'"));
+  assert.ok(!seller.includes('StoreImageIndependentReviewController'));
 });
