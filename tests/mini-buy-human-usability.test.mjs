@@ -84,10 +84,10 @@ test('Delivery allocation does not accidentally include a Store that sells only 
 test('Phone UX: key actions show progress, never strand a shopper on hidden errors',()=>{
  const shop=read('src/mini/MiniStoreGallery.tsx');
  const buy=read('src/mini/MiniBuyStore.tsx');
- assert.match(shop,/Opening Store/); // supplied through the parent
+ assert.match(buy,/Opening Store/); // supplied through the parent
  assert.match(shop,/role="status">\{busyText\}/);
  assert.match(shop,/role="alert"/);
- assert.match(shop,/onRetry\(\)/);
+ assert.match(shop,/onClick=\{onRetry\}/);
  assert.match(shop,/onAdd:\(offer:PublicOfferView,quantity:number\)=>boolean/);
  assert.match(shop,/Your basket is full or this quantity is already at its limit/);
  assert.match(buy,/window.scrollTo\(0,0\)/);
