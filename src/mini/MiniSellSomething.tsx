@@ -73,7 +73,7 @@ function writeDescription(input:{
  * Identity, Agreement, media-provenance, invitation, SecureLink or Money writes.
  * Local declaration is not verification; local output is not a canonical offer.
  */
-export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,onBrowseStores,actingAs,seed='',storeGateway,sellerContext,agreementGateway,handoffGateway,sellerSavedSource}:{
+export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,onBrowseStores,actingAs,seed='',storeGateway,sellerContext,agreementGateway,handoffGateway,sellerSavedSource,onPrepareInKs001}:{
   language:MiniLanguage;onBack:()=>void;onOpenStore:()=>void;onOpenSettings:()=>void;
   onBrowseStores:()=>void;actingAs:string;seed?:string;
   storeGateway?:StoreGateway;
@@ -82,6 +82,9 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
   handoffGateway?:MiniSellerHandoffGateway;
   /** Trusted saved KS001 conversation context, never a local Mini draft ID. */
   sellerSavedSource?:{conversationId:string;reviewedTradeContextVersion:number};
+  /** Deliberate user-authored turn in an actual authenticated KS001 conversation. */
+  onPrepareInKs001?:(statement:string)=>Promise<
+    {conversationId:string;reviewedTradeContextVersion:number}|null>;
 }) {
   const sw=language==='sw';
   const [stage,setStage]=useState<'compose'|'review'|'result'>('compose');
@@ -139,6 +142,10 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
   const shareKey=useRef<string|null>(null);
   const handoffKey=useRef<string|null>(null);
   const [handoffBusy,setHandoffBusy]=useState(false);
+  const [sourceSaving,setSourceSaving]=useState(false);
+  const [trustedSellerSource,setTrustedSellerSource]=useState<
+    {conversationId:string;reviewedTradeContextVersion:number}|null>(null);
+  const [sourceSignature,setSourceSignature]=useState<string|null>(null);
   const [handoffMessage,setHandoffMessage]=useState('');
   const [serverReview,setServerReview]=useState<MiniSellerReviewedHandoff|null>(null);
   const [reviewAcknowledged,setReviewAcknowledged]=useState(false);
@@ -162,6 +169,8 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
   const offerSignature=JSON.stringify([prepared.ok?prepared.offerTerms:null,
     pictures.map(p=>p.localDigest||null),rightToOffer,stockStatement]);
   const unchangedAfterReview=reviewedOfferSignature===offerSignature;
+  const linkedKs001Source=trustedSellerSource??sellerSavedSource;
+  const sourceMatchesOffer=sellerSavedSource?true:sourceSignature===offerSignature;
   const invalidPrice=priceType==='fixed' && !readableAmount(price);
   const suspicious=useMemo(()=>/\b(?:stolen|counterfeit|fake passport|ivory|illegal drugs|firearms?|ammunition)\b/i.test(title+' '+description),[title,description]);
   const sensitive=useMemo(()=>/\b(?:medicine|pharmaceutical|pesticide|alcohol|vehicle registration)\b/i.test(title+' '+description),[title,description]);
@@ -329,16 +338,52 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
       }
     }finally{setStorePublishing(false);}
   };
+  const prepareOfferInKs001=async()=>{
+    if(!onPrepareInKs001||!prepared.ok||!canOffer||sourceSaving||handoffBusy||
+       realDraftAgreement||proposedAgreement)return;
+    const offer=prepared.offerTerms;
+    const price=offer.pricing.priceMinor===null
+      ?'Price to agree'
+      :'KSh '+(offer.pricing.priceMinor/100).toLocaleString('en-KE',{maximumFractionDigits:2})+
+        ' per '+offer.pricing.per;
+    // Seller-authored, explicit transcript statement only. No images, filenames,
+    // phone numbers, unverified identities or silent product publication.
+    const statement=[
+      'I am offering to sell: '+offer.title+'.',
+      offer.description?'Description: '+offer.description+'.':'',
+      'Price proposed: '+price+'.',
+      offer.quantityRequested!==null?'Proposed quantity: '+offer.quantityRequested+'.':'',
+      offer.fulfilment.placeLabel?'Proposed place: '+offer.fulfilment.placeLabel+'.':'',
+      offer.fulfilment.timingProposal?'Proposed timing: '+offer.fulfilment.timingProposal+'.':'',
+      offer.fulfilment.availabilityDeclaration?'Seller says: '+offer.fulfilment.availabilityDeclaration+'.':'',
+      'Please help me prepare a Fair Trade Agreement for buyer review. My statements are unverified. Nothing is accepted, published or paid.'
+    ].filter(Boolean).join(' ').slice(0,1200);
+    setSourceSaving(true);setHandoffMessage('');
+    try {
+      const source=await onPrepareInKs001(statement);
+      if(source?.conversationId&&Number.isSafeInteger(source.reviewedTradeContextVersion)){
+        setTrustedSellerSource(source);
+        setSourceSignature(offerSignature);
+        setServerReview(null);
+        setReviewAcknowledged(false);
+        setReviewedOfferSignature(null);
+        handoffKey.current=null;
+        setHandoffMessage('KS001 has recorded your offer. Now review the Agreement it prepares.');
+      }else{
+        setHandoffMessage('KS001 could not confirm your offer. Check the current conversation before trying again.');
+      }
+    }finally{setSourceSaving(false);}
+  };
   const reviewSavedOfferInSecurePay=async()=>{
-    if(!handoffGateway||!sellerSavedSource||!prepared.ok||!canOffer||
+    if(!handoffGateway||!linkedKs001Source||!sourceMatchesOffer||!prepared.ok||!canOffer||
         handoffBusy||realDraftAgreement)return;
     setHandoffBusy(true);setHandoffMessage('');
     try {
       handoffKey.current??=crypto.randomUUID();
       const started=await miniSellerBeginAgreementHandoff({
         gateway:handoffGateway,
-        conversationId:sellerSavedSource.conversationId,
-        reviewedTradeContextVersion:sellerSavedSource.reviewedTradeContextVersion,
+        conversationId:linkedKs001Source.conversationId,
+        reviewedTradeContextVersion:linkedKs001Source.reviewedTradeContextVersion,
         clientActionId:handoffKey.current,confirmed:true
       });
       if(!started.ok){
@@ -937,10 +982,17 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
         {!!timing&&<div className="spm-sell-review-line"><CalendarDays size={15}/>{timing}</div>}
         {personPlan&&<div className="spm-sell-review-line"><UserRoundPlus size={15}/>{personPlan==='later'?'Other person to be agreed':'Buyer to be invited later'}</div>}
       </div>
-      {result==='share'&&handoffGateway&&agreementGateway&&sellerSavedSource&&prepared.ok&&canOffer&&<>
+      {result==='share'&&handoffGateway&&agreementGateway&&prepared.ok&&canOffer&&(onPrepareInKs001||linkedKs001Source)&&<>
         <div className="spm-sell-review-card">
           <strong>Prepare the Agreement</strong>
-          {!serverReview&&!realDraftAgreement&&<button type="button"
+          {onPrepareInKs001&&(!linkedKs001Source||!sourceMatchesOffer)&&
+            <button type="button" className="spm-secondary spm-sell-wide"
+              disabled={sourceSaving||handoffBusy} onClick={prepareOfferInKs001}>
+              <MessageCircle size={16}/>{sourceSaving?'Preparing…':'Prepare these terms in KS001'}
+            </button>}
+          {!sourceMatchesOffer&&linkedKs001Source&&
+            <p className="spm-sell-hint">Your offer changed. Ask KS001 to review the new terms first.</p>}
+          {!serverReview&&!realDraftAgreement&&linkedKs001Source&&sourceMatchesOffer&&<button type="button"
             className="spm-secondary spm-sell-wide"
             disabled={handoffBusy}
             onClick={reviewSavedOfferInSecurePay}>
