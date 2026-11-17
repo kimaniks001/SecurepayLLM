@@ -53,9 +53,19 @@ export function makeSampleLivingPurchase({lines,rail,delivery,deliveryFeeMinor=0
   sellerKsNumber:l.sellerKsNumber,sellerName:l.sellerName,title:l.title,
   quantity:l.quantity,amountMinor:l.priceMinor*l.quantity,
  }));
- if(deliveryProvider&&deliveryFeeMinor>0)
+ if(deliveryProvider==='KS90004'&&deliveryFeeMinor>0)
   items.push({sellerKsNumber:'KS90004',sellerName:'Kamakis Transport · Sample',
-    title:'Fictional delivery arrangement',quantity:1,amountMinor:deliveryFeeMinor});
+    title:'One example delivery',quantity:1,amountMinor:deliveryFeeMinor});
+ if(deliveryProvider==='SELLERS'&&deliveryFeeMinor>0){
+  const sellers=[...new Set(lines.map(l=>l.sellerKsNumber))];
+  const perSeller=Math.floor(deliveryFeeMinor/sellers.length);
+  sellers.forEach((seller,i)=>items.push({
+   sellerKsNumber:seller,sellerName:lines.find(l=>l.sellerKsNumber===seller).sellerName,
+   title:'Separate example delivery by this Store',quantity:1,
+   amountMinor:i===sellers.length-1?
+     deliveryFeeMinor-perSeller*(sellers.length-1):perSeller,
+  }));
+ }
  const total=items.reduce((acc,l)=>acc+l.amountMinor,0);
  if(!Number.isSafeInteger(total))return null;
  const ts=now instanceof Date&&Number.isFinite(now.getTime())?now.toISOString():new Date().toISOString();
