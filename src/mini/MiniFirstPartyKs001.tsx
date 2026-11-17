@@ -10,6 +10,7 @@ import { createAgreementGateway } from '../api/securepay/agreements';
 import { createBusinessGateway } from '../api/securepay/business';
 import { createAuthorizationGateway } from '../api/securepay/authorization';
 import { createSubscriptionGateway } from '../api/securepay/subscription';
+import {createMiniBusinessPreferencesGateway} from '../api/securepay/mini-business-preferences';
 import { MiniSellerStore } from './MiniSellerStore';
 import { MiniSellSomething } from './MiniSellSomething';
 import { createStoreGateway } from '../api/securepay/store';
@@ -98,6 +99,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
   const businesses=useMemo(()=>createBusinessGateway(http),[http]);
   const authorizations=useMemo(()=>createAuthorizationGateway(http),[http]);
   const subscriptions=useMemo(()=>createSubscriptionGateway(http),[http]);
+  const businessPreferences=useMemo(()=>createMiniBusinessPreferencesGateway(http),[http]);
   // NO real seller/buyer quote requests just because someone opened Mini.
   // Enabled only in isolated stage when the matching M5 API branch is present.
   const liveQuotes=!demo &&
@@ -623,6 +625,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
     {status==='ready' && !identityOpen && sellerOpen && !sellerOfferContext &&
       <MiniSellerStore storeGateway={stores} businessGateway={businesses}
         subscriptionGateway={demo?undefined:subscriptions}
+        preferencesGateway={demo?undefined:businessPreferences}
         authorizationGateway={demo?undefined:authorizations}
         visibilityEnabled={!demo&&signedIn}
         quotationGateway={quotations} liveQuotes={liveQuotes}
