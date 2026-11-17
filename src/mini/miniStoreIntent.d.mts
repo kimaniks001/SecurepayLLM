@@ -8,4 +8,4 @@ export interface MiniStoreIntent {
  source:{sourceId:string;sourceOwnerKsNumber:string;sourceDescription:string}|null;
  distinctSellers:number;
 }
-export declare function miniStoreIntent(lines:MiniStorePlanLine[]):MiniStoreIntent|null;
+export declare function miniStoreIntent(lines:MiniStorePlanLine[],options?:{fulfilmentPreference?:'collect'|'ask_sellers'|'explore_combined'|null}):MiniStoreIntent|null;
