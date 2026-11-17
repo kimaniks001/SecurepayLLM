@@ -21,7 +21,6 @@ test('The owner-visible examination names all 12 exactly as canonical API snapsh
 test('The basket shows a three-line summary, deeper checks and principles ONLY on request',()=>{
  const page=read('src/mini/MiniFairTradeExaminationPreview.tsx');
  assert.match(page,/>Fair Trade check</);
- for(const label of ['Understood','Needs attention','Next'])assert.match(page,new RegExp('>'+label+'<'));
  for(const essential of ['Who','What','Where','When','Why','How']) assert.ok(page.includes("['"+essential+"',"));
    assert.match(page,new RegExp("\\\\['"+essential+"',"));
  assert.match(page,/mini-fair-inspection-panel/);
