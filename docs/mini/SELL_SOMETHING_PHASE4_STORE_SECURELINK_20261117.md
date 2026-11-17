@@ -23,7 +23,7 @@ Use SecurePay's existing **standard** SecureLink presentation. No theme, card cu
 
 ## Not yet complete
 
-- No verified canonical seller-offer → Agreement creation and binding is supplied by Mini, so ordinary **Share with buyer** still shows a proposal preview, not a live SecureLink. Do not pass a Store offer ID as an Agreement ID. The seller must approve a canonical Agreement/version and server authority must check it.
+- The canonical handoff adapter and optional staged UI are now drafted in `miniSellerAgreementHandoff.mjs` and Mini, using genuine KS001 saved-conversation review/version/digest and separate draft/propose actions. **The real Mini shell still does not supply an authenticated saved source, so ordinary Share with buyer remains a local proposal preview, not a live SecureLink.** Never pass a Store offer ID as an Agreement ID. See `docs/mini/SELL_SOMETHING_PHASE4_CANONICAL_AGREEMENT_HANDOFF_20261117.md`.
 - The existing `MiniExperience` Sell Something owner example is mounted only in the isolated `miniTradeDemo` environment; it does **not** pass real Store or Agreement gateways. Hence real write buttons remain absent there.
 - Store publishing of text-only offers, keeping the full Fair Trade offer provenance in the canonical Agreement, account session and Business delegation gates, double-submit idempotence, server-side authorization, end-to-end contracts, and Vercel preview integration tests are not yet certified.
 - Phase 3 public photo approvals, real Identimarks, image CDN serving and dispute/takedown release blockers remain **disabled and unresolved**.
@@ -31,7 +31,7 @@ Use SecurePay's existing **standard** SecureLink presentation. No theme, card cu
 ## Next implementation tasks
 
 1. Implement proper authenticated Mini seller context selection from the actual KSNumber membership, rather than a sample name.
-2. Prepare a canonical Agreement from reviewed seller offer terms; preserve exact source/offer revision and permissions, use backend-generated version, and obtain explicit seller confirmation.
+2. Connect the now-coded canonical handoff path to a real seller-authored saved KS001 conversation, preserving the exact reviewed Trade Context version and candidate digest; verify server review, source ownership and user permissions before enabling it.
 3. Route the independent Share exit through the existing proposed Agreement SecureLink doorway, show only its server-issued URL; use the existing Agreement manage workflow for earlier links.
 4. Route the independent Store exit through the guarded unpublished Store draft, then add separate owner-authorized text-only publish action with fresh availability check.
 5. Run focused Node tests, TypeScript/Vite, Java 21/Gradle and PostgreSQL/Flyway/security and concurrency certification in a complete repository checkout. Do not merge the stacked draft before Phase 3 safeguards and backend dependencies are reconciled.
