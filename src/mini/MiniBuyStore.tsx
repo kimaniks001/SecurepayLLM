@@ -123,7 +123,7 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
       if (prior) return old.map(line => line === prior ? {...line, quantity: Math.min(20, line.quantity + count)} : line);
       if (old.length >= 20) return old;
       return [...old, {sellerKsNumber: chosenStore.canonicalKsNumber, sellerName: chosenStore.displayName,
-        offerId: offer.id, title: offer.title, kind:offer.kind, quantity: count,
+        offerId: offer.id, title: offer.title, kind:offer.kind as MiniStorePlanLine['kind'], quantity: count,
         priceMinor: offer.priceMinor, currency: offer.currency,
         offerUpdatedAt: offer.updatedAt, availabilityState: offer.availabilityState}];
     });
