@@ -1,4 +1,4 @@
-export type MiniSampleRail='MPESA'|'CARD'|'BANK';
+export type MiniSampleRail='CHOICE_KS_ACCOUNT'|'MPESA_STK'|'PESALINK';
 export type MiniSampleItem={sellerKsNumber:string;sellerName:string;title:string;quantity:number;amountMinor:number};
 export type MiniSampleProgress={title:string;status:'done'|'current'|'upcoming'};
 export type MiniSamplePurchase={id:string;title:string;amountMinor:number;rail:MiniSampleRail;
