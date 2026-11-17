@@ -13,6 +13,7 @@ import type { MiniSellerHandoffGateway, MiniSellerReviewedHandoff } from './mini
 import { miniSellerCreateCanonicalStoreDraft } from './miniSellerCanonicalStoreBridge.mjs';
 import { miniSellerPublishTextOnly } from './miniSellerPublishTextOnly.mjs';
 import { miniSellerKs001Statement } from './miniSellerKs001Statement.mjs';
+import { MiniSellSecureLinkWalkthrough } from './MiniSellSecureLinkWalkthrough';
 import { miniSellerIssueAgreementDoorway } from './miniSellerSecureLinkDoorway.mjs';
 import { miniSellerBeginAgreementHandoff, miniSellerReviewAgreementHandoff,
   miniSellerCreateReviewedAgreement, miniSellerProposeAgreement } from './miniSellerAgreementHandoff.mjs';
@@ -75,7 +76,7 @@ function writeDescription(input:{
  * Identity, Agreement, media-provenance, invitation, SecureLink or Money writes.
  * Local declaration is not verification; local output is not a canonical offer.
  */
-export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,onBrowseStores,actingAs,seed='',storeGateway,sellerContext,agreementGateway,handoffGateway,sellerSavedSource,onPrepareInKs001}:{
+export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,onBrowseStores,actingAs,seed='',storeGateway,sellerContext,agreementGateway,handoffGateway,sellerSavedSource,onPrepareInKs001,previewSecureLinkJourney=false}:{
   language:MiniLanguage;onBack:()=>void;onOpenStore:()=>void;onOpenSettings:()=>void;
   onBrowseStores:()=>void;actingAs:string;seed?:string;
   storeGateway?:StoreGateway;
@@ -87,6 +88,8 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
   /** Deliberate user-authored turn in an actual authenticated KS001 conversation. */
   onPrepareInKs001?:(statement:string)=>Promise<
     {conversationId:string;reviewedTradeContextVersion:number}|null>;
+  /** Isolated owner demo only; never provide a real SecureLink or account gateway. */
+  previewSecureLinkJourney?:boolean;
 }) {
   const sw=language==='sw';
   const [stage,setStage]=useState<'compose'|'review'|'result'>('compose');
@@ -518,7 +521,7 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
   return <section className="spm-content spm-sell" data-mini-sell-something="preview">
     <button type="button" className="spm-back" onClick={sellerArea!=='offer'?()=>setSellerArea('offer'):stage==='compose'?onBack:()=>{setStage(stage==='result'?'review':'compose');setError('');}}>
       <ArrowLeft size={18}/>{sellerArea!=='offer'?'Sell something':stage==='compose'?'Mini':stage==='result'?'Offer review':'Change offer'}</button>
-    <div className="spm-persona"><ShieldCheck size={15}/><span>Sell something</span><span className="spm-dot"/><span>Owner preview</span></div>
+    <div className="spm-persona"><ShieldCheck size={15}/><span>Sell something</span><span className="spm-dot"/><span>{previewSecureLinkJourney?'Owner walkthrough':'SecurePay Mini'}</span></div>
     {stage==='compose'&&sellerArea==='quick'&&<div className="spm-sell-phase1-destination" data-seller-phase1="quick-contract">
       <div className="spm-sell-phase1-symbol"><Handshake size={25}/></div>
       <h1 className="spm-question">Quick Contract</h1>
@@ -992,6 +995,16 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
         {!!timing&&<div className="spm-sell-review-line"><CalendarDays size={15}/>{timing}</div>}
         {personPlan&&<div className="spm-sell-review-line"><UserRoundPlus size={15}/>{personPlan==='later'?'Other person to be agreed':'Buyer to be invited later'}</div>}
       </div>
+      {result==='share'&&previewSecureLinkJourney&&!agreementGateway&&!handoffGateway&&prepared.ok&&
+        <MiniSellSecureLinkWalkthrough
+          key={offerSignature}
+          title={title}
+          description={descriptionReviewed?description:''}
+          moneyText={prepared.summary.moneyText}
+          place={place}
+          timing={timing}
+          onChangeOffer={()=>{setStage('review');setResult(null);}}
+        />}
       {result==='share'&&sellerContext?.type==='business'&&!onPrepareInKs001&&
         <p className="spm-sell-hint">To share as this Business, open KS001 to confirm who may represent it in the Agreement. This offer has not been sent.</p>}
       {result==='share'&&handoffGateway&&agreementGateway&&prepared.ok&&canOffer&&(onPrepareInKs001||linkedKs001Source)&&<>
