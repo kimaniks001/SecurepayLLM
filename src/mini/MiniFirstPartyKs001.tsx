@@ -9,6 +9,7 @@ import { createAuthGateway } from '../api/securepay/auth';
 import { createAgreementGateway } from '../api/securepay/agreements';
 import { createBusinessGateway } from '../api/securepay/business';
 import { MiniSellerStore } from './MiniSellerStore';
+import { MiniSellSomething } from './MiniSellSomething';
 import { createStoreGateway } from '../api/securepay/store';
 import { createStoreQuotationGateway } from '../api/securepay/store-quotations';
 import { createMeasuredServicesGateway } from '../api/securepay/measured-services';
@@ -144,6 +145,8 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
     typeof window!=='undefined' &&
     new URLSearchParams(window.location.search).get('moneyTest')==='1');
   const [sellerOpen,setSellerOpen] = useState(false);
+  const [sellerOfferContext,setSellerOfferContext]=useState<
+    {type:'personal'}|{type:'business';businessKsNumber:string}|null>(null);
   const [ownedOpen,setOwnedOpen] = useState(false);
   const [ownedStatus,setOwnedStatus] = useState<'idle'|'loading'|'ready'|'error'>('idle');
   const [ownedList,setOwnedList] = useState<MiniSavedWorkItem[]>([]);
@@ -331,7 +334,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
     if(!signedIn){
       setIdentityGoal('seller');setIdentityOpen(true);return;
     }
-    setSellerOpen(true);
+    setSellerOfferContext(null);setSellerOpen(true);
   };
   const initialStoreHandled = useRef(false);
   useEffect(() => {
@@ -464,6 +467,28 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
       return false;
     }finally{setStoreBusy(false);}
   };
+  // Seller explicitly sends her own reviewed offer into the existing,
+  // signed-in KS001 conversation; no invented conversation or source IDs.
+  // This does not create an Agreement, mark stock verified or send Money.
+  const prepareSellerOfferInKs001=async(statement:string):Promise<
+    {conversationId:string;reviewedTradeContextVersion:number}|null>=>{
+    if(!signedIn||demo||status!=='ready'||state.busy||!!state.pending||
+       typeof statement!=='string'||!statement.trim()||statement.length>1200)
+      return null;
+    try{
+      await ensureFreshSession(session,auth);
+      await pair.controller.send(statement);
+      const snapshot=pair.controller.getSnapshot();
+      if(snapshot.busy||snapshot.pending||snapshot.error||!snapshot.conversationId)
+        return null;
+      const context=await pair.gateway.readContext(snapshot.conversationId);
+      if(context.conversationId!==snapshot.conversationId ||
+         !Number.isSafeInteger(context.version) || context.version<0)
+        return null;
+      return {conversationId:snapshot.conversationId,
+        reviewedTradeContextVersion:context.version};
+    }catch{return null;}
+  };
   const retryStoreSource = async () => {
     const plan=heldStorePlan;
     if(!plan||!plan.source||storeBusy||state.busy||!!state.pending)return;
@@ -485,6 +510,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
     // Explicit privacy boundary: never leave one signed-in person's saved
     // transcript or account list visible after their token is dropped.
     session.clear();
+    setSellerOfferContext(null);
     pair.gateway.forgetResumableConversation();
     setOwnedList([]);setOwnedOpen(false);setPeopleOpen(null);setAgreementsOpen(false);setSellerOpen(false);setIdentityOpen(false);
     setMoneyOwnerOpen(false);setStoreOpen(false);setHeldStorePlan(null);setStoreError('');
@@ -496,6 +522,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
   const reset = () => {
     if (!resetAsked) {setResetAsked(true);return;}
     pair.gateway.forgetResumableConversation();
+    setSellerOfferContext(null);
     try {sessionStorage.removeItem(expiredKey);} catch { /* blocked storage */ }
     setMessage('');setResetAsked(false);setReview(null);setReviewError('');
     setOwnedOpen(false);setPeopleOpen(null);setAgreementsOpen(false);setSellerOpen(false);setOwnedError('');setSavedNotice('');
@@ -577,13 +604,29 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
         language={language}
         onBack={()=>setMoneyOwnerOpen(false)}/>
     )}
-    {status==='ready' && !identityOpen && sellerOpen &&
+    {status==='ready' && !identityOpen && sellerOpen && !sellerOfferContext &&
       <MiniSellerStore storeGateway={stores} businessGateway={businesses}
         quotationGateway={quotations} liveQuotes={liveQuotes}
         prepare={()=>ensureFreshSession(session,auth)}
         onBack={()=>setSellerOpen(false)}
         onInvitations={()=>{setSellerOpen(false);openPeople('inbox');}}
         onSellerDiscuss={discussSellerQuotation}
+        onPrepareOffer={context=>{if(!signedIn||demo)return;
+          setSellerOfferContext(context);}}
+      />}
+    {status==='ready' && !identityOpen && sellerOpen && sellerOfferContext && signedIn && !demo &&
+      <MiniSellSomething
+        key={sellerOfferContext.type==='personal'?'personal':sellerOfferContext.businessKsNumber}
+        language={language} actingAs={sellerOfferContext.type==='personal'
+          ?'My personal Store':'Business Store · '+sellerOfferContext.businessKsNumber}
+        onBack={()=>setSellerOfferContext(null)}
+        onOpenStore={()=>setSellerOfferContext(null)}
+        onOpenSettings={()=>setSellerOfferContext(null)}
+        onBrowseStores={()=>{setSellerOfferContext(null);setSellerOpen(false);setStoreOpen(true);}}
+        storeGateway={stores} sellerContext={sellerOfferContext}
+        agreementGateway={agreements} handoffGateway={pair.gateway}
+        onPrepareInKs001={sellerOfferContext.type==='personal'
+          ?prepareSellerOfferInKs001:undefined}
       />}
     {status==='ready' && !identityOpen && !peopleOpen && !agreementsOpen && !sellerOpen && !moneyOwnerOpen && <>
       <button type="button" className="spm-secondary spm-mini-store-entry"
