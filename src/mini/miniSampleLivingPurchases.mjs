@@ -5,18 +5,18 @@
  * Never import into any production AgreementGateway or payment provider.
  */
 export const SAMPLE_PURCHASE_KEY='securepay.mini.owner-only-living-purchases.v1';
-export const SAMPLE_RAILS=['MPESA','CARD','BANK'];
+export const SAMPLE_RAILS=['CHOICE_KS_ACCOUNT','MPESA_STK','PESALINK'];
 const MAX_STORED=12;
 const DEMOS=[
  {id:'DEMO-ESTATE-041',title:'Garden lighting for home',amountMinor:640000,
-  rail:'MPESA',createdAt:'2026-11-12T10:00:00.000Z',fundedAt:'2026-11-12T10:01:00.000Z',
+  rail:'MPESA_STK',createdAt:'2026-11-12T10:00:00.000Z',fundedAt:'2026-11-12T10:01:00.000Z',
   delivery:'Collection arranged',items:[{sellerKsNumber:'KS90001',sellerName:'Kamakis Traders · Sample',
   title:'Solar wall light',quantity:2,amountMinor:640000}],
   progress:[{title:'Example funding confirmed',status:'done'},
     {title:'Trader preparing your lights',status:'current'},
     {title:'Collection and handover',status:'upcoming'}]},
  {id:'DEMO-SERVICE-042',title:'Garden care arrangement',amountMinor:350000,
-  rail:'BANK',createdAt:'2026-11-11T09:00:00.000Z',fundedAt:'2026-11-11T09:05:00.000Z',
+  rail:'CHOICE_KS_ACCOUNT',createdAt:'2026-11-11T09:00:00.000Z',fundedAt:'2026-11-11T09:05:00.000Z',
   delivery:'Appointment to be arranged',items:[{sellerKsNumber:'KS90006',
    sellerName:'Ruiru Field Services · Sample',title:'Garden maintenance visit',quantity:1,amountMinor:350000}],
   progress:[{title:'Example funding confirmed',status:'done'},
