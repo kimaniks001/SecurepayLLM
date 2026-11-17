@@ -528,8 +528,11 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
         {pictures[0]&&<div className="spm-sell-cover"><img src={pictures[0].preview} alt="Seller-provided offer"/>
           <span>SecurePay Identimark · preview only</span></div>}
         <strong className="spm-sell-review-title">{title}</strong>
-        <strong className="spm-sell-review-price">{priceType==='fixed'?readableAmount(price):'Price to agree'}</strong>
-        {quantity&&<small>{quantity} {unit}</small>}
+        <strong className="spm-sell-review-price">{prepared.ok?prepared.summary.moneyText:priceType==='fixed'?readableAmount(price):'Price to agree'}</strong>
+        {quantity&&<small>Proposed quantity: {quantity} {unit} · not confirmed stock</small>}
+        {prepared.ok&&prepared.summary.totalMinor!==null&&<div className="spm-sell-review-line">
+          Proposed total: KSh {(prepared.summary.totalMinor/100).toLocaleString('en-KE',{maximumFractionDigits:2})} · {quantity} × listed unit price, not a final charge
+        </div>}
         <p>{descriptionReviewed&&description?description:'A description can make this offer easier for buyers to understand. Add one with Describe & Present.'}</p>
         {!!place&&<div className="spm-sell-review-line"><MapPin size={15}/>{placeType}: {place}</div>}
         {!!timing&&<div className="spm-sell-review-line"><CalendarDays size={15}/>{timing}</div>}
@@ -537,6 +540,23 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
         {personPlan&&<div className="spm-sell-review-line"><UserRoundPlus size={15}/>{personPlan==='later'?'Other person to be agreed':'Buyer to be invited after proposal review'}</div>}
         {documents.map((d,i)=><div className="spm-sell-review-line" key={i}><FileText size={15}/>{d.purpose}: {d.name} (not verified)</div>)}
       </div>
+      {prepared.ok&&<details className="spm-sell-phase2-packet" data-mini-seller-offer-packet>
+        <summary>What's included in this offer <ChevronRight size={15}/></summary>
+        <div className="spm-sell-phase2-packet-content">
+          <p><strong>Offer type</strong><span>{prepared.summary.kind==='PRODUCT'?'Goods':prepared.summary.kind==='SERVICE'?'Service':'Capacity'}</span></p>
+          <p><strong>Pricing</strong><span>{prepared.summary.moneyText}</span></p>
+          {prepared.summary.count!==null&&<p><strong>Proposed quantity</strong><span>{prepared.summary.count} {prepared.summary.priceUnit} · not stock confirmed</span></p>}
+          <p><strong>Availability</strong><span>{stockStatement||'Needs seller confirmation'}</span></p>
+          <p><strong>Description</strong><span>{prepared.summary.descriptionApproved?'Reviewed by you':'Not approved for Store use'}</span></p>
+          {!!prepared.summary.placeLabel&&<p><strong>Place</strong><span>{prepared.summary.placeLabel} · proposed</span></p>}
+          {!!prepared.summary.timing&&<p><strong>Calendar</strong><span>Proposed, not booked</span></p>}
+          {!!prepared.summary.photos&&<p><strong>Photos</strong><span>{prepared.summary.photos} local · not uploaded</span></p>}
+          {!!prepared.summary.documents&&<p><strong>Documents</strong><span>{prepared.summary.documents} filenames only · not checked</span></p>}
+          {!!prepared.summary.persons&&<p><strong>People</strong><span>{prepared.summary.persons} named · nobody invited</span></p>}
+          <p><strong>Store record</strong><span>Prepared only · not published</span></p>
+        </div>
+        <small>The shape matches SecurePay's existing Store offer fields. No Offer ID, version, verified availability or buyer consent has been issued.</small>
+      </details>}
       <div className="spm-sell-check">
         <div className="spm-sell-check-head"><ShieldCheck size={18}/><strong>Quiet Fair Trade examination</strong></div>
         <p>One small question at a time. Tap an answer to continue; no forms to complete.</p>
@@ -658,7 +678,7 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
         <button type="button" onClick={()=>finish('store')} disabled={!canOffer}>
           <span><Store size={19}/></span><span><strong>Add to my store</strong><small>Prepare a listing. Publishing requires real store authority and checks.</small></span><ChevronRight size={17}/></button>
         <button type="button" onClick={()=>finish('save')}>
-          <span><Bookmark size={19}/></span><span><strong>Save for later</strong><small>Keep the text of this draft in this browser tab.</small></span><ChevronRight size={17}/></button>
+          <span><Bookmark size={19}/></span><span><strong>Save for later</strong><small>Keep seller-written text in this tab; attachments, people and private meeting details won't be saved.</small></span><ChevronRight size={17}/></button>
       </div>
       {!canOffer&&<p className="spm-sell-hint">Sharing and store publishing remain unavailable until the concerns above are resolved. You can always save a draft.</p>}
       <button type="button" className="spm-quiet-button" onClick={()=>{setKsHelp(x=>!x);}}><MessageCircle size={16}/>How can KS001 help?</button>
@@ -668,14 +688,17 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
       <span className="spm-sell-done-icon"><CheckCircle2 size={27}/></span>
       <h1 className="spm-question">{result==='save'?'Draft kept on this device':result==='share'?'Ready for buyer review':'Store listing preview'}</h1>
       <p className="spm-lead">{result==='save'
-        ? 'Your written terms were kept in this browser tab when storage was available. Photos and documents are not saved or uploaded.'
+        ? 'Only your written offer details were kept in this browser tab when storage was available. Photos, document files, people and private directions were not saved or uploaded.'
         : result==='share'
         ? 'This is the buyer-facing proposal. No real SecureLink or invitation has been created, and nobody has accepted it.'
         : 'This is how the seller’s offer could appear in a Store. Nothing has been published or registered.'}</p>
       <div className="spm-sell-review-card">
         <strong className="spm-sell-review-title">{title}</strong>
-        <strong className="spm-sell-review-price">{priceType==='fixed'?readableAmount(price):'Price to agree'}</strong>
+        <strong className="spm-sell-review-price">{prepared.ok?prepared.summary.moneyText:priceType==='fixed'?readableAmount(price):'Price to agree'}</strong>
+        {prepared.ok&&prepared.summary.count!==null&&<small>Proposed quantity: {prepared.summary.count} {prepared.summary.priceUnit}</small>}
         <p>{descriptionReviewed&&description?description:'Seller-provided details will appear here after review.'}</p>
+        {prepared.ok&&prepared.summary.totalMinor!==null&&<div className="spm-sell-review-line">Proposed total: KSh {(prepared.summary.totalMinor/100).toLocaleString('en-KE',{maximumFractionDigits:2})}, not an invoice or approved payment</div>}
+        {prepared.ok&&<small>Prepared for discussion · no real Store publication, invitation or Agreement</small>}
         {!!place&&<div className="spm-sell-review-line"><MapPin size={15}/>{placeType}: {place}</div>}
         {!!timing&&<div className="spm-sell-review-line"><CalendarDays size={15}/>{timing}</div>}
         {personPlan&&<div className="spm-sell-review-line"><UserRoundPlus size={15}/>{personPlan==='later'?'Other person to be agreed':'Buyer to be invited later'}</div>}
