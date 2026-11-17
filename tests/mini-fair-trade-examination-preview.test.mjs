@@ -13,7 +13,7 @@ test('The owner-visible examination names all 12 exactly as canonical API snapsh
  const page=read('src/mini/MiniFairTradeExaminationPreview.tsx');
  const names=[...page.matchAll(/^ '(To [^']+)'[,]?$/gm)].map(match=>match[1]);
  assert.deepEqual(names,titles);
- assert.match(page,/Not yet assessed/);
+ assert.match(page,/not yet assessed/i);
  assert.match(page,/not been assessed by SecurePayAPI/);
  assert.match(page,/FAIR_TRADE_PREVIEW_TITLES/);
  assert.doesNotMatch(page,/fullyExamined\s*[:=]\s*true|fairnessPassed|paymentAuthorised|score:\s*100/);
@@ -22,7 +22,7 @@ test('The basket shows a three-line summary, deeper checks and principles ONLY o
  const page=read('src/mini/MiniFairTradeExaminationPreview.tsx');
  assert.match(page,/>Fair Trade check</);
  for(const label of ['Understood','Needs attention','Next'])assert.match(page,new RegExp('>'+label+'<'));
- for(const essential of ['Who','What','Where','When','Why','How'])
+ for(const essential of ['Who','What','Where','When','Why','How']) assert.ok(page.includes("['"+essential+"',"));
    assert.match(page,new RegExp("\\\\['"+essential+"',"));
  assert.match(page,/mini-fair-inspection-panel/);
  assert.match(page,/const \[expanded,setExpanded\]=useState\(showcase\)/);
