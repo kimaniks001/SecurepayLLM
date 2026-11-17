@@ -282,6 +282,15 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
     } finally { setWorking(false); }
   };
 
+  const saveForLater=()=>{
+    if(!playground)return;
+    const saved=saveSampleBasketDraft(window.sessionStorage,{
+      lines:cart,fulfilmentChoice,answers:basketAnswers,deliveryArea,
+      deliveryQuoteSelected,quoteAccepted,
+    });
+    if(saved){setSavedNotice(true);setProposalOpen(false);}
+    else setError('Could not save this sample basket in this browser.');
+  };
   const itemCount=cart.reduce((count,line)=>count+line.quantity,0);
   const cartQuantity=(offerId:string)=>cart.find(line=>line.offerId===offerId)?.quantity||0;
   const deliveryContracts=miniDeliveryContracts({choice:fulfilmentChoice,lines:cart,
@@ -561,6 +570,12 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
               <strong>{money(sampleTotalMinor,'KES')}</strong></div>
             {readiness.goods&&<small>{fulfilmentChoice==='collect'?'You will collect':
               'Delivery to '+deliveryArea}</small>}
+            {miniBasketAnswersForOffer(cart,basketAnswers).map((a,i)=>
+              <small key={a.sellerKsNumber+a.offerId+i}>{a.question} — {a.proposedAnswer}</small>)}
+            {deliveryContracts.map((c,i)=><div key={c.id}>
+              <span>{i===0?'Separate delivery mini Agreement':'Additional delivery mini Agreement'}</span>
+              <strong>{c.providerName.replace(/\s*·\s*Sample$/,'')} · {money(c.feeMinor,'KES')}</strong>
+            </div>)}
           </div>
           {!sampleRequests&&playground&&<button type="button" className="spm-shop-proceed"
             onClick={()=>{
@@ -570,7 +585,7 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
                 sampleSellers.map(id=>[id,'accepted' as const])));
               setSampleRequests(true);setMoneyOpen(false);
             }}>
-            <span>Send for review · sample</span><ArrowRight size={19}/>
+            <span>Send SecureLink · sample review</span><ArrowRight size={19}/>
           </button>}
           {!playground&&<button type="button" disabled className="spm-shop-proceed">
             <span>Send SecureLink for review</span><ArrowRight size={19}/>
@@ -602,13 +617,17 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
                 <span className="spm-shop-seller-state"><CheckCircle2 size={14}/> Example quotes accepted</span>
               </div>}
           </div>}
-          {sampleRequests&&playground&&<button type="button" className="spm-shop-money-next"
+          {playground&&<button type="button" className="spm-shop-money-next"
             disabled={!sampleMoneyReady} onClick={()=>setMoneyOpen(true)}>
-            <ShieldCheck size={17}/> Continue to Money <ArrowRight size={17}/>
+            <ShieldCheck size={17}/> Connect to Money <ArrowRight size={17}/>
           </button>}
+          {playground&&!sampleMoneyReady&&<p className="spm-shop-gentle-note">
+            Money becomes available only after the sample seller and delivery Agreements are confirmed.</p>}
           {!playground&&<button type="button" disabled className="spm-shop-money-next">
-            <ShieldCheck size={17}/> Continue to Money <ArrowRight size={17}/>
+            <ShieldCheck size={17}/> Connect to Money <ArrowRight size={17}/>
           </button>}
+          <button type="button" className="spm-shop-save" disabled={!playground}
+            onClick={saveForLater}>Save for later</button>
           {playground&&<p className="spm-shop-gentle-note">
             In this rehearsal, separate sample seller confirmations unlock the rail choices.
             No real SecureLink, Money instruction or binding acceptance exists.</p>}
