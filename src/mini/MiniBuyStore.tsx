@@ -54,7 +54,7 @@ export type MiniBasketFulfilment = 'collect' | 'ask_sellers' | 'explore_combined
 type View = 'search' | 'store' | 'plan';
 
 /** Never infer seller acceptance or stock reservation from a public Store listing. */
-export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway, onDiscuss, playground = false, fairTradeShowcase=false, onSampleFunded, onViewSampleAgreements }: {
+export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway, onDiscuss, playground = false, fairTradeShowcase=false, agreementActionsShowcase=false, onSampleFunded, onViewSampleAgreements }: {
   language:MiniLanguage; onBack:()=>void; initialQuery?:string;
   /** Existing public StoreGateway, optionally on the same isolated API as KS001. */
   storeGateway?:Pick<StoreGateway,'search'|'store'|'offer'>;
@@ -65,6 +65,8 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
   playground?:boolean;
   /** Explicit opt-in preview-host example; never seeds a real customer's basket. */
   fairTradeShowcase?:boolean;
+  /** Explicit owner-only URL to inspect the ordinary straight-sale actions. */
+  agreementActionsShowcase?:boolean;
   onSampleFunded?:(purchase:MiniSamplePurchase)=>void;
   onViewSampleAgreements?:()=>void;
 }) {
@@ -178,6 +180,27 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
     }).catch(()=>{/* Isolated sample missing: do not invent an offer. */});
     return()=>{alive=false};
   },[client,playground,fairTradeShowcase]);
+  useEffect(()=>{
+    if(!playground||!agreementActionsShowcase||fairTradeShowcase||showcaseSeeded.current)return;
+    showcaseSeeded.current=true;
+    let active=true;
+    void client.store('KS90002').then(store=>{
+      if(!active)return;
+      const offer=store.offers.find(o=>o.title==='Solar irrigation water pump');
+      if(!offer)return;
+      setCart([{
+        sellerKsNumber:store.canonicalKsNumber,sellerName:store.displayName,
+        offerId:offer.id,title:offer.title,kind:'PRODUCT',quantity:1,
+        description:offer.description,mediaRefs:offer.mediaRefs,
+        priceMinor:offer.priceMinor,currency:offer.currency,
+        offerUpdatedAt:offer.updatedAt,availabilityState:offer.availabilityState,
+      }]);
+      setFulfilmentChoice('collect');setBasketAnswers({});setProviderReplies({});
+      setSampleRequests(false);setSampleResponses({});setMoneyOpen(false);
+      setReviewed(false);setProposalOpen(true);setView('plan');
+    }).catch(()=>{/* Never substitute an invented Store offer. */});
+    return()=>{active=false};
+  },[client,playground,agreementActionsShowcase,fairTradeShowcase]);
 
   useEffect(()=>{
     if(!playground)return;
