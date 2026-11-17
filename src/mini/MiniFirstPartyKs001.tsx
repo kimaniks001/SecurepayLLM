@@ -58,7 +58,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
   startInStore?: boolean;
   /** Explicit buyer handoff; public offer IDs must be rechecked before use. */
   initialBuyingPlan?: {lines:MiniStorePlanLine[];fulfilment:MiniBasketFulfilment|null;
-    buyerAnswers?:Array<{sellerKsNumber:string;offerId:string;question:string;proposedAnswer:string}>}|null;
+    buyerAnswers?:Array<{sellerKsNumber:string;offerId:string;offerUpdatedAt:string;question:string;proposedAnswer:string}>}|null;
 }) {
   const sw = language === 'sw';
   const expiredKey = 'securepay.mini.firstparty.expired.v1:' + apiOrigin;
@@ -424,7 +424,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
     }finally{setStoreBusy(false);}
   };
   const discussStorePlan = (lines:MiniStorePlanLine[],fulfilment:MiniBasketFulfilment|null = null,
-      buyerAnswers:Array<{sellerKsNumber:string;offerId:string;question:string;proposedAnswer:string}>=[]) => {
+      buyerAnswers:Array<{sellerKsNumber:string;offerId:string;offerUpdatedAt:string;question:string;proposedAnswer:string}>=[]) => {
     const plan=miniStoreIntent(lines,{fulfilmentPreference:fulfilment,buyerAnswers});
     if(!plan){setStoreError('Check the Store, quantity and offer references again. No Agreement was created.');return;}
     void forwardStorePlan(plan);
