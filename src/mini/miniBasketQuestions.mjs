@@ -16,7 +16,7 @@ export function miniBasketQuestions(lines,answers={}){
     const d=short(line.description,900);
     const title=short(line.title,200);
     const source=(title+' '+d).toLowerCase();
-    const key=short(line.sellerKsNumber,20)+':'+short(line.offerId,80);
+    const key=short(line.sellerKsNumber,20)+':'+short(line.offerId,80)+':'+short(line.offerUpdatedAt,60);
     const common={offerId:line.offerId,sellerKsNumber:line.sellerKsNumber,offerTitle:title};
     // Product options must come from what this exact Store says is undecided.
     if(line.kind==='PRODUCT'&&/colou?r (?:to confirm|to be agreed|choice)|colou?r available/i.test(source))
@@ -61,7 +61,9 @@ export function miniBasketQuestions(lines,answers={}){
 export function miniBasketAnswersForOffer(lines,answers={}){
  const q=miniBasketQuestions(lines,answers);
  return q.questions.filter(x=>short(answers[x.id])).map(x=>({
-  offerId:x.offerId,sellerKsNumber:x.sellerKsNumber,question:x.title,
+  offerId:x.offerId,sellerKsNumber:x.sellerKsNumber,
+  offerUpdatedAt:short((Array.isArray(lines)?lines:[]).find(line=>line.offerId===x.offerId&&line.sellerKsNumber===x.sellerKsNumber)?.offerUpdatedAt,60),
+  question:x.title,
   proposedAnswer:short(answers[x.id],x.maxLength||240),
  }));
 }
