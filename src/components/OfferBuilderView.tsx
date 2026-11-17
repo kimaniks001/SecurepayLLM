@@ -23,6 +23,7 @@ interface OfferBuilderViewProps {
   onChange: (patch: Partial<OfferDraftFields>) => void;
   onBack: () => void;
   onSubmit: () => void;
+  onPublishReviewedText?: () => void;
 }
 
 /**
@@ -33,8 +34,9 @@ interface OfferBuilderViewProps {
  * trader-reviewed fields instead: only what the trader themselves typed is ever sent to the real Store
  * API, and nothing is saved until they explicitly review and submit.
  */
-export function OfferBuilderView({ draft, availabilityOptions, busy, error, isEditing, onChange, onBack, onSubmit }: OfferBuilderViewProps) {
+export function OfferBuilderView({ draft, availabilityOptions, busy, error, isEditing, onChange, onBack, onSubmit, onPublishReviewedText }: OfferBuilderViewProps) {
   const [showReview, setShowReview] = useState(false);
+  const [showPublicationReview, setShowPublicationReview] = useState(false);
   const [newRef, setNewRef] = useState('');
   const addRef = () => { const value = newRef.trim(); if (value) { onChange({ mediaRefs: [...draft.mediaRefs, value] }); setNewRef(''); } };
   const priceText = draft.priceMinor === null ? '' : String(draft.priceMinor / 100);
@@ -64,14 +66,14 @@ export function OfferBuilderView({ draft, availabilityOptions, busy, error, isEd
               <span className="text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide">Describe your offer</span>
             </div>
             <p className="text-[0.78rem] text-sand-600">
-              SecurePay does not yet auto-structure offers from free text. Fill in the fields below yourself, then review before publishing.
+              Describe your offer, then review and save it. You can choose to publish the written listing separately.
             </p>
 
             <div className="flex gap-2">
               {(['PRODUCT', 'SERVICE', 'CAPACITY'] as OfferKind[]).map(kind => (
                 <button
                   key={kind}
-                  onClick={() => onChange({ kind, availabilityState: kind === 'PRODUCT' ? 'AVAILABLE' : 'TAKING_WORK' })}
+                  onClick={() => onChange({ kind, availabilityState: 'NEEDS_CONFIRMATION', quantityAvailable: null })}
                   className={`flex-1 rounded-xl border px-3 py-2 text-[0.825rem] font-medium transition-colors ${draft.kind === kind ? 'border-forest-400 bg-forest-50 text-forest-700' : 'border-cream-200 text-sand-600 hover:border-forest-200'}`}
                 >
                   {kind === 'PRODUCT' ? 'Product' : kind === 'CAPACITY' ? 'Capacity' : 'Service'}
@@ -168,10 +170,11 @@ export function OfferBuilderView({ draft, availabilityOptions, busy, error, isEd
               </div>
             </div>
 
-            <label className="flex items-center gap-2 pt-1">
-              <input type="checkbox" checked={draft.published} onChange={e => onChange({ published: e.target.checked })} className="rounded border-cream-300" />
-              <span className="text-[0.8rem] text-forest-800">Publish immediately (visible in public Store search)</span>
-            </label>
+            <p className="text-[0.78rem] text-sand-600 pt-1">
+              {isEditing && draft.published
+                ? 'This offer is already visible. Saving edits updates the existing public listing.'
+                : 'This offer stays private until you separately review and choose to publish it.'}
+            </p>
           </div>
 
           <button
@@ -180,8 +183,14 @@ export function OfferBuilderView({ draft, availabilityOptions, busy, error, isEd
             className="w-full flex items-center justify-center gap-2 rounded-xl bg-forest-700 text-cream-50 text-[0.825rem] font-medium py-2.5 hover:bg-forest-800 transition-colors disabled:opacity-50"
           >
             <Check className="w-3.5 h-3.5" />
-            Review and {draft.published ? 'publish' : 'save as draft'}
+            Review and {isEditing && draft.published ? 'save changes' : 'save private draft'}
           </button>
+          {isEditing && !draft.published && onPublishReviewedText && (
+            <button type="button" disabled={busy} onClick={() => setShowPublicationReview(true)}
+              className="w-full rounded-xl border border-forest-200 px-3 py-2.5 text-[0.825rem] font-medium text-forest-700 hover:border-forest-400 disabled:opacity-50">
+              Review and publish text only
+            </button>
+          )}
           {error && <p role="alert" className="text-[0.78rem] text-ember-600">{error}</p>}
         </div>
 
@@ -205,7 +214,7 @@ export function OfferBuilderView({ draft, availabilityOptions, busy, error, isEd
               </div>
               <div className="flex items-baseline justify-between text-[0.78rem]">
                 <span className="text-sand-500">Status</span>
-                <span className="text-forest-800 text-right">{draft.published ? 'Published' : 'Draft'}</span>
+                <span className="text-forest-800 text-right">{draft.published ? 'Already published' : 'Private draft'}</span>
               </div>
             </div>
           </div>
@@ -215,6 +224,30 @@ export function OfferBuilderView({ draft, availabilityOptions, busy, error, isEd
         </div>
       </div>
 
+      {/* Separate publication requires deliberate seller confirmation and an
+          unchanged server-owned private draft. The controller rereads and
+          version-fences it; no photos or inventory are published here. */}
+      {showPublicationReview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-forest-900/30 backdrop-blur-sm"
+          onClick={() => setShowPublicationReview(false)}>
+          <div className="w-full max-w-md rounded-2xl bg-white px-5 py-5 shadow-deliberate space-y-3"
+            onClick={event => event.stopPropagation()}>
+            <h2 className="font-display text-lg text-forest-800">Make this listing visible?</h2>
+            <p className="text-[0.82rem] text-sand-600">
+              {draft.title}. Only the written details can be published now.
+              Photographs and stock quantities need separate verification.
+              Buyers will see that availability needs confirmation.
+            </p>
+            <button type="button" disabled={busy}
+              onClick={() => { setShowPublicationReview(false); onPublishReviewedText?.(); }}
+              className="w-full rounded-xl bg-forest-700 py-3 text-cream-50 font-medium disabled:opacity-50">
+              Publish this text-only listing
+            </button>
+            <button type="button" onClick={() => setShowPublicationReview(false)}
+              className="w-full py-2 text-sand-600">Keep private</button>
+          </div>
+        </div>
+      )}
       {/* Review modal */}
       {showReview && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-forest-900/30 backdrop-blur-sm animate-quiet-in" onClick={() => setShowReview(false)}>
@@ -236,7 +269,7 @@ export function OfferBuilderView({ draft, availabilityOptions, busy, error, isEd
               className="w-full flex items-center justify-center gap-2 rounded-xl bg-forest-600 text-cream-50 text-[0.875rem] font-medium py-3 hover:bg-forest-700 transition-colors disabled:opacity-50"
             >
               <Check className="w-4 h-4" />
-              {busy ? 'Saving…' : draft.published ? 'Publish offer' : 'Save as draft'}
+              {busy ? 'Saving…' : isEditing && draft.published ? 'Save published changes' : 'Save private draft'}
             </button>
             <button onClick={() => setShowReview(false)} className="w-full text-[0.825rem] text-sand-500 hover:text-forest-600 mt-2">
               Continue editing
