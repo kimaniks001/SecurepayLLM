@@ -23,6 +23,14 @@ const DEMOS=[
     {title:'Agree visit time with provider',status:'current'},
     {title:'Service and evidence of completion',status:'upcoming'}]}
 ];
+function validTerm(t){
+ return t&&typeof t.sellerKsNumber==='string'&&/^KS\d{3,12}$/.test(t.sellerKsNumber)&&
+  typeof t.offerId==='string'&&/^[0-9a-f-]{36}$/i.test(t.offerId)&&
+  typeof t.offerUpdatedAt==='string'&&t.offerUpdatedAt.length<=70&&
+  typeof t.label==='string'&&t.label.length>0&&t.label.length<=180&&
+  typeof t.value==='string'&&t.value.length>0&&t.value.length<=240&&
+  ['BUYER_PROPOSED','PROVIDER_SAMPLE_REVIEWED'].includes(t.origin);
+}
 function validItem(x){
  return x&&typeof x.sellerKsNumber==='string'&&/^KS\d{3,12}$/.test(x.sellerKsNumber)&&
   typeof x.sellerName==='string'&&x.sellerName.length<130&&
@@ -44,7 +52,8 @@ export function validSamplePurchase(x){
    typeof x.deliveryTerms.window==='string'&&x.deliveryTerms.window.length<200&&
    Array.isArray(x.deliveryTerms.pickupStores)&&x.deliveryTerms.pickupStores.length<=20&&
    x.deliveryTerms.pickupStores.every(v=>typeof v==='string'&&v.length<180)))&&
- Array.isArray(x.items)&&x.items.length>0&&x.items.length<=21&&x.items.every(validItem)&&
+ (!x.terms||(Array.isArray(x.terms)&&x.terms.length<=40&&x.terms.every(validTerm)))&&
+ Array.isArray(x.items)&&x.items.length>0&&x.items.length<=40&&x.items.every(validItem)&&
  Array.isArray(x.progress)&&x.progress.length<=20&&x.progress.every(p=>
  p&&typeof p.title==='string'&&p.title.length<160&&['done','current','upcoming'].includes(p.status)));
 }
@@ -52,25 +61,31 @@ export function sampleAgreementTitle(lines){
  if(!Array.isArray(lines)||!lines.length)return 'Your purchase';
  return lines.length===1?lines[0].title:lines[0].title+' + '+(lines.length-1)+' more';
 }
-export function makeSampleLivingPurchase({lines,rail,delivery,deliveryFeeMinor=0,deliveryProvider=null,deliveryContracts=[],now=new Date()}){
+export function makeSampleLivingPurchase({lines,rail,delivery,deliveryFeeMinor=0,deliveryProvider=null,deliveryContracts=[],terms=[],now=new Date()}){
  if(!Array.isArray(lines)||!lines.length||lines.length>20||!SAMPLE_RAILS.includes(rail)||
     !Number.isSafeInteger(deliveryFeeMinor)||deliveryFeeMinor<0||
     !lines.every(x=>validItem({...x,amountMinor:x.priceMinor})))return null;
+ if(!Array.isArray(terms)||terms.length>40||!terms.every(t=>
+     validTerm(t)&&lines.some(l=>l.sellerKsNumber===t.sellerKsNumber&&
+       l.offerId===t.offerId&&l.offerUpdatedAt===t.offerUpdatedAt)))return null;
  const items=lines.map(l=>({
   sellerKsNumber:l.sellerKsNumber,sellerName:l.sellerName,title:l.title,
+  offerId:l.offerId,offerUpdatedAt:l.offerUpdatedAt,
   quantity:l.quantity,amountMinor:l.priceMinor*l.quantity,
  }));
- if(deliveryProvider==='KS90004'&&deliveryFeeMinor>0)
-  items.push({sellerKsNumber:'KS90004',sellerName:'Kamakis Transport · Sample',
-    title:'One example delivery',quantity:1,amountMinor:deliveryFeeMinor});
+ if(deliveryProvider==='KS90004'&&deliveryFeeMinor>0){
+  const carrier=deliveryContracts.find(c=>c.providerKsNumber==='KS90004');
+  if(!carrier)return null;
+  items.push({sellerKsNumber:carrier.providerKsNumber,sellerName:carrier.providerName,
+    title:'One example delivery',quantity:1,amountMinor:carrier.feeMinor});
+ }
  if(deliveryProvider==='SELLERS'&&deliveryFeeMinor>0){
-  const sellers=[...new Set(lines.map(l=>l.sellerKsNumber))];
-  const perSeller=Math.floor(deliveryFeeMinor/sellers.length);
-  sellers.forEach((seller,i)=>items.push({
-   sellerKsNumber:seller,sellerName:lines.find(l=>l.sellerKsNumber===seller).sellerName,
-   title:'Separate example delivery by this Store',quantity:1,
-   amountMinor:i===sellers.length-1?
-     deliveryFeeMinor-perSeller*(sellers.length-1):perSeller,
+  if(!deliveryContracts.length)return null;
+  // Only the contracted delivery providers receive an allocation;
+  // purchasing a service from a different merchant does not make them a carrier.
+  deliveryContracts.forEach(c=>items.push({
+    sellerKsNumber:c.providerKsNumber,sellerName:c.providerName,
+    title:'Separate example delivery by this Store',quantity:1,amountMinor:c.feeMinor,
   }));
  }
  if(!Array.isArray(deliveryContracts)||deliveryContracts.length>20||
@@ -103,13 +118,14 @@ export function makeSampleLivingPurchase({lines,rail,delivery,deliveryFeeMinor=0
   agreementKind:'PURCHASE',
   linkedDeliveryIds:linkedDeliveryAgreements.map(c=>c.id),
   linkedDeliveryAgreements,
-  items,progress:[
+  terms,items,progress:[
     {title:'Mock payment confirmation received',status:'done'},
-    ...[...new Set(items.map(x=>x.sellerKsNumber))].map(seller=>({
-      title:'Fulfilment by '+items.find(x=>x.sellerKsNumber===seller).sellerName.replace(/\s*·\s*Sample$/,''),
+    ...[...new Set(lines.map(x=>x.sellerKsNumber))].map(seller=>({
+      title:'Fulfilment by '+lines.find(x=>x.sellerKsNumber===seller).sellerName.replace(/\s*·\s*Sample$/,''),
       status:'current',
     })),
-    {title:'Confirm delivery or service completion',status:'upcoming'},
+    ...(deliveryContracts.length?[{title:'Delivery has its own linked Agreement',status:'upcoming'}]:[]),
+    {title:'Confirm handover or service completion',status:'upcoming'},
   ]};
  return validSamplePurchase(purchase)&&linkedDeliveryAgreements.every(validSamplePurchase)?purchase:null;
 }

@@ -11,9 +11,10 @@ const price=(minor:number|null,currency:string)=>
 
 function nameOnly(name:string){return name.replace(/\s*·\s*Sample(?: Store)?$/i,'');}
 export function MiniShopDiscovery({results,onOpen,playground,onBack,
-  label,cartCount,onBasket,searchControls}:{
+  label,cartCount,onBasket,searchControls,loading=false,error='',onRetry,busyText='Finding Stores…'}:{
   results:PublicSearchResultView[];onOpen:(ks:string)=>void;playground:boolean;
   onBack:()=>void;label:string;cartCount:number;onBasket:()=>void;searchControls?:ReactNode;
+  loading?:boolean;error?:string;onRetry?:()=>void;busyText?:string;
 }){
  const sellers=[...new Set(results.map(r=>r.canonicalKsNumber))];
  return <div className="spm-shop-discovery">
@@ -31,8 +32,13 @@ export function MiniShopDiscovery({results,onOpen,playground,onBack,
    </div>
    {playground&&<p className="spm-shop-demo-flag">Sample Stores and prices only · No real stock or payment</p>}
    {searchControls}
-   {!!label&&<h2 className="spm-shop-section-title">{label}</h2>}
-   {sellers.length>0?<div className="spm-shop-store-list">
+   {loading&&<p className="spm-shop-live-status" role="status">{busyText}</p>}
+   {error&&<div className="spm-shop-inline-error" role="alert">
+      <span>{error}</span>
+      {onRetry&&<button type="button" onClick={onRetry}>Try again</button>}
+   </div>}
+   {!!label&&!loading&&<h2 className="spm-shop-section-title">{label}</h2>}
+   {!loading&&sellers.length>0?<div className="spm-shop-store-list">
       {sellers.map(ks=>{
         const matches=results.filter(r=>r.canonicalKsNumber===ks);
         const first=matches[0];
@@ -49,24 +55,25 @@ export function MiniShopDiscovery({results,onOpen,playground,onBack,
           </span>
         </button>;
       })}
-   </div>:<p className="spm-shop-no-results">No Store matches yet. Try another search.</p>}
+   </div>:!loading&&!error?<p className="spm-shop-no-results">No Stores found. Try another search or choose a different category.</p>:null}
  </div>;
 }
 
 export function MiniShopGallery({store,playground,onBack,cartCount,cartQty,onAdd,onBasket}:{
  store:PublicStoreView;playground:boolean;onBack:()=>void;cartCount:number;
- cartQty:(offerId:string)=>number;onAdd:(offer:PublicOfferView,quantity:number)=>void;
+ cartQty:(offerId:string)=>number;onAdd:(offer:PublicOfferView,quantity:number)=>boolean;
  onBasket:()=>void;
 }){
  const [filter,setFilter]=useState<'ALL'|'PRODUCT'|'SERVICE'>('ALL');
  const [selected,setSelected]=useState<PublicOfferView|null>(null);
  const [qty,setQty]=useState(1);
  const [added,setAdded]=useState(false);
+ const [addError,setAddError]=useState('');
  const display=nameOnly(store.displayName);
  const tone=shopTone(store);
  const shown=store.offers.filter(o=>(filter==='ALL'||o.kind===filter)&&
     !['PAUSED','UNAVAILABLE','FULLY_BOOKED','RESTING'].includes(o.availabilityState));
- const open=(o:PublicOfferView)=>{setSelected(o);setQty(1);setAdded(false);};
+ const open=(o:PublicOfferView)=>{setSelected(o);setQty(1);setAdded(false);setAddError('');};
  const goBack=()=>{if(selected){setSelected(null);setAdded(false);}else onBack();};
  const goods=store.offers.filter(o=>o.kind==='PRODUCT').length;
  const services=store.offers.filter(o=>o.kind==='SERVICE').length;
@@ -76,7 +83,7 @@ export function MiniShopGallery({store,playground,onBack,cartCount,cartQty,onAdd
       <button className="spm-shop-back" type="button" onClick={goBack} aria-label={selected?'Back to this Store':'Back to Stores'}>
         <ArrowLeft size={19}/>
       </button>
-      <span>{selected?'Product details':display}</span>
+      <span>{selected?(selected.kind==='SERVICE'?'Service details':'Item details'):display}</span>
       <button className="spm-shop-cart-icon" type="button" onClick={onBasket} aria-label={'View basket with '+cartCount+' items'}>
         <ShoppingBag size={20}/>{cartCount>0&&<b>{cartCount}</b>}
       </button>
@@ -122,7 +129,7 @@ export function MiniShopGallery({store,playground,onBack,cartCount,cartQty,onAdd
       <p className="spm-shop-gentle-note">Browse freely. Your choices remain yours until you review and proceed.</p>
     </>:<>
       <div className="spm-shop-detail">
-        <MiniOfferPhoto offer={selected} playground={playground} large/>
+        <MiniOfferPhoto key={selected.id} offer={selected} playground={playground} large/>
         <div className="spm-shop-detail-copy">
           <small>{selected.kind==='SERVICE'?'SERVICE':'GOOD'} · {display}</small>
           <h1>{selected.title}</h1>
@@ -145,8 +152,11 @@ export function MiniShopGallery({store,playground,onBack,cartCount,cartQty,onAdd
             </div>
           </div>
           <button type="button" className="spm-shop-add-button" onClick={()=>{
-              onAdd(selected,qty);setAdded(true);
-            }}><ShoppingBag size={18}/>{added?'Add more to basket':'Add to basket'}<ArrowRight size={17}/></button>
+              const accepted=onAdd(selected,qty);
+              setAdded(accepted);
+              setAddError(accepted?'':'Your basket is full or this quantity is already at its limit. You can review it in your basket.');
+            }}><ShoppingBag size={18}/>{added?'Add another':'Add to basket'}<ArrowRight size={17}/></button>
+          {addError&&<p className="spm-shop-inline-error" role="alert">{addError}</p>}
           {added&&<div className="spm-shop-added" role="status"><Check size={17}/>
             Added to your basket. <button type="button" onClick={onBasket}>View basket</button>
           </div>}
@@ -168,7 +178,7 @@ export function MiniShopGallery({store,playground,onBack,cartCount,cartQty,onAdd
     </>}
     {cartCount>0&&<button type="button" className="spm-shop-bottom-basket" onClick={onBasket}>
       <span className="spm-shop-basket-count"><ShoppingBag size={18}/>{cartCount}</span>
-      <span><strong>View your basket</strong><small>Your choices are adding up</small></span>
+      <span><strong>View your basket</strong><small>{cartCount} item{cartCount===1?'':'s'} selected</small></span>
       <ArrowRight size={20}/>
     </button>}
   </div>;

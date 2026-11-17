@@ -3,6 +3,7 @@ import {ArrowLeft,ArrowRight,CheckCircle2,Smartphone,Landmark,ShieldCheck,Clock3
 import {makeSampleLivingPurchase,type MiniSamplePurchase,type MiniSampleRail} from './miniSampleLivingPurchases.mjs';
 import type {MiniStorePlanLine} from './MiniBuyStore';
 import type {MiniDeliveryContract} from './miniDeliveryContract.mjs';
+import type {MiniSampleTerm} from './miniTradeTerms.mjs';
 
 const fmt=(n:number)=>'KSh '+(n/100).toLocaleString('en-KE');
 const rails=[
@@ -10,10 +11,10 @@ const rails=[
  {id:'MPESA_STK' as const,title:'M-PESA',details:'A phone approval request on your handset, when enabled.',icon:Smartphone},
  {id:'PESALINK' as const,title:'PesaLink',details:'Bank-to-bank payment via the Choice-mediated rail.',icon:ArrowLeftRight},
 ];
-export function MiniSampleMoneyJourney({lines,amountMinor,delivery,deliveryFeeMinor,deliveryProvider,deliveryContracts,onBack,
+export function MiniSampleMoneyJourney({lines,amountMinor,delivery,deliveryFeeMinor,deliveryProvider,deliveryContracts,terms,onBack,
  onConfirmed,onViewAgreements}:{
  lines:MiniStorePlanLine[];amountMinor:number;delivery:string;deliveryFeeMinor:number;
- deliveryProvider:string|null;deliveryContracts:MiniDeliveryContract[];onBack:()=>void;onConfirmed:(purchase:MiniSamplePurchase)=>void;
+ deliveryProvider:string|null;deliveryContracts:MiniDeliveryContract[];terms:MiniSampleTerm[];onBack:()=>void;onConfirmed:(purchase:MiniSamplePurchase)=>void;
  onViewAgreements:()=>void;
 }) {
  const [rail,setRail]=useState<MiniSampleRail|null>(null);
@@ -32,7 +33,7 @@ export function MiniSampleMoneyJourney({lines,amountMinor,delivery,deliveryFeeMi
    const id=window.setTimeout(()=>{
      if(completed.current)return;
      const purchase=makeSampleLivingPurchase({lines,rail,delivery,
-       deliveryFeeMinor,deliveryProvider,deliveryContracts});
+       deliveryFeeMinor,deliveryProvider,deliveryContracts,terms});
      if(!purchase)return;
      completed.current=true;
      setReceipt(purchase);

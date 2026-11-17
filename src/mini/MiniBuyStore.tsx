@@ -6,6 +6,7 @@ import type { PublicSearchResultView, PublicStoreView, PublicOfferView } from '.
 import type { MiniLanguage } from './miniModel';
 import { suggestedStoreSearchTerm } from '../features/living-workspace/suggestedStoreSearchTerm.mjs';
 import { miniStoreOfferSnapshotFresh } from './miniStoreOfferFresh.mjs';
+import {miniChangedOffers,type MiniChangedOffer} from './miniChangedOffers.mjs';
 import { miniBasketReadiness } from './miniBasketReadiness.mjs';
 import { miniTradeSampleSearches } from './miniTradePlayground';
 import { MiniShopDiscovery, MiniShopGallery } from './MiniStoreGallery';
@@ -14,6 +15,7 @@ import { MiniSampleMoneyJourney } from './MiniSampleMoneyJourney';
 import { MiniFairTradeExaminationPreview } from './MiniFairTradeExaminationPreview';
 import type {MiniSamplePurchase} from './miniSampleLivingPurchases.mjs';
 import {miniBasketQuestions,miniBasketAnswersForOffer} from './miniBasketQuestions.mjs';
+import {miniSampleAgreementTerms,miniSellerScopedProposal} from './miniTradeTerms.mjs';
 import {miniDeliveryContracts,miniDeliveryContractSummary,SAMPLE_DELIVERY_WINDOWS} from './miniDeliveryContract.mjs';
 import {readSampleBasketDraft,saveSampleBasketDraft} from './miniSampleBasketDraft.mjs';
 import {miniBasketQuietPreflight,miniSampleProviderReply,miniProviderReplyMatchesSource,
@@ -38,7 +40,7 @@ const stores = createStoreGateway(createHttpClient('https://securepay.ke', () =>
 
 const activeStates = new Set(['AVAILABLE', 'LOW_AVAILABILITY', 'NEEDS_CONFIRMATION', 'TAKING_WORK', 'LIMITED']);
 const money = (amountMinor: number | null, currency: string) =>
-  amountMinor === null ? 'Price to confirm' : currency + ' ' +
+  amountMinor === null ? 'Price to confirm' : (currency==='KES'?'KSh':currency) + ' ' +
   (amountMinor / 100).toLocaleString('en-KE', { maximumFractionDigits: 2 });
 
 export type MiniStorePlanLine = {
@@ -70,6 +72,11 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
   const savedDraft=useRef(playground&&typeof window!=='undefined'?
     readSampleBasketDraft(window.sessionStorage):null).current;
   const [view, setView] = useState<View>('search');
+  const reviewAnchor=useRef<HTMLDivElement|null>(null);
+  useEffect(()=>{
+    window.scrollTo(0,0);
+    document.querySelector<HTMLElement>('.spm-frame')?.scrollTo(0,0);
+  },[view]);
   const asSearchTerm = (phrase: string) => {
     const explicitShopping = suggestedStoreSearchTerm(phrase);
     if (explicitShopping) return explicitShopping;
@@ -91,6 +98,9 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
   const [cart, setCart] = useState<MiniStorePlanLine[]>(savedDraft?.lines??[]);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState('');
+  const [openingStore,setOpeningStore]=useState<string|null>(null);
+  const [lastStoreAttempt,setLastStoreAttempt]=useState<string|null>(null);
+  const [changedOffers,setChangedOffers]=useState<MiniChangedOffer[]>([]);
   const [reviewed, setReviewed] = useState(false);
   const [fulfilmentChoice, setFulfilmentChoice] = useState<MiniBasketFulfilment | null>(savedDraft?.fulfilmentChoice??null);
   const [basketAnswers,setBasketAnswers]=useState<Record<string,string>>(savedDraft?.answers??{});
@@ -99,6 +109,7 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
   const basketQuestions=miniBasketQuestions(cart,basketAnswers);
   const nextBasketQuestion=basketQuestions.nextQuestion;
   const [proposalOpen, setProposalOpen] = useState(false);
+  useEffect(()=>{if(proposalOpen)reviewAnchor.current?.scrollIntoView({block:'start'});},[proposalOpen]);
   const readiness = miniBasketReadiness(cart,{sourcesFresh:reviewed,fulfilmentChoice});
   const [checking, setChecking] = useState(false);
   const [freshnessError,setFreshnessError] = useState('');
@@ -117,7 +128,12 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
     answers:basketAnswers,fulfilmentChoice,deliveryArea,sourceFresh:reviewed,
     providerReplies,
   });
-  const sampleSellers=[...new Set(cart.map(line=>line.sellerKsNumber))];
+  const deliveryContracts=miniDeliveryContracts({choice:fulfilmentChoice,lines:cart,
+    destination:deliveryArea,window:deliveryWindow,deliveryQuoteSelected});
+  const preparedTerms=miniSampleAgreementTerms(cart,
+    miniBasketAnswersForOffer(cart,basketAnswers),preflight.providerRequests,providerReplies);
+  const sellerProposals=miniSellerScopedProposal(cart,preparedTerms,deliveryContracts);
+  const sampleSellers=sellerProposals.sellers.map(seller=>seller.sellerKsNumber);
   const allSampleAccepted=sampleRequests&&sampleSellers.length>0&&
     sampleSellers.every(id=>sampleResponses[id]==='accepted');
   const resetSample=()=>{
@@ -177,7 +193,7 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
       return;
     }
     const request = ++generation.current;
-    setWorking(true); setResults([]); setError(''); setChosenStore(null); setView('search');
+    setWorking(true); setResults([]); setOpeningStore(null); setError(''); setChosenStore(null); setView('search');
     try {
       const found = await client.search({kind:requestedKind, category: word, limit: 10});
       if (request === generation.current) setResults(found.filter(x =>
@@ -193,7 +209,7 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
   const openStore = async (ks: string) => {
     if (!/^KS\d{3,12}$/.test(ks)) return;
     const request = ++generation.current;
-    setWorking(true); setError(''); setChosenStore(null);
+    setWorking(true); setOpeningStore(ks); setLastStoreAttempt(ks); setError(''); setChosenStore(null);
     try {
       const found = await client.store(ks);
       if (request === generation.current && found.canonicalKsNumber === ks &&
@@ -203,7 +219,7 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
     } catch {
       if (request === generation.current) setError(sw
         ? 'Duka halipatikani kwa sasa.' : 'This Store is unavailable right now.');
-    } finally { if (request === generation.current) setWorking(false); }
+    } finally { if (request === generation.current){setWorking(false);setOpeningStore(null);} }
   };
 
   useEffect(()=>{
@@ -218,10 +234,12 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
     // The stable KSNumber, view and StoreGateway determine refresh.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   },[view,chosenStore?.canonicalKsNumber,client]);
-  const add = (offer: PublicOfferView,countRequested=1) => {
-    if (!chosenStore || !activeStates.has(offer.availabilityState)) return;
+  const add = (offer: PublicOfferView,countRequested=1):boolean => {
+    if (!chosenStore || !activeStates.has(offer.availabilityState)) return false;
     const count = Math.min(20, Math.max(1, countRequested));
     const key = chosenStore.canonicalKsNumber + ':' + offer.id;
+    const existing=cart.find(line=>line.sellerKsNumber+':'+line.offerId===key);
+    if((!existing&&cart.length>=20)||(existing&&existing.quantity>=20))return false;
     setCart(old => {
       const prior = old.find(line => line.sellerKsNumber + ':' + line.offerId === key);
       if (prior) return old.map(line => line === prior ? {...line, quantity: Math.min(20, line.quantity + count)} : line);
@@ -235,20 +253,24 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
     setReviewed(false);
     setProposalOpen(false);
     setSavedNotice(false);
-    invalidateDelivery();
+    setChangedOffers([]);
+    if(offer.kind==='PRODUCT')invalidateDelivery();
     resetSample();
     setFreshnessError('');
     setError('');
+    return true;
   };
   const changeQuantity=(line:MiniStorePlanLine,next:number)=>{
     setCart(old=>old.map(item=>item===line?{...item,quantity:Math.min(20,Math.max(1,next))}:item));
-    setReviewed(false);setProposalOpen(false);setSavedNotice(false);invalidateDelivery();resetSample();
-    setFreshnessError('');
+    setReviewed(false);setProposalOpen(false);setSavedNotice(false);
+    if(line.kind==='PRODUCT')invalidateDelivery();resetSample();
+    setChangedOffers([]);setFreshnessError('');
   };
   const removeLine=(line:MiniStorePlanLine)=>{
     setCart(old=>old.filter(item=>item!==line));
-    setReviewed(false);setProposalOpen(false);setSavedNotice(false);invalidateDelivery();resetSample();
-    setFreshnessError('');
+    setReviewed(false);setProposalOpen(false);setSavedNotice(false);
+    if(line.kind==='PRODUCT')invalidateDelivery();resetSample();
+    setChangedOffers([]);setFreshnessError('');
   };
 
   const latestOffersMatch = async () => {
@@ -256,36 +278,64 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
     return miniStoreOfferSnapshotFresh(cart,fresh);
   };
 
+  const offerChanges=(fresh:Awaited<ReturnType<typeof client.offer>>[]) =>
+    miniChangedOffers(cart,fresh.map(value=>({status:'fulfilled' as const,value})));
   useEffect(()=>{
-    // Automatically re-read the original Store sources before offering review.
-    // This browser check is not seller acceptance or Money readiness.
+    // Automatically check source versions without imposing a manual task.
     if(view!=='plan'||!cart.length||(readiness.goods&&!fulfilmentChoice)){
       setReviewed(false);return;
     }
     let active=true;
-    setChecking(true);setReviewed(false);setFreshnessError('');
+    setChecking(true);setReviewed(false);setFreshnessError('');setChangedOffers([]);
     void Promise.all(cart.map(line=>client.offer(line.sellerKsNumber,line.offerId)))
       .then(fresh=>{
         if(!active)return;
-        if(miniStoreOfferSnapshotFresh(cart,fresh))setReviewed(true);
-        else setFreshnessError('A Store changed one of your items. Browse that Store again before proceeding.');
+        const changes=offerChanges(fresh);
+        if(!changes.length){setChangedOffers([]);setReviewed(true);}
+        else{
+          setChangedOffers(changes);
+          setFreshnessError('A Store has updated an item. Review the change to continue.');
+        }
       })
-      .catch(()=>{if(active)setFreshnessError('We could not check these Store offers. Try again. Nothing has been ordered.');})
+      .catch(()=>{if(active){
+        setChangedOffers([]);
+        setFreshnessError('We could not confirm the latest Store details. You can retry or return to the Store.');
+      }})
       .finally(()=>{if(active)setChecking(false);});
     return()=>{active=false;};
-    // The cart, choice and store gateway are the only sources for this check.
+    // Source identity and basket state are stable dependencies.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   },[view,cart,fulfilmentChoice,client]);
   const verify = async () => {
     if(!cart.length||working||checking)return;
-    setChecking(true);setReviewed(false);setProposalOpen(false);resetSample();setError('');setFreshnessError('');
+    setChecking(true);setReviewed(false);setProposalOpen(false);resetSample();
+    setError('');setFreshnessError('');setChangedOffers([]);
     try{
-      if(!await latestOffersMatch()){
-        setFreshnessError('A Store changed an item. Browse the Store again to see the latest offer.');
+      const fresh=await Promise.all(cart.map(line=>client.offer(line.sellerKsNumber,line.offerId)));
+      const changes=offerChanges(fresh);
+      if(changes.length){
+        setChangedOffers(changes);
+        setFreshnessError('A Store has updated an item. Review the change to continue.');
       }else setReviewed(true);
     }catch{
-      setFreshnessError('Could not check every item. Nothing was ordered.');
+      setFreshnessError('We could not check every item. Nothing was ordered. Try again or return to the Store.');
     }finally{setChecking(false);}
+  };
+  const acceptUpdatedOffer=(change:MiniChangedOffer)=>{
+    const offer=change.fresh;
+    if(!change.available||!offer)return;
+    const newQuantity=change.canUse?undefined:change.maxQuantity;
+    if(newQuantity!==undefined&&(newQuantity===null||newQuantity<1))return;
+    setCart(current=>current.map(line=>
+      line.sellerKsNumber===change.sellerKsNumber&&line.offerId===change.offerId
+        ?{...line,title:offer.title,description:offer.description,
+          mediaRefs:offer.mediaRefs,priceMinor:offer.priceMinor,currency:offer.currency,
+          availabilityState:offer.availabilityState,offerUpdatedAt:offer.updatedAt,
+          quantity:newQuantity??line.quantity}:line));
+    const key=change.sellerKsNumber+':'+change.offerId;
+    setQuoteAccepted(quoted=>Object.fromEntries(Object.entries(quoted).filter(([id])=>id!==key)));
+    setReviewed(false);setProposalOpen(false);setChangedOffers([]);setFreshnessError('');
+    setSavedNotice(false);invalidateDelivery();resetSample();
   };
 
   const discussCurrent = async () => {
@@ -345,8 +395,7 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
   };
   const itemCount=cart.reduce((count,line)=>count+line.quantity,0);
   const cartQuantity=(offerId:string)=>cart.find(line=>line.offerId===offerId)?.quantity||0;
-  const deliveryContracts=miniDeliveryContracts({choice:fulfilmentChoice,lines:cart,
-    destination:deliveryArea,window:deliveryWindow,deliveryQuoteSelected});
+
   const deliveryContractState=miniDeliveryContractSummary(deliveryContracts);
   const deliveryNeedsQuote=readiness.goods&&fulfilmentChoice!=='collect';
   const deliveryComplete=!deliveryNeedsQuote||
@@ -404,8 +453,11 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
   return <section className="spm-content spm-buy spm-shop-screen"
       data-mini-store-source={playground?'fictional-local-playground':'public-read-only'}>
     {view==='search'&&<MiniShopDiscovery results={results} onOpen={ks=>void openStore(ks)}
-      playground={playground} onBack={onBack} label={term?'Stores with '+(term.trim()||'goods'):'Stores to explore'}
-      cartCount={itemCount} onBasket={()=>setView('plan')} searchControls={shopControls}/>}
+      playground={playground} onBack={onBack} label={term?'Stores for '+(term.trim()||'goods'):'Stores to explore'}
+      cartCount={itemCount} onBasket={()=>setView('plan')} searchControls={shopControls}
+      loading={working} busyText={openingStore?'Opening Store…':'Finding Stores…'}
+      error={view==='search'?error:''}
+      onRetry={()=>void (lastStoreAttempt&&/Store|Duka/i.test(error)?openStore(lastStoreAttempt):find())}/>}
     {view==='store'&&chosenStore&&<MiniShopGallery key={chosenStore.canonicalKsNumber}
       store={chosenStore} playground={playground}
       cartCount={itemCount} cartQty={cartQuantity} onAdd={add}
@@ -416,6 +468,7 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
       }))} amountMinor={sampleTotalMinor}
         delivery={fulfilmentChoice==='collect'?'I will collect':(deliveryArea||'Delivery to confirm')}
         deliveryFeeMinor={deliveryFeeMinor}
+        terms={preparedTerms}
         deliveryContracts={deliveryContracts.map(c=>({...c,customerApproved:deliveryContractConfirmed,providerAccepted:sampleRequests&&
           (c.providerKsNumber==='KS90004'||sampleResponses[c.providerKsNumber]==='accepted')}))}
         deliveryProvider={fulfilmentChoice==='explore_combined'?'KS90004':
@@ -462,9 +515,14 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
             </div>
           </div>)}
         </div>
-        <button type="button" className="spm-shop-continue" onClick={()=>setView('search')}>
-          <Plus size={17}/> Keep browsing
-        </button>
+        <div className="spm-shop-basket-browse">
+          <button type="button" className="spm-shop-continue"
+            onClick={()=>setView(chosenStore?'store':'search')}>
+            <Plus size={17}/> {chosenStore?'Keep browsing this Store':'Keep browsing'}
+          </button>
+          {chosenStore&&<button type="button" className="spm-shop-browse-more"
+            onClick={()=>setView('search')}>Other Stores</button>}
+        </div>
         <div className="spm-shop-basket-money">
           <div><span>{itemCount} item{itemCount===1?'':'s'} · {sampleSellers.length} Store{sampleSellers.length===1?'':'s'}</span>
             <strong>{total||'Prices to agree'}</strong></div>
@@ -602,7 +660,31 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
               <RefreshCcw size={16}/> Checking the latest Store details…</p>}
             {freshnessError&&<div className="spm-shop-check-problem" role="alert">
               <p>{freshnessError}</p>
-              <button type="button" className="spm-secondary" onClick={()=>void verify()}>Check again</button>
+              {changedOffers.map(change=>{
+                const line=cart.find(x=>x.offerId===change.offerId&&
+                  x.sellerKsNumber===change.sellerKsNumber);
+                return <div className="spm-shop-price-change" key={change.sellerKsNumber+change.offerId}>
+                  <strong>{change.title}</strong>
+                  {change.fresh&&change.available?<>
+                    {change.priceChanged&&<span>{money(change.wasPriceMinor,change.fresh.currency)}
+                      {' → '}{money(change.fresh.priceMinor,change.fresh.currency)}</span>}
+                    {change.maxQuantity!==null&&line&&change.maxQuantity<line.quantity&&
+                      <span>Only {change.maxQuantity} available now</span>}
+                    <button type="button" className="spm-secondary"
+                      onClick={()=>acceptUpdatedOffer(change)}>
+                      {change.canUse?'Use the updated offer':'Adjust to available quantity'}
+                    </button>
+                  </>:<span>This item may no longer be available.
+                    You can remove it or visit its Store.</span>}
+                  {line&&<div className="spm-shop-price-change-actions">
+                    <button type="button" onClick={()=>removeLine(line)}>Remove item</button>
+                    <button type="button" onClick={()=>void openStore(change.sellerKsNumber)}>
+                      Visit Store</button>
+                  </div>}
+                </div>;
+              })}
+              <button type="button" className="spm-secondary" onClick={()=>void verify()}>
+                Check again</button>
             </div>}
             {!checking&&!freshnessError&&ready&&<div className="spm-shop-ready-note">
               <CheckCircle2 size={18}/><span>Your choices are ready to review.</span></div>}
@@ -612,9 +694,14 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
         </div>}
         {!proposalOpen&&<button type="button" className="spm-shop-proceed" disabled={!ready}
           onClick={()=>setProposalOpen(true)}>
-          <span>{ready?'Ready to continue? Review your choices':'Continue to review'}</span>
+          <span>{ready?'Review your proposed Agreement':'Continue to review'}</span>
           <ArrowRight size={19}/></button>}
-        {proposalOpen&&<div className="spm-shop-agreement-next">
+        {!proposalOpen&&playground&&<div className="spm-shop-early-save">
+          <button type="button" onClick={saveForLater} className="spm-shop-quiet-save">
+            Save for later</button>
+          {savedNotice&&<button type="button" onClick={onBack}>Return to Mini</button>}
+        </div>}
+        {proposalOpen&&<div ref={reviewAnchor} className="spm-shop-agreement-next">
           <div className="spm-shop-agreement-heading">
             <ShieldCheck size={22}/><span><small>NEXT · MAKE AN AGREEMENT</small>
             <strong>Ready to go ahead?</strong></span>
@@ -743,7 +830,7 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
         </div>}
       </>}
     </>}
-    {error&&<p className="spm-error" role="alert">{error}</p>}
+    {error&&view!=='search'&&<p className="spm-error" role="alert">{error}</p>}
     <p className="spm-disclaimer">{playground?
       'Fictional sample data · No live SecureLinks, Agreements, deliveries or payments.':
       'Offers remain separate until each party confirms the applicable terms.'}</p>

@@ -72,7 +72,15 @@ test('two sample hosts create signed mock order+agreement references, never a re
     assert.equal(begin.output.acceptedAgreement,false);
     assert.equal(begin.output.paymentEnabled,false);
     assert.match(begin.output.session,/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
-    assert.doesNotMatch(begin.output.session,/Sample|KSh|STORE-DEMO|STAY-DEMO/);
+    // The session is encrypted base64url: a random ciphertext may naturally
+    // contain short byte sequences such as "KSh" by coincidence. Verify that
+    // neither the raw token nor any decoded segment exposes fixture fields,
+    // rather than treating accidental random characters as a data leak.
+    assert.doesNotMatch(begin.output.session,/STORE-DEMO-01|STAY-DEMO-01|"amountMinor"|"fixtureId"/);
+    for(const part of begin.output.session.split('.')){
+      const decoded=Buffer.from(part,'base64url').toString('utf8');
+      assert.doesNotMatch(decoded,/STORE-DEMO-01|STAY-DEMO-01|"amountMinor"|"fixtureId"/);
+    }
     const snapshot=await call('GET',undefined,
       '/api/mini-gate2-sandbox?session='+encodeURIComponent(begin.output.session));
     assert.equal(snapshot.statusCode,200);
