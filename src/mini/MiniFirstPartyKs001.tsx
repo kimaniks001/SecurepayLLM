@@ -57,7 +57,8 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
   /** One-shot explicit handoff from Mini Business Settings, not an authority grant. */
   startInStore?: boolean;
   /** Explicit buyer handoff; public offer IDs must be rechecked before use. */
-  initialBuyingPlan?: {lines:MiniStorePlanLine[];fulfilment:MiniBasketFulfilment|null}|null;
+  initialBuyingPlan?: {lines:MiniStorePlanLine[];fulfilment:MiniBasketFulfilment|null;
+    buyerAnswers?:Array<{sellerKsNumber:string;offerId:string;question:string;proposedAnswer:string}>}|null;
 }) {
   const sw = language === 'sw';
   const expiredKey = 'securepay.mini.firstparty.expired.v1:' + apiOrigin;
@@ -422,8 +423,9 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
       setStoreError('Could not discuss the Store plan with KS001. No order or Agreement was created.');
     }finally{setStoreBusy(false);}
   };
-  const discussStorePlan = (lines:MiniStorePlanLine[],fulfilment:MiniBasketFulfilment|null = null) => {
-    const plan=miniStoreIntent(lines,{fulfilmentPreference:fulfilment});
+  const discussStorePlan = (lines:MiniStorePlanLine[],fulfilment:MiniBasketFulfilment|null = null,
+      buyerAnswers:Array<{sellerKsNumber:string;offerId:string;question:string;proposedAnswer:string}>=[]) => {
+    const plan=miniStoreIntent(lines,{fulfilmentPreference:fulfilment,buyerAnswers});
     if(!plan){setStoreError('Check the Store, quantity and offer references again. No Agreement was created.');return;}
     void forwardStorePlan(plan);
   };
@@ -433,7 +435,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
     // Do not call this on mount unless a human explicitly asked for help.
     if(!initialBuyingPlan||status!=='ready'||initialBuyingPlanHandled.current)return;
     initialBuyingPlanHandled.current=true;
-    discussStorePlan(initialBuyingPlan.lines,initialBuyingPlan.fulfilment);
+    discussStorePlan(initialBuyingPlan.lines,initialBuyingPlan.fulfilment,initialBuyingPlan.buyerAnswers||[]);
     // One shot per mounted first-party session; retry is controller-owned.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   },[initialBuyingPlan,status]);
