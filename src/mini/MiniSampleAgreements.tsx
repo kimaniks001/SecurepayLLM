@@ -9,6 +9,10 @@ export function MiniSampleAgreements({purchases,focusId,onBack,onShop}:{
 }){
  const [chosen,setChosen]=useState<string|null>(focusId);
  const selected=purchases.find(x=>x.id===chosen)||null;
+ const providers=selected?[...new Set(selected.items.map(item=>item.sellerKsNumber))].map(ks=>({
+   ks,name:short(selected.items.find(item=>item.sellerKsNumber===ks)?.sellerName||'Provider'),
+   items:selected.items.filter(item=>item.sellerKsNumber===ks),
+ })):[];
  return <section className="spm-content spm-sample-agreements" data-sample-agreements="isolated-owner-preview">
    <div className="spm-shop-basket-top">
      <button type="button" className="spm-shop-back" onClick={selected?()=>setChosen(null):onBack}
@@ -63,16 +67,32 @@ export function MiniSampleAgreements({purchases,focusId,onBack,onShop}:{
          <div>Receiving: {selected.delivery}</div>
          <small>Example reference: {selected.id}</small>
        </div>
-       {selected.linkedDeliveryIds?.length ? <p className="spm-shop-gentle-note">
-          This purchase includes {selected.linkedDeliveryIds.length} separate delivery
-          mini Agreement{selected.linkedDeliveryIds.length===1?'':'s'}.
-          Each provider is responsible only for its own delivery.</p>:null}
+       {selected.linkedDeliveryIds?.length ? <div className="spm-shop-linked-deliveries">
+          <strong>Delivery has its own Agreement</strong>
+          <p>Included in the amount above; no second payment.</p>
+          {selected.linkedDeliveryIds.map(id=><button type="button" key={id}
+            onClick={()=>setChosen(id)}>
+            View delivery Agreement <ArrowRight size={16}/>
+          </button>)}
+        </div>:null}
        <h2>Who is doing what</h2>
-       {selected.items.map((item,i)=><div key={item.sellerKsNumber+':'+i} className="spm-sample-duty">
-         <strong>{short(item.sellerName)}</strong>
-         <small>{item.quantity} × {item.title}</small>
-         <small>{fmt(item.amountMinor)} · Separate responsibility</small>
+       {providers.map(group=><div key={group.ks} className="spm-sample-duty">
+         <strong>{group.name}</strong>
+         {group.items.map((item,i)=><div className="spm-sample-duty-row" key={item.title+':'+i}>
+           <small>{item.quantity} × {item.title}</small>
+           <small>{fmt(item.amountMinor)}</small>
+         </div>)}
        </div>)}
+       {!!selected.terms?.length&&<details className="spm-shop-agreed-terms">
+         <summary>{selected.terms.length} agreed sample detail{selected.terms.length===1?'':'s'}</summary>
+         {selected.terms.map((term,i)=><div key={term.offerId+term.label+i}>
+           <strong>{term.label}</strong>
+           <p>{term.value}</p>
+           <small>{term.origin==='BUYER_PROPOSED'?'Your choice, confirmed in sample':
+             'Provider clarification, reviewed in sample'}</small>
+           <small>Store offer version: {term.offerUpdatedAt}</small>
+         </div>)}
+       </details>}
        <h2>What happens next</h2>
        <div className="spm-sample-timeline">
          {selected.progress.map((p,i)=><div key={i} className={'spm-sample-timeline-item '+p.status}>
