@@ -32,3 +32,13 @@ test('sell actions remain share, store or save with local-only draft',()=>{
   assert.match(seller,/finish\('save'\)/);
   assert.match(seller,/sessionStorage/);
 });
+
+test('seller starts with one closed optional tool shelf and opens only as needed',()=>{
+  assert.match(seller,/const \[toolsOpen,setToolsOpen\]=useState\(false\)/);
+  assert.match(seller,/aria-expanded=\{toolsOpen\}/);
+  assert.match(seller,/toolsOpen&&<div id="spm-sell-optional-tools">/);
+  assert.match(seller,/Add to or improve your offer/);
+  assert.match(seller,/openSuggestedTool/);
+  for(const id of ["id:'describe'","id:'places'","id:'timing'","id:'people'","id:'documents'"])
+    assert.ok(seller.includes(id),id);
+});
