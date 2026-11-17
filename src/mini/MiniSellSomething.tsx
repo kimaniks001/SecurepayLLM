@@ -446,6 +446,17 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
         !unchangedAfterReview||shareCreating||shareIssued)return;
     setShareCreating(true);setShareStatus('');
     try{
+      // Check the exact proposed Agreement revision that the seller confirmed
+      // before issuing its external doorway. The backend still owns authority.
+      const current=await agreementGateway.detail(proposedAgreement.id);
+      if(current?.overview?.status!=='PROPOSED'||
+          current.overview.agreementId!==proposedAgreement.id||
+          current.currentVersion?.versionId!==proposedAgreement.version.versionId||
+          current.currentVersion?.versionNumber!==proposedAgreement.version.versionNumber||
+          current.currentVersion?.contentHash!==proposedAgreement.version.contentHash){
+        setShareStatus('This Agreement has changed. Open it and review the current version before sharing.');
+        return;
+      }
       shareKey.current??=crypto.randomUUID();
       const issued=await miniSellerIssueAgreementDoorway({
         gateway:agreementGateway,agreement:proposedAgreement,
