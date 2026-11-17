@@ -12,7 +12,7 @@ export function availabilityOptionsFor(kind: OfferKind): AvailabilityState[] {
 
 export const emptyOfferDraft: OfferDraftFields = {
   kind: 'SERVICE', title: '', description: '', priceMinor: null, quantityAvailable: null,
-  availabilityState: 'NEEDS_CONFIRMATION', published: true, mediaRefs: [],
+  availabilityState: 'NEEDS_CONFIRMATION', published: false, mediaRefs: [],
 };
 
 /**
@@ -49,4 +49,4 @@ export function mergeSearchResults(resultLists: StoreSearchResult[][]): StoreSea
 }
 
 export type StoreReadGateway = Pick<StoreGateway, 'search' | 'store' | 'offer'>;
-export type StoreManageGateway = Pick<StoreGateway, 'myProfile' | 'myOffers' | 'createOffer' | 'updateOffer' | 'confirmAvailability' | 'businessProfile' | 'businessOffers' | 'businessOpportunities' | 'createBusinessOffer' | 'updateBusinessOffer' | 'confirmBusinessOfferAvailability'>;
+export type StoreManageGateway = Pick<StoreGateway, 'myProfile' | 'myOffers' | 'createOffer' | 'updateOffer' | 'confirmAvailability' | 'businessProfile' | 'businessOffers' | 'businessOpportunities' | 'createBusinessOffer' | 'updateBusinessOffer' | 'confirmBusinessOfferAvailability' | 'publishMyTextOffer' | 'publishBusinessTextOffer'>;
