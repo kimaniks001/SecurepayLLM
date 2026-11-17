@@ -60,6 +60,7 @@ export function MiniSellSomething({language,onBack,seed=''}:{
   const sw=language==='sw';
   const [stage,setStage]=useState<'compose'|'review'|'result'>('compose');
   const [shelf,setShelf]=useState<Shelf>(null);
+  const [toolsOpen,setToolsOpen]=useState(false);
   const [title,setTitle]=useState(seed.slice(0,240));
   const [category,setCategory]=useState<Category>('Goods');
   const [priceType,setPriceType]=useState<'fixed'|'quote'>('fixed');
@@ -100,6 +101,28 @@ export function MiniSellSomething({language,onBack,seed=''}:{
   const imageNeedsSource=pictures.some(p=>p.source==='unknown');
   const canOffer=!!title.trim()&&!invalidPrice&&!suspicious&&!sensitive&&rightToOffer&&!imageNeedsSource;
   const refreshDescription=()=>{setDescriptionReviewed(false);setError('');};
+  // Progressive disclosure: one gentle next-step suggestion, never a compulsory tool.
+  const suggestion=useMemo<{id:Exclude<Shelf,null>;message:string}|null>(()=>{
+    const words=title.toLowerCase();
+    if(!title.trim())return null;
+    if(pictures.length&&!descriptionReviewed)
+      return {id:'describe',message:'Want help describing what is in your photo?'};
+    if(sensitive&&!documents.length)
+      return {id:'documents',message:'This item may need a licence or supporting document.'};
+    if(/\\b(?:deliver|delivery|collect|collection|pickup|pick-up)\\b/.test(words)&&!place)
+      return {id:'places',message:'Where will the buyer collect or receive it?'};
+    if(/\\b(?:tomorrow|next week|monday|tuesday|wednesday|thursday|friday|saturday|sunday|appointment)\\b/.test(words)&&!timing)
+      return {id:'timing',message:'Add a proposed date or time?'};
+    if(/\\b(?:buyer|customer|client)\\b/.test(words)&&!people.length)
+      return {id:'people',message:'Want to name the buyer or agent?'};
+    if(!descriptionReviewed)
+      return {id:'describe',message:'I can help make this offer clearer to buyers.'};
+    return null;
+  },[title,pictures.length,descriptionReviewed,sensitive,documents.length,place,timing,people.length]);
+  const openSuggestedTool=()=>{
+    if(!suggestion)return;
+    setToolsOpen(true);setShelf(suggestion.id);setError('');
+  };
   const fields = {title,category,condition,specifications,purpose,included,limitations,warranty};
   const evidenceNotices=[
     !rightToOffer?'Confirm your authority to offer this item.':null,
@@ -188,7 +211,15 @@ export function MiniSellSomething({language,onBack,seed=''}:{
         {label('Quantity (optional)','sell-quantity',quantity,setQuantity,'20')}
         {label('Unit (optional)','sell-unit',unit,setUnit,'bags, kg, hours')}
       </div>
-      <div className="spm-sell-small-head"><strong>Help prepare your offer</strong><span>Choose what you need</span></div>
+      {suggestion&&!toolsOpen&&<button type="button" className="spm-sell-suggestion" onClick={openSuggestedTool}>
+        <span>{suggestion.message}</span><ChevronRight size={16}/></button>}
+      <button type="button" className="spm-sell-tools-toggle" aria-expanded={toolsOpen}
+        aria-controls="spm-sell-optional-tools"
+        onClick={()=>{setToolsOpen(v=>!v);setShelf(null);setError('');}}>
+        <span><BookOpenText size={17}/>Add to or improve your offer</span>
+        <ChevronRight size={18} className={toolsOpen?'spm-sell-tools-chevron open':'spm-sell-tools-chevron'}/>
+      </button>
+      {toolsOpen&&<div id="spm-sell-optional-tools">
       <div className="spm-sell-tool-grid">{toolList.map(({id,label:toolLabel,icon:Icon})=>
         <button type="button" className={'spm-sell-tool'+(shelf===id?' active':'')} aria-expanded={shelf===id}
           key={id} onClick={()=>{setShelf(shelf===id?null:id);setError('');}}>
@@ -197,7 +228,7 @@ export function MiniSellSomething({language,onBack,seed=''}:{
             id==='people'&&people.length>0||id==='timing'&&!!timing||id==='places'&&!!place||
             id==='describe'&&!!descriptionReviewed)&&<CheckCircle2 size={13}/>}
         </button>)}</div>
-      {shelf&&<div className="spm-sell-tool-panel" aria-label={toolList.find(t=>t.id===shelf)?.label}>
+      {toolsOpen&&shelf&&<div className="spm-sell-tool-panel" aria-label={toolList.find(t=>t.id===shelf)?.label}>
         <div className="spm-sell-panel-head"><strong>{toolList.find(t=>t.id===shelf)?.label}</strong>
           <button type="button" aria-label="Close tool" onClick={()=>setShelf(null)}><X size={17}/></button></div>
         {shelf==='describe'&&<>
@@ -318,6 +349,7 @@ export function MiniSellSomething({language,onBack,seed=''}:{
             <span><strong>{p.name}</strong><small>{p.role} · not verified or invited</small></span>
             <button type="button" aria-label={'Remove '+p.name} onClick={()=>setPeople(x=>x.filter((_,j)=>i!==j))}><X size={17}/></button></div>)}
         </>}
+      </div>}
       </div>}
       {(!!descriptionReviewed||pictures.length>0||documents.length>0||!!place||!!timing||people.length>0)&&
         <div className="spm-sell-chips">
