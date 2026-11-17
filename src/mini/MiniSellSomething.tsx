@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { buildTimingProposal, type TimingDraft } from '../features/living-workspace/DateTimeTool';
 import type { MiniLanguage } from './miniModel';
+import {miniSellerPreparedOffer,miniSellerSafeDraft,miniSellerRestoreDraft} from './miniSellerPreparedOffer.mjs';
 
 type Shelf = 'describe'|'photos'|'documents'|'places'|'timing'|'people'|null;
 type PhotoSource = 'own'|'supplier'|'permission'|'unknown';
@@ -13,7 +14,7 @@ type Picture = { name:string; preview:string; source:PhotoSource; supplierPermis
 type Support = { name:string; purpose:string };
 type Person = { name:string; role:string };
 type Result = 'share'|'store'|'save'|null;
-type Category = 'Goods'|'Agriculture'|'Equipment'|'Furniture'|'Services';
+type Category = 'Goods'|'Agriculture'|'Equipment'|'Furniture'|'Services'|'Capacity';
 
 type ReviewIssue = 'safety'|'regulated'|'photo'|'photo-permission'|'authority'|'availability'|null;
 function AnswerPill({children,onClick,selected=false,disabled=false}:{
@@ -111,6 +112,16 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
   const photoRef=useRef<HTMLInputElement>(null);
   const docRef=useRef<HTMLInputElement>(null);
   const [photoCount,setPhotoCount]=useState(0);
+  const [savedDraftAvailable,setSavedDraftAvailable]=useState(()=>{
+    try{return miniSellerRestoreDraft(JSON.parse(sessionStorage.getItem('securepay-mini-sell-preview-draft-v2')||'null'))!==null;}
+    catch{return false;}
+  });
+  const prepared=miniSellerPreparedOffer({
+    title,category,priceType,price,quantity,unit,description,descriptionReviewed,
+    condition,specifications,purpose,included,limitations,warranty,
+    availability:stockStatement,rightToOffer,rightType,photos:pictures,documents,people,
+    placeType,place,privateMeeting,timing
+  });
   const invalidPrice=priceType==='fixed' && !readableAmount(price);
   const suspicious=useMemo(()=>/\b(?:stolen|counterfeit|fake passport|ivory|illegal drugs|firearms?|ammunition)\b/i.test(title+' '+description),[title,description]);
   const sensitive=useMemo(()=>/\b(?:medicine|pharmaceutical|pesticide|alcohol|vehicle registration)\b/i.test(title+' '+description),[title,description]);
@@ -121,7 +132,7 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
   const currentQuestion:ReviewIssue=suspicious?'safety':sensitive?'regulated':
     pendingPhotoIndex>=0?(pictures[pendingPhotoIndex].source==='supplier'?'photo-permission':'photo'):
     !rightToOffer?'authority':!stockStatement.trim()?'availability':null;
-  const canOffer=!!title.trim()&&!invalidPrice&&!suspicious&&!sensitive&&
+  const canOffer=prepared.ok&&!invalidPrice&&!suspicious&&!sensitive&&
     rightToOffer&&!imageNeedsSource&&!!stockStatement.trim();
   const photoSourceName=(source:PhotoSource)=>({
     own:'Photo I took',supplier:'Supplier image (permission declared)',
@@ -204,19 +215,40 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
     setError('');
     if(!title.trim()){setError('What are you selling? A short name is enough.');return;}
     if(invalidPrice){setError('Enter a positive price or choose Price to agree.');return;}
-    if(quantity.trim()&&(!/^\d+(?:\.\d{1,3})?$/.test(quantity)||Number(quantity)<=0)){
-      setError('Please check the quantity.');return;
-    }
+    if(!prepared.ok){setError(prepared.error);return;}
     setShelf(null);setReturningToReview(false);setShowMorePills(false);setStage('review');
   };
   const finish=(kind:Result)=>{
     if(kind!=='save'&&!canOffer)return;
     if(kind==='save'){
-      try{sessionStorage.setItem('securepay-mini-sell-preview-draft-v1',JSON.stringify({
-        title,category,priceType,price,quantity,unit,description,placeType,place,timing,stockStatement
-      }));}catch{/* Browsers may refuse optional local storage. */}
+      try{
+        sessionStorage.setItem('securepay-mini-sell-preview-draft-v2',JSON.stringify(miniSellerSafeDraft({
+          title,category,priceType,price,quantity,unit,condition,specifications,purpose,
+          included,limitations,warranty,description,descriptionReviewed,placeType,
+          place,timing,stockStatement
+        })));
+        setSavedDraftAvailable(true);
+      }catch{setSavedDraftAvailable(false);}
     }
     setResult(kind);setStage('result');
+  };
+  const restoreSavedOffer=()=>{
+    try{
+      const saved=miniSellerRestoreDraft(JSON.parse(sessionStorage.getItem('securepay-mini-sell-preview-draft-v2')||'null'));
+      if(!saved){setSavedDraftAvailable(false);setError('This tab no longer has a saved offer.');return;}
+      setTitle(saved.title);setCategory(saved.category as Category);
+      setPriceType(saved.priceType as 'fixed'|'quote');setPrice(saved.price);
+      setQuantity(saved.quantity);setUnit(saved.unit);
+      setCondition(saved.condition);setSpecifications(saved.specifications);setPurpose(saved.purpose);
+      setIncluded(saved.included);setLimitations(saved.limitations);setWarranty(saved.warranty);
+      setDescription(saved.description);setDescriptionReviewed(false); // The seller reviews the restored wording again.
+      setPlaceType(saved.placeType as 'Pickup'|'Delivery'|'Work location');
+      setPlace(saved.place);setTiming(saved.timing);setStockStatement(saved.stockStatement);
+      // No file, contact, permissions, identity or statement of verified authority persists.
+      setPictures([]);setDocuments([]);setPeople([]);setPrivateMeeting('');
+      setPersonPlan(null);setRightToOffer(false);setStage('compose');setSellerArea('offer');
+      setError('');setShelf(null);setToolsOpen(false);
+    }catch{setSavedDraftAvailable(false);setError('This tab could not restore that offer.');}
   };
   const sample=()=>{
     setTitle('20 bags of dairy meal animal feed');setCategory('Agriculture');
@@ -270,10 +302,17 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
       <div className="spm-sell-phase1-capacity"><span>Acting as <strong>{actingAs}</strong></span><small>Example only · authority not verified</small></div>
       <h1 className="spm-question">{sw?'Unauza nini?':'What are you selling?'}</h1>
       <p className="spm-lead">Tell Mini a little. Add pictures or details only when they help you make a better offer.</p>
+      {savedDraftAvailable&&<button type="button" className="spm-sell-resume" onClick={restoreSavedOffer}>
+        <Bookmark size={16}/><span><strong>Continue a saved offer</strong><small>Written details only · in this browser tab</small></span><ChevronRight size={16}/>
+      </button>}
       {label('Your item or service','sell-title',title,v=>{setTitle(v);refreshDescription();},'e.g. 20 bags of animal feed',2)}
-      <div className="spm-sell-grid2">
-        <label className="spm-sell-label"><span>Pricing</span><select className="spm-field" value={priceType} onChange={e=>setPriceType(e.target.value as 'fixed'|'quote')}><option value="fixed">Fixed price</option><option value="quote">Price to agree</option></select></label>
-        {priceType==='fixed'&&label('Price in KSh','sell-price',price,setPrice,'2,500')}
+      <div className="spm-sell-phase2-pricing" data-mini-sell-pricing>
+        <strong className="spm-sell-inline-question">How would you price it?</strong>
+        <div className="spm-sell-pill-row">
+          <AnswerPill selected={priceType==='fixed'} onClick={()=>setPriceType('fixed')}>Set a price</AnswerPill>
+          <AnswerPill selected={priceType==='quote'} onClick={()=>setPriceType('quote')}>Price to agree</AnswerPill>
+        </div>
+        {priceType==='fixed'&&label('Price in KSh per unit','sell-price',price,setPrice,'2,500')}
       </div>
       <div className="spm-sell-grid2">
         {label('Quantity (optional)','sell-quantity',quantity,setQuantity,'20')}
@@ -301,10 +340,18 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
           <button type="button" aria-label="Close tool" onClick={()=>setShelf(null)}><X size={17}/></button></div>
         {shelf==='describe'&&<>
           <p className="spm-sell-hint">A good description helps buyers understand the offer. Only details you supply will appear.</p>
-          <label className="spm-sell-label"><span>What kind of offer?</span><select className="spm-field" value={category} onChange={e=>{setCategory(e.target.value as Category);refreshDescription();}}>
-            {(['Goods','Agriculture','Equipment','Furniture','Services'] as const).map(c=><option key={c}>{c}</option>)}</select></label>
-          {category!=='Services'&&label('Condition','sell-condition',condition,v=>{setCondition(v);refreshDescription();},'New, used, refurbished…')}
-          {label(category==='Agriculture'?'Weight, grade, ingredients or variety':category==='Equipment'?'Model, capacity and specifications':category==='Furniture'?'Material and dimensions':category==='Services'?'Scope and deliverables':'Specifications or features',
+          <strong className="spm-sell-inline-question">What kind of offer?</strong>
+          <div className="spm-sell-pill-row">
+            <AnswerPill selected={!['Services','Capacity'].includes(category)} onClick={()=>{setCategory('Goods');refreshDescription();}}>Product or goods</AnswerPill>
+            <AnswerPill selected={category==='Services'} onClick={()=>{setCategory('Services');refreshDescription();}}>Service or work</AnswerPill>
+            <AnswerPill selected={category==='Capacity'} onClick={()=>{setCategory('Capacity');refreshDescription();}}>Available capacity</AnswerPill>
+          </div>
+          {!['Services','Capacity'].includes(category)&&<label className="spm-sell-label"><span>What kind of goods?</span>
+            <select className="spm-field" value={category} onChange={e=>{setCategory(e.target.value as Category);refreshDescription();}}>
+              {(['Goods','Agriculture','Equipment','Furniture'] as const).map(c=><option key={c}>{c}</option>)}
+            </select></label>}
+          {!['Services','Capacity'].includes(category)&&label('Condition','sell-condition',condition,v=>{setCondition(v);refreshDescription();},'New, used, refurbished…')}
+          {label(category==='Agriculture'?'Weight, grade, ingredients or variety':category==='Equipment'?'Model, capacity and specifications':category==='Furniture'?'Material and dimensions':category==='Services'?'Scope and deliverables':category==='Capacity'?'Capacity, availability and units':'Specifications or features',
             'sell-specs',specifications,v=>{setSpecifications(v);refreshDescription();},'Only facts you can stand behind',2)}
           {label('What is it suitable for?','sell-purpose',purpose,v=>{setPurpose(v);refreshDescription();},'What would a buyer use it for?')}
           {label('What is included?','sell-included',included,v=>{setIncluded(v);refreshDescription();},'Accessories, quantity, work included…')}
@@ -481,8 +528,11 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
         {pictures[0]&&<div className="spm-sell-cover"><img src={pictures[0].preview} alt="Seller-provided offer"/>
           <span>SecurePay Identimark · preview only</span></div>}
         <strong className="spm-sell-review-title">{title}</strong>
-        <strong className="spm-sell-review-price">{priceType==='fixed'?readableAmount(price):'Price to agree'}</strong>
-        {quantity&&<small>{quantity} {unit}</small>}
+        <strong className="spm-sell-review-price">{prepared.ok?prepared.summary.moneyText:priceType==='fixed'?readableAmount(price):'Price to agree'}</strong>
+        {quantity&&<small>Proposed quantity: {quantity} {unit} · not confirmed stock</small>}
+        {prepared.ok&&prepared.summary.totalMinor!==null&&<div className="spm-sell-review-line">
+          Proposed total: KSh {(prepared.summary.totalMinor/100).toLocaleString('en-KE',{maximumFractionDigits:2})} · {quantity} × listed unit price, not a final charge
+        </div>}
         <p>{descriptionReviewed&&description?description:'A description can make this offer easier for buyers to understand. Add one with Describe & Present.'}</p>
         {!!place&&<div className="spm-sell-review-line"><MapPin size={15}/>{placeType}: {place}</div>}
         {!!timing&&<div className="spm-sell-review-line"><CalendarDays size={15}/>{timing}</div>}
@@ -490,6 +540,23 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
         {personPlan&&<div className="spm-sell-review-line"><UserRoundPlus size={15}/>{personPlan==='later'?'Other person to be agreed':'Buyer to be invited after proposal review'}</div>}
         {documents.map((d,i)=><div className="spm-sell-review-line" key={i}><FileText size={15}/>{d.purpose}: {d.name} (not verified)</div>)}
       </div>
+      {prepared.ok&&<details className="spm-sell-phase2-packet" data-mini-seller-offer-packet>
+        <summary>What's included in this offer <ChevronRight size={15}/></summary>
+        <div className="spm-sell-phase2-packet-content">
+          <p><strong>Offer type</strong><span>{prepared.summary.kind==='PRODUCT'?'Goods':prepared.summary.kind==='SERVICE'?'Service':'Capacity'}</span></p>
+          <p><strong>Pricing</strong><span>{prepared.summary.moneyText}</span></p>
+          {prepared.summary.count!==null&&<p><strong>Proposed quantity</strong><span>{prepared.summary.count} {prepared.summary.priceUnit} · not stock confirmed</span></p>}
+          <p><strong>Availability</strong><span>{stockStatement||'Needs seller confirmation'}</span></p>
+          <p><strong>Description</strong><span>{prepared.summary.descriptionApproved?'Reviewed by you':'Not approved for Store use'}</span></p>
+          {!!prepared.summary.placeLabel&&<p><strong>Place</strong><span>{prepared.summary.placeLabel} · proposed</span></p>}
+          {!!prepared.summary.timing&&<p><strong>Calendar</strong><span>Proposed, not booked</span></p>}
+          {!!prepared.summary.photos&&<p><strong>Photos</strong><span>{prepared.summary.photos} local · not uploaded</span></p>}
+          {!!prepared.summary.documents&&<p><strong>Documents</strong><span>{prepared.summary.documents} filenames only · not checked</span></p>}
+          {!!prepared.summary.persons&&<p><strong>People</strong><span>{prepared.summary.persons} named · nobody invited</span></p>}
+          <p><strong>Store record</strong><span>Prepared only · not published</span></p>
+        </div>
+        <small>The shape matches SecurePay's existing Store offer fields. No Offer ID, version, verified availability or buyer consent has been issued.</small>
+      </details>}
       <div className="spm-sell-check">
         <div className="spm-sell-check-head"><ShieldCheck size={18}/><strong>Quiet Fair Trade examination</strong></div>
         <p>One small question at a time. Tap an answer to continue; no forms to complete.</p>
@@ -611,7 +678,7 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
         <button type="button" onClick={()=>finish('store')} disabled={!canOffer}>
           <span><Store size={19}/></span><span><strong>Add to my store</strong><small>Prepare a listing. Publishing requires real store authority and checks.</small></span><ChevronRight size={17}/></button>
         <button type="button" onClick={()=>finish('save')}>
-          <span><Bookmark size={19}/></span><span><strong>Save for later</strong><small>Keep the text of this draft in this browser tab.</small></span><ChevronRight size={17}/></button>
+          <span><Bookmark size={19}/></span><span><strong>Save for later</strong><small>Keep seller-written text in this tab; attachments, people and private meeting details won't be saved.</small></span><ChevronRight size={17}/></button>
       </div>
       {!canOffer&&<p className="spm-sell-hint">Sharing and store publishing remain unavailable until the concerns above are resolved. You can always save a draft.</p>}
       <button type="button" className="spm-quiet-button" onClick={()=>{setKsHelp(x=>!x);}}><MessageCircle size={16}/>How can KS001 help?</button>
@@ -621,14 +688,17 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
       <span className="spm-sell-done-icon"><CheckCircle2 size={27}/></span>
       <h1 className="spm-question">{result==='save'?'Draft kept on this device':result==='share'?'Ready for buyer review':'Store listing preview'}</h1>
       <p className="spm-lead">{result==='save'
-        ? 'Your written terms were kept in this browser tab when storage was available. Photos and documents are not saved or uploaded.'
+        ? 'Only your written offer details were kept in this browser tab when storage was available. Photos, document files, people and private directions were not saved or uploaded.'
         : result==='share'
         ? 'This is the buyer-facing proposal. No real SecureLink or invitation has been created, and nobody has accepted it.'
         : 'This is how the seller’s offer could appear in a Store. Nothing has been published or registered.'}</p>
       <div className="spm-sell-review-card">
         <strong className="spm-sell-review-title">{title}</strong>
-        <strong className="spm-sell-review-price">{priceType==='fixed'?readableAmount(price):'Price to agree'}</strong>
+        <strong className="spm-sell-review-price">{prepared.ok?prepared.summary.moneyText:priceType==='fixed'?readableAmount(price):'Price to agree'}</strong>
+        {prepared.ok&&prepared.summary.count!==null&&<small>Proposed quantity: {prepared.summary.count} {prepared.summary.priceUnit}</small>}
         <p>{descriptionReviewed&&description?description:'Seller-provided details will appear here after review.'}</p>
+        {prepared.ok&&prepared.summary.totalMinor!==null&&<div className="spm-sell-review-line">Proposed total: KSh {(prepared.summary.totalMinor/100).toLocaleString('en-KE',{maximumFractionDigits:2})}, not an invoice or approved payment</div>}
+        {prepared.ok&&<small>Prepared for discussion · no real Store publication, invitation or Agreement</small>}
         {!!place&&<div className="spm-sell-review-line"><MapPin size={15}/>{placeType}: {place}</div>}
         {!!timing&&<div className="spm-sell-review-line"><CalendarDays size={15}/>{timing}</div>}
         {personPlan&&<div className="spm-sell-review-line"><UserRoundPlus size={15}/>{personPlan==='later'?'Other person to be agreed':'Buyer to be invited later'}</div>}
