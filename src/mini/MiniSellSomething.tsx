@@ -151,8 +151,12 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
   const [serverReview,setServerReview]=useState<MiniSellerReviewedHandoff|null>(null);
   const [reviewAcknowledged,setReviewAcknowledged]=useState(false);
   const [reviewedOfferSignature,setReviewedOfferSignature]=useState<string|null>(null);
-  const [realDraftAgreement,setRealDraftAgreement]=useState<{id:string;status:'DRAFT'}|null>(null);
-  const [proposedAgreement,setProposedAgreement]=useState<{id:string;status:'PROPOSED'}|null>(null);
+  const [realDraftAgreement,setRealDraftAgreement]=useState<{
+    id:string;status:'DRAFT';version:{versionId:string;versionNumber:number;contentHash:string}
+  }|null>(null);
+  const [proposedAgreement,setProposedAgreement]=useState<{
+    id:string;status:'PROPOSED';version:{versionId:string;versionNumber:number;contentHash:string}
+  }|null>(null);
   const [ksHelp,setKsHelp]=useState(false);
   const photoRef=useRef<HTMLInputElement>(null);
   const docRef=useRef<HTMLInputElement>(null);
@@ -408,7 +412,7 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
         reviewed:serverReview,sellerConfirmed:true
       });
       if(created.ok){
-        setRealDraftAgreement({id:created.agreementId,status:'DRAFT'});
+        setRealDraftAgreement({id:created.agreementId,status:'DRAFT',version:created.agreementVersion});
         setHandoffMessage('Your draft Agreement is saved. It has not been shared.');
       }else{
         setHandoffMessage(created.reason==='REVIEW_CHANGED_REFRESH_REQUIRED'
@@ -423,10 +427,11 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
     setHandoffBusy(true);setHandoffMessage('');
     try{
       const proposed=await miniSellerProposeAgreement({
-        agreements:agreementGateway,agreementId:realDraftAgreement.id,confirmed:true
+        agreements:agreementGateway,agreementId:realDraftAgreement.id,
+        expectedAgreementVersion:realDraftAgreement.version,confirmed:true
       });
       if(proposed.ok){
-        setProposedAgreement({id:proposed.agreementId,status:'PROPOSED'});
+        setProposedAgreement({id:proposed.agreementId,status:'PROPOSED',version:proposed.agreementVersion});
         setHandoffMessage('Your Agreement is ready for buyer review. No invitation has been sent.');
       }else{
         setHandoffMessage('Review the current draft Agreement in KS001 before proposing it.');
