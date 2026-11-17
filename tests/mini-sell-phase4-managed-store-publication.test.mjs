@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {storeTextPublicationReview,storeTextPublicationFresh}
+import {storeTextPublicationReview,storeTextPublicationFresh,storePublishedTextEditReview}
   from '../src/features/store/storeTextPublicationPolicy.mjs';
 
 const saved={id:'11111111-1111-4111-8111-111111111111',
@@ -76,4 +76,38 @@ test('Store management UI separates private save from explicit text publication'
   assert.equal(builder.includes('Publish immediately (visible in public Store search)'),false);
   assert.ok(experience.includes('onPublishReviewedText={() => void controller.publishReviewedTextOffer()}'));
   assert.ok(management.includes('Review draft'));
+});
+
+test('existing public text-only listing edits preserve publication and pass version gate',()=>{
+  const current={...saved,published:true};
+  const edits={...draft,published:true,title:'Dairy meal 50 kg',priceMinor:275000};
+  assert.deepEqual(storePublishedTextEditReview(current,edits),{
+    ok:true,offerId:saved.id,expectedUpdatedAt:saved.updatedAt
+  });
+});
+test('existing published images, quantity or changed stock state cannot enter text edit route',()=>{
+  const current={...saved,published:true};
+  for(const [change,local] of [
+    [{mediaRefs:['photo']},{}],
+    [{quantityAvailable:500},{}],
+    [{availabilityState:'AVAILABLE'},{}],
+    [{},{mediaRefs:['photo']}],
+    [{},{quantityAvailable:8}],
+    [{},{availabilityState:'AVAILABLE'}],
+    [{},{priceMinor:0}],
+    [{},{kind:'CAPACITY'}]
+  ]){
+    assert.deepEqual(storePublishedTextEditReview({...current,...change},{
+      ...draft,published:true,...local
+    }),{ok:false,reason:'LEGACY_LISTING_REQUIRES_SEPARATE_EDIT'});
+  }
+});
+test('Store controller routes safe public text revisions to CAS endpoints, not legacy PUT',()=>{
+  const source=fs.readFileSync(new URL('../src/features/store/controller.ts',import.meta.url),'utf8');
+  const gateway=fs.readFileSync(new URL('../src/api/securepay/store/index.ts',import.meta.url),'utf8');
+  assert.ok(source.includes('storePublishedTextEditReview(existing, state.draft)'));
+  assert.ok(source.includes('storeTextPublicationFresh(existing, candidates[0])'));
+  assert.ok(source.includes('updateMyPublishedTextOffer(existing.id, changed)'));
+  assert.ok(source.includes('updateBusinessPublishedTextOffer(business.ksNumber, existing.id, changed)'));
+  assert.ok(gateway.includes('/update-published-text'));
 });
