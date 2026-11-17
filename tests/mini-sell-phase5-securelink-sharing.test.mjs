@@ -33,7 +33,7 @@ test('invalid link cannot render a scannable code or sharing controls',()=>{
   assert.ok(actions.indexOf('if(!urlValid){')<actions.indexOf('return <section className="spm-sell-link-actions"'));
 });
 test('Mini link options exist only after real backend issuance',()=>{
-  assert.ok(seller.includes('{shareUrl&&<MiniSellerShareOptions publicUrl={shareUrl} title={title}/> }'));
+  assert.ok(seller.includes('{shareUrl&&<MiniSellerShareOptions publicUrl={shareUrl} title={title}/>}'));
   assert.ok(seller.includes('setShareUrl(issued.publicUrl)'));
   assert.ok(seller.includes('miniSellerIssueAgreementDoorway'));
   assert.equal(seller.includes('Connect to Money'),false);
