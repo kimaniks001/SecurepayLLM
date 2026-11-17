@@ -112,7 +112,10 @@ export function MiniExperience() {
   const [screen, setScreen] = useState<View>('home');
   const [buyPrefill, setBuyPrefill] = useState('');
   const [buyResetKey, setBuyResetKey] = useState(0);
-  const [buyingPlanForHelp,setBuyingPlanForHelp] = useState<{lines:MiniStorePlanLine[];fulfilment:MiniBasketFulfilment|null}|null>(null);
+  const [buyingPlanForHelp,setBuyingPlanForHelp] = useState<{
+    lines:MiniStorePlanLine[];fulfilment:MiniBasketFulfilment|null;
+    buyerAnswers:Array<{sellerKsNumber:string;offerId:string;question:string;proposedAnswer:string}>
+  }|null>(null);
   const [collectResetKey, setCollectResetKey] = useState(0);
   const [collectPrefill, setCollectPrefill] = useState('');
   const [collectionReviewActive, setCollectionReviewActive] = useState(false);
@@ -406,8 +409,8 @@ export function MiniExperience() {
               setSamplePurchases(stored);setSampleFocus(purchase.id);
             }:undefined}
             onViewSampleAgreements={playground?()=>setScreen('sample-agreements'):undefined}
-            onDiscuss={playground || getMiniFirstPartyOrigin() ? (lines,fulfilment)=>{
-              setBuyingPlanForHelp({lines,fulfilment});setDiscussDraft(null);setScreen('help');
+            onDiscuss={playground || getMiniFirstPartyOrigin() ? (lines,fulfilment,buyerAnswers)=>{
+              setBuyingPlanForHelp({lines,fulfilment,buyerAnswers});setDiscussDraft(null);setScreen('help');
             } : undefined}/>
         </div>
         {playground&&screen==='sample-agreements'&&<MiniSampleAgreements
