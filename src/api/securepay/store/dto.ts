@@ -94,6 +94,17 @@ export interface PublishedStoreTextOfferResponse {
   updatedAt: string;
 }
 
+/** Phase 5B: explicit, revision-fenced withdrawal from public discovery. */
+export interface MakeStoreOfferPrivateRequest {
+  expectedUpdatedAt:string;
+  sellerConfirmsHide:true;
+}
+export interface PrivateStoreOfferResponse {
+  id:string;
+  published:false;
+  updatedAt:string;
+}
+
 // ─── Public / customer side (/api/v1/stores/**, no auth) ───────────────────
 
 export interface PublicStoreProfileView {
