@@ -114,7 +114,7 @@ export function MiniExperience() {
   const [buyResetKey, setBuyResetKey] = useState(0);
   const [buyingPlanForHelp,setBuyingPlanForHelp] = useState<{
     lines:MiniStorePlanLine[];fulfilment:MiniBasketFulfilment|null;
-    buyerAnswers:Array<{sellerKsNumber:string;offerId:string;question:string;proposedAnswer:string}>
+    buyerAnswers:Array<{sellerKsNumber:string;offerId:string;offerUpdatedAt:string;question:string;proposedAnswer:string}>
   }|null>(null);
   const [collectResetKey, setCollectResetKey] = useState(0);
   const [collectPrefill, setCollectPrefill] = useState('');
