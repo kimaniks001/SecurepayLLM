@@ -79,7 +79,7 @@ test('The buyer never clicks seller acceptance; the sample checks staged rail an
  const app=read('src/mini/MiniExperience.tsx');
  assert.match(buy,/setSampleResponses\(Object\.fromEntries/);
  assert.doesNotMatch(buy,/Simulate acceptance/);
- assert.match(buy,/>Send SecureLink</);
+ assert.match(buy,/'Send SecureLink'/);
  assert.match(buy,/deliveryArea/);
  assert.match(buy,/deliveryQuoteSelected/);
  assert.match(buy,/MoneyJourney/);
