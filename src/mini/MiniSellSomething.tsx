@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   ArrowLeft, ArrowRight, Bookmark, BookOpenText, CalendarDays, Camera, CheckCircle2,
-  ChevronRight, FileText, MapPin, MessageCircle, Send, ShieldCheck,
+  ChevronRight, FileText, MapPin, MessageCircle, Pencil, Send, ShieldCheck,
   Store, UserRoundPlus, Heart, Handshake, Settings2, ShoppingBag, UsersRound, X
 } from 'lucide-react';
 import { buildTimingProposal, type TimingDraft } from '../features/living-workspace/DateTimeTool';
@@ -124,7 +124,7 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
   const canOffer=!!title.trim()&&!invalidPrice&&!suspicious&&!sensitive&&
     rightToOffer&&!imageNeedsSource&&!!stockStatement.trim();
   const photoSourceName=(source:PhotoSource)=>({
-    own:'Photo I took',supplier:'Authorised supplier image',
+    own:'Photo I took',supplier:'Supplier image (permission declared)',
     permission:'Photo used with permission',unknown:'Source not stated'
   })[source];
   const openReviewTool=(tool:Exclude<Shelf,null>)=>{
@@ -412,6 +412,7 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
             const prepared=buildTimingProposal(timingDraft);
             if(prepared.error){setError(prepared.error);return;}
             setTiming(prepared.text.split(' Ask me to review')[0]);setShelf(null);setError('');
+            if(returningToReview){setStage('review');setReturningToReview(false);}
           }}><CalendarDays size={16}/>Add proposed timing</button>
           {timing&&<p className="spm-sell-hint">Current proposal: {timing}</p>}
         </>}
@@ -441,6 +442,9 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
             <span><strong>{p.name}</strong><small>{p.role} · not verified or invited</small></span>
             <button type="button" aria-label={'Remove '+p.name} onClick={()=>setPeople(x=>x.filter((_,j)=>i!==j))}><X size={17}/></button></div>)}
         </>}
+        {returningToReview&&<button type="button" className="spm-secondary spm-sell-wide" onClick={()=>{
+          setReturningToReview(false);setShelf(null);setStage('review');setError('');
+        }}><CheckCircle2 size={16}/>Back to offer review</button>}
       </div>}
       </div>}
       {(!!descriptionReviewed||pictures.length>0||documents.length>0||!!place||!!timing||people.length>0)&&
@@ -577,9 +581,9 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
           <span>Right to offer: {rightType} · seller-declared</span>
           <span>Availability: {stockStatement}</span>
           {pictures.map((picture,i)=><span key={i}>{picture.name}: {photoSourceName(picture.source)} · unverified</span>)}
-          <button type="button" onClick={()=>{setRightToOffer(false);setAuthorityUncertain(false);}}>Change right to sell</button>
-          <button type="button" onClick={()=>setStockStatement('')}>Change availability</button>
-          {pictures.length>0&&<button type="button" onClick={()=>openReviewTool('photos')}>Change photo details</button>}
+          <button type="button" onClick={()=>{setRightToOffer(false);setAuthorityUncertain(false);}}><Pencil size={13}/>Change right to sell</button>
+          <button type="button" onClick={()=>setStockStatement('')}><Pencil size={13}/>Change availability</button>
+          {pictures.length>0&&<button type="button" onClick={()=>openReviewTool('photos')}><Pencil size={13}/>Change photo details</button>}
         </div>}
         <p className="spm-sell-disclosure">Image fingerprinting, legality, licensing, ownership, document validity and inventory checks require server services that are not connected in this preview.</p>
       </div>
