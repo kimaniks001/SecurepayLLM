@@ -24,7 +24,8 @@ export function miniStoreIntent(lines, {fulfilmentPreference=null,buyerAnswers=[
     seen.add(key);
     safe.push({key,offerId:line.offerId,sellerKsNumber:line.sellerKsNumber,
       sellerName:text(line.sellerName,90),title:text(line.title,140),
-      quantity:line.quantity,priceMinor:line.priceMinor,currency:line.currency});
+      quantity:line.quantity,priceMinor:line.priceMinor,currency:line.currency,
+      offerUpdatedAt:text(line.offerUpdatedAt,60)});
   }
   const header='I want to DISCUSS a buying plan, not place an order. Keep each Store and seller separate; do not assume availability, delivery, price, or acceptance. ';
   const rows=safe.map((s,i)=>String(i+1)+') '+s.quantity+' x '+s.title+
@@ -34,12 +35,13 @@ export function miniStoreIntent(lines, {fulfilmentPreference=null,buyerAnswers=[
   const preference=fulfilmentPreference==='collect'?' Buyer prefers collection.':
     fulfilmentPreference==='ask_sellers'?' Buyer wants each store to quote delivery.':
     fulfilmentPreference==='explore_combined'?' Buyer wants to explore combined delivery, subject to verified transport offers and independent acceptance.':'';
-  const sourceIds=new Set(safe.map(x=>x.key));
+  const sourceIds=new Map(safe.map(x=>[x.key,x.offerUpdatedAt]));
   const questions=Array.isArray(buyerAnswers)?buyerAnswers.slice(0,20):[];
   const buyerProposals=questions.filter(a=>a&&
     sourceIds.has(a.sellerKsNumber+':'+a.offerId)&&
+    sourceIds.get(a.sellerKsNumber+':'+a.offerId)===text(a.offerUpdatedAt,60)&&
     text(a.question,220)&&text(a.proposedAnswer,240)).map(a=>
-     ' '+text(a.question,220)+' ['+a.sellerKsNumber+' / '+a.offerId+']'+
+     ' '+text(a.question,220)+' ['+a.sellerKsNumber+' / '+a.offerId+' / source '+text(a.offerUpdatedAt,60)+']'+
      ' — buyer proposes: '+text(a.proposedAnswer,240)+'.');
   const context=buyerProposals.length?
     ' Buyer-proposed clarifications (seller must still review):'+buyerProposals.join(''):'';
