@@ -469,66 +469,71 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
           <ArrowRight size={19}/></button>}
         {proposalOpen&&<div className="spm-shop-agreement-next">
           <div className="spm-shop-agreement-heading">
-            <ShieldCheck size={22}/><span><small>NEXT · YOUR AGREEMENT</small>
-            <strong>Shall we go ahead?</strong></span>
+            <ShieldCheck size={22}/><span><small>NEXT · MAKE AN AGREEMENT</small>
+            <strong>Ready to go ahead?</strong></span>
           </div>
-          <p>Each Store keeps responsibility for its own goods or services. Nothing is agreed until the right people accept.</p>
+          <p>Here's your choice. Every Store confirms only what it has agreed to supply.</p>
+          <div className="spm-shop-review-summary">
+            <div><span>Items and services</span><strong>{money(quotedMinor,'KES')}</strong></div>
+            {deliveryFeeMinor>0&&<div><span>Delivery</span><strong>{money(deliveryFeeMinor,'KES')}</strong></div>}
+            <div className="spm-shop-review-total"><span>Example total</span>
+              <strong>{money(sampleTotalMinor,'KES')}</strong></div>
+            {readiness.goods&&<small>{fulfilmentChoice==='collect'?'You will collect':
+              'Delivery to '+deliveryArea}</small>}
+          </div>
           {!sampleRequests&&playground&&<button type="button" className="spm-shop-proceed"
-            onClick={()=>{setSampleRequests(true);setSampleResponses({});setSamplePaid(false);}}>
-            <span>Send sample SecureLinks for review</span><ArrowRight size={19}/>
+            onClick={()=>{
+              // Sample-only: separate fictional merchants each return an event.
+              // The buyer is never asked to press Accept on another seller's behalf.
+              setSampleResponses(Object.fromEntries(
+                sampleSellers.map(id=>[id,'accepted' as const])));
+              setSampleRequests(true);setMoneyOpen(false);
+            }}>
+            <span>Send for review · sample</span><ArrowRight size={19}/>
           </button>}
           {!playground&&<button type="button" disabled className="spm-shop-proceed">
             <span>Send SecureLink for review</span><ArrowRight size={19}/>
           </button>}
-          {!playground&&<p className="spm-shop-gentle-note">SecureLink sharing will open when the seller-confirmation connection is ready. Nothing has been sent.</p>}
+          {!playground&&<p className="spm-shop-gentle-note">
+            Sharing will open once seller-specific SecureLinks are connected. Nothing has been sent.</p>}
           {sampleRequests&&playground&&<div className="spm-shop-seller-replies">
-            <small>TEST THE RESPONSES · NO REAL MESSAGES</small>
+            <div className="spm-shop-replies-heading"><CheckCircle2 size={18}/>
+              <span><strong>Example replies received</strong>
+                <small>Fictional sellers, not real messages or Agreements</small></span>
+            </div>
             {sampleSellers.map(seller=><div className="spm-shop-seller" key={seller}>
-              <strong>{cart.find(line=>line.sellerKsNumber===seller)?.sellerName}</strong>
+              <strong>{cart.find(line=>line.sellerKsNumber===seller)?.sellerName.replace(/\s*·\s*Sample$/,'')}</strong>
               <small>{cart.filter(line=>line.sellerKsNumber===seller)
                 .map(line=>line.quantity+' × '+line.title).join(', ')}</small>
-              <span className="spm-shop-seller-state">{sampleResponses[seller]==='accepted'?'Accepted in sample':
-                sampleResponses[seller]==='declined'?'Declined in sample':'Waiting for response'}</span>
-              <div>
-                <button type="button" onClick={()=>{
-                  setSampleResponses(old=>({...old,[seller]:'accepted'}));setSamplePaid(false);
-                }}>Accept</button>
-                <button type="button" onClick={()=>{
-                  setSampleResponses(old=>({...old,[seller]:'declined'}));setSamplePaid(false);
-                }}>Decline</button>
-              </div>
+              <span className="spm-shop-seller-state"><CheckCircle2 size={14}/>
+                Confirmed in this sample</span>
             </div>)}
-            {Object.values(sampleResponses).includes('declined')&&
-              <p>Someone declined. You can remove that item, change your choice or seek another Store. The other responses stay separate.</p>}
+            {fulfilmentChoice==='explore_combined'&&deliveryQuoteSelected&&
+              <div className="spm-shop-seller">
+                <strong>Kamakis Transport</strong>
+                <small>One sample delivery to {deliveryArea}</small>
+                <span className="spm-shop-seller-state"><CheckCircle2 size={14}/> Example quote accepted</span>
+              </div>}
+            {fulfilmentChoice==='ask_sellers'&&deliveryQuoteSelected&&
+              <div className="spm-shop-seller">
+                <strong>Each Store's delivery</strong>
+                <small>Example separate deliveries to {deliveryArea}</small>
+                <span className="spm-shop-seller-state"><CheckCircle2 size={14}/> Example quotes accepted</span>
+              </div>}
           </div>}
-          {!samplePaid&&<>
-            <button type="button" className="spm-shop-money-next"
-              disabled={!sampleMoneyReady||moneyBlocked&&!playground}
-              onClick={()=>{if(sampleMoneyReady)setSamplePaid(true);}}>
-              <ShieldCheck size={17}/> {playground?'Simulate one payment · no money moves':'Continue to Money'}
-              <ArrowRight size={17}/>
-            </button>
-            {playground&&<p className="spm-shop-gentle-note">{!allSampleAccepted?
-              'Money opens only after every sample seller accepts.':
-              readiness.amountNeedsQuote?'A Store still needs to quote a price.':
-              readiness.goods&&fulfilmentChoice!=='collect'?
-                'A delivery provider and price still need confirmation. Collection can be tested now.':
-                'Sample only. No live payment or real Agreement will be created.'}</p>}
-            {!playground&&<p className="spm-shop-gentle-note">
-              Money follows the accepted Agreement and certified payment route—not a button click.</p>}
-          </>}
-          {samplePaid&&playground&&<div className="spm-shop-living-demo" role="status">
-            <span className="spm-shop-living-light"><CheckCircle2 size={20}/></span>
-            <h2>Your purchase is in motion</h2>
-            <p>Sample Living Purchase · The example funding step is complete.</p>
-            {sampleSellers.map(seller=><div key={seller}>
-              <strong>{cart.find(line=>line.sellerKsNumber===seller)?.sellerName}</strong>
-              <small>Next: fulfil the accepted sample obligation</small>
-            </div>)}
-            <p>No real money, payment receipt, order or binding Agreement exists.</p>
-          </div>}
-          <button type="button" className="spm-shop-continue" onClick={()=>setProposalOpen(false)}>
-            <ArrowLeft size={17}/> Back to basket</button>
+          {sampleRequests&&playground&&<button type="button" className="spm-shop-money-next"
+            disabled={!sampleMoneyReady} onClick={()=>setMoneyOpen(true)}>
+            <ShieldCheck size={17}/> Continue to Money <ArrowRight size={17}/>
+          </button>}
+          {!playground&&<button type="button" disabled className="spm-shop-money-next">
+            <ShieldCheck size={17}/> Continue to Money <ArrowRight size={17}/>
+          </button>}
+          {playground&&<p className="spm-shop-gentle-note">
+            In this rehearsal, separate sample seller confirmations unlock the rail choices.
+            No real SecureLink, Money instruction or binding acceptance exists.</p>}
+          <button type="button" className="spm-shop-continue" onClick={()=>{
+            setProposalOpen(false);setSampleRequests(false);setSampleResponses({});setMoneyOpen(false);
+          }}><ArrowLeft size={17}/> Back to basket</button>
         </div>}
         {cart.length>0&&<div className="spm-shop-basket-assist">
           <MessageCircle size={16}/>
