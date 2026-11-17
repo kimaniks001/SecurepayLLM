@@ -447,8 +447,10 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
   return <section className="spm-content spm-buy spm-shop-screen"
       data-mini-store-source={playground?'fictional-local-playground':'public-read-only'}>
     {view==='search'&&<MiniShopDiscovery results={results} onOpen={ks=>void openStore(ks)}
-      playground={playground} onBack={onBack} label={term?'Stores with '+(term.trim()||'goods'):'Stores to explore'}
-      cartCount={itemCount} onBasket={()=>setView('plan')} searchControls={shopControls}/>}
+      playground={playground} onBack={onBack} label={term?'Stores for '+(term.trim()||'goods'):'Stores to explore'}
+      cartCount={itemCount} onBasket={()=>setView('plan')} searchControls={shopControls}
+      loading={working} error={view==='search'?error:''}
+      onRetry={()=>void (openingStore?openStore(openingStore):find())}/>}
     {view==='store'&&chosenStore&&<MiniShopGallery key={chosenStore.canonicalKsNumber}
       store={chosenStore} playground={playground}
       cartCount={itemCount} cartQty={cartQuantity} onAdd={add}
@@ -505,9 +507,14 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
             </div>
           </div>)}
         </div>
-        <button type="button" className="spm-shop-continue" onClick={()=>setView('search')}>
-          <Plus size={17}/> Keep browsing
-        </button>
+        <div className="spm-shop-basket-browse">
+          <button type="button" className="spm-shop-continue"
+            onClick={()=>setView(chosenStore?'store':'search')}>
+            <Plus size={17}/> {chosenStore?'Keep browsing this Store':'Keep browsing'}
+          </button>
+          {chosenStore&&<button type="button" className="spm-shop-browse-more"
+            onClick={()=>setView('search')}>Other Stores</button>}
+        </div>
         <div className="spm-shop-basket-money">
           <div><span>{itemCount} item{itemCount===1?'':'s'} · {sampleSellers.length} Store{sampleSellers.length===1?'':'s'}</span>
             <strong>{total||'Prices to agree'}</strong></div>
@@ -645,7 +652,31 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
               <RefreshCcw size={16}/> Checking the latest Store details…</p>}
             {freshnessError&&<div className="spm-shop-check-problem" role="alert">
               <p>{freshnessError}</p>
-              <button type="button" className="spm-secondary" onClick={()=>void verify()}>Check again</button>
+              {changedOffers.map(change=>{
+                const line=cart.find(x=>x.offerId===change.offerId&&
+                  x.sellerKsNumber===change.sellerKsNumber);
+                return <div className="spm-shop-price-change" key={change.sellerKsNumber+change.offerId}>
+                  <strong>{change.title}</strong>
+                  {change.fresh&&change.available?<>
+                    {change.priceChanged&&<span>{money(change.wasPriceMinor,change.fresh.currency)}
+                      {' → '}{money(change.fresh.priceMinor,change.fresh.currency)}</span>}
+                    {change.maxQuantity!==null&&line&&change.maxQuantity<line.quantity&&
+                      <span>Only {change.maxQuantity} available now</span>}
+                    <button type="button" className="spm-secondary"
+                      onClick={()=>acceptUpdatedOffer(change)}>
+                      {change.canUse?'Use the updated offer':'Adjust to available quantity'}
+                    </button>
+                  </>:<span>This item may no longer be available.
+                    You can remove it or visit its Store.</span>}
+                  {line&&<div className="spm-shop-price-change-actions">
+                    <button type="button" onClick={()=>removeLine(line)}>Remove item</button>
+                    <button type="button" onClick={()=>void openStore(change.sellerKsNumber)}>
+                      Visit Store</button>
+                  </div>}
+                </div>;
+              })}
+              <button type="button" className="spm-secondary" onClick={()=>void verify()}>
+                Check again</button>
             </div>}
             {!checking&&!freshnessError&&ready&&<div className="spm-shop-ready-note">
               <CheckCircle2 size={18}/><span>Your choices are ready to review.</span></div>}
@@ -655,9 +686,14 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
         </div>}
         {!proposalOpen&&<button type="button" className="spm-shop-proceed" disabled={!ready}
           onClick={()=>setProposalOpen(true)}>
-          <span>{ready?'Ready to continue? Review your choices':'Continue to review'}</span>
+          <span>{ready?'Review your proposed Agreement':'Continue to review'}</span>
           <ArrowRight size={19}/></button>}
-        {proposalOpen&&<div className="spm-shop-agreement-next">
+        {!proposalOpen&&playground&&<div className="spm-shop-early-save">
+          <button type="button" onClick={saveForLater} className="spm-shop-quiet-save">
+            Save for later</button>
+          {savedNotice&&<button type="button" onClick={onBack}>Return to Mini</button>}
+        </div>}
+        {proposalOpen&&<div ref={reviewAnchor} className="spm-shop-agreement-next">
           <div className="spm-shop-agreement-heading">
             <ShieldCheck size={22}/><span><small>NEXT · MAKE AN AGREEMENT</small>
             <strong>Ready to go ahead?</strong></span>
@@ -786,7 +822,7 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
         </div>}
       </>}
     </>}
-    {error&&<p className="spm-error" role="alert">{error}</p>}
+    {error&&view!=='search'&&<p className="spm-error" role="alert">{error}</p>}
     <p className="spm-disclaimer">{playground?
       'Fictional sample data · No live SecureLinks, Agreements, deliveries or payments.':
       'Offers remain separate until each party confirms the applicable terms.'}</p>
