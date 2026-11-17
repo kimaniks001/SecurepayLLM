@@ -62,7 +62,7 @@ test('Playground opt-in is restricted to isolated owner preview and cannot silen
   assert.match(experience,/verifiedStoreAvailable=\{!playground/);
   assert.match(experience,/setScreen\('business-settings'\)/);
   assert.match(buy,/MiniSampleMoneyJourney/);
-  assert.match(read('src/mini/MiniSampleMoneyJourney.tsx'),/Simulate provider confirmation/);
+  assert.match(read('src/mini/MiniSampleMoneyJourney.tsx'),/fictional payment confirmation is arriving automatically/i);
   assert.match(buy,/Fictional sample data/);
   assert.match(support,/not connected to live KS001/);
   assert.deepEqual(miniTradeSampleSearches.map(x=>x.label),[
