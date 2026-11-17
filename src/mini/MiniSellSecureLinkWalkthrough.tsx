@@ -1,5 +1,5 @@
 import {useState} from 'react';
-import {ArrowRight, Check, CheckCircle2, FileText, Link2, MessageCircle, ShieldCheck} from 'lucide-react';
+import {ArrowRight, Check, CheckCircle2, Copy, FileText, Link2, MessageCircle, QrCode, Send, ShieldCheck} from 'lucide-react';
 
 type Stage = 'review' | 'draft' | 'proposed' | 'link' | 'buyer';
 type Props = {
@@ -23,6 +23,7 @@ export function MiniSellSecureLinkWalkthrough({
 }:Props) {
   const [stage,setStage]=useState<Stage>('review');
   const [acknowledged,setAcknowledged]=useState(false);
+  const [showQrExample,setShowQrExample]=useState(false);
   const stages: Stage[]=['review','draft','proposed','link'];
   const currentIndex=stages.indexOf(stage);
 
@@ -90,6 +91,18 @@ export function MiniSellSecureLinkWalkthrough({
           SecureLink address appears here after issuance
         </span>
         <p>In the real app, SecurePay issues a unique, server-verified link to this exact Agreement. This walkthrough has not issued a URL or QR code.</p>
+        <div className="spm-sell-pill-row" aria-label="SecureLink delivery choices — example only">
+          <button className="spm-sell-walkthrough-pill" type="button" disabled><Copy size={15}/> Copy link</button>
+          <button className="spm-sell-walkthrough-pill" type="button" disabled><Send size={15}/> Share link</button>
+          <button className="spm-sell-walkthrough-pill" type="button"
+            aria-expanded={showQrExample} onClick={()=>setShowQrExample(v=>!v)}>
+            <QrCode size={15}/> {showQrExample?'Hide QR example':'Show QR example'}
+          </button>
+        </div>
+        {showQrExample&&<div className="spm-sell-qr-display" data-mini-nonscannable-qr-example>
+          <QrCode size={112} strokeWidth={1.1} aria-hidden="true"/>
+          <p>Layout example only — this is an icon, NOT a scannable QR code. The real QR appears only with a server-issued link.</p>
+        </div>}
         <small>Still not shared · not accepted · no Money authorized</small>
       </div>
       <div className="spm-sell-pill-row">
