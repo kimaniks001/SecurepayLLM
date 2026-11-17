@@ -19,7 +19,9 @@ test('native seller composer is mounted only within authenticated first-party St
 test('seller explicitly sends a real KS001 user turn and verifies current server version',()=>{
   assert.ok(firstParty.includes('prepareSellerOfferInKs001'));
   assert.ok(firstParty.includes('await ensureFreshSession(session,auth)'));
-  assert.ok(firstParty.includes('await pair.controller.send(statement)'));
+  assert.ok(firstParty.includes('await pair.controller.sendStatement(statement)'));
+  assert.ok(firstParty.includes('if(!delivered.ok||!delivered.context)return null'));
+  assert.ok(firstParty.includes('context.version!==delivered.context.version'));
   assert.ok(firstParty.includes('await pair.gateway.readContext(snapshot.conversationId)'));
   assert.ok(firstParty.includes('context.conversationId!==snapshot.conversationId'));
   assert.ok(firstParty.includes('reviewedTradeContextVersion:context.version'));
