@@ -15,6 +15,8 @@ import type {MiniSamplePurchase} from './miniSampleLivingPurchases.mjs';
 import {miniBasketQuestions,miniBasketAnswersForOffer} from './miniBasketQuestions.mjs';
 import {miniDeliveryContracts,miniDeliveryContractSummary,SAMPLE_DELIVERY_WINDOWS} from './miniDeliveryContract.mjs';
 import {readSampleBasketDraft,saveSampleBasketDraft} from './miniSampleBasketDraft.mjs';
+import {miniBasketQuietPreflight,miniSampleProviderReply,miniProviderReplyMatchesSource,
+ type MiniSampleProviderReply} from './miniBasketQuietFairTrade.mjs';
 
 /**
  * Public Store read-only transport reuses the existing, server-allowlisted
@@ -104,10 +106,20 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
   const [deliveryContractConfirmed,setDeliveryContractConfirmed]=useState(false);
   const [deliveryQuoteSelected,setDeliveryQuoteSelected] = useState(savedDraft?.deliveryQuoteSelected??false);
   const [quoteAccepted,setQuoteAccepted] = useState<Record<string,number>>(savedDraft?.quoteAccepted??{});
+  // Ephemeral sample only: real provider replies must come from authorised
+  // participant SecureLinks and exact accepted canonical Agreement versions.
+  const [providerReplies,setProviderReplies]=useState<Record<string,MiniSampleProviderReply>>({});
+  const preflight=miniBasketQuietPreflight(cart,{
+    answers:basketAnswers,fulfilmentChoice,deliveryArea,sourceFresh:reviewed,
+    providerReplies,
+  });
   const sampleSellers=[...new Set(cart.map(line=>line.sellerKsNumber))];
   const allSampleAccepted=sampleRequests&&sampleSellers.length>0&&
     sampleSellers.every(id=>sampleResponses[id]==='accepted');
-  const resetSample=()=>{setSampleRequests(false);setSampleResponses({});setMoneyOpen(false);};
+  const resetSample=()=>{
+    setSampleRequests(false);setSampleResponses({});setProviderReplies({});
+    setMoneyOpen(false);
+  };
   const invalidateDelivery=()=>{setDeliveryQuoteSelected(false);setDeliveryWindow(null);setDeliveryContractConfirmed(false);};
   const generation = useRef(0);
 
@@ -313,6 +325,7 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
     ...(fulfilmentChoice==='explore_combined'&&deliveryQuoteSelected?['KS90004']:[])];
   const sampleMoneyReady=playground&&reviewed&&!checking&&!freshnessError&&
     readiness.readyToReview&&basketQuestions.complete&&sampleRequests&&allSampleAccepted&&
+    preflight.pendingProviderRequests.length===0&&preflight.provenanceComplete&&
     deliveryComplete&&allPricesResolved&&
     (!deliveryNeedsQuote||deliveryContractState.feeMinor===deliveryFeeMinor)&&
     Number.isSafeInteger(sampleTotalMinor);
@@ -572,6 +585,11 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
               'Delivery to '+deliveryArea}</small>}
             {miniBasketAnswersForOffer(cart,basketAnswers).map((a,i)=>
               <small key={a.sellerKsNumber+a.offerId+i}>{a.question} — {a.proposedAnswer}</small>)}
+            {preflight.providerRequests.length>0&&<small>
+              {preflight.providerRequests.length===1?'One provider needs':'Some providers need'} to
+              clarify the agreed service terms before you can confirm the Agreement.
+              Mini will include those questions when sending it for review.
+            </small>}
             {deliveryContracts.map((c,i)=><div key={c.id}>
               <span>{i===0?'Separate delivery mini Agreement':'Additional delivery mini Agreement'}</span>
               <strong>{c.providerName.replace(/\s*·\s*Sample$/,'')} · {money(c.feeMinor,'KES')}</strong>
@@ -579,10 +597,17 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
           </div>
           {!sampleRequests&&playground&&<button type="button" className="spm-shop-proceed"
             onClick={()=>{
-              // Sample-only: separate fictional merchants each return an event.
-              // The buyer is never asked to press Accept on another seller's behalf.
+              // Sample-only: independent fictional provider responses.
+              // A seller with material service terms cannot be marked accepted
+              // until the buyer has explicitly reviewed the changed terms.
+              const requests=preflight.providerRequests;
+              const needClarifying=new Set(requests.map(r=>r.source.sellerKsNumber));
+              setProviderReplies(Object.fromEntries(requests.map(req=>[
+                req.id,miniSampleProviderReply(req),
+              ]).filter((pair):pair is [string,MiniSampleProviderReply]=>!!pair[1])));
               setSampleResponses(Object.fromEntries(
-                sampleSellers.map(id=>[id,'accepted' as const])));
+                sampleSellers.filter(id=>!needClarifying.has(id))
+                  .map(id=>[id,'accepted' as const])));
               setSampleRequests(true);setMoneyOpen(false);
             }}>
             <span>Send SecureLink · sample review</span><ArrowRight size={19}/>
@@ -597,12 +622,43 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
               <span><strong>Example replies received</strong>
                 <small>Fictional sellers, not real messages or Agreements</small></span>
             </div>
+            {preflight.providerRequests.map(req=>{
+              const reply=providerReplies[req.id];
+              if(!miniProviderReplyMatchesSource(req,reply))return null;
+              return <div className="spm-shop-seller spm-shop-provider-clarification"
+                key={req.id} data-provider-source={req.source.offerId}>
+                <strong>{req.supplierLabel.replace(/\s*·\s*Sample$/,'')}</strong>
+                <small>Proposed terms for {req.title}</small>
+                {reply.terms.map(term=><p key={term.code}>{term.value}</p>)}
+                <small>Sample response linked to this exact Store offer and its published version.
+                  The provider has not sent a real SecureLink.</small>
+                {!reply.buyerApproved&&<button type="button" className="spm-secondary"
+                  onClick={()=>{
+                    const current=preflight.providerRequests.find(x=>x.id===req.id);
+                    if(!current||!miniProviderReplyMatchesSource(current,reply))return;
+                    const replies={...providerReplies,[req.id]:{...reply,buyerApproved:true}};
+                    setProviderReplies(replies);
+                    const allForSeller=preflight.providerRequests
+                      .filter(x=>x.source.sellerKsNumber===req.source.sellerKsNumber)
+                      .every(x=>miniProviderReplyMatchesSource(x,replies[x.id])&&
+                        replies[x.id].buyerApproved===true);
+                    if(allForSeller)setSampleResponses(prev=>({
+                      ...prev,[req.source.sellerKsNumber]:'accepted'
+                    }));
+                  }}>Include these terms in my sample Agreement</button>}
+                {reply.buyerApproved&&<span className="spm-shop-seller-state">
+                  <CheckCircle2 size={14}/> Proposed terms reviewed by you · sample</span>}
+              </div>;
+            })}
             {sampleSellers.map(seller=><div className="spm-shop-seller" key={seller}>
               <strong>{cart.find(line=>line.sellerKsNumber===seller)?.sellerName.replace(/\s*·\s*Sample$/,'')}</strong>
               <small>{cart.filter(line=>line.sellerKsNumber===seller)
                 .map(line=>line.quantity+' × '+line.title).join(', ')}</small>
-              <span className="spm-shop-seller-state"><CheckCircle2 size={14}/>
-                Confirmed in this sample</span>
+              <span className="spm-shop-seller-state">
+                {sampleResponses[seller]==='accepted'?
+                  <><CheckCircle2 size={14}/> Confirmed in this sample</>:
+                  'Waiting for you to review the provider’s proposed terms'}
+              </span>
             </div>)}
             {fulfilmentChoice==='explore_combined'&&deliveryQuoteSelected&&
               <div className="spm-shop-seller">
