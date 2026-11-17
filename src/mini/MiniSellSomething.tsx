@@ -9,13 +9,13 @@ import type { MiniLanguage } from './miniModel';
 
 type Shelf = 'describe'|'photos'|'documents'|'places'|'timing'|'people'|null;
 type PhotoSource = 'own'|'supplier'|'permission'|'unknown';
-type Picture = { name:string; preview:string; source:PhotoSource };
+type Picture = { name:string; preview:string; source:PhotoSource; supplierPermission?:boolean };
 type Support = { name:string; purpose:string };
 type Person = { name:string; role:string };
 type Result = 'share'|'store'|'save'|null;
 type Category = 'Goods'|'Agriculture'|'Equipment'|'Furniture'|'Services';
 
-type ReviewIssue = 'safety'|'regulated'|'photo'|'authority'|'availability'|null;
+type ReviewIssue = 'safety'|'regulated'|'photo'|'photo-permission'|'authority'|'availability'|null;
 function AnswerPill({children,onClick,selected=false,disabled=false}:{
   children:ReactNode;onClick:()=>void;selected?:boolean;disabled?:boolean;
 }){
@@ -71,6 +71,7 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
   const [shelf,setShelf]=useState<Shelf>(null);
   const [toolsOpen,setToolsOpen]=useState(false);
   const [showMorePills,setShowMorePills]=useState(false);
+  const [returningToReview,setReturningToReview]=useState(false);
   const [photoUncertain,setPhotoUncertain]=useState(false);
   const [authorityUncertain,setAuthorityUncertain]=useState(false);
   const [title,setTitle]=useState(seed.slice(0,240));
@@ -113,12 +114,13 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
   const invalidPrice=priceType==='fixed' && !readableAmount(price);
   const suspicious=useMemo(()=>/\b(?:stolen|counterfeit|fake passport|ivory|illegal drugs|firearms?|ammunition)\b/i.test(title+' '+description),[title,description]);
   const sensitive=useMemo(()=>/\b(?:medicine|pharmaceutical|pesticide|alcohol|vehicle registration)\b/i.test(title+' '+description),[title,description]);
-  const imageNeedsSource=pictures.some(p=>p.source==='unknown');
-  const pendingPhotoIndex=pictures.findIndex(p=>p.source==='unknown');
+  const imageNeedsSource=pictures.some(p=>p.source==='unknown'||(p.source==='supplier'&&!p.supplierPermission));
+  const pendingPhotoIndex=pictures.findIndex(p=>p.source==='unknown'||(p.source==='supplier'&&!p.supplierPermission));
   // The examiner asks one small question, with a meaningful pill for every answer.
   // Seller declarations are NOT legal, image, licence, identity or stock verification.
   const currentQuestion:ReviewIssue=suspicious?'safety':sensitive?'regulated':
-    pendingPhotoIndex>=0?'photo':!rightToOffer?'authority':!stockStatement.trim()?'availability':null;
+    pendingPhotoIndex>=0?(pictures[pendingPhotoIndex].source==='supplier'?'photo-permission':'photo'):
+    !rightToOffer?'authority':!stockStatement.trim()?'availability':null;
   const canOffer=!!title.trim()&&!invalidPrice&&!suspicious&&!sensitive&&
     rightToOffer&&!imageNeedsSource&&!!stockStatement.trim();
   const photoSourceName=(source:PhotoSource)=>({
@@ -126,10 +128,11 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
     permission:'Photo used with permission',unknown:'Source not stated'
   })[source];
   const openReviewTool=(tool:Exclude<Shelf,null>)=>{
-    setStage('compose');setSellerArea('offer');setToolsOpen(true);setShelf(tool);setError('');
+    setReturningToReview(true);setStage('compose');setSellerArea('offer');setToolsOpen(true);setShelf(tool);setError('');
   };
   const photoAnswered=(source:Exclude<PhotoSource,'unknown'>)=>{
-    setPictures(current=>current.map((picture,i)=>i===pendingPhotoIndex?{...picture,source}:picture));
+    setPictures(current=>current.map((picture,i)=>i===pendingPhotoIndex?
+      {...picture,source,supplierPermission:source==='supplier'?false:true}:picture));
     setPhotoUncertain(false);
   };
   const authorityAnswered=(role:string)=>{setRightType(role);setRightToOffer(true);setAuthorityUncertain(false);};
@@ -179,7 +182,7 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
     const reader=new FileReader();
     reader.onload=()=>{
       if(typeof reader.result!=='string')return;
-      setPictures(current=>[...current,{name:file.name.slice(0,100),preview:reader.result as string,source:'unknown' as PhotoSource}].slice(0,4));
+      setPictures(current=>[...current,{name:file.name.slice(0,100),preview:reader.result as string,source:'unknown' as PhotoSource,supplierPermission:false}].slice(0,4));
       setPhotoCount(n=>n+1);
     };
     reader.onerror=()=>setError('The photo could not be opened. Nothing was uploaded.');
@@ -204,7 +207,7 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
     if(quantity.trim()&&(!/^\d+(?:\.\d{1,3})?$/.test(quantity)||Number(quantity)<=0)){
       setError('Please check the quantity.');return;
     }
-    setShelf(null);setShowMorePills(false);setStage('review');
+    setShelf(null);setReturningToReview(false);setShowMorePills(false);setStage('review');
   };
   const finish=(kind:Result)=>{
     if(kind!=='save'&&!canOffer)return;
@@ -326,8 +329,8 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
               <strong className="spm-sell-inline-question">Where did this photo come from?</strong>
               <div className="spm-sell-pill-row">
                 <AnswerPill selected={p.source==='own'} onClick={()=>setPictures(prev=>prev.map((x,j)=>j===i?{...x,source:'own' as PhotoSource}:x))}>I took it</AnswerPill>
-                <AnswerPill selected={p.source==='supplier'} onClick={()=>setPictures(prev=>prev.map((x,j)=>j===i?{...x,source:'supplier' as PhotoSource}:x))}>Supplier's image</AnswerPill>
-                <AnswerPill selected={p.source==='permission'} onClick={()=>setPictures(prev=>prev.map((x,j)=>j===i?{...x,source:'permission' as PhotoSource}:x))}>With permission</AnswerPill>
+                <AnswerPill selected={p.source==='supplier'} onClick={()=>setPictures(prev=>prev.map((x,j)=>j===i?{...x,source:'supplier' as PhotoSource,supplierPermission:false}:x))}>Supplier's image</AnswerPill>
+                <AnswerPill selected={p.source==='permission'} onClick={()=>setPictures(prev=>prev.map((x,j)=>j===i?{...x,source:'permission' as PhotoSource,supplierPermission:true}:x))}>With permission</AnswerPill>
                 <AnswerPill selected={p.source==='unknown'} onClick={()=>setPhotoUncertain(true)}>Not sure</AnswerPill>
               </div>
               <button className="spm-sell-text-button" type="button" onClick={()=>setPictures(prev=>prev.filter((_,j)=>j!==i))}>Remove</button>
@@ -499,6 +502,23 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
           </div>
           {photoUncertain&&<div className="spm-sell-clarification-help">
             <p>If you're unsure, ask the owner for permission or leave the photo out. That way you can continue without making an unsupported claim.</p>
+            <button type="button" onClick={()=>openReviewTool('photos')}>Review photographs <ChevronRight size={15}/></button>
+          </div>}
+        </section>}
+        {currentQuestion==='photo-permission'&&<section className="spm-sell-question" aria-label="Permission to reuse supplier photo" data-sell-question="photo-permission">
+          <span className="spm-sell-question-kicker">One more thing about the photo</span>
+          <strong>Has the supplier allowed you to use their image?</strong>
+          <p>Knowing where a photograph came from is different from having permission to use it.</p>
+          <div className="spm-sell-pill-row">
+            <AnswerPill onClick={()=>{
+              setPictures(current=>current.map((picture,i)=>i===pendingPhotoIndex?{...picture,supplierPermission:true}:picture));
+              setPhotoUncertain(false);
+            }}>Yes, I have permission</AnswerPill>
+            <AnswerPill onClick={()=>setPhotoUncertain(true)}>Not sure</AnswerPill>
+            <AnswerPill onClick={()=>setPictures(current=>current.filter((_,i)=>i!==pendingPhotoIndex))}>Remove photo</AnswerPill>
+          </div>
+          {photoUncertain&&<div className="spm-sell-clarification-help">
+            <p>Ask the supplier or choose a photo you can use. Mini won't treat a supplier image as authorised just because you identified its source.</p>
             <button type="button" onClick={()=>openReviewTool('photos')}>Review photographs <ChevronRight size={15}/></button>
           </div>}
         </section>}
