@@ -17,7 +17,7 @@ import {copyDemo} from './MiniBusinessDemoModel';
 import { getMiniFirstPartyOrigin } from './miniFirstPartyConfig';
 import { MiniServerCheckout } from './MiniServerCheckout';
 import { MiniRealStoreOffer } from './MiniRealStoreOffer';
-import { MiniBuyStore } from './MiniBuyStore';
+import { MiniBuyStore, type MiniStorePlanLine, type MiniBasketFulfilment } from './MiniBuyStore';
 import { MiniCollectConversation } from './MiniCollectConversation';
 import { miniMergeUserDescription, miniCaptureText, type MiniCaptureSource, type MiniCaptureKind } from './miniCapture';
 import './mini.css';
@@ -107,6 +107,7 @@ export function MiniExperience() {
   const [screen, setScreen] = useState<View>('home');
   const [buyPrefill, setBuyPrefill] = useState('');
   const [buyResetKey, setBuyResetKey] = useState(0);
+  const [buyingPlanForHelp,setBuyingPlanForHelp] = useState<{lines:MiniStorePlanLine[];fulfilment:MiniBasketFulfilment|null}|null>(null);
   const [collectResetKey, setCollectResetKey] = useState(0);
   const [collectPrefill, setCollectPrefill] = useState('');
   const [collectionReviewActive, setCollectionReviewActive] = useState(false);
@@ -182,6 +183,7 @@ export function MiniExperience() {
     setOpening('');
     setBuyPrefill('');
     setBuyResetKey(n => n + 1);
+    setBuyingPlanForHelp(null);
     setCollectResetKey(n => n + 1);
     setCollectPrefill('');
     setCollectionReviewActive(false);
@@ -361,7 +363,10 @@ export function MiniExperience() {
         </section>}
 
         <div hidden={screen !== 'buy'} aria-hidden={screen !== 'buy'}>
-          <MiniBuyStore key={buyResetKey} language={lang} initialQuery={buyPrefill} onBack={() => setScreen('home')}/>
+          <MiniBuyStore key={buyResetKey} language={lang} initialQuery={buyPrefill} onBack={() => setScreen('home')}
+            onDiscuss={getMiniFirstPartyOrigin() ? (lines,fulfilment)=>{
+              setBuyingPlanForHelp({lines,fulfilment});setDiscussDraft(null);setScreen('help');
+            } : undefined}/>
         </div>
         <div hidden={screen !== 'collect-interview'} aria-hidden={screen !== 'collect-interview'}>
           <MiniCollectConversation key={collectResetKey} language={lang} seed={collectPrefill}
@@ -470,7 +475,8 @@ export function MiniExperience() {
         {screen === 'help' && (getMiniFirstPartyOrigin()
           ? <MiniFirstPartyKs001 apiOrigin={getMiniFirstPartyOrigin()!} draft={discussDraft} language={lang}
               startInStore={verifiedStoreRequested}
-              onBack={() => {setVerifiedStoreRequested(false);setScreen(discussDraft ? 'review' : 'home');}}/>
+              initialBuyingPlan={buyingPlanForHelp}
+              onBack={() => {setVerifiedStoreRequested(false);setScreen(buyingPlanForHelp ? 'buy' : discussDraft ? 'review' : 'home');setBuyingPlanForHelp(null);}}/>
           : <MiniGuestChat draft={discussDraft} language={lang}
               onBack={() => setScreen(discussDraft ? 'review' : 'home')}/>)} 
         </>}
