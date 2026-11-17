@@ -56,6 +56,6 @@ test('The examination does not add payment, agreement-authority or extra seller 
  const page=read('src/mini/MiniFairTradeExaminationPreview.tsx');
  assert.doesNotMatch(page,/fetch\(|\.post\(|acceptAgreement|releaseFunds|paymentIntent/);
  assert.match(page,/This is a demonstration of the examination view/);
- const buy=read('src/mini/MiniBuyStore.tsx');
- assert.match(buy,/source:request.source.offerId|sourceVersion:request.source.offerUpdatedAt/);
+ assert.match(page,/source:request.source.offerId/);
+ assert.match(page,/sourceVersion:request.source.offerUpdatedAt/);
 });
