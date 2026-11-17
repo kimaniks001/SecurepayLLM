@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {miniDeliveryContracts} from '../src/mini/miniDeliveryContract.mjs';
 import {
   makeSampleLivingPurchase,readMiniSamplePurchases,recordMiniSamplePurchase,
   validSamplePurchase,SAMPLE_PURCHASE_KEY
@@ -8,10 +9,13 @@ import {
 const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const lines=[
  {sellerKsNumber:'KS90001',sellerName:'Kamakis Traders · Sample',title:'Solar wall light',
-  quantity:2,priceMinor:320000,offerId:'one'},
+  kind:'PRODUCT',quantity:2,priceMinor:320000,offerId:'one'},
  {sellerKsNumber:'KS90002',sellerName:'Ruiru Pump House · Sample',title:'Garden hose',
-  quantity:1,priceMinor:220000,offerId:'two'},
+  kind:'PRODUCT',quantity:1,priceMinor:220000,offerId:'two'},
 ];
+const acceptedDelivery=(choice,destination)=>miniDeliveryContracts({
+  choice,lines,destination,window:'next',deliveryQuoteSelected:true,
+}).map(x=>({...x,customerApproved:true,providerAccepted:true}));
 function storage(){
  const data=new Map();
  return {getItem:k=>data.has(k)?data.get(k):null,setItem:(k,v)=>data.set(k,v)};
@@ -30,7 +34,8 @@ test('A confirmed fictional rail creates one version of the Living Purchase with
 });
 test('One combined mock delivery is a separate provider and included exactly once in total',()=>{
  const x=makeSampleLivingPurchase({lines,rail:'PESALINK',delivery:'Varsityville, Ruiru',
-  deliveryProvider:'KS90004',deliveryFeeMinor:45000});
+  deliveryProvider:'KS90004',deliveryFeeMinor:45000,
+  deliveryContracts:acceptedDelivery('explore_combined','Varsityville, Ruiru')});
  assert.equal(x.amountMinor,905000);
  assert.equal(x.items.length,3);
  assert.equal(x.items.at(-1).sellerKsNumber,'KS90004');
@@ -38,7 +43,8 @@ test('One combined mock delivery is a separate provider and included exactly onc
 });
 test('Separate Store deliveries are not misattributed to one transport merchant',()=>{
  const x=makeSampleLivingPurchase({lines,rail:'CHOICE_KS_ACCOUNT',delivery:'Kamakis, Ruiru',
-  deliveryProvider:'SELLERS',deliveryFeeMinor:50000});
+  deliveryProvider:'SELLERS',deliveryFeeMinor:50000,
+  deliveryContracts:acceptedDelivery('ask_sellers','Kamakis, Ruiru')});
  assert.equal(x.amountMinor,910000);
  assert.deepEqual(x.items.slice(2).map(i=>i.sellerKsNumber),['KS90001','KS90002']);
  assert.deepEqual(x.items.slice(2).map(i=>i.amountMinor),[25000,25000]);
