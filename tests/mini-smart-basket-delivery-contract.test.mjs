@@ -48,6 +48,7 @@ test('Combined delivery becomes one distinct mini Agreement, with source goods, 
  assert.equal(contracts[0].pickupStores.length,2);
  assert.equal(contracts[0].feeMinor,45000);
  assert.equal(contracts[0].providerAccepted,false);
+ assert.equal(contracts[0].customerApproved,false);
  assert.equal(contracts[0].window,SAMPLE_DELIVERY_WINDOWS.next);
  assert.equal(miniDeliveryContractSummary(contracts).ready,true);
 });
@@ -74,10 +75,12 @@ test('Unaccepted delivery provider cannot be represented as a funded mini Agreem
    window:'next',deliveryQuoteSelected:true});
  assert.equal(makeSampleLivingPurchase({lines,rail:'MPESA_STK',delivery:'Varsityville',
    deliveryFeeMinor:45000,deliveryProvider:'KS90004',deliveryContracts:c}),null);
+ assert.equal(makeSampleLivingPurchase({lines,rail:'MPESA_STK',delivery:'Varsityville',
+   deliveryFeeMinor:45000,deliveryProvider:'KS90004',deliveryContracts:c.map(x=>({...x,providerAccepted:true}))}),null);
 });
 test('Separate accepted delivery mini Agreement is linked and saved alongside parent without double debit',()=>{
  const c=miniDeliveryContracts({choice:'explore_combined',lines,destination:'Varsityville',
-   window:'next',deliveryQuoteSelected:true}).map(x=>({...x,providerAccepted:true}));
+   window:'next',deliveryQuoteSelected:true}).map(x=>({...x,providerAccepted:true,customerApproved:true}));
  const purchased=makeSampleLivingPurchase({lines,rail:'MPESA_STK',delivery:'Varsityville',
    deliveryFeeMinor:45000,deliveryProvider:'KS90004',deliveryContracts:c,
    now:new Date('2026-11-17T10:30:00.000Z')});
