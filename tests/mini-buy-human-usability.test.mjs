@@ -107,5 +107,5 @@ test('Agreed sample terms and a linked delivery remain visible but optional in M
  assert.match(view,/providers.map\(group=>/);
  const buy=read('src/mini/MiniBuyStore.tsx');
  assert.match(buy,/miniSampleAgreementTerms\(cart/);
- assert.match(buy,/miniSellerScopedProposal\(cart,preparedTerms\)/);
+ assert.match(buy,/miniSellerScopedProposal\(cart,preparedTerms,deliveryContracts\)/);
 });
