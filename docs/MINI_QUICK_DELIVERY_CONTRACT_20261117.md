@@ -1,0 +1,26 @@
+# SecurePay Mini — Basket Questions, Standard Actions and Quick Delivery Agreement
+Date: 17 November 2026. Status: phone-first **owner preview only**. Existing production Agreement and Money backends are unchanged.
+
+## Product decisions
+1. **Basket replaces compulsory KS001 questioning**. For source-supported essential missing information, ask one plain-language question, retain the proposed answer with its seller/offer source reference, and move to the next. Examples: scope, preferred appointment, service location, colour, equipment compatibility, physical goods receipt, seller price quote. Optional suggestions cannot block progress. KS001 stays available for unusual problems. Never infer an item property from broad AI guesses or buyer prose.
+2. When ready for Agreement review, the next choices are **Send SecureLink**, **Connect to Money**, **Save for later**. The review button only indicates proposal readiness, not binding acceptance or Money eligibility. Connect to Money remains disabled until correct-party acceptance and regulated-provider authority; saved proposals resume without any seller/funding status carried over.
+3. **Three Money rails in the prescribed product order**: Choice Bank (`CHOICE_KS_ACCOUNT`), M-PESA STK (`MPESA_STK`), PesaLink (`PESALINK`). Names and rail codes are grounded in SecurePayAPI `docs/rail-adoption/` and connector paths. Choice and PesaLink are transfer/settlement options and STK is collection-side; real direction, eligibility, coverage, fee quote and certification must gate each contextual payment; not every rail supports every flow. No generic card rail substitution.
+4. **Delivery is a separate mini Agreement**, not a silent line of seller terms. It must preserve its own provider, goods, origin/pickup points, destination, scheduling mechanism, rate/fee, acceptance version, instructions, completion evidence and dispute/cancellation conditions. It links to but does not merge with the purchase. A combined transporter means ONE distinct delivery Agreement for all relevant goods; one transporter per Store means each Store/provider has a separate Agreement.
+5. The simple customer-facing action is **Add this delivery Agreement**. The basket pre-fills the goods and source Stores, asks the area and a scheduling preference, shows the sample quote and the responsible provider; no technical form fields on the shopping screen.
+6. **Funding is never doubled**. Where a certified rail and accepted funding plan support it, one payer instruction may allocate across purchase and delivery, but the Money ledger must reconcile every beneficiary under its own accepted Agreement. The preview mocks the result while preserving children as separate entries in My Agreements linked to the parent; a mini delivery line appearing in multiple UI views does not mean an extra debit.
+
+## Current owner-preview code
+- `src/mini/miniBasketQuestions.mjs`: source-grounded specific buyer questions, no generic compulsory onboarding.
+- `src/mini/MiniBuyStore.tsx`: basket one question at a time, separate delivery mini summary, review and three standard actions; optional KS001.
+- `src/mini/miniDeliveryContract.mjs`: generate one or several independent sample contracts with source goods and acceptance requirements.
+- `src/mini/miniSampleBasketDraft.mjs`: saved draft in current browser tab; no real Agreement or authority persisted.
+- `src/mini/MiniSampleMoneyJourney.tsx`: Choice Bank, M-PESA, PesaLink selection and sandbox-only fictional provider outcome.
+- `src/mini/miniSampleLivingPurchases.mjs`: prevents simulating delivery funding unless the delivery mini contracts have explicit buyer and provider sample acceptance; links each delivery mini Agreement as its own record with a parent reference and distinct provider role; one example payment.
+- `src/mini/MiniSampleAgreements.tsx`: each delivery mini Agreement is visible in My Agreements, displays its own provider, route, time, fee and linked purchase; money allocation is not an additional payment.
+- `tests/mini-smart-basket-delivery-contract.test.mjs` and existing Mini tests: question provenance, no gratuitous questions, combined vs separate carriers, missing details, sample acceptance, funding not doubled, draft save, rail names.
+
+## Canonical API gate (not claimed implemented)
+SecurePayAPI must implement authoritative versioned purchase and delivery Agreement orchestration: seller-scoped SecureLinks, carrier-specific permissions/identity/insurance/service eligibility where applicable, quotes/expiry, destinations and pickup handoff, provider acceptance, evidence and cancellation. The buyer's preference must not substitute for a real carrier agreement. An offer changing or being declined must invalidate the delivery agreement/funding readiness as applicable. Preserve the current Payment Ready authority and provider sandbox/production certification gates. My Agreements must then reflect *one* canonical set of records across Mini, SecurePay for Business and Living Workspace.
+
+## Testing limitation
+All example delivery providers, rail selections, amounts, statuses and receipts are fictional. Owner preview is hosted on an allowlisted Vercel preview only with `?miniTradeDemo=1`. Automated source/build tests and a READY preview are not a real multi-merchant delivery booking, contract issuance or provider-settled payment.
