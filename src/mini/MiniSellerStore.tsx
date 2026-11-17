@@ -9,6 +9,7 @@ import type {SubscriptionGateway} from '../api/securepay/subscription';
 import type {MiniBusinessPreferencesGateway} from '../api/securepay/mini-business-preferences';
 import type {AuthorizationGateway} from '../api/securepay/authorization';
 import {MiniSellerAccountSettings} from './MiniSellerAccountSettings';
+import {MiniSellerInvitationAcceptance} from './MiniSellerInvitationAcceptance';
 import { createStoreController } from '../features/store/controller';
 import { availabilityOptionsFor } from '../features/store/view';
 import { miniSellerQuotationDraft } from './miniSellerQuotationDraft.mjs';
@@ -25,7 +26,7 @@ export function MiniSellerStore({storeGateway,businessGateway,subscriptionGatewa
   storeGateway:StoreGateway;
   quotationGateway:StoreQuotationGateway;
   liveQuotes:boolean;
-  businessGateway:Pick<BusinessGateway,'mine'|'representation'|'get'|'members'|'inviteMember'>;
+  businessGateway:Pick<BusinessGateway,'mine'|'representation'|'get'|'members'|'inviteMember'|'acceptInvitation'>;
   authorizationGateway?:Pick<AuthorizationGateway,'authoritySummary'>;
   visibilityEnabled?:boolean;
   subscriptionGateway?:Pick<SubscriptionGateway,'myStatus'|'selectPlan'>;
@@ -328,6 +329,8 @@ export function MiniSellerStore({storeGateway,businessGateway,subscriptionGatewa
         {b.displayName||'Business Store'} · {b.businessKsNumber}
       </button>)}
     </div>
+    {visibilityEnabled&&<MiniSellerInvitationAcceptance
+      businessGateway={businessGateway} prepare={prepare}/>}
     {state.mine.status==='loading'&&<p role="status">Checking your Store offers…</p>}
     {state.mine.status==='error'&&<p role="alert">This Store could not be loaded or managed with your account.</p>}
     {notice&&<p role="status">{notice}</p>}
