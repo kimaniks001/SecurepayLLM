@@ -629,7 +629,10 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
         onOpenSettings={()=>setSellerOfferContext(null)}
         onBrowseStores={()=>{setSellerOfferContext(null);setSellerOpen(false);setStoreOpen(true);}}
         storeGateway={stores} sellerContext={sellerOfferContext}
-        agreementGateway={agreements} handoffGateway={pair.gateway}
+        // A Business Store administrator is NOT automatically authorized to
+        // bind that Business to a personal KS001 Agreement.
+        agreementGateway={sellerOfferContext.type==='personal'?agreements:undefined}
+        handoffGateway={sellerOfferContext.type==='personal'?pair.gateway:undefined}
         onPrepareInKs001={sellerOfferContext.type==='personal'
           ?prepareSellerOfferInKs001:undefined}
       />}
