@@ -39,5 +39,5 @@ test('settings use canonical Store counts instead of fabricated stock or social 
   assert.ok(store.includes('publicOffers={opened.raw.filter(o=>o.published).length}'));
   assert.ok(store.includes('privateOffers={opened.raw.filter(o=>!o.published).length}'));
   assert.ok(store.includes("unconfirmedOffers={opened.raw.filter(o=>o.availabilityState==='NEEDS_CONFIRMATION').length}"));
-  assert.ok(settings.includes('community directory permissions'));
+  assert.ok(settings.includes('Community-directory opt-in'));
 });
