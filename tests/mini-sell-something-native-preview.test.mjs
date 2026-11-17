@@ -69,3 +69,46 @@ test('Phase 1 protects buyer and seller authority; favourite contacts and Quick 
   assert.match(existing,/MiniSellerStore storeGateway=\{stores\}/);
   assert.match(existing,/startInStore\s*=\s*false/);
 });
+
+test('seller-review clarifications ask one question with tappable answers and direct fixes',()=>{
+  for(const issue of ["'photo'","'authority'","'availability'","'safety'","'regulated'"])
+    assert.ok(seller.includes(issue),issue);
+  assert.match(seller,/currentQuestion:ReviewIssue/);
+  assert.match(seller,/pendingPhotoIndex>=0\?'photo'/);
+  assert.match(seller,/data-sell-question="photo"/);
+  assert.match(seller,/Where did this photograph come from/);
+  for(const answer of ["I took it","Supplier's image","I have permission","Not sure","Remove photo"])
+    assert.ok(seller.includes(answer),answer);
+  assert.match(seller,/photoAnswered\('own'\)/);
+  assert.match(seller,/photoAnswered\('supplier'\)/);
+  assert.match(seller,/photoAnswered\('permission'\)/);
+  assert.match(seller,/setPictures\(current=>current.filter/);
+  assert.match(seller,/data-sell-question="authority"/);
+  assert.match(seller,/data-sell-question="availability"/);
+  assert.match(seller,/currentQuestion===null/);
+  assert.match(seller,/No upload, ownership proof, duplicate-image scan/);
+});
+test('answer pills enrich prepared offers with date, people, places, pictures and support documents',()=>{
+  assert.match(seller,/data-sell-additions/);
+  for(const action of ["Choose a date","Add a person","Pickup or delivery",
+    "Supporting documents","Improve description","Repeat or after an event",
+    "Other people or roles","More options","To agree later","Share with buyer later"]){
+    assert.ok(seller.includes(action),action);
+  }
+  assert.match(seller,/openReviewTool\('timing'\)/);
+  assert.match(seller,/openReviewTool\('people'\)/);
+  assert.match(seller,/openReviewTool\('places'\)/);
+  assert.match(seller,/setToolsOpen\(true\);setShelf\(tool\)/);
+  assert.match(seller,/Choose date/);
+  assert.match(seller,/Date range/);
+  assert.match(seller,/Repeating/);
+  assert.match(seller,/After an event/);
+  assert.match(seller,/aria-pressed=\{selected\}/);
+});
+test('answers are declarations, not identity, stock, media or licensing clearance',()=>{
+  assert.match(seller,/Seller declarations are NOT legal, image, licence, identity or stock verification/);
+  assert.match(seller,/Attaching a document will not clear the restriction automatically/);
+  assert.match(seller,/rightToOffer&&!imageNeedsSource&&!!stockStatement.trim\(\)/);
+  assert.match(seller,/!suspicious&&!sensitive/);
+  assert.match(seller,/No SecureLink, Agreement or payment is created here/);
+});
