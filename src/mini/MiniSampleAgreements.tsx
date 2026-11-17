@@ -50,7 +50,8 @@ export function MiniSampleAgreements({purchases,focusId,onBack,onShop}:{
          <span>{selected.agreementKind==='DELIVERY'?'Allocated delivery amount · same payment':'Example funded amount'}</span><strong>{fmt(selected.amountMinor)}</strong>
        </div>
        <div className="spm-sample-agreement-facts">
-         {selected.parentId&&<div>Linked to purchase: {selected.parentId}</div>}
+         {selected.parentId&&<div><button type="button" className="spm-shop-back-to-grid"
+            onClick={()=>setChosen(selected.parentId||null)}>Open linked purchase</button></div>}
          {selected.deliveryTerms&&<>
            <div>Collect from: {selected.deliveryTerms.pickupStores.join(', ')}</div>
            <div>Deliver to: {selected.deliveryTerms.destination}</div>
