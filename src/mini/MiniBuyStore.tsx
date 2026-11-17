@@ -12,6 +12,9 @@ import { MiniShopDiscovery, MiniShopGallery } from './MiniStoreGallery';
 import { MiniOfferPhoto } from './MiniStoreVisuals';
 import { MiniSampleMoneyJourney } from './MiniSampleMoneyJourney';
 import type {MiniSamplePurchase} from './miniSampleLivingPurchases.mjs';
+import {miniBasketQuestions,miniBasketAnswersForOffer} from './miniBasketQuestions.mjs';
+import {miniDeliveryContracts,miniDeliveryContractSummary,SAMPLE_DELIVERY_WINDOWS} from './miniDeliveryContract.mjs';
+import {readSampleBasketDraft,saveSampleBasketDraft} from './miniSampleBasketDraft.mjs';
 
 /**
  * Public Store read-only transport reuses the existing, server-allowlisted
@@ -58,6 +61,8 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
 }) {
   const client=storeGateway??stores;
   const sw = language === 'sw';
+  const savedDraft=useRef(playground&&typeof window!=='undefined'?
+    readSampleBasketDraft(window.sessionStorage):null).current;
   const [view, setView] = useState<View>('search');
   const asSearchTerm = (phrase: string) => {
     const explicitShopping = suggestedStoreSearchTerm(phrase);
@@ -77,11 +82,16 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
   const [kind, setKind] = useState<'PRODUCT' | 'SERVICE'>('PRODUCT');
   const [results, setResults] = useState<PublicSearchResultView[]>([]);
   const [chosenStore, setChosenStore] = useState<PublicStoreView | null>(null);
-  const [cart, setCart] = useState<MiniStorePlanLine[]>([]);
+  const [cart, setCart] = useState<MiniStorePlanLine[]>(savedDraft?.lines??[]);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState('');
   const [reviewed, setReviewed] = useState(false);
-  const [fulfilmentChoice, setFulfilmentChoice] = useState<MiniBasketFulfilment | null>(null);
+  const [fulfilmentChoice, setFulfilmentChoice] = useState<MiniBasketFulfilment | null>(savedDraft?.fulfilmentChoice??null);
+  const [basketAnswers,setBasketAnswers]=useState<Record<string,string>>(savedDraft?.answers??{});
+  const [draftAnswer,setDraftAnswer]=useState('');
+  const [savedNotice,setSavedNotice]=useState(!!savedDraft);
+  const basketQuestions=miniBasketQuestions(cart,basketAnswers);
+  const nextBasketQuestion=basketQuestions.nextQuestion;
   const [proposalOpen, setProposalOpen] = useState(false);
   const readiness = miniBasketReadiness(cart,{sourcesFresh:reviewed,fulfilmentChoice});
   const [checking, setChecking] = useState(false);
@@ -89,13 +99,16 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
   const [sampleRequests,setSampleRequests] = useState(false);
   const [sampleResponses,setSampleResponses] = useState<Record<string,'accepted'|'declined'>>({});
   const [moneyOpen,setMoneyOpen] = useState(false);
-  const [deliveryArea,setDeliveryArea] = useState('');
-  const [deliveryQuoteSelected,setDeliveryQuoteSelected] = useState(false);
-  const [quoteAccepted,setQuoteAccepted] = useState<Record<string,number>>({});
+  const [deliveryArea,setDeliveryArea] = useState(savedDraft?.deliveryArea??'');
+  const [deliveryWindow,setDeliveryWindow]=useState<'next'|'arrange'|null>(null);
+  const [deliveryContractConfirmed,setDeliveryContractConfirmed]=useState(false);
+  const [deliveryQuoteSelected,setDeliveryQuoteSelected] = useState(savedDraft?.deliveryQuoteSelected??false);
+  const [quoteAccepted,setQuoteAccepted] = useState<Record<string,number>>(savedDraft?.quoteAccepted??{});
   const sampleSellers=[...new Set(cart.map(line=>line.sellerKsNumber))];
   const allSampleAccepted=sampleRequests&&sampleSellers.length>0&&
     sampleSellers.every(id=>sampleResponses[id]==='accepted');
   const resetSample=()=>{setSampleRequests(false);setSampleResponses({});setMoneyOpen(false);};
+  const invalidateDelivery=()=>{setDeliveryQuoteSelected(false);setDeliveryWindow(null);setDeliveryContractConfirmed(false);};
   const generation = useRef(0);
 
   useEffect(()=>{
@@ -170,18 +183,20 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
     });
     setReviewed(false);
     setProposalOpen(false);
+    setSavedNotice(false);
+    invalidateDelivery();
     resetSample();
     setFreshnessError('');
     setError('');
   };
   const changeQuantity=(line:MiniStorePlanLine,next:number)=>{
     setCart(old=>old.map(item=>item===line?{...item,quantity:Math.min(20,Math.max(1,next))}:item));
-    setReviewed(false);setProposalOpen(false);resetSample();
+    setReviewed(false);setProposalOpen(false);setSavedNotice(false);invalidateDelivery();resetSample();
     setFreshnessError('');
   };
   const removeLine=(line:MiniStorePlanLine)=>{
     setCart(old=>old.filter(item=>item!==line));
-    setReviewed(false);setProposalOpen(false);resetSample();
+    setReviewed(false);setProposalOpen(false);setSavedNotice(false);invalidateDelivery();resetSample();
     setFreshnessError('');
   };
 
@@ -269,12 +284,13 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
 
   const itemCount=cart.reduce((count,line)=>count+line.quantity,0);
   const cartQuantity=(offerId:string)=>cart.find(line=>line.offerId===offerId)?.quantity||0;
-  const moneyBlocked=readiness.readyToPay===false;
+  const deliveryContracts=miniDeliveryContracts({choice:fulfilmentChoice,lines:cart,
+    destination:deliveryArea,window:deliveryWindow,deliveryQuoteSelected});
+  const deliveryContractState=miniDeliveryContractSummary(deliveryContracts);
   const deliveryNeedsQuote=readiness.goods&&fulfilmentChoice!=='collect';
-  const deliveryComplete=!deliveryNeedsQuote||(playground&&!!deliveryArea&&deliveryQuoteSelected);
-  const deliveryFeeMinor=deliveryQuoteSelected&&playground?
-    fulfilmentChoice==='explore_combined'?45000:
-    fulfilmentChoice==='ask_sellers'?25000*sampleSellers.length:0:0;
+  const deliveryComplete=!deliveryNeedsQuote||
+    (playground&&deliveryContractConfirmed&&deliveryContractState.ready);
+  const deliveryFeeMinor=playground?deliveryContractState.feeMinor:0;
   const unpriced=cart.filter(line=>line.priceMinor===null);
   const allPricesResolved=unpriced.every(line=>quoteAccepted[line.sellerKsNumber+':'+line.offerId]>0);
   const quotedMinor=cart.reduce((sum,line)=>sum+
@@ -283,12 +299,12 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
   const confirmedSellers=[...sampleSellers,
     ...(fulfilmentChoice==='explore_combined'&&deliveryQuoteSelected?['KS90004']:[])];
   const sampleMoneyReady=playground&&reviewed&&!checking&&!freshnessError&&
-    readiness.readyToReview&&sampleRequests&&allSampleAccepted&&
+    readiness.readyToReview&&basketQuestions.complete&&sampleRequests&&allSampleAccepted&&
     deliveryComplete&&allPricesResolved&&Number.isSafeInteger(sampleTotalMinor);
   // A displayed total is illustrative: it is not a seller quote or provider amount.
   const total=readiness.totalMinor!==null&&readiness.currency==='KES'
     ? money(readiness.totalMinor,'KES'):null;
-  const ready=readiness.readyToReview&&!checking&&!freshnessError&&
+  const ready=readiness.readyToReview&&basketQuestions.complete&&!checking&&!freshnessError&&
     (!playground||deliveryComplete)&&(!playground||allPricesResolved);
   const shopControls=<form className="spm-shop-search-form" onSubmit={e=>{e.preventDefault();void find();}}>
       <label className="spm-label" htmlFor="mini-store-query">What are you looking for?</label>
@@ -332,6 +348,8 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
       }))} amountMinor={sampleTotalMinor}
         delivery={fulfilmentChoice==='collect'?'I will collect':(deliveryArea||'Delivery to confirm')}
         deliveryFeeMinor={deliveryFeeMinor}
+        deliveryContracts={deliveryContracts.map(c=>({...c,providerAccepted:sampleRequests&&
+          (c.providerKsNumber==='KS90004'||sampleResponses[c.providerKsNumber]==='accepted')}))}
         deliveryProvider={fulfilmentChoice==='explore_combined'?'KS90004':
           fulfilmentChoice==='ask_sellers'?'SELLERS':null}
         onBack={()=>setMoneyOpen(false)}
