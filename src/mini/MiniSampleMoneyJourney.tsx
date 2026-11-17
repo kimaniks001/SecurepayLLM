@@ -2,6 +2,7 @@ import {useEffect,useRef,useState} from 'react';
 import {ArrowLeft,ArrowRight,CheckCircle2,Smartphone,Landmark,ShieldCheck,Clock3,ArrowLeftRight} from 'lucide-react';
 import {makeSampleLivingPurchase,type MiniSamplePurchase,type MiniSampleRail} from './miniSampleLivingPurchases.mjs';
 import type {MiniStorePlanLine} from './MiniBuyStore';
+import type {MiniDeliveryContract} from './miniDeliveryContract.mjs';
 
 const fmt=(n:number)=>'KSh '+(n/100).toLocaleString('en-KE');
 const rails=[
@@ -9,10 +10,10 @@ const rails=[
  {id:'MPESA_STK' as const,title:'M-PESA',details:'A phone approval request on your handset, when enabled.',icon:Smartphone},
  {id:'PESALINK' as const,title:'PesaLink',details:'Bank-to-bank payment via the Choice-mediated rail.',icon:ArrowLeftRight},
 ];
-export function MiniSampleMoneyJourney({lines,amountMinor,delivery,deliveryFeeMinor,deliveryProvider,onBack,
+export function MiniSampleMoneyJourney({lines,amountMinor,delivery,deliveryFeeMinor,deliveryProvider,deliveryContracts,onBack,
  onConfirmed,onViewAgreements}:{
  lines:MiniStorePlanLine[];amountMinor:number;delivery:string;deliveryFeeMinor:number;
- deliveryProvider:string|null;onBack:()=>void;onConfirmed:(purchase:MiniSamplePurchase)=>void;
+ deliveryProvider:string|null;deliveryContracts:MiniDeliveryContract[];onBack:()=>void;onConfirmed:(purchase:MiniSamplePurchase)=>void;
  onViewAgreements:()=>void;
 }) {
  const [rail,setRail]=useState<MiniSampleRail|null>(null);
@@ -31,7 +32,7 @@ export function MiniSampleMoneyJourney({lines,amountMinor,delivery,deliveryFeeMi
    const id=window.setTimeout(()=>{
      if(completed.current)return;
      const purchase=makeSampleLivingPurchase({lines,rail,delivery,
-       deliveryFeeMinor,deliveryProvider});
+       deliveryFeeMinor,deliveryProvider,deliveryContracts});
      if(!purchase)return;
      completed.current=true;
      setReceipt(purchase);
@@ -57,7 +58,7 @@ export function MiniSampleMoneyJourney({lines,amountMinor,delivery,deliveryFeeMi
    <div className="spm-sample-money-amount">
      <span>{stage==='confirmed'?'Simulated amount paid':'Amount to fund'}</span>
      <strong>{fmt(amountMinor)}</strong>
-     <small>Includes chosen sample delivery, if applicable. No real provider fee quote.</small>
+     <small>Includes any separate delivery mini Agreements. No real provider fee quote.</small>
    </div>
    {stage==='choose'&&<>
      <div className="spm-sample-rails" role="group" aria-label="Choose sample payment rail">
