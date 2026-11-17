@@ -8,8 +8,11 @@ import { buildTimingProposal, type TimingDraft } from '../features/living-worksp
 import type { MiniLanguage } from './miniModel';
 import type { StoreGateway } from '../api/securepay/store';
 import type { AgreementGateway } from '../api/securepay/agreements';
+import type { MiniSellerHandoffGateway, MiniSellerReviewedHandoff } from './miniSellerAgreementHandoff.mjs';
 import { miniSellerCreateCanonicalStoreDraft } from './miniSellerCanonicalStoreBridge.mjs';
 import { miniSellerIssueAgreementDoorway } from './miniSellerSecureLinkDoorway.mjs';
+import { miniSellerBeginAgreementHandoff, miniSellerReviewAgreementHandoff,
+  miniSellerCreateReviewedAgreement, miniSellerProposeAgreement } from './miniSellerAgreementHandoff.mjs';
 import {miniSellerPreparedOffer,miniSellerSafeDraft,miniSellerRestoreDraft} from './miniSellerPreparedOffer.mjs';
 import {miniSellerTrustExamination} from './miniSellerTrustExamination.mjs';
 import {miniSellerLocalExactImageDigest} from './miniSellerLocalExactImageDigest.mjs';
@@ -69,14 +72,15 @@ function writeDescription(input:{
  * Identity, Agreement, media-provenance, invitation, SecureLink or Money writes.
  * Local declaration is not verification; local output is not a canonical offer.
  */
-export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,onBrowseStores,actingAs,seed='',storeGateway,sellerContext,agreementGateway,canonicalAgreement}:{
+export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,onBrowseStores,actingAs,seed='',storeGateway,sellerContext,agreementGateway,handoffGateway,sellerSavedSource}:{
   language:MiniLanguage;onBack:()=>void;onOpenStore:()=>void;onOpenSettings:()=>void;
   onBrowseStores:()=>void;actingAs:string;seed?:string;
   storeGateway?:StoreGateway;
   sellerContext?:{type:'personal'}|{type:'business';businessKsNumber:string};
-  agreementGateway?:Pick<AgreementGateway,'activeDoorway'|'issuePublicDoorway'>;
-  /** Only a backend-created proposed Agreement, not a Store offer ID. */
-  canonicalAgreement?:{id:string;status:string};
+  agreementGateway?:Pick<AgreementGateway,'activeDoorway'|'issuePublicDoorway'|'detail'|'propose'>;
+  handoffGateway?:MiniSellerHandoffGateway;
+  /** Trusted saved KS001 conversation context, never a local Mini draft ID. */
+  sellerSavedSource?:{conversationId:string;reviewedTradeContextVersion:number};
 }) {
   const sw=language==='sw';
   const [stage,setStage]=useState<'compose'|'review'|'result'>('compose');
@@ -128,6 +132,14 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
   const [shareUrl,setShareUrl]=useState<string|null>(null);
   const [shareIssued,setShareIssued]=useState(false);
   const shareKey=useRef<string|null>(null);
+  const handoffKey=useRef<string|null>(null);
+  const [handoffBusy,setHandoffBusy]=useState(false);
+  const [handoffMessage,setHandoffMessage]=useState('');
+  const [serverReview,setServerReview]=useState<MiniSellerReviewedHandoff|null>(null);
+  const [reviewAcknowledged,setReviewAcknowledged]=useState(false);
+  const [reviewedOfferSignature,setReviewedOfferSignature]=useState<string|null>(null);
+  const [realDraftAgreement,setRealDraftAgreement]=useState<{id:string;status:'DRAFT'}|null>(null);
+  const [proposedAgreement,setProposedAgreement]=useState<{id:string;status:'PROPOSED'}|null>(null);
   const [ksHelp,setKsHelp]=useState(false);
   const photoRef=useRef<HTMLInputElement>(null);
   const docRef=useRef<HTMLInputElement>(null);
@@ -142,6 +154,9 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
     availability:stockStatement,rightToOffer,rightType,photos:pictures,documents,people,
     placeType,place,privateMeeting,timing
   });
+  const offerSignature=JSON.stringify([prepared.ok?prepared.offerTerms:null,
+    pictures.map(p=>p.localDigest||null),rightToOffer,stockStatement]);
+  const unchangedAfterReview=reviewedOfferSignature===offerSignature;
   const invalidPrice=priceType==='fixed' && !readableAmount(price);
   const suspicious=useMemo(()=>/\b(?:stolen|counterfeit|fake passport|ivory|illegal drugs|firearms?|ammunition)\b/i.test(title+' '+description),[title,description]);
   const sensitive=useMemo(()=>/\b(?:medicine|pharmaceutical|pesticide|alcohol|vehicle registration)\b/i.test(title+' '+description),[title,description]);
@@ -283,15 +298,84 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
       }
     } finally {setStoreCreating(false);}
   };
+  const reviewSavedOfferInSecurePay=async()=>{
+    if(!handoffGateway||!sellerSavedSource||!prepared.ok||!canOffer||
+        handoffBusy||realDraftAgreement)return;
+    setHandoffBusy(true);setHandoffMessage('');
+    try {
+      handoffKey.current??=crypto.randomUUID();
+      const started=await miniSellerBeginAgreementHandoff({
+        gateway:handoffGateway,
+        conversationId:sellerSavedSource.conversationId,
+        reviewedTradeContextVersion:sellerSavedSource.reviewedTradeContextVersion,
+        clientActionId:handoffKey.current,confirmed:true
+      });
+      if(!started.ok){
+        setHandoffMessage(started.reason==='CHECK_EXISTING_HANDOFF_BEFORE_RETRY'
+          ? 'SecurePay could not confirm this step. Check the saved KS001 conversation before trying again.'
+          : 'Save and review this offer in KS001 before preparing its Agreement.');
+        return;
+      }
+      const reviewed=await miniSellerReviewAgreementHandoff({
+        gateway:handoffGateway,handoffId:started.handoffId
+      });
+      if(!reviewed.ok){
+        setHandoffMessage('Open KS001 to finish clarifying the Agreement terms.');
+        return;
+      }
+      setServerReview(reviewed);
+      setReviewedOfferSignature(offerSignature);
+      setReviewAcknowledged(false);
+      setHandoffMessage(reviewed.canProgress
+        ? 'These are the Agreement terms SecurePay has recorded. Please check them.'
+        : 'The Agreement needs another clarification in KS001 before it can be set up.');
+    }finally{setHandoffBusy(false);}
+  };
+  const setUpReviewedAgreement=async()=>{
+    if(!handoffGateway||!agreementGateway||!serverReview?.canProgress||
+       !reviewAcknowledged||!unchangedAfterReview||handoffBusy||realDraftAgreement)return;
+    setHandoffBusy(true);setHandoffMessage('');
+    try {
+      const created=await miniSellerCreateReviewedAgreement({
+        gateway:handoffGateway,agreements:agreementGateway,
+        reviewed:serverReview,sellerConfirmed:true
+      });
+      if(created.ok){
+        setRealDraftAgreement({id:created.agreementId,status:'DRAFT'});
+        setHandoffMessage('Your draft Agreement is saved. It has not been shared.');
+      }else{
+        setHandoffMessage(created.reason==='REVIEW_CHANGED_REFRESH_REQUIRED'
+          ? 'The Agreement changed. Please review the current terms again.'
+          : 'SecurePay could not confirm the draft. Check this Agreement in KS001 before retrying.');
+      }
+    }finally{setHandoffBusy(false);}
+  };
+  const proposeReviewedAgreement=async()=>{
+    if(!agreementGateway||!realDraftAgreement||!unchangedAfterReview||
+       proposedAgreement||handoffBusy)return;
+    setHandoffBusy(true);setHandoffMessage('');
+    try{
+      const proposed=await miniSellerProposeAgreement({
+        agreements:agreementGateway,agreementId:realDraftAgreement.id,confirmed:true
+      });
+      if(proposed.ok){
+        setProposedAgreement({id:proposed.agreementId,status:'PROPOSED'});
+        setHandoffMessage('Your Agreement is ready for buyer review. No invitation has been sent.');
+      }else{
+        setHandoffMessage('Review the current draft Agreement in KS001 before proposing it.');
+      }
+    }finally{setHandoffBusy(false);}
+  };
   const issueSecureLink=async()=>{
     // Only issue from an actual proposed Agreement. No local proposal or
     // Store ID can become a SecureLink without canonical Agreement authority.
-    if(!agreementGateway||!canonicalAgreement||!prepared.ok||!canOffer||shareCreating||shareIssued)return;
+    if(!agreementGateway||!proposedAgreement||!prepared.ok||!canOffer||
+        !unchangedAfterReview||shareCreating||shareIssued)return;
     setShareCreating(true);setShareStatus('');
     try{
       shareKey.current??=crypto.randomUUID();
       const issued=await miniSellerIssueAgreementDoorway({
-        gateway:agreementGateway,agreement:canonicalAgreement,
+        gateway:agreementGateway,agreement:proposedAgreement,
         idempotencyKey:shareKey.current,confirmed:true
       });
       if(issued.ok){
@@ -815,12 +899,55 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
         {prepared.ok&&prepared.summary.count!==null&&<small>Proposed quantity: {prepared.summary.count} {prepared.summary.priceUnit}</small>}
         <p>{descriptionReviewed&&description?description:'Seller-provided details will appear here after review.'}</p>
         {prepared.ok&&prepared.summary.totalMinor!==null&&<div className="spm-sell-review-line">Proposed total: KSh {(prepared.summary.totalMinor/100).toLocaleString('en-KE',{maximumFractionDigits:2})}, not an invoice or approved payment</div>}
-        {prepared.ok&&<small>Prepared for discussion · no real Store publication, invitation or Agreement</small>}
+        {prepared.ok&&<small>{realDraftAgreement
+          ? 'Saved Agreement in SecurePay · not accepted or funded'
+          : 'Prepared for discussion · no real Store publication, invitation or Agreement'}</small>}
         {!!place&&<div className="spm-sell-review-line"><MapPin size={15}/>{placeType}: {place}</div>}
         {!!timing&&<div className="spm-sell-review-line"><CalendarDays size={15}/>{timing}</div>}
         {personPlan&&<div className="spm-sell-review-line"><UserRoundPlus size={15}/>{personPlan==='later'?'Other person to be agreed':'Buyer to be invited later'}</div>}
       </div>
-      {result==='share'&&agreementGateway&&canonicalAgreement&&prepared.ok&&canOffer&&<>
+      {result==='share'&&handoffGateway&&agreementGateway&&sellerSavedSource&&prepared.ok&&canOffer&&<>
+        <div className="spm-sell-review-card">
+          <strong>Prepare the Agreement</strong>
+          {!serverReview&&!realDraftAgreement&&<button type="button"
+            className="spm-secondary spm-sell-wide"
+            disabled={handoffBusy}
+            onClick={reviewSavedOfferInSecurePay}>
+            <BookOpenText size={16}/>{handoffBusy?'Checking…':'Review saved KS001 terms'}
+          </button>}
+          {serverReview&&<>
+            <p className="spm-sell-hint">Review the terms recorded in SecurePay, not just this local offer preview.</p>
+            <strong>{serverReview.candidate.title||'Agreement to be named'}</strong>
+            <p>{serverReview.candidate.description||serverReview.candidate.purpose||'No further description recorded.'}</p>
+            {serverReview.candidate.amountMinor!=null&&<p>Proposed amount: {serverReview.candidate.currency||'KES'} {(serverReview.candidate.amountMinor/100).toLocaleString('en-KE',{maximumFractionDigits:2})}</p>}
+            {serverReview.candidate.what?.slice(0,4).map((item,i)=><small key={'what-'+i}>What: {item}</small>)}
+            {serverReview.candidate.who?.slice(0,4).map((item,i)=><small key={'who-'+i}>Who: {item}</small>)}
+            {serverReview.candidate.when?.slice(0,4).map((item,i)=><small key={'when-'+i}>When: {item}</small>)}
+            {serverReview.stillToDecide.length>0&&<p className="spm-sell-hint">Still to decide: {serverReview.stillToDecide.map(x=>x.description).join('; ')}</p>}
+            {serverReview.mustResolve.length>0&&<p className="spm-sell-hint">Needs clarification: {serverReview.mustResolve.map(x=>x.description).join('; ')}</p>}
+            {!unchangedAfterReview&&<p className="spm-sell-hint">Your offer has changed since this review. Review the current version again.</p>}
+            {serverReview.canProgress&&unchangedAfterReview&&!realDraftAgreement&&<>
+              <div className="spm-sell-pill-row">
+                <AnswerPill selected={reviewAcknowledged}
+                  onClick={()=>setReviewAcknowledged(true)}>These are the terms I'll share</AnswerPill>
+                <AnswerPill onClick={()=>{setReviewAcknowledged(false);
+                  setHandoffMessage('Make the change in KS001, then review the new version.');}}>I need to change something</AnswerPill>
+              </div>
+              <button type="button" className="spm-secondary spm-sell-wide"
+                disabled={!reviewAcknowledged||handoffBusy} onClick={setUpReviewedAgreement}>
+                <FileText size={16}/>{handoffBusy?'Preparing…':'Set up my draft Agreement'}
+              </button>
+            </>}
+          </>}
+          {realDraftAgreement&&!proposedAgreement&&<button type="button"
+            className="spm-secondary spm-sell-wide" disabled={handoffBusy||!unchangedAfterReview}
+            onClick={proposeReviewedAgreement}>
+            <Handshake size={16}/>{handoffBusy?'Checking…':'Propose Agreement for buyer review'}
+          </button>}
+          {handoffMessage&&<p className="spm-sell-hint" role="status">{handoffMessage}</p>}
+        </div>
+      </>}
+      {result==='share'&&agreementGateway&&proposedAgreement&&unchangedAfterReview&&prepared.ok&&canOffer&&<>
         <button type="button" className="spm-secondary spm-sell-wide"
           disabled={shareCreating||shareIssued} onClick={issueSecureLink}>
           <Send size={16}/>{shareIssued?'SecureLink issued':shareCreating?'Preparing…':'Create SecureLink'}
