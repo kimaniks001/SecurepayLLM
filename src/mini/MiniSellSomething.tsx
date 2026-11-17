@@ -351,6 +351,8 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
     if(!composed.ok){
       setHandoffMessage(composed.reason==='TERMS_TOO_LONG_FOR_SINGLE_KS001_TURN'
         ? 'Your offer has more details than one KS001 message can safely carry. Open KS001 to review them in smaller parts; no terms were sent or shortened.'
+        : composed.reason==='DESCRIPTION_REVIEW_REQUIRED'
+        ? 'Please review your description first. KS001 must not prepare an Agreement from wording you have not approved.'
         : 'Complete and review your offer before preparing its Agreement.');
       return;
     }
