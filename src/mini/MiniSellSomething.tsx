@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { buildTimingProposal, type TimingDraft } from '../features/living-workspace/DateTimeTool';
 import type { MiniLanguage } from './miniModel';
+import {miniSellerPreparedOffer,miniSellerSafeDraft,miniSellerRestoreDraft} from './miniSellerPreparedOffer.mjs';
 
 type Shelf = 'describe'|'photos'|'documents'|'places'|'timing'|'people'|null;
 type PhotoSource = 'own'|'supplier'|'permission'|'unknown';
@@ -13,7 +14,7 @@ type Picture = { name:string; preview:string; source:PhotoSource; supplierPermis
 type Support = { name:string; purpose:string };
 type Person = { name:string; role:string };
 type Result = 'share'|'store'|'save'|null;
-type Category = 'Goods'|'Agriculture'|'Equipment'|'Furniture'|'Services';
+type Category = 'Goods'|'Agriculture'|'Equipment'|'Furniture'|'Services'|'Capacity';
 
 type ReviewIssue = 'safety'|'regulated'|'photo'|'photo-permission'|'authority'|'availability'|null;
 function AnswerPill({children,onClick,selected=false,disabled=false}:{
@@ -111,6 +112,16 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
   const photoRef=useRef<HTMLInputElement>(null);
   const docRef=useRef<HTMLInputElement>(null);
   const [photoCount,setPhotoCount]=useState(0);
+  const [savedDraftAvailable,setSavedDraftAvailable]=useState(()=>{
+    try{return miniSellerRestoreDraft(JSON.parse(sessionStorage.getItem('securepay-mini-sell-preview-draft-v2')||'null'))!==null;}
+    catch{return false;}
+  });
+  const prepared=miniSellerPreparedOffer({
+    title,category,priceType,price,quantity,unit,description,descriptionReviewed,
+    condition,specifications,purpose,included,limitations,warranty,
+    availability:stockStatement,rightToOffer,rightType,photos:pictures,documents,people,
+    placeType,place,privateMeeting,timing
+  });
   const invalidPrice=priceType==='fixed' && !readableAmount(price);
   const suspicious=useMemo(()=>/\b(?:stolen|counterfeit|fake passport|ivory|illegal drugs|firearms?|ammunition)\b/i.test(title+' '+description),[title,description]);
   const sensitive=useMemo(()=>/\b(?:medicine|pharmaceutical|pesticide|alcohol|vehicle registration)\b/i.test(title+' '+description),[title,description]);
@@ -121,7 +132,7 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
   const currentQuestion:ReviewIssue=suspicious?'safety':sensitive?'regulated':
     pendingPhotoIndex>=0?(pictures[pendingPhotoIndex].source==='supplier'?'photo-permission':'photo'):
     !rightToOffer?'authority':!stockStatement.trim()?'availability':null;
-  const canOffer=!!title.trim()&&!invalidPrice&&!suspicious&&!sensitive&&
+  const canOffer=prepared.ok&&!invalidPrice&&!suspicious&&!sensitive&&
     rightToOffer&&!imageNeedsSource&&!!stockStatement.trim();
   const photoSourceName=(source:PhotoSource)=>({
     own:'Photo I took',supplier:'Supplier image (permission declared)',
@@ -204,19 +215,40 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
     setError('');
     if(!title.trim()){setError('What are you selling? A short name is enough.');return;}
     if(invalidPrice){setError('Enter a positive price or choose Price to agree.');return;}
-    if(quantity.trim()&&(!/^\d+(?:\.\d{1,3})?$/.test(quantity)||Number(quantity)<=0)){
-      setError('Please check the quantity.');return;
-    }
+    if(!prepared.ok){setError(prepared.error);return;}
     setShelf(null);setReturningToReview(false);setShowMorePills(false);setStage('review');
   };
   const finish=(kind:Result)=>{
     if(kind!=='save'&&!canOffer)return;
     if(kind==='save'){
-      try{sessionStorage.setItem('securepay-mini-sell-preview-draft-v1',JSON.stringify({
-        title,category,priceType,price,quantity,unit,description,placeType,place,timing,stockStatement
-      }));}catch{/* Browsers may refuse optional local storage. */}
+      try{
+        sessionStorage.setItem('securepay-mini-sell-preview-draft-v2',JSON.stringify(miniSellerSafeDraft({
+          title,category,priceType,price,quantity,unit,condition,specifications,purpose,
+          included,limitations,warranty,description,descriptionReviewed,placeType,
+          place,timing,stockStatement
+        })));
+        setSavedDraftAvailable(true);
+      }catch{setSavedDraftAvailable(false);}
     }
     setResult(kind);setStage('result');
+  };
+  const restoreSavedOffer=()=>{
+    try{
+      const saved=miniSellerRestoreDraft(JSON.parse(sessionStorage.getItem('securepay-mini-sell-preview-draft-v2')||'null'));
+      if(!saved){setSavedDraftAvailable(false);setError('This tab no longer has a saved offer.');return;}
+      setTitle(saved.title);setCategory(saved.category as Category);
+      setPriceType(saved.priceType as 'fixed'|'quote');setPrice(saved.price);
+      setQuantity(saved.quantity);setUnit(saved.unit);
+      setCondition(saved.condition);setSpecifications(saved.specifications);setPurpose(saved.purpose);
+      setIncluded(saved.included);setLimitations(saved.limitations);setWarranty(saved.warranty);
+      setDescription(saved.description);setDescriptionReviewed(false); // The seller reviews the restored wording again.
+      setPlaceType(saved.placeType as 'Pickup'|'Delivery'|'Work location');
+      setPlace(saved.place);setTiming(saved.timing);setStockStatement(saved.stockStatement);
+      // No file, contact, permissions, identity or statement of verified authority persists.
+      setPictures([]);setDocuments([]);setPeople([]);setPrivateMeeting('');
+      setPersonPlan(null);setRightToOffer(false);setStage('compose');setSellerArea('offer');
+      setError('');setShelf(null);setToolsOpen(false);
+    }catch{setSavedDraftAvailable(false);setError('This tab could not restore that offer.');}
   };
   const sample=()=>{
     setTitle('20 bags of dairy meal animal feed');setCategory('Agriculture');
@@ -270,10 +302,17 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
       <div className="spm-sell-phase1-capacity"><span>Acting as <strong>{actingAs}</strong></span><small>Example only · authority not verified</small></div>
       <h1 className="spm-question">{sw?'Unauza nini?':'What are you selling?'}</h1>
       <p className="spm-lead">Tell Mini a little. Add pictures or details only when they help you make a better offer.</p>
+      {savedDraftAvailable&&<button type="button" className="spm-sell-resume" onClick={restoreSavedOffer}>
+        <Bookmark size={16}/><span><strong>Continue a saved offer</strong><small>Written details only · in this browser tab</small></span><ChevronRight size={16}/>
+      </button>}
       {label('Your item or service','sell-title',title,v=>{setTitle(v);refreshDescription();},'e.g. 20 bags of animal feed',2)}
-      <div className="spm-sell-grid2">
-        <label className="spm-sell-label"><span>Pricing</span><select className="spm-field" value={priceType} onChange={e=>setPriceType(e.target.value as 'fixed'|'quote')}><option value="fixed">Fixed price</option><option value="quote">Price to agree</option></select></label>
-        {priceType==='fixed'&&label('Price in KSh','sell-price',price,setPrice,'2,500')}
+      <div className="spm-sell-phase2-pricing" data-mini-sell-pricing>
+        <strong className="spm-sell-inline-question">How would you price it?</strong>
+        <div className="spm-sell-pill-row">
+          <AnswerPill selected={priceType==='fixed'} onClick={()=>setPriceType('fixed')}>Set a price</AnswerPill>
+          <AnswerPill selected={priceType==='quote'} onClick={()=>setPriceType('quote')}>Price to agree</AnswerPill>
+        </div>
+        {priceType==='fixed'&&label('Price in KSh per unit','sell-price',price,setPrice,'2,500')}
       </div>
       <div className="spm-sell-grid2">
         {label('Quantity (optional)','sell-quantity',quantity,setQuantity,'20')}
@@ -301,10 +340,18 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
           <button type="button" aria-label="Close tool" onClick={()=>setShelf(null)}><X size={17}/></button></div>
         {shelf==='describe'&&<>
           <p className="spm-sell-hint">A good description helps buyers understand the offer. Only details you supply will appear.</p>
-          <label className="spm-sell-label"><span>What kind of offer?</span><select className="spm-field" value={category} onChange={e=>{setCategory(e.target.value as Category);refreshDescription();}}>
-            {(['Goods','Agriculture','Equipment','Furniture','Services'] as const).map(c=><option key={c}>{c}</option>)}</select></label>
-          {category!=='Services'&&label('Condition','sell-condition',condition,v=>{setCondition(v);refreshDescription();},'New, used, refurbished…')}
-          {label(category==='Agriculture'?'Weight, grade, ingredients or variety':category==='Equipment'?'Model, capacity and specifications':category==='Furniture'?'Material and dimensions':category==='Services'?'Scope and deliverables':'Specifications or features',
+          <strong className="spm-sell-inline-question">What kind of offer?</strong>
+          <div className="spm-sell-pill-row">
+            <AnswerPill selected={!['Services','Capacity'].includes(category)} onClick={()=>{setCategory('Goods');refreshDescription();}}>Product or goods</AnswerPill>
+            <AnswerPill selected={category==='Services'} onClick={()=>{setCategory('Services');refreshDescription();}}>Service or work</AnswerPill>
+            <AnswerPill selected={category==='Capacity'} onClick={()=>{setCategory('Capacity');refreshDescription();}}>Available capacity</AnswerPill>
+          </div>
+          {!['Services','Capacity'].includes(category)&&<label className="spm-sell-label"><span>What kind of goods?</span>
+            <select className="spm-field" value={category} onChange={e=>{setCategory(e.target.value as Category);refreshDescription();}}>
+              {(['Goods','Agriculture','Equipment','Furniture'] as const).map(c=><option key={c}>{c}</option>)}
+            </select></label>}
+          {!['Services','Capacity'].includes(category)&&label('Condition','sell-condition',condition,v=>{setCondition(v);refreshDescription();},'New, used, refurbished…')}
+          {label(category==='Agriculture'?'Weight, grade, ingredients or variety':category==='Equipment'?'Model, capacity and specifications':category==='Furniture'?'Material and dimensions':category==='Services'?'Scope and deliverables':category==='Capacity'?'Capacity, availability and units':'Specifications or features',
             'sell-specs',specifications,v=>{setSpecifications(v);refreshDescription();},'Only facts you can stand behind',2)}
           {label('What is it suitable for?','sell-purpose',purpose,v=>{setPurpose(v);refreshDescription();},'What would a buyer use it for?')}
           {label('What is included?','sell-included',included,v=>{setIncluded(v);refreshDescription();},'Accessories, quantity, work included…')}
