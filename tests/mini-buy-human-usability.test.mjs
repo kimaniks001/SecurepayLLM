@@ -110,8 +110,10 @@ test('Agreed sample terms and a linked delivery remain visible but optional in M
  assert.match(buy,/miniSellerScopedProposal\(cart,preparedTerms,deliveryContracts\)/);
 });
 
-test('A personal buyer is not portrayed as the sample trader; Sell enters Business explicitly',()=>{
+test('A personal buyer remains personal; Sell opens a native owner-only offer preview',()=>{
  const experience=read('src/mini/MiniExperience.tsx');
  assert.match(experience,/useState<MiniPreviewCapacity>\('personal'\)/);
- assert.match(experience,/setPreviewCapacity\('business'\);setSettingsEntry\('store'\)/);
+ assert.match(experience,/if \(playground\) \{\s+setError\(''\);setScreen\('sell-preview'\)/);
+ assert.match(experience,/getMiniFirstPartyOrigin\(\)/);
+ assert.match(experience,/MiniSellSomething/);
 });
