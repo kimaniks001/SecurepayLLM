@@ -363,7 +363,7 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
       }))} amountMinor={sampleTotalMinor}
         delivery={fulfilmentChoice==='collect'?'I will collect':(deliveryArea||'Delivery to confirm')}
         deliveryFeeMinor={deliveryFeeMinor}
-        deliveryContracts={deliveryContracts.map(c=>({...c,providerAccepted:sampleRequests&&
+        deliveryContracts={deliveryContracts.map(c=>({...c,customerApproved:deliveryContractConfirmed,providerAccepted:sampleRequests&&
           (c.providerKsNumber==='KS90004'||sampleResponses[c.providerKsNumber]==='accepted')}))}
         deliveryProvider={fulfilmentChoice==='explore_combined'?'KS90004':
           fulfilmentChoice==='ask_sellers'?'SELLERS':null}
