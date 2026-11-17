@@ -499,7 +499,7 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
                   <p>Who: {fulfilmentChoice==='explore_combined'?'Kamakis Transport':
                     'Each Store delivers its own goods'}</p>
                   <p>What: {cart.filter(x=>x.kind==='PRODUCT').map(x=>x.quantity+' × '+x.title).join(', ')}</p>
-                  <p>From: {sampleSellers.map(seller=>cart.find(x=>x.sellerKsNumber===seller)?.sellerName).filter(Boolean).join(', ')}</p>
+                  <p>From: {goodsSellers.map(seller=>cart.find(x=>x.sellerKsNumber===seller)?.sellerName).filter(Boolean).join(', ')}</p>
                   <p>To: {deliveryArea}</p>
                   <p>Fee: {money(fulfilmentChoice==='explore_combined'?45000:
                     25000*new Set(cart.filter(x=>x.kind==='PRODUCT').map(x=>x.sellerKsNumber)).size,'KES')}</p>
