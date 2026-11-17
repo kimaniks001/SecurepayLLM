@@ -68,7 +68,7 @@ test('visibility is hidden in owner demo and unrelated community/eTIMS preferenc
   assert.ok(shell.includes('visibilityEnabled={!demo&&signedIn}'));
   assert.ok(seller.includes('storeGateway={visibilityEnabled?storeGateway:undefined}'));
   assert.ok(settings.includes("representation==='personal'||representation==='verified'"));
-  assert.ok(settings.includes('Community-directory opt-in'));
+  assert.ok(settings.includes('Business directory and eTIMS setup requests'));
 });
 test('team read uses exact Business Organization and caller-scoped authority, never mutates roles',()=>{
   const team=fs.readFileSync(new URL('../src/mini/MiniSellerTeamAccess.tsx',import.meta.url),'utf8');
