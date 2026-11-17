@@ -215,7 +215,8 @@ export type StoreImageUseOrigin = 'SELLER_PHOTOGRAPH' | 'SUPPLIER_IMAGE' | 'OTHE
 export type StoreImageUseStatus =
   | 'PENDING_REVIEW' | 'STALE_OFFER_REVIEW_REQUIRED'
   | 'SOURCE_CHANGED_REVIEW_REQUIRED' | 'REVOKED'
-  | 'MORE_INFORMATION_REQUIRED' | 'ESCALATED' | 'REJECTED';
+  | 'MORE_INFORMATION_REQUIRED' | 'ESCALATED' | 'REJECTED'
+  | 'RESUBMITTED_FOR_REVIEW';
 
 export interface RegisterStoreImageUseRequest {
   /** Already saved source conversation OWNED by the authenticated human. */
@@ -232,6 +233,8 @@ export interface StoreImageUseResponse {
   status: StoreImageUseStatus;
   declaredOrigin: StoreImageUseOrigin;
   createdAt: string;
+  /** A seller-safe question category. The reviewer's private note stays private. */
+  requestTopic?: StoreImageReviewTopic | null;
 }
 
 
@@ -251,5 +254,33 @@ export interface StoreImageEvidenceView {
   id: string;
   purpose: StoreImageEvidencePurpose;
   status: StoreImageEvidenceStatus;
+  createdAt: string;
+}
+
+
+// ─── Phase 3: structured answer-pill response to independent review ───
+// No free-form explanation. "I added proof" is accepted by the backend ONLY
+// when a NEW validated, still-linked source was attached after the request.
+export type StoreImageReviewTopic =
+  | 'PHOTO_SOURCE' | 'SUPPLIER_PERMISSION' | 'SELLER_AUTHORITY'
+  | 'PHOTO_CLARITY' | 'OFFER_DETAILS' | 'OTHER';
+export type StoreImageSellerReviewStatus =
+  | 'AWAITING_REVIEW' | 'MORE_INFORMATION_REQUIRED' | 'RESUBMITTED_FOR_REVIEW'
+  | 'ESCALATED' | 'REJECTED';
+export type StoreImageSellerResponseChoice = 'EVIDENCE_ATTACHED';
+export interface StoreImageReviewQuestion {
+  imageUseId: string;
+  status: StoreImageSellerReviewStatus;
+  topic: StoreImageReviewTopic | null;
+  requestedAt: string | null;
+}
+export interface RespondStoreImageReviewRequest {
+  expectedOfferUpdatedAt: string;
+  choice: StoreImageSellerResponseChoice;
+}
+export interface StoreImageSellerReviewReply {
+  id: string;
+  imageUseId: string;
+  status: 'RESUBMITTED_FOR_REVIEW';
   createdAt: string;
 }
