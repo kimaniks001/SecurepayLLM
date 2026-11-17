@@ -56,8 +56,8 @@ export function storePublishedTextEditReview(current,draft) {
      !Array.isArray(draft.mediaRefs) || draft.mediaRefs.length!==0 ||
      (draft.priceMinor!==null && (!Number.isSafeInteger(draft.priceMinor)||draft.priceMinor<=0)) ||
      !String(draft.title||'').trim() ||
-     String(draft.title||'').trim().length>140 ||
-     String(draft.description||'').length>2000)
+     String(draft.title||'').trim().length>160 ||
+     String(draft.description||'').length>4000)
     return {ok:false,reason:'LEGACY_LISTING_REQUIRES_SEPARATE_EDIT'};
   return {ok:true,offerId:current.id,expectedUpdatedAt:current.updatedAt};
 }
