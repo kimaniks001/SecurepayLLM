@@ -14,6 +14,7 @@ import { miniSellerCreateCanonicalStoreDraft } from './miniSellerCanonicalStoreB
 import { miniSellerPublishTextOnly } from './miniSellerPublishTextOnly.mjs';
 import { miniSellerKs001Statement } from './miniSellerKs001Statement.mjs';
 import { MiniSellSecureLinkWalkthrough } from './MiniSellSecureLinkWalkthrough';
+import { MiniSellerShareOptions } from './MiniSellerShareOptions';
 import { miniSellerIssueAgreementDoorway } from './miniSellerSecureLinkDoorway.mjs';
 import { miniSellerBeginAgreementHandoff, miniSellerReviewAgreementHandoff,
   miniSellerCreateReviewedAgreement, miniSellerProposeAgreement } from './miniSellerAgreementHandoff.mjs';
@@ -1060,11 +1061,7 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
           disabled={shareCreating||shareIssued} onClick={issueSecureLink}>
           <Send size={16}/>{shareIssued?'SecureLink issued':shareCreating?'Preparing…':'Create SecureLink'}
         </button>
-        {shareUrl&&<button type="button" className="spm-secondary spm-sell-wide"
-          onClick={()=>{if(!shareUrl)return;void navigator.clipboard?.writeText(shareUrl).then(
-            ()=>setShareStatus('SecureLink copied. Send it to your buyer when ready.'),
-            ()=>setShareStatus('Could not copy. You can open the Agreement to share it.')
-          );}}>Copy SecureLink</button>}
+        {shareUrl&&<MiniSellerShareOptions publicUrl={shareUrl} title={title}/>} 
         {shareStatus&&<p className="spm-sell-hint" role="status">{shareStatus}</p>}
       </>}
       {result==='store'&&storeGateway&&sellerContext&&prepared.ok&&<>
