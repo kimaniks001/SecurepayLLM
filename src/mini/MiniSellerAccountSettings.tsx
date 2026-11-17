@@ -14,7 +14,7 @@ import {MiniSellerBusinessOptIns} from './MiniSellerBusinessOptIns';
 type Props={
   businessKsNumber:string|null;
   businessName:string|null;
-  businessGateway:Pick<BusinessGateway,'representation'|'get'|'members'>;
+  businessGateway:Pick<BusinessGateway,'representation'|'get'|'members'|'inviteMember'>;
   authorizationGateway?:Pick<AuthorizationGateway,'authoritySummary'>;
   storeGateway?:Pick<StoreGateway,'myOffers'|'businessOffers'|'makeMyOfferPrivate'|'makeBusinessOfferPrivate'>;
   offers?:StoreOfferResponse[];
