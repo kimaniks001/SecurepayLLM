@@ -10,7 +10,7 @@ function exampleReply(question:string,lines:MiniStorePlanLine[],fulfilment:MiniB
   if(!lines.length)
     return 'This is a sample conversation. Try adding items in Buy something, then ask from your basket; no real merchant or payment is connected.';
   if(/deliver|transport|collect|pickup|ship/.test(q))
-    return 'Your sample basket has '+lines.length+' offers from '+sellers.length+' store(s). Your current receiving choice is '+(fulfilment?.replaceAll('_',' ')||'not selected')+'. A real combined delivery needs verified routes, eligibility, price and each merchant’s approval. I cannot book a driver in this test.';
+    return 'Your sample basket has '+lines.length+' offers from '+sellers.length+' store(s). Your current receiving choice is '+(fulfilment?.replace(/_/g,' ')||'not selected')+'. A real combined delivery needs verified routes, eligibility, price and each merchant’s approval. I cannot book a driver in this test.';
   if(/pay|money|cost|total|price|charge/.test(q)){
     const all=lines.every(x=>x.priceMinor!==null);
     const total=all?lines.reduce((sum,x)=>sum+(x.priceMinor||0)*x.quantity,0):null;
