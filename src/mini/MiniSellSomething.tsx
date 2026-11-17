@@ -9,6 +9,7 @@ import type { MiniLanguage } from './miniModel';
 import {miniSellerPreparedOffer,miniSellerSafeDraft,miniSellerRestoreDraft} from './miniSellerPreparedOffer.mjs';
 import {miniSellerTrustExamination} from './miniSellerTrustExamination.mjs';
 import {miniSellerLocalExactImageDigest} from './miniSellerLocalExactImageDigest.mjs';
+import {miniSellerReviewAnswerPills} from './miniSellerReviewAnswerPills.mjs';
 
 type Shelf = 'describe'|'photos'|'documents'|'places'|'timing'|'people'|null;
 type PhotoSource = 'own'|'supplier'|'permission'|'unknown';
@@ -138,6 +139,11 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
     title,description,descriptionReviewed,photos:pictures,documents,rightToOffer,rightType,
     stockStatement,suspicious,sensitive
   });
+  // Local example ONLY. Real reviewer questions come from authenticated Store
+  // APIs; this browser draft has no source IDs, evidence uploads or decisions.
+  const exampleReviewerQuestion=pictures.length?
+    miniSellerReviewAnswerPills('MORE_INFORMATION_REQUIRED',
+      pictures[0]?.source==='supplier'?'SUPPLIER_PERMISSION':'PHOTO_SOURCE'):null;
   // A local, fictional offer-review path only. Trust.canPublish is ALWAYS false.
   const canOffer=prepared.ok&&!invalidPrice&&!suspicious&&!sensitive&&
     rightToOffer&&!imageNeedsSource&&!!stockStatement.trim()&&trust.localReady;
@@ -682,6 +688,28 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
             <p>No real Identimark has been registered. The backend source-ingestion service supports server-checked file signatures and an exact SHA-256 digest, but is not yet connected to this seller review or authorized Store image use.</p>
           </div>
         </details>
+        {exampleReviewerQuestion&&<details className="spm-sell-phase3-details" data-mini-seller-review-example>
+          <summary>If we need one more detail <ChevronRight size={15}/></summary>
+          <div className="spm-sell-clarification-help">
+            <small>Example question only — no reviewer has examined this draft.</small>
+            <strong>{exampleReviewerQuestion.question}</strong>
+            <p>{exampleReviewerQuestion.detail}</p>
+            <div className="spm-sell-pill-row">
+              {exampleReviewerQuestion.pills.map(pill=><AnswerPill key={pill.id} onClick={()=>{
+                if(pill.id==='documents'){setDocPurpose('Photo use permission');openReviewTool('documents');}
+                else if(pill.id==='photos')openReviewTool('photos');
+                else if(pill.id==='describe')openReviewTool('describe');
+                else if(pill.id==='submitted'){
+                  openReviewTool('documents');
+                  setError('A real Store must receive and check new evidence before requesting another review. This preview has not uploaded any document.');
+                }else if(pill.id==='save')finish('save');
+                else if(pill.id==='remove')setPictures(previous=>previous.slice(1));
+                else if(pill.id==='help')setKsHelp(true);
+              }}>{pill.label}</AnswerPill>)}
+            </div>
+            <p>No real reviewer response, approval, Identimark or public Store image is created by these example answers.</p>
+          </div>
+        </details>}
       </div>
       {currentQuestion===null&&<div className="spm-sell-review-enrich" data-sell-additions>
         <strong>Anything else that would help the buyer?</strong>
