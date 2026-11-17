@@ -140,6 +140,7 @@ export function MiniBusinessSettings({language,onBack,demo,setDemo,initialArea,o
     </>}
     {area==='people'&&<>
       <p className="spm-lead">Make a fictional staff invitation, assign a limited role, or revoke a pending invitation.</p>
+      <Quiet>In your real Business Store, the People & access panel first checks Organization membership and your own server permissions. Team invitations and role changes require their own approved actions; this page is an example only.</Quiet>
       <Txt name="Colleague label (invented name only)" value={teamName} onChange={setTeamName} placeholder="For example: Demo assistant"/>
       <label className="spm-bs-input-label"><span>Role</span><select className="spm-field" value={teamRole} onChange={e=>setTeamRole(e.target.value as TeamDemo['role'])}>
         <option>Store editor</option><option>Agreement assistant</option><option>Read only</option></select></label>
@@ -294,6 +295,16 @@ export function MiniBusinessSettings({language,onBack,demo,setDemo,initialArea,o
     </>}
     {area==='privacy'&&<>
       <p className="spm-lead">Keep Business visibility and permissions separate from the individual KSNumber.</p>
+      <div className="spm-bs-offer" data-mini-phase5b-visibility-example>
+        <strong>Who can see my Store offers?</strong>
+        <p>This is a preview of the real Store visibility setting. In your signed-in Store, every public listing has a two-step <b>Make private</b> choice. SecurePay confirms your authority and checks the latest listing before changing visibility.</p>
+        <small>Example Business only · {demo.offers.filter(o=>o.visible).length} sample public listing(s) · {demo.offers.filter(o=>!o.visible).length} sample private draft(s)</small>
+        <small>Making an offer private never deletes it or cancels Agreements. Community listings and eTIMS remain separate opt-ins.</small>
+        <MiniButton secondary disabled={!verifiedStoreAvailable} onClick={onOpenVerifiedStore}>
+          <ShieldCheck size={14}/> Open verified Store settings
+        </MiniButton>
+        {!verifiedStoreAvailable&&<small>This preview has no real Store authority. No listing is hidden here.</small>}
+      </div>
       <Checkbox label="Request a directory listing" detail="Voluntary and subject to host rules." checked={demo.directory} onChange={()=>mutate(prev=>logDemo(prev,'Changed example community directory preference',{directory:!prev.directory}))}/>
       <div className="spm-bs-offer"><strong>Recent actions in this demo</strong>
         {demo.activity.length?demo.activity.map((s,i)=><small key={i}>{s}</small>):<small>Change an offer or another setting to see your actions appear here.</small>}
