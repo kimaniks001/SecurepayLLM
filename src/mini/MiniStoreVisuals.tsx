@@ -5,6 +5,8 @@ import type { PublicOfferView, PublicStoreView } from '../api/securepay/store/dt
 type Visual={src:string;attribution:string;emoji:string;tone:string};
 const commons=(file:string)=>'https://commons.wikimedia.org/wiki/Special:FilePath/'+file+'?width=700';
 const photos: {match:RegExp;file:string;attribution:string;emoji:string;tone:string}[]=[
+ {match:/solar floodlight|solar wall light/i,file:'Foco_Solar.jpg',attribution:'Wikimedia Commons / Foco Solar (illustrative)',emoji:'☀️',tone:'marigold'},
+ {match:/garden pathway light/i,file:'Solar_street_light.jpg',attribution:'Wikimedia Commons / Solar street light (illustrative)',emoji:'💡',tone:'meadow'},
  {match:/solar irrigation water pump/i,file:'Solar_water_pump_and_well.jpg',attribution:'Shailsh Telang / Wikimedia Commons (CC BY-SA)',emoji:'💧',tone:'lagoon'},
  {match:/water pump maintenance|pump installation/i,file:'Mini_irrigation_system_for_gardens.jpg',attribution:'Chinmayee Mishra / Wikimedia Commons (CC BY-SA)',emoji:'🛠️',tone:'lagoon'},
  {match:/cement/i,file:'Cement_bags.jpg',attribution:'StaraBlazkova / Wikimedia Commons (CC BY-SA)',emoji:'🧱',tone:'clay'},
@@ -39,6 +41,11 @@ function visualFor(offer:PublicOfferView,playground:boolean):Visual{
     src:direct|| (row?commons(row.file):''),
     attribution:direct?'Store-provided image':row?.attribution||'',
     emoji:row?.emoji || (/solar|light/i.test(offer.title)?'☀️':
+      /paint/i.test(offer.title)?'🎨':
+      /pipe|fittings|fasteners/i.test(offer.title)?'🧰':
+      /tent/i.test(offer.title)?'⛺':
+      /table/i.test(offer.title)?'🪑':
+      /tank/i.test(offer.title)?'💧':
       /deliver|transport/i.test(offer.title)?'🚚':
       /table/i.test(offer.title)?'🪑':
       /service|install|repair/i.test(offer.title)?'🛠️':
