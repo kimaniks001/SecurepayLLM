@@ -73,9 +73,10 @@ export function makeSampleLivingPurchase({lines,rail,delivery,deliveryFeeMinor=0
      deliveryFeeMinor-perSeller*(sellers.length-1):perSeller,
   }));
  }
- if(!Array.isArray(deliveryContracts)||deliveryContracts.length>20)return null;
+ if(!Array.isArray(deliveryContracts)||deliveryContracts.length>20||
+   (deliveryFeeMinor>0&&!deliveryContracts.length))return null;
  if(deliveryContracts.length&&
-   (deliveryContracts.some(c=>!c.providerAccepted||!c.customerApprovalRequired||
+   (deliveryContracts.some(c=>!c.providerAccepted||!c.customerApproved||!c.customerApprovalRequired||
      !c.providerKsNumber||!c.destination||!c.window||
      !Array.isArray(c.goods)||!c.goods.length||!Number.isSafeInteger(c.feeMinor))||
     deliveryContracts.reduce((sum,c)=>sum+c.feeMinor,0)!==deliveryFeeMinor))return null;
