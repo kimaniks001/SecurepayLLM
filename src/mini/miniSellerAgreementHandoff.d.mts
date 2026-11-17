@@ -6,7 +6,7 @@ import type { AgreementVersionSummaryResponse } from '../api/securepay/agreement
 export type MiniSellerHandoffGateway = Pick<AgentGateway,
   'createHandoff'|'reviewHandoff'|'readHandoff'|'continueHandoff'>;
 export type MiniSellerAgreementGateway = Pick<AgreementGateway,
-  'detail'|'propose'>;
+  'detail'|'proposeReviewed'>;
 export interface MiniSellerReviewedHandoff {
   ok:true;
   canProgress:boolean;
