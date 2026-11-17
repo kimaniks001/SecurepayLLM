@@ -93,8 +93,10 @@ test('A product or service without actual Store source/version is NOT treated as
 });
 test('KS001 is optional and receives exact sourced buyer answers ONLY when explicitly asked',()=>{
  const answer={sellerKsNumber:maintenance.sellerKsNumber,offerId:maintenance.offerId,
+   offerUpdatedAt:maintenance.offerUpdatedAt,
    question:'Which day would you like the visit?',proposedAnswer:'Next week'};
  const other={sellerKsNumber:'KS99999',offerId:maintenance.offerId,
+   offerUpdatedAt:maintenance.offerUpdatedAt,
    question:'Unrelated account information',proposedAnswer:'private data'};
  const plan=miniStoreIntent([maintenance],{
    fulfilmentPreference:'collect',buyerAnswers:[answer,other]});
