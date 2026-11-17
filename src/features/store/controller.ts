@@ -245,6 +245,10 @@ export function createStoreController(gateway: Gateway, trustedMediaOrigin: stri
       const id = state.editingOfferId;
       if (state.draftBusy || !id || state.mine.status !== 'ready') return;
       const selected = state.mine.data.raw.find(o => o.id === id);
+      if (!selected) {
+        update({ draftError: 'The current private Store offer is no longer available. Refresh My Store.' });
+        return;
+      }
       const review = storeTextPublicationReview(selected, state.draft);
       if (!review.ok) {
         update({ draftError: review.reason === 'TEXT_ONLY_UNVERIFIED_AVAILABILITY_REQUIRED'
