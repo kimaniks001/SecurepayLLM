@@ -11,7 +11,7 @@ test('settings are explicitly opened by seller, never automatic role or plan cha
   assert.ok(store.includes('Store settings & permissions'));
   assert.ok(store.includes('{settingsOpen&&<MiniSellerAccountSettings'));
   for(const prohibited of [
-    'subscriptionGateway.selectPlan(','businessGateway.inviteMember(',
+    'businessGateway.inviteMember(',
     'businessGateway.removeMember(','subscriptionGateway.initiateVerificationTransfer(',
     'gateway.publishMyTextOffer('
   ])assert.equal(settings.includes(prohibited),false,prohibited);
@@ -22,11 +22,13 @@ test('current Business representation is fetched from server, not assumed from t
   assert.ok(settings.includes("representation==='unavailable'"));
   assert.ok(settings.includes('Business Agreements require their own verified authority'));
 });
-test('account subscription is read only and not misrepresented as Business-specific payment authority',()=>{
+test('account subscriptions require deliberate first-plan confirmation and remain separate from Business Money',()=>{
   assert.ok(settings.includes('subscriptionGateway.myStatus()'));
   assert.ok(settings.includes('memberState===\'unavailable\''));
   assert.ok(settings.includes('not proof of Business-specific billing'));
-  assert.ok(settings.includes('No subscription or payment has been started'));
+  assert.ok(settings.includes('SecurePay cannot assume a plan or begin any payment'));
+  assert.ok(settings.includes('Yes, open pending plan'));
+  assert.ok(settings.includes("memberState==='none'"));
   assert.equal(settings.includes("monthlyFeeMinor:20000"),false);
   assert.equal(settings.includes("monthlyFeeMinor:10000"),false);
 });
