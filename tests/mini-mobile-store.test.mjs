@@ -40,8 +40,8 @@ test('Offer review, seller confirmation, regulated Money and living work remain 
   assert.match(basket,/Each Store keeps responsibility for its own goods or services/);
   assert.match(basket,/Send SecureLink for review/);
   assert.match(basket,/allSampleAccepted/);
-  assert.match(basket,/Simulate one payment · no money moves/);
-  assert.match(basket,/Your purchase is in motion/);
+  assert.match(basket,/MiniSampleMoneyJourney/);
+  assert.match(read('src/mini/MiniSampleMoneyJourney.tsx'),/Your purchase is in motion/);
   assert.match(basket,/moneyBlocked/);
   assert.doesNotMatch(basket,/fetch\(.*\/api\/v1\/payments\/start/s);
 });
