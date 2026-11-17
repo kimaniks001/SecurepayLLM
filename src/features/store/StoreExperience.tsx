@@ -25,7 +25,7 @@ import { secureAuthView } from '../identity/view';
 import { useAppNavPadding } from '../public/publicShell';
 import { FulfilmentMiniAgreementReview } from './FulfilmentMiniAgreementReview';
 
-type Gateway = Pick<StoreGateway, 'search' | 'store' | 'offer' | 'myProfile' | 'myOffers' | 'createOffer' | 'updateOffer' | 'confirmAvailability' | 'businessProfile' | 'businessOffers' | 'businessOpportunities' | 'createBusinessOffer' | 'updateBusinessOffer' | 'confirmBusinessOfferAvailability'>;
+type Gateway = Pick<StoreGateway, 'search' | 'store' | 'offer' | 'myProfile' | 'myOffers' | 'createOffer' | 'updateOffer' | 'confirmAvailability' | 'businessProfile' | 'businessOffers' | 'businessOpportunities' | 'createBusinessOffer' | 'updateBusinessOffer' | 'confirmBusinessOfferAvailability' | 'publishMyTextOffer' | 'publishBusinessTextOffer'>;
 
 function errorView(message: string): ErrorStateResponse {
   return { type: 'ERROR_STATE', title: 'SecurePay could not load this', text: message, primaryLabel: 'Try again', primaryValue: 'retry' };
@@ -403,6 +403,7 @@ export function StoreExperience({ gateway, businessGateway, marketNetworkGateway
         onChange={patch => controller.setDraft(patch)}
         onBack={() => controller.backFromBuilder()}
         onSubmit={() => void controller.submitDraft()}
+        onPublishReviewedText={() => void controller.publishReviewedTextOffer()}
       />
     );
   }
