@@ -482,12 +482,19 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
       return null;
     try{
       await ensureFreshSession(session,auth);
-      await pair.controller.send(statement);
+      // The ordinary send() may silently return when a previous turn is
+      // pending. sendStatement() instead proves a successful server turn
+      // and returns the Trade Context read after that same turn.
+      const delivered=await pair.controller.sendStatement(statement);
+      if(!delivered.ok||!delivered.context)return null;
       const snapshot=pair.controller.getSnapshot();
-      if(snapshot.busy||snapshot.pending||snapshot.error||!snapshot.conversationId)
+      if(snapshot.busy||snapshot.pending||snapshot.error||!snapshot.conversationId||
+         delivered.context.conversationId!==snapshot.conversationId||
+         !Number.isSafeInteger(delivered.context.version))
         return null;
       const context=await pair.gateway.readContext(snapshot.conversationId);
       if(context.conversationId!==snapshot.conversationId ||
+         context.version!==delivered.context.version ||
          !Number.isSafeInteger(context.version) || context.version<0)
         return null;
       return {conversationId:snapshot.conversationId,
