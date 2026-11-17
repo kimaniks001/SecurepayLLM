@@ -7,6 +7,7 @@ import {
 import { buildTimingProposal, type TimingDraft } from '../features/living-workspace/DateTimeTool';
 import type { MiniLanguage } from './miniModel';
 import {miniSellerPreparedOffer,miniSellerSafeDraft,miniSellerRestoreDraft} from './miniSellerPreparedOffer.mjs';
+import {miniSellerTrustExamination} from './miniSellerTrustExamination.mjs';
 
 type Shelf = 'describe'|'photos'|'documents'|'places'|'timing'|'people'|null;
 type PhotoSource = 'own'|'supplier'|'permission'|'unknown';
@@ -132,8 +133,13 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
   const currentQuestion:ReviewIssue=suspicious?'safety':sensitive?'regulated':
     pendingPhotoIndex>=0?(pictures[pendingPhotoIndex].source==='supplier'?'photo-permission':'photo'):
     !rightToOffer?'authority':!stockStatement.trim()?'availability':null;
+  const trust=miniSellerTrustExamination({
+    title,description,descriptionReviewed,photos:pictures,documents,rightToOffer,rightType,
+    stockStatement,suspicious,sensitive
+  });
+  // A local, fictional offer-review path only. Trust.canPublish is ALWAYS false.
   const canOffer=prepared.ok&&!invalidPrice&&!suspicious&&!sensitive&&
-    rightToOffer&&!imageNeedsSource&&!!stockStatement.trim();
+    rightToOffer&&!imageNeedsSource&&!!stockStatement.trim()&&trust.localReady;
   const photoSourceName=(source:PhotoSource)=>({
     own:'Photo I took',supplier:'Supplier image (permission declared)',
     permission:'Photo used with permission',unknown:'Source not stated'
@@ -526,7 +532,7 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
       <p className="spm-lead">Make sure it is clear and yours to offer. The other person has not accepted anything yet.</p>
       <div className="spm-sell-review-card">
         {pictures[0]&&<div className="spm-sell-cover"><img src={pictures[0].preview} alt="Seller-provided offer"/>
-          <span>SecurePay Identimark · preview only</span></div>}
+          <span>Local photo · image registration pending</span></div>}
         <strong className="spm-sell-review-title">{title}</strong>
         <strong className="spm-sell-review-price">{prepared.ok?prepared.summary.moneyText:priceType==='fixed'?readableAmount(price):'Price to agree'}</strong>
         {quantity&&<small>Proposed quantity: {quantity} {unit} · not confirmed stock</small>}
@@ -652,7 +658,25 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
           <button type="button" onClick={()=>setStockStatement('')}><Pencil size={13}/>Change availability</button>
           {pictures.length>0&&<button type="button" onClick={()=>openReviewTool('photos')}><Pencil size={13}/>Change photo details</button>}
         </div>}
-        <p className="spm-sell-disclosure">Image fingerprinting, legality, licensing, ownership, document validity and inventory checks require server services that are not connected in this preview.</p>
+        <p className="spm-sell-disclosure">Independent checks are still pending. A seller's answer does not verify lawfulness, identity, stock, copyright or a document.</p>
+        <details data-mini-sell-trust-examination className="spm-sell-phase3-details">
+          <summary>What did Mini look at? <ChevronRight size={15}/></summary>
+          <div className="spm-sell-phase3-checks">
+            {trust.checks.map(item=><div className="spm-sell-phase3-check" key={item.key}>
+              <strong>{item.title}</strong>
+              <span>{item.status==='NEEDS_SELLER_ANSWER'?'Answer needed':
+                item.status==='NEEDS_SPECIALIST_REVIEW'?'Specialist review needed':
+                item.status==='SELLER_DECLARED'?'Seller statement':
+                item.status==='PERMISSION_DECLARED_UNVERIFIED'?'Permission stated · unverified':
+                item.status==='SELLER_REVIEWED'?'Seller reviewed':
+                item.status==='NOT_APPLICABLE'?'Not needed':
+                item.status==='LOCAL_REFERENCE_ONLY'?'Not uploaded':
+                item.status==='OPTIONAL_IMPROVEMENT'?'Optional':'Not independently checked'}</span>
+              <small>{item.detail}</small>
+            </div>)}
+            <p>No real Identimark has been registered. The backend source-ingestion service supports server-checked file signatures and an exact SHA-256 digest, but is not yet connected to this seller review or authorized Store image use.</p>
+          </div>
+        </details>
       </div>
       {currentQuestion===null&&<div className="spm-sell-review-enrich" data-sell-additions>
         <strong>Anything else that would help the buyer?</strong>
