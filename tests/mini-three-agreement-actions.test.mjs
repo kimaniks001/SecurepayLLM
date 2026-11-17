@@ -49,7 +49,7 @@ test('Three independent actions appear immediately after an organised Agreement,
  const buy=read('src/mini/MiniBuyStore.tsx');
  const actions=buy.indexOf('className="spm-shop-agreement-actions"');
  const send=buy.indexOf("'Send SecureLink'",actions);
- const money=buy.indexOf('Connect to Money</strong>',send);
+ const money=buy.indexOf("'Connect to Money'",send);
  const save=buy.indexOf('>Save for later</strong>',money);
  assert.ok(send>0&&money>send&&save>money);
  assert.match(buy,/directSale.canOpenMoney\|\|sellerReviewed/);
