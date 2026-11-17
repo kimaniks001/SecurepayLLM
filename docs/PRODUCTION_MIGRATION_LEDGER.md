@@ -2021,3 +2021,11 @@ This Phase 3 UI/Policy slice is **not completed backend certification**, and no 
 - **NOT AN IDENTIMARK:** Pending source-to-offer registrations still have no copyright, licence, stock or server-approved media-use authority; no public image can be claimed verified. The approved-photo publication path is still missing.
 - **CERTIFICATION BLOCKER:** The API branch needs Java 21/Gradle, PostgreSQL/Flyway, concurrency, security, cross-client visual and 20-person acceptance gates. This Mini preview deliberately does not call the pending image endpoints, and its prior 197 focused frontend passes are not API evidence.
 - Runbook: `SecurePayAPI/docs/operations/MINI_SELL_PHASE3_PUBLIC_MEDIA_BYPASS_CLOSURE_20261117.md`.
+
+
+### 2026-11-17 — Private independent Store image review (backend PR #475, not deployed)
+
+- **BACKEND_PR_PENDING:** A dedicated `STORE_IMAGE_USE` capability checks an independently authorized, ACTIVE reviewer. The scoped private review queue and decisions can request further evidence, escalate or reject; the actor cannot review their own Store, submission or any Business they actively represent.
+- **STORE OWNER READ CONTRACT:** Private `StoreImageUseStatus` also supports `MORE_INFORMATION_REQUIRED`, `ESCALATED` and `REJECTED` alongside PENDING/STALE/REVOKED. No reviewed image is converted into an approved public media reference, and no reviewer notes, source IDs, digests or image bytes are exposed to other users.
+- **UNFINISHED BACKEND CERTIFICATION:** The new `StoreImageIndependentReviewService`, controller, `V20271117162000__store_image_independent_review_events.sql`, reviewer-authority tests and private OpenAPI are draft-only. Java 21/Gradle, SQL migration, concurrency, security, retention, reviewer governance and owner/remediation UI review are pending.
+- **PUBLIC PUBLISHING STILL CLOSED:** An image request that has been reviewed or escalated is not a genuine Identimark, licence, inventory proof, server-approved image or a right to list publicly. Legacy media redaction and the published-media fail-closed gate remain intact.
