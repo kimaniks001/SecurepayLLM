@@ -23,7 +23,7 @@ export function MiniSellerShareOptions({publicUrl,title}:Props){
     try{
       const u=new URL(publicUrl);
       return u.protocol==='https:' && !u.username && !u.password &&
-        !!u.hostname && (u.pathname!=='/' || !!u.search);
+        !!u.hostname;
     }catch{return false;}
   })();
   if(!urlValid){
@@ -61,10 +61,11 @@ export function MiniSellerShareOptions({publicUrl,title}:Props){
     const destination='https://wa.me/?text='+encodeURIComponent(message);
     const win=window.open(destination,'_blank','noopener,noreferrer');
     setNotice(win?'Choose a recipient in WhatsApp. SecurePay has not sent it automatically.':
-      'WhatsApp could not open. Copy the link instead.');
+      'If WhatsApp did not open, copy the link instead. SecurePay did not send anything.');
   };
   return <section className="spm-sell-link-actions" aria-label="Share this SecureLink" data-mini-seller-share-options>
     <div className="spm-sell-link-actions-head"><Link2 size={18}/><strong>Your SecureLink is ready</strong></div>
+    <p className="spm-sell-link-title">{title}</p>
     <p className="spm-sell-hint">Send it to the buyer when you choose. It opens this Agreement for review — not acceptance or payment.</p>
     <p className="spm-sell-link-address" aria-label="Server-issued SecureLink address">{publicUrl}</p>
     <div className="spm-sell-pill-row">
