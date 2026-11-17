@@ -42,7 +42,7 @@ test('Offer review, seller confirmation, regulated Money and living work remain 
   assert.match(basket,/allSampleAccepted/);
   assert.match(basket,/MiniSampleMoneyJourney/);
   assert.match(read('src/mini/MiniSampleMoneyJourney.tsx'),/Your purchase is in motion/);
-  assert.match(basket,/moneyBlocked/);
+  assert.match(basket,/sampleMoneyReady/);
   assert.doesNotMatch(basket,/fetch\(.*\/api\/v1\/payments\/start/s);
 });
 test('Sample storefronts contain a browsable range of offers, not two warehouse rows',async()=>{
