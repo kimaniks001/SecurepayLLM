@@ -32,3 +32,23 @@ The seller now carries condition, specifications, intended use and inclusions se
 The real signed-in entry now uses `pair.controller.sendStatement` **not** best-effort `send`, requiring an acknowledged server turn and matching live Trade Context version before any handoff. This avoids treating a busy/no-op chat action as an accepted seller statement.
 
 **Verification in isolated V8 harness:** 52 of 52 Phase 2–4 focused source, bridge and UI checks passed. This is not a complete Node/TypeScript/Spring/PostgreSQL build or an end-to-end signed-in acceptance test.
+
+## 17 November — migration engineering implemented after inventory
+
+- `features/store/view.ts`: newly authored Store offers now start as **private drafts** (`published:false`, `NEEDS_CONFIRMATION`) instead of being publicly visible by default.
+- `features/store/controller.ts`: new offers are saved privately; unpublished draft edits cannot secretly set `published:true` through ordinary PUT. An owner-confirmed `publishReviewedTextOffer()` rereads the current personal/Business Store offer and uses the dedicated API `publish-text` with exact `updatedAt`. Unknown outcomes require a Store read before retry.
+- `components/StoreManagementHome.tsx`: private drafts now have a **Review draft** action.
+- `components/OfferBuilderView.tsx`: removed the misleading **Publish immediately** checkbox. The trader saves a private draft first and, after opening that saved draft, selects **Review and publish text only**, followed by **Publish this text-only listing** or **Keep private**.
+- Existing **published text-only** listings with `quantityAvailable:null`, empty media and `NEEDS_CONFIRMATION` can now update title, description and price through a *separate* exact-revision endpoint. The listing stays public; old Agreements are not amended.
+- The pure `storeTextPublicationPolicy.mjs` and typed declaration keep new private listing publication separate from already-public text changes, and reject stale timestamps, changed content, unverified photographs, stock quantities and other unsupported transitions. Safe public-edit path also rechecks the latest Store revision immediately before mutation.
+- `MiniSellerStore` uses the same `StoreController.submitDraft()` machinery; eligible text-only public edits therefore gain the new CAS protocol without another UI rewrite.
+- The API companion in PR #476 now exposes `update-published-text` for personal and represented Business Stores. It requires current revision, explicit seller confirmation, empty media, no quantity claims, and `NEEDS_CONFIRMATION`; it does not interrupt public visibility or validate stock.
+- The backend publication service no longer requires an unknown global Spring `Clock` bean; the normal constructor supplies UTC and tests retain a package-scoped fixed-clock constructor.
+
+### Verification and still-open migration
+
+- **64/64 focused frontend checks** were executed across Phase 2–4 source contracts and the new managed Store publication/edit policy in isolated V8 checks. These do **not** replace a full Node/TypeScript production build.
+- Java unit tests were authored but **not run** in a complete Java 21/Gradle/PostgreSQL checkout.
+- Existing published offers containing media references or quantity claims are NOT silently transformed, unpublished or moved to text-only. Their older direct `updateOffer` path is still present. Thus the `securepay.store.strict-versioned-publication` switch MUST remain **OFF** pending migration of that legacy editing contract, including versioned inventory and authorised media support.
+- Separate Business Agreement creation remains gated; verified Business Store management ≠ power to bind the Business in an Agreement. Buyer alone authorises Money.
+- No PR merged or deployed, no real Store published, and no live SecureLink or Money operation initiated during these commits.
