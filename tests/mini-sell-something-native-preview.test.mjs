@@ -42,3 +42,30 @@ test('seller starts with one closed optional tool shelf and opens only as needed
   for(const id of ["id:'describe'","id:'places'","id:'timing'","id:'people'","id:'documents'"])
     assert.ok(seller.includes(id),id);
 });
+
+test('Phase 1 provides a calm Store entrance without expanding the offer tool shelf',()=>{
+  assert.match(seller,/data-seller-phase1="my-store"/);
+  assert.match(seller,/data-seller-phase1="quick-contract-entry"/);
+  assert.match(seller,/data-seller-phase1="relationships-entry"/);
+  assert.match(seller,/Add to or improve your offer/);
+  assert.match(seller,/useState\(false\).*?;/);
+  assert.match(seller,/const \[sellerArea,setSellerArea\]=useState<'offer'\|'quick'\|'relationships'>\('offer'\)/);
+  assert.match(seller,/onOpenSettings/);
+});
+test('Phase 1 Store and Settings return to the preserved Sell draft',()=>{
+  assert.match(mini,/sellerSettingsReturn/);
+  assert.match(mini,/onBack=\{\(\) => setScreen\(sellerSettingsReturn\?'sell-preview':'home'\)\}/);
+  assert.match(mini,/playground && <div hidden=\{!\(screen === 'sell-preview'\)\}/);
+  assert.match(mini,/setSettingsEntry\('store'\);setScreen\('business-settings'\)/);
+  assert.match(mini,/onBrowseStores=\{\(\)=>\{setBuyPrefill\(''\);setScreen\('buy'\);\}\}/);
+});
+test('Phase 1 protects buyer and seller authority; favourite contacts and Quick Contracts are not invented',()=>{
+  assert.match(seller,/Favourites are not yet stored in a verified SecurePay account/);
+  assert.match(seller,/No SecureLink, Agreement or payment is created here/);
+  assert.match(seller,/Previous acceptance is never reused automatically|each person's agreement must still be checked/);
+  assert.match(seller,/not verified/);
+  const existing = readFileSync(new URL('../src/mini/MiniFirstPartyKs001.tsx',import.meta.url),'utf8');
+  assert.match(existing,/createStoreGateway\(http\)/);
+  assert.match(existing,/MiniSellerStore storeGateway=\{stores\}/);
+  assert.match(existing,/startInStore=\s*false/);
+});
