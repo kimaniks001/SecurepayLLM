@@ -1,13 +1,13 @@
 import {useEffect,useRef,useState} from 'react';
-import {ArrowLeft,ArrowRight,CheckCircle2,Smartphone,CreditCard,Landmark,ShieldCheck,Clock3} from 'lucide-react';
+import {ArrowLeft,ArrowRight,CheckCircle2,Smartphone,Landmark,ShieldCheck,Clock3,ArrowLeftRight} from 'lucide-react';
 import {makeSampleLivingPurchase,type MiniSamplePurchase,type MiniSampleRail} from './miniSampleLivingPurchases.mjs';
 import type {MiniStorePlanLine} from './MiniBuyStore';
 
 const fmt=(n:number)=>'KSh '+(n/100).toLocaleString('en-KE');
 const rails=[
- {id:'MPESA' as const,title:'M-PESA',details:'A phone approval would appear on your handset.',icon:Smartphone},
- {id:'CARD' as const,title:'Bank card',details:'A protected provider card checkout would open.',icon:CreditCard},
- {id:'BANK' as const,title:'Bank transfer',details:'Bank confirmation would follow verified receipt.',icon:Landmark},
+ {id:'CHOICE_KS_ACCOUNT' as const,title:'Choice Bank',details:'Bank-account payment through the authorised Choice integration.',icon:Landmark},
+ {id:'MPESA_STK' as const,title:'M-PESA',details:'A phone approval request on your handset, when enabled.',icon:Smartphone},
+ {id:'PESALINK' as const,title:'PesaLink',details:'Bank-to-bank payment via the Choice-mediated rail.',icon:ArrowLeftRight},
 ];
 export function MiniSampleMoneyJourney({lines,amountMinor,delivery,deliveryFeeMinor,deliveryProvider,onBack,
  onConfirmed,onViewAgreements}:{
@@ -52,7 +52,7 @@ export function MiniSampleMoneyJourney({lines,amountMinor,delivery,deliveryFeeMi
      <h2>{stage==='confirmed'?'Your purchase is in motion':
        stage==='pending'?'Checking your payment':'Choose how to pay'}</h2>
      <p>{stage==='confirmed'?'The example payment has been confirmed and your Living Agreement is ready.':
-       'The sample Stores have confirmed their parts. Choose a payment method.'}</p>
+       'Choose how to fund this sample Agreement. Only rails certified for the exact real payment would be offered outside this rehearsal.'}</p>
    </div>
    <div className="spm-sample-money-amount">
      <span>{stage==='confirmed'?'Simulated amount paid':'Amount to fund'}</span>
@@ -70,9 +70,9 @@ export function MiniSampleMoneyJourney({lines,amountMinor,delivery,deliveryFeeMi
      </div>
      {selected&&<div className="spm-sample-money-caution">
        <ShieldCheck size={17}/>
-       <span>{rail==='MPESA'?'No real STK push or PIN will be requested.':
-         rail==='CARD'?'Do not enter card details here.':
-         'No bank details or transfer are required.'} This is only a payment rehearsal.</span>
+       <span>{rail==='MPESA_STK'?'No real STK push or PIN will be requested.':
+         rail==='PESALINK'?'No real bank-to-bank transfer will be initiated.':
+         'No bank account or payment instruction is needed.'} This is only a payment rehearsal.</span>
      </div>}
      <button type="button" className="spm-shop-proceed" disabled={!rail} onClick={start}>
        <span>{rail?'Pay '+fmt(amountMinor)+' with '+selected?.title+' · sample':'Choose a payment method'}</span><ArrowRight size={18}/>
