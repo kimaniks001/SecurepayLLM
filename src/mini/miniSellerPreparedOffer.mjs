@@ -54,6 +54,15 @@ export function miniSellerPreparedOffer(input){
     category,kind,title,description:description??'',
     pricing:{mode:quote?'QUOTE_REQUIRED':'LISTED_PRICE',priceMinor,currency:'KES',per:priceUnit},
     quantityRequested:count, // A proposed sale quantity is NOT verified inventory.
+    // Preserve seller's distinct practical terms even when the generated
+    // description was NOT individually approved. Local authoring is never
+    // authority, but a real Agreement must not quietly lose conditions.
+    commercialDetails:{
+      condition:clean(input.condition,300)||null,
+      specifications:clean(input.specifications,800)||null,
+      purpose:clean(input.purpose,300)||null,
+      included:clean(input.included,300)||null
+    },
     fulfilment:{
       purpose:['Pickup','Delivery','Work location'].includes(input.placeType)?input.placeType:'To agree',
       placeLabel:placeLabel||null,
