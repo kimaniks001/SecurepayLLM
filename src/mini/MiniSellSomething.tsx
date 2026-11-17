@@ -6,6 +6,17 @@ import {
 } from 'lucide-react';
 import { buildTimingProposal, type TimingDraft } from '../features/living-workspace/DateTimeTool';
 import type { MiniLanguage } from './miniModel';
+import type { StoreGateway } from '../api/securepay/store';
+import type { AgreementGateway } from '../api/securepay/agreements';
+import type { AgreementVersionSummaryResponse } from '../api/securepay/agreements/dto';
+import type { MiniSellerHandoffGateway, MiniSellerReviewedHandoff } from './miniSellerAgreementHandoff.mjs';
+import { miniSellerCreateCanonicalStoreDraft } from './miniSellerCanonicalStoreBridge.mjs';
+import { miniSellerPublishTextOnly } from './miniSellerPublishTextOnly.mjs';
+import { miniSellerKs001Statement } from './miniSellerKs001Statement.mjs';
+import { MiniSellSecureLinkWalkthrough } from './MiniSellSecureLinkWalkthrough';
+import { miniSellerIssueAgreementDoorway } from './miniSellerSecureLinkDoorway.mjs';
+import { miniSellerBeginAgreementHandoff, miniSellerReviewAgreementHandoff,
+  miniSellerCreateReviewedAgreement, miniSellerProposeAgreement } from './miniSellerAgreementHandoff.mjs';
 import {miniSellerPreparedOffer,miniSellerSafeDraft,miniSellerRestoreDraft} from './miniSellerPreparedOffer.mjs';
 import {miniSellerTrustExamination} from './miniSellerTrustExamination.mjs';
 import {miniSellerLocalExactImageDigest} from './miniSellerLocalExactImageDigest.mjs';
@@ -65,9 +76,20 @@ function writeDescription(input:{
  * Identity, Agreement, media-provenance, invitation, SecureLink or Money writes.
  * Local declaration is not verification; local output is not a canonical offer.
  */
-export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,onBrowseStores,actingAs,seed=''}:{
+export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,onBrowseStores,actingAs,seed='',storeGateway,sellerContext,agreementGateway,handoffGateway,sellerSavedSource,onPrepareInKs001,previewSecureLinkJourney=false}:{
   language:MiniLanguage;onBack:()=>void;onOpenStore:()=>void;onOpenSettings:()=>void;
   onBrowseStores:()=>void;actingAs:string;seed?:string;
+  storeGateway?:StoreGateway;
+  sellerContext?:{type:'personal'}|{type:'business';businessKsNumber:string};
+  agreementGateway?:Pick<AgreementGateway,'activeDoorway'|'issuePublicDoorway'|'detail'|'proposeReviewed'>;
+  handoffGateway?:MiniSellerHandoffGateway;
+  /** Trusted saved KS001 conversation context, never a local Mini draft ID. */
+  sellerSavedSource?:{conversationId:string;reviewedTradeContextVersion:number};
+  /** Deliberate user-authored turn in an actual authenticated KS001 conversation. */
+  onPrepareInKs001?:(statement:string)=>Promise<
+    {conversationId:string;reviewedTradeContextVersion:number}|null>;
+  /** Isolated owner demo only; never provide a real SecureLink or account gateway. */
+  previewSecureLinkJourney?:boolean;
 }) {
   const sw=language==='sw';
   const [stage,setStage]=useState<'compose'|'review'|'result'>('compose');
@@ -111,6 +133,34 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
   const [stockStatement,setStockStatement]=useState('');
   const [error,setError]=useState('');
   const [result,setResult]=useState<Result>(null);
+  const [canonicalStoreStatus,setCanonicalStoreStatus]=useState('');
+  const [canonicalOfferId,setCanonicalOfferId]=useState<string|null>(null);
+  const [storeCreating,setStoreCreating]=useState(false);
+  const [storePublishing,setStorePublishing]=useState(false);
+  const [storePublished,setStorePublished]=useState(false);
+  const [savedStoreRevision,setSavedStoreRevision]=useState<string|null>(null);
+  const [storeSnapshotSignature,setStoreSnapshotSignature]=useState<string|null>(null);
+  const [shareCreating,setShareCreating]=useState(false);
+  const [shareStatus,setShareStatus]=useState('');
+  const [shareUrl,setShareUrl]=useState<string|null>(null);
+  const [shareIssued,setShareIssued]=useState(false);
+  const shareKey=useRef<string|null>(null);
+  const handoffKey=useRef<string|null>(null);
+  const [handoffBusy,setHandoffBusy]=useState(false);
+  const [sourceSaving,setSourceSaving]=useState(false);
+  const [trustedSellerSource,setTrustedSellerSource]=useState<
+    {conversationId:string;reviewedTradeContextVersion:number}|null>(null);
+  const [sourceSignature,setSourceSignature]=useState<string|null>(null);
+  const [handoffMessage,setHandoffMessage]=useState('');
+  const [serverReview,setServerReview]=useState<MiniSellerReviewedHandoff|null>(null);
+  const [reviewAcknowledged,setReviewAcknowledged]=useState(false);
+  const [reviewedOfferSignature,setReviewedOfferSignature]=useState<string|null>(null);
+  const [realDraftAgreement,setRealDraftAgreement]=useState<{
+    id:string;status:'DRAFT';version:AgreementVersionSummaryResponse
+  }|null>(null);
+  const [proposedAgreement,setProposedAgreement]=useState<{
+    id:string;status:'PROPOSED';version:AgreementVersionSummaryResponse
+  }|null>(null);
   const [ksHelp,setKsHelp]=useState(false);
   const photoRef=useRef<HTMLInputElement>(null);
   const docRef=useRef<HTMLInputElement>(null);
@@ -125,6 +175,11 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
     availability:stockStatement,rightToOffer,rightType,photos:pictures,documents,people,
     placeType,place,privateMeeting,timing
   });
+  const offerSignature=JSON.stringify([prepared.ok?prepared.offerTerms:null,
+    pictures.map(p=>p.localDigest||null),rightToOffer,stockStatement]);
+  const unchangedAfterReview=reviewedOfferSignature===offerSignature;
+  const linkedKs001Source=trustedSellerSource??sellerSavedSource;
+  const sourceMatchesOffer=sellerSavedSource?true:sourceSignature===offerSignature;
   const invalidPrice=priceType==='fixed' && !readableAmount(price);
   const suspicious=useMemo(()=>/\b(?:stolen|counterfeit|fake passport|ivory|illegal drugs|firearms?|ammunition)\b/i.test(title+' '+description),[title,description]);
   const sensitive=useMemo(()=>/\b(?:medicine|pharmaceutical|pesticide|alcohol|vehicle registration)\b/i.test(title+' '+description),[title,description]);
@@ -249,6 +304,184 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
     }
     setResult(kind);setStage('result');
   };
+  const createRealStoreDraft=async()=>{
+    if(!storeGateway||!sellerContext||!prepared.ok||storeCreating||canonicalOfferId)return;
+    setStoreCreating(true);setCanonicalStoreStatus('');
+    try{
+      const receipt=await miniSellerCreateCanonicalStoreDraft({
+        prepared,gateway:storeGateway,context:sellerContext,confirmed:true
+      });
+      if(receipt.ok){
+        setCanonicalOfferId(receipt.offerId);
+        setSavedStoreRevision(receipt.offerUpdatedAt);
+        setStoreSnapshotSignature(offerSignature);
+        setCanonicalStoreStatus('Saved to your Store as a private draft. Nothing is published or sent.');
+      }else{
+        setCanonicalStoreStatus(receipt.reason==='CHECK_MY_STORE_BEFORE_RETRY'
+          ? 'The result is uncertain. Check My Store before trying again.'
+          : 'The Store draft could not be saved. Nothing was published.');
+      }
+    } finally {setStoreCreating(false);}
+  };
+  const publishRealStoreText=async()=>{
+    if(!storeGateway||!sellerContext||!prepared.ok||!canonicalOfferId||
+       !savedStoreRevision||storePublishing||storePublished||
+       storeSnapshotSignature!==offerSignature)return;
+    setStorePublishing(true);setCanonicalStoreStatus('');
+    try{
+      const issued=await miniSellerPublishTextOnly({
+        prepared,
+        draft:{ok:true,offerId:canonicalOfferId,offerUpdatedAt:savedStoreRevision,published:false},
+        gateway:storeGateway,context:sellerContext,confirmed:true,
+        localOfferUnchanged:storeSnapshotSignature===offerSignature
+      });
+      if(issued.ok){
+        setStorePublished(true);
+        setCanonicalStoreStatus('Your text-only listing is visible in your Store. Buyers must still confirm availability before an Agreement.');
+      }else{
+        setCanonicalStoreStatus(issued.reason==='CURRENT_STORE_REVISION_CHANGED'
+          ? 'Your Store listing changed. Open My Store and review the current details before publishing.'
+          :issued.reason==='CHECK_MY_STORE_BEFORE_RETRY'
+          ? 'SecurePay could not confirm publication. Check My Store before trying again.'
+          :'This listing could not be published. It remains private until SecurePay confirms otherwise.');
+      }
+    }finally{setStorePublishing(false);}
+  };
+  const prepareOfferInKs001=async()=>{
+    if(!onPrepareInKs001||!prepared.ok||!canOffer||sourceSaving||handoffBusy||
+       realDraftAgreement||proposedAgreement)return;
+    const composed=miniSellerKs001Statement({prepared});
+    if(!composed.ok){
+      setHandoffMessage(composed.reason==='TERMS_TOO_LONG_FOR_SINGLE_KS001_TURN'
+        ? 'Your offer has more details than one KS001 message can safely carry. Open KS001 to review them in smaller parts; no terms were sent or shortened.'
+        : composed.reason==='DESCRIPTION_REVIEW_REQUIRED'
+        ? 'Please review your description first. KS001 must not prepare an Agreement from wording you have not approved.'
+        : 'Complete and review your offer before preparing its Agreement.');
+      return;
+    }
+    setSourceSaving(true);setHandoffMessage('');
+    try {
+      const source=await onPrepareInKs001(composed.statement);
+      if(source?.conversationId&&Number.isSafeInteger(source.reviewedTradeContextVersion)){
+        setTrustedSellerSource(source);
+        setSourceSignature(offerSignature);
+        setServerReview(null);
+        setReviewAcknowledged(false);
+        setReviewedOfferSignature(null);
+        handoffKey.current=null;
+        setHandoffMessage('KS001 has recorded your offer. Now review the Agreement it prepares.');
+      }else{
+        setHandoffMessage('KS001 could not confirm your offer. Check the current conversation before trying again.');
+      }
+    }finally{setSourceSaving(false);}
+  };
+  const reviewSavedOfferInSecurePay=async()=>{
+    if(!handoffGateway||!linkedKs001Source||!sourceMatchesOffer||!prepared.ok||!canOffer||
+        handoffBusy||realDraftAgreement)return;
+    setHandoffBusy(true);setHandoffMessage('');
+    try {
+      handoffKey.current??=crypto.randomUUID();
+      const started=await miniSellerBeginAgreementHandoff({
+        gateway:handoffGateway,
+        conversationId:linkedKs001Source.conversationId,
+        reviewedTradeContextVersion:linkedKs001Source.reviewedTradeContextVersion,
+        clientActionId:handoffKey.current,confirmed:true
+      });
+      if(!started.ok){
+        setHandoffMessage(started.reason==='CHECK_EXISTING_HANDOFF_BEFORE_RETRY'
+          ? 'SecurePay could not confirm this step. Check the saved KS001 conversation before trying again.'
+          : 'Save and review this offer in KS001 before preparing its Agreement.');
+        return;
+      }
+      const reviewed=await miniSellerReviewAgreementHandoff({
+        gateway:handoffGateway,handoffId:started.handoffId
+      });
+      if(!reviewed.ok){
+        setHandoffMessage('Open KS001 to finish clarifying the Agreement terms.');
+        return;
+      }
+      setServerReview(reviewed);
+      setReviewedOfferSignature(offerSignature);
+      setReviewAcknowledged(false);
+      setHandoffMessage(reviewed.canProgress
+        ? 'These are the Agreement terms SecurePay has recorded. Please check them.'
+        : 'The Agreement needs another clarification in KS001 before it can be set up.');
+    }finally{setHandoffBusy(false);}
+  };
+  const setUpReviewedAgreement=async()=>{
+    if(!handoffGateway||!agreementGateway||!serverReview?.canProgress||
+       !reviewAcknowledged||!unchangedAfterReview||handoffBusy||realDraftAgreement)return;
+    setHandoffBusy(true);setHandoffMessage('');
+    try {
+      const created=await miniSellerCreateReviewedAgreement({
+        gateway:handoffGateway,agreements:agreementGateway,
+        reviewed:serverReview,sellerConfirmed:true
+      });
+      if(created.ok){
+        setRealDraftAgreement({id:created.agreementId,status:'DRAFT',version:created.agreementVersion});
+        setHandoffMessage('Your draft Agreement is saved. It has not been shared.');
+      }else{
+        setHandoffMessage(created.reason==='REVIEW_CHANGED_REFRESH_REQUIRED'
+          ? 'The Agreement changed. Please review the current terms again.'
+          : 'SecurePay could not confirm the draft. Check this Agreement in KS001 before retrying.');
+      }
+    }finally{setHandoffBusy(false);}
+  };
+  const proposeReviewedAgreement=async()=>{
+    if(!agreementGateway||!realDraftAgreement||!unchangedAfterReview||
+       proposedAgreement||handoffBusy)return;
+    setHandoffBusy(true);setHandoffMessage('');
+    try{
+      const proposed=await miniSellerProposeAgreement({
+        agreements:agreementGateway,agreementId:realDraftAgreement.id,
+        expectedAgreementVersion:realDraftAgreement.version,confirmed:true
+      });
+      if(proposed.ok){
+        setProposedAgreement({id:proposed.agreementId,status:'PROPOSED',version:proposed.agreementVersion});
+        setHandoffMessage('Your Agreement is ready for buyer review. No invitation has been sent.');
+      }else{
+        setHandoffMessage('Review the current draft Agreement in KS001 before proposing it.');
+      }
+    }finally{setHandoffBusy(false);}
+  };
+  const issueSecureLink=async()=>{
+    // Only issue from an actual proposed Agreement. No local proposal or
+    // Store ID can become a SecureLink without canonical Agreement authority.
+    if(!agreementGateway||!proposedAgreement||!prepared.ok||!canOffer||
+        !unchangedAfterReview||shareCreating||shareIssued)return;
+    setShareCreating(true);setShareStatus('');
+    try{
+      // Check the exact proposed Agreement revision that the seller confirmed
+      // before issuing its external doorway. The backend still owns authority.
+      const current=await agreementGateway.detail(proposedAgreement.id);
+      if(current?.overview?.status!=='PROPOSED'||
+          current.overview.agreementId!==proposedAgreement.id||
+          current.currentVersion?.versionId!==proposedAgreement.version.versionId||
+          current.currentVersion?.versionNumber!==proposedAgreement.version.versionNumber||
+          current.currentVersion?.contentHash!==proposedAgreement.version.contentHash){
+        setShareStatus('This Agreement has changed. Open it and review the current version before sharing.');
+        return;
+      }
+      shareKey.current??=crypto.randomUUID();
+      const issued=await miniSellerIssueAgreementDoorway({
+        gateway:agreementGateway,agreement:proposedAgreement,
+        idempotencyKey:shareKey.current,confirmed:true
+      });
+      if(issued.ok){
+        setShareIssued(true);
+        setShareUrl(issued.publicUrl);
+        setShareStatus(issued.publicUrl
+          ? 'Your SecureLink is ready. You decide who to send it to.'
+          : 'The SecureLink was issued, but a sharing address is not configured here.');
+      }else if(issued.reason==='EXISTING_SECURELINK_MANAGE_IN_AGREEMENT'){
+        setShareStatus('This Agreement already has a SecureLink. Open the Agreement to manage it.');
+      }else if(issued.reason==='CHECK_AGREEMENT_BEFORE_RETRY'){
+        setShareStatus('SecurePay could not confirm this request. Check your Agreement before trying again.');
+      }else{
+        setShareStatus('SecureLink cannot be issued until this Agreement is ready for sharing.');
+      }
+    }finally{setShareCreating(false);}
+  };
   const restoreSavedOffer=()=>{
     try{
       const saved=miniSellerRestoreDraft(JSON.parse(sessionStorage.getItem('securepay-mini-sell-preview-draft-v2')||'null'));
@@ -288,7 +521,7 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
   return <section className="spm-content spm-sell" data-mini-sell-something="preview">
     <button type="button" className="spm-back" onClick={sellerArea!=='offer'?()=>setSellerArea('offer'):stage==='compose'?onBack:()=>{setStage(stage==='result'?'review':'compose');setError('');}}>
       <ArrowLeft size={18}/>{sellerArea!=='offer'?'Sell something':stage==='compose'?'Mini':stage==='result'?'Offer review':'Change offer'}</button>
-    <div className="spm-persona"><ShieldCheck size={15}/><span>Sell something</span><span className="spm-dot"/><span>Owner preview</span></div>
+    <div className="spm-persona"><ShieldCheck size={15}/><span>Sell something</span><span className="spm-dot"/><span>{previewSecureLinkJourney?'Owner walkthrough':'SecurePay Mini'}</span></div>
     {stage==='compose'&&sellerArea==='quick'&&<div className="spm-sell-phase1-destination" data-seller-phase1="quick-contract">
       <div className="spm-sell-phase1-symbol"><Handshake size={25}/></div>
       <h1 className="spm-question">Quick Contract</h1>
@@ -747,7 +980,7 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
       <p className="spm-lead">{result==='save'
         ? 'Only your written offer details were kept in this browser tab when storage was available. Photos, document files, people and private directions were not saved or uploaded.'
         : result==='share'
-        ? 'This is the buyer-facing proposal. No real SecureLink or invitation has been created, and nobody has accepted it.'
+        ? (shareIssued?'A SecureLink was issued from your actual Agreement. Opening it does not accept, join or pay.':'This is the buyer-facing proposal. No real SecureLink or invitation has been created, and nobody has accepted it.')
         : 'This is how the seller’s offer could appear in a Store. Nothing has been published or registered.'}</p>
       <div className="spm-sell-review-card">
         <strong className="spm-sell-review-title">{title}</strong>
@@ -755,11 +988,104 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
         {prepared.ok&&prepared.summary.count!==null&&<small>Proposed quantity: {prepared.summary.count} {prepared.summary.priceUnit}</small>}
         <p>{descriptionReviewed&&description?description:'Seller-provided details will appear here after review.'}</p>
         {prepared.ok&&prepared.summary.totalMinor!==null&&<div className="spm-sell-review-line">Proposed total: KSh {(prepared.summary.totalMinor/100).toLocaleString('en-KE',{maximumFractionDigits:2})}, not an invoice or approved payment</div>}
-        {prepared.ok&&<small>Prepared for discussion · no real Store publication, invitation or Agreement</small>}
+        {prepared.ok&&<small>{realDraftAgreement
+          ? 'Saved Agreement in SecurePay · not accepted or funded'
+          : 'Prepared for discussion · no real Store publication, invitation or Agreement'}</small>}
         {!!place&&<div className="spm-sell-review-line"><MapPin size={15}/>{placeType}: {place}</div>}
         {!!timing&&<div className="spm-sell-review-line"><CalendarDays size={15}/>{timing}</div>}
         {personPlan&&<div className="spm-sell-review-line"><UserRoundPlus size={15}/>{personPlan==='later'?'Other person to be agreed':'Buyer to be invited later'}</div>}
       </div>
+      {result==='share'&&previewSecureLinkJourney&&!agreementGateway&&!handoffGateway&&prepared.ok&&
+        <MiniSellSecureLinkWalkthrough
+          key={offerSignature}
+          title={title}
+          description={descriptionReviewed?description:''}
+          moneyText={prepared.summary.moneyText}
+          place={place}
+          timing={timing}
+          onChangeOffer={()=>{setStage('review');setResult(null);}}
+        />}
+      {result==='share'&&sellerContext?.type==='business'&&!onPrepareInKs001&&
+        <p className="spm-sell-hint">To share as this Business, open KS001 to confirm who may represent it in the Agreement. This offer has not been sent.</p>}
+      {result==='share'&&handoffGateway&&agreementGateway&&prepared.ok&&canOffer&&(onPrepareInKs001||linkedKs001Source)&&<>
+        <div className="spm-sell-review-card">
+          <strong>Prepare the Agreement</strong>
+          {onPrepareInKs001&&(!linkedKs001Source||!sourceMatchesOffer)&&
+            <button type="button" className="spm-secondary spm-sell-wide"
+              disabled={sourceSaving||handoffBusy} onClick={prepareOfferInKs001}>
+              <MessageCircle size={16}/>{sourceSaving?'Preparing…':'Prepare these terms in KS001'}
+            </button>}
+          {!sourceMatchesOffer&&linkedKs001Source&&
+            <p className="spm-sell-hint">Your offer changed. Ask KS001 to review the new terms first.</p>}
+          {!serverReview&&!realDraftAgreement&&linkedKs001Source&&sourceMatchesOffer&&<button type="button"
+            className="spm-secondary spm-sell-wide"
+            disabled={handoffBusy}
+            onClick={reviewSavedOfferInSecurePay}>
+            <BookOpenText size={16}/>{handoffBusy?'Checking…':'Review saved KS001 terms'}
+          </button>}
+          {serverReview&&<>
+            <p className="spm-sell-hint">Review the terms recorded in SecurePay, not just this local offer preview.</p>
+            <strong>{serverReview.candidate.title||'Agreement to be named'}</strong>
+            <p>{serverReview.candidate.description||serverReview.candidate.purpose||'No further description recorded.'}</p>
+            {serverReview.candidate.amountMinor!=null&&<p>Proposed amount: {serverReview.candidate.currency||'KES'} {(serverReview.candidate.amountMinor/100).toLocaleString('en-KE',{maximumFractionDigits:2})}</p>}
+            {serverReview.candidate.what?.slice(0,4).map((item,i)=><small key={'what-'+i}>What: {item}</small>)}
+            {serverReview.candidate.who?.slice(0,4).map((item,i)=><small key={'who-'+i}>Who: {item}</small>)}
+            {serverReview.candidate.when?.slice(0,4).map((item,i)=><small key={'when-'+i}>When: {item}</small>)}
+            {serverReview.stillToDecide.length>0&&<p className="spm-sell-hint">Still to decide: {serverReview.stillToDecide.map(x=>x.description).join('; ')}</p>}
+            {serverReview.mustResolve.length>0&&<p className="spm-sell-hint">Needs clarification: {serverReview.mustResolve.map(x=>x.description).join('; ')}</p>}
+            {!unchangedAfterReview&&<p className="spm-sell-hint">Your offer has changed since this review. Review the current version again.</p>}
+            {serverReview.canProgress&&unchangedAfterReview&&!realDraftAgreement&&<>
+              <div className="spm-sell-pill-row">
+                <AnswerPill selected={reviewAcknowledged}
+                  onClick={()=>setReviewAcknowledged(true)}>These are the terms I'll share</AnswerPill>
+                <AnswerPill onClick={()=>{setReviewAcknowledged(false);
+                  setHandoffMessage('Make the change in KS001, then review the new version.');}}>I need to change something</AnswerPill>
+              </div>
+              <button type="button" className="spm-secondary spm-sell-wide"
+                disabled={!reviewAcknowledged||handoffBusy} onClick={setUpReviewedAgreement}>
+                <FileText size={16}/>{handoffBusy?'Preparing…':'Set up my draft Agreement'}
+              </button>
+            </>}
+          </>}
+          {realDraftAgreement&&!proposedAgreement&&<button type="button"
+            className="spm-secondary spm-sell-wide" disabled={handoffBusy||!unchangedAfterReview}
+            onClick={proposeReviewedAgreement}>
+            <Handshake size={16}/>{handoffBusy?'Checking…':'Propose Agreement for buyer review'}
+          </button>}
+          {handoffMessage&&<p className="spm-sell-hint" role="status">{handoffMessage}</p>}
+        </div>
+      </>}
+      {result==='share'&&agreementGateway&&proposedAgreement&&unchangedAfterReview&&prepared.ok&&canOffer&&<>
+        <button type="button" className="spm-secondary spm-sell-wide"
+          disabled={shareCreating||shareIssued} onClick={issueSecureLink}>
+          <Send size={16}/>{shareIssued?'SecureLink issued':shareCreating?'Preparing…':'Create SecureLink'}
+        </button>
+        {shareUrl&&<button type="button" className="spm-secondary spm-sell-wide"
+          onClick={()=>{if(!shareUrl)return;void navigator.clipboard?.writeText(shareUrl).then(
+            ()=>setShareStatus('SecureLink copied. Send it to your buyer when ready.'),
+            ()=>setShareStatus('Could not copy. You can open the Agreement to share it.')
+          );}}>Copy SecureLink</button>}
+        {shareStatus&&<p className="spm-sell-hint" role="status">{shareStatus}</p>}
+      </>}
+      {result==='store'&&storeGateway&&sellerContext&&prepared.ok&&<>
+        <p className="spm-sell-hint">Want to save this to your actual Store? It will stay private, with no photos or confirmed stock.</p>
+        <button type="button" className="spm-secondary spm-sell-wide"
+          disabled={storeCreating||!!canonicalOfferId} onClick={createRealStoreDraft}>
+          <Store size={16}/>{canonicalOfferId?'Private Store draft saved':storeCreating?'Saving…':'Save private Store draft'}
+        </button>
+        {canonicalOfferId&&savedStoreRevision&&!storePublished&&<>
+          <p className="spm-sell-hint">Would you like to make the written listing visible now? No photos or claimed stock numbers will be published.</p>
+          <div className="spm-sell-pill-row">
+            <AnswerPill onClick={()=>setCanonicalStoreStatus('Your offer stays private in My Store.')}>Keep private</AnswerPill>
+            <AnswerPill onClick={()=>void publishRealStoreText()}
+              disabled={storePublishing||storeSnapshotSignature!==offerSignature}>
+              {storePublishing?'Publishing…':'Publish text only'}</AnswerPill>
+          </div>
+          {storeSnapshotSignature!==offerSignature&&
+            <p className="spm-sell-hint">You changed the offer after saving it. Review the new version in My Store first.</p>}
+        </>}
+        {canonicalStoreStatus&&<p className="spm-sell-hint" role="status">{canonicalStoreStatus}</p>}
+      </>}
       <button type="button" className="spm-primary" onClick={()=>{setStage('review');setResult(null);}}>Back to offer <ArrowRight size={17}/></button>
       <button type="button" className="spm-sell-sample" onClick={onBack}>Back to Mini</button>
     </>}

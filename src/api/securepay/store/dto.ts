@@ -62,6 +62,38 @@ export interface UpsertStoreOfferRequest {
   mediaRefs?: string[];
 }
 
+// ─── Phase 4: separate, owner-confirmed text-only publication ───────────────
+// Dedicated API branch feat/mini-sell-phase4-text-publish-cas-20261117.
+// It cannot publish local images, create an Agreement, or verify stock.
+export interface PublishStoreTextOfferRequest {
+  /** Exact updatedAt returned by the authenticated Store, not a local timestamp. */
+  expectedUpdatedAt: string;
+  /** The seller reviewed this listing and deliberately chose publication. */
+  sellerConfirmsCurrentListing: true;
+}
+/** Revised text for an already-public offer: no media, stock or availability claim. */
+export interface UpdatePublishedStoreTextOfferRequest {
+  expectedUpdatedAt: string;
+  sellerConfirmsCurrentListing: true;
+  title: string;
+  description: string | null;
+  priceMinor: number | null;
+}
+
+export interface PublishedStoreTextOfferResponse {
+  id: string;
+  kind: OfferKind;
+  title: string;
+  description: string | null;
+  priceMinor: number | null;
+  currency: string;
+  availabilityState: 'NEEDS_CONFIRMATION';
+  published: true;
+  mediaRefs: [];
+  availabilityConfirmedAt: string | null;
+  updatedAt: string;
+}
+
 // ─── Public / customer side (/api/v1/stores/**, no auth) ───────────────────
 
 export interface PublicStoreProfileView {

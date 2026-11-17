@@ -4,6 +4,7 @@ import type {
   LinkStoreImageEvidenceRequest, StoreImageEvidenceView,
   StoreImageReviewQuestion, RespondStoreImageReviewRequest, StoreImageSellerReviewReply,
   StoreProfileResponse, StoreSearchParams, UpsertStoreOfferFulfilmentRequest, UpdateStoreProfileRequest, UpsertStoreOfferRequest,
+  PublishStoreTextOfferRequest, PublishedStoreTextOfferResponse, UpdatePublishedStoreTextOfferRequest,
 } from './dto';
 
 /**
@@ -52,6 +53,15 @@ export function createStoreGateway(http: HttpClient) {
     createOffer: (body: UpsertStoreOfferRequest) => http.request<StoreOfferResponse>('/api/v1/store/me/offers', { method: 'POST', body, auth: 'required' }),
     updateOffer: (offerId: string, body: UpsertStoreOfferRequest) => http.request<StoreOfferResponse>(offer(offerId), { method: 'PUT', body, auth: 'required' }),
     confirmAvailability: (offerId: string) => http.request<StoreOfferResponse>(`${offer(offerId)}/availability-confirmation`, { method: 'POST', auth: 'required' }),
+    // Dedicated Phase 4 optimistic publication; NOT ordinary unversioned updateOffer.
+    publishMyTextOffer: (offerId: string, body: PublishStoreTextOfferRequest) =>
+      http.request<PublishedStoreTextOfferResponse>(`${offer(offerId)}/publish-text`, { method: 'POST', body, auth: 'required' }),
+    publishBusinessTextOffer: (businessKsNumber: string, offerId: string, body: PublishStoreTextOfferRequest) =>
+      http.request<PublishedStoreTextOfferResponse>(`${businessOffer(businessKsNumber,offerId)}/publish-text`, { method: 'POST', body, auth: 'required' }),
+    updateMyPublishedTextOffer: (offerId: string, body: UpdatePublishedStoreTextOfferRequest) =>
+      http.request<PublishedStoreTextOfferResponse>(`${offer(offerId)}/update-published-text`, { method: 'POST', body, auth: 'required' }),
+    updateBusinessPublishedTextOffer: (businessKsNumber: string, offerId: string, body: UpdatePublishedStoreTextOfferRequest) =>
+      http.request<PublishedStoreTextOfferResponse>(`${businessOffer(businessKsNumber,offerId)}/update-published-text`, { method: 'POST', body, auth: 'required' }),
     // Phase 3 candidate API: caller must first have a real signed-in session,
     // a saved source conversation, and the currently-authorized Store offer revision.
     // These methods are deliberately NOT invoked by Mini's owner demo.

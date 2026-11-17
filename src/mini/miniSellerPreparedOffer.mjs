@@ -26,6 +26,17 @@ const safeArray=(input,max)=>Array.isArray(input)?input.slice(0,max):[];
 
 export function miniSellerPreparedOffer(input){
   if(!input||typeof input!=='object')return {ok:false,error:'The offer details could not be read.'};
+  // Never silently discard a material seller condition before the reviewed
+  // KS001 handoff. Local text controls and server contracts have firm limits.
+  for(const [field,max] of Object.entries({
+    title:240,description:2000,condition:300,specifications:800,
+    purpose:300,included:300,limitations:600,warranty:600,
+    place:300,timing:600,availability:160,rightType:80,unit:40
+  })){
+    if(typeof input[field]==='string' && input[field].trim().length>max){
+      return {ok:false,error:'The '+field+' details are too long. Please shorten and review them before continuing.'};
+    }
+  }
   const title=clean(input.title,240);
   if(!title)return {ok:false,error:'Describe what you are selling first.'};
   const category=allowedCategories.has(input.category)?input.category:'Goods';
@@ -52,8 +63,19 @@ export function miniSellerPreparedOffer(input){
   const description=descriptionApproved?clean(input.description,2000):null;
   const offerTerms={
     category,kind,title,description:description??'',
+    // An unapproved description is never quietly presented as if complete.
+    descriptionRequiresReview:Boolean(clean(input.description,2000))&&!descriptionApproved,
     pricing:{mode:quote?'QUOTE_REQUIRED':'LISTED_PRICE',priceMinor,currency:'KES',per:priceUnit},
     quantityRequested:count, // A proposed sale quantity is NOT verified inventory.
+    // Preserve seller's distinct practical terms even when the generated
+    // description was NOT individually approved. Local authoring is never
+    // authority, but a real Agreement must not quietly lose conditions.
+    commercialDetails:{
+      condition:clean(input.condition,300)||null,
+      specifications:clean(input.specifications,800)||null,
+      purpose:clean(input.purpose,300)||null,
+      included:clean(input.included,300)||null
+    },
     fulfilment:{
       purpose:['Pickup','Delivery','Work location'].includes(input.placeType)?input.placeType:'To agree',
       placeLabel:placeLabel||null,

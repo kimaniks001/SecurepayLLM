@@ -438,7 +438,12 @@ export function StoreManagementHome({ store, offers, activity, enquiries, onBack
               {drafts.map((offer) => (
                 <div key={offer.id} className="rounded-xl border border-cream-200 bg-cream-50/50 px-4 py-3">
                   <div className="text-[0.875rem] font-medium text-sand-600">{offer.title}</div>
-                  <div className="text-[0.72rem] text-sand-400">Draft · not published</div>
+                  <div className="text-[0.72rem] text-sand-400">Private draft · not visible to buyers</div>
+                  {onEditOffer && <button type="button"
+                    className="mt-2 text-[0.78rem] font-medium text-forest-700 underline"
+                    onClick={() => onEditOffer(offer.id)}>
+                    Review draft
+                  </button>}
                 </div>
               ))}
             </div>
