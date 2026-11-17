@@ -47,7 +47,7 @@ export function MiniSampleAgreements({purchases,focusId,onBack,onShop}:{
        <span className="spm-sample-agreement-funding"><ShieldCheck size={16}/>
           Simulated funding confirmed</span>
        <div className="spm-sample-agreement-value">
-         <span>Example funded amount</span><strong>{fmt(selected.amountMinor)}</strong>
+         <span>{selected.agreementKind==='DELIVERY'?'Allocated delivery amount · same payment':'Example funded amount'}</span><strong>{fmt(selected.amountMinor)}</strong>
        </div>
        <div className="spm-sample-agreement-facts">
          {selected.parentId&&<div>Linked to purchase: {selected.parentId}</div>}
