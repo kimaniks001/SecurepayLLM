@@ -18,11 +18,13 @@ test('The owner-visible examination names all 12 exactly as canonical API snapsh
  assert.match(page,/FAIR_TRADE_PREVIEW_TITLES/);
  assert.doesNotMatch(page,/fullyExamined\s*[:=]\s*true|fairnessPassed|paymentAuthorised|score:\s*100/);
 });
-test('The basket shows a three-line summary, deeper checks and principles ONLY on request',()=>{
+test('The basket initially exposes only three essentials; twelve principles require two optional taps',()=>{
  const page=read('src/mini/MiniFairTradeExaminationPreview.tsx');
- assert.match(page,/>Fair Trade check</);
- for(const essential of ['Who','What','Where','When','Why','How']) assert.ok(page.includes("['"+essential+"',"));
-   assert.match(page,new RegExp("\\\\['"+essential+"',"));
+ for(const label of ['Understood','Needs attention','Next'])
+   assert.ok(page.includes('>'+label+'</span>'),label);
+ for(const essential of ['Who','What','Where','When','Why','How'])
+   assert.ok(page.includes("['"+essential+"',"),essential);
+ assert.match(page,/Fair Trade check/);
  assert.match(page,/mini-fair-inspection-panel/);
  assert.match(page,/const \[expanded,setExpanded\]=useState\(showcase\)/);
  assert.match(page,/const \[details,setDetails\]=useState\(false\)/);
