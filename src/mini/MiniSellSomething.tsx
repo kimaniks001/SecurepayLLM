@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft, ArrowRight, Bookmark, BookOpenText, CalendarDays, Camera, CheckCircle2,
   ChevronRight, FileText, MapPin, MessageCircle, Send, ShieldCheck,
@@ -15,6 +15,13 @@ type Person = { name:string; role:string };
 type Result = 'share'|'store'|'save'|null;
 type Category = 'Goods'|'Agriculture'|'Equipment'|'Furniture'|'Services';
 
+type ReviewIssue = 'safety'|'regulated'|'photo'|'authority'|'availability'|null;
+function AnswerPill({children,onClick,selected=false,disabled=false}:{
+  children:React.ReactNode;onClick:()=>void;selected?:boolean;disabled?:boolean;
+}){
+  return <button type="button" className={'spm-sell-answer-pill'+(selected?' selected':'')}
+    aria-pressed={selected} disabled={disabled} onClick={onClick}>{children}</button>;
+}
 const toolList = [
   {id:'describe' as const, label:'Describe & Present', hint:'Help buyers understand your offer', icon:BookOpenText},
   {id:'photos' as const, label:'Photos', hint:'Show the actual item or an authorised image', icon:Camera},
@@ -63,6 +70,9 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
   const [sellerArea,setSellerArea]=useState<'offer'|'quick'|'relationships'>('offer');
   const [shelf,setShelf]=useState<Shelf>(null);
   const [toolsOpen,setToolsOpen]=useState(false);
+  const [showMorePills,setShowMorePills]=useState(false);
+  const [photoUncertain,setPhotoUncertain]=useState(false);
+  const [authorityUncertain,setAuthorityUncertain]=useState(false);
   const [title,setTitle]=useState(seed.slice(0,240));
   const [category,setCategory]=useState<Category>('Goods');
   const [priceType,setPriceType]=useState<'fixed'|'quote'>('fixed');
@@ -101,7 +111,32 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
   const suspicious=useMemo(()=>/\b(?:stolen|counterfeit|fake passport|ivory|illegal drugs|firearms?|ammunition)\b/i.test(title+' '+description),[title,description]);
   const sensitive=useMemo(()=>/\b(?:medicine|pharmaceutical|pesticide|alcohol|vehicle registration)\b/i.test(title+' '+description),[title,description]);
   const imageNeedsSource=pictures.some(p=>p.source==='unknown');
-  const canOffer=!!title.trim()&&!invalidPrice&&!suspicious&&!sensitive&&rightToOffer&&!imageNeedsSource;
+  const pendingPhotoIndex=pictures.findIndex(p=>p.source==='unknown');
+  // The examiner asks one small question, with a meaningful pill for every answer.
+  // Seller declarations are NOT legal, image, licence, identity or stock verification.
+  const currentQuestion:ReviewIssue=suspicious?'safety':sensitive?'regulated':
+    pendingPhotoIndex>=0?'photo':!rightToOffer?'authority':!stockStatement.trim()?'availability':null;
+  const canOffer=!!title.trim()&&!invalidPrice&&!suspicious&&!sensitive&&
+    rightToOffer&&!imageNeedsSource&&!!stockStatement.trim();
+  const photoSourceName=(source:PhotoSource)=>({
+    own:'Photo I took',supplier:'Authorised supplier image',
+    permission:'Photo used with permission',unknown:'Source not stated'
+  })[source];
+  const openReviewTool=(tool:Exclude<Shelf,null>)=>{
+    setStage('compose');setSellerArea('offer');setToolsOpen(true);setShelf(tool);setError('');
+  };
+  const photoAnswered=(source:Exclude<PhotoSource,'unknown'>)=>{
+    setPictures(current=>current.map((picture,i)=>i===pendingPhotoIndex?{...picture,source}:picture));
+    setPhotoUncertain(false);
+  };
+  const authorityAnswered=(role:string)=>{setRightType(role);setRightToOffer(true);setAuthorityUncertain(false);};
+  useEffect(()=>{
+    if(stage==='compose'&&toolsOpen&&shelf){
+      document.querySelector('[data-mini-sell-tool-panel]')?.scrollIntoView({block:'start',behavior:'smooth'});
+    }else if(stage==='review'){
+      document.querySelector('[data-mini-sell-review]')?.scrollIntoView({block:'start',behavior:'smooth'});
+    }
+  },[stage,shelf,toolsOpen]);
   const refreshDescription=()=>{setDescriptionReviewed(false);setError('');};
   // Progressive disclosure: one gentle next-step suggestion, never a compulsory tool.
   const suggestion=useMemo<{id:Exclude<Shelf,null>;message:string}|null>(()=>{
@@ -126,13 +161,11 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
     setToolsOpen(true);setShelf(suggestion.id);setError('');
   };
   const fields = {title,category,condition,specifications,purpose,included,limitations,warranty};
-  const evidenceNotices=[
-    !rightToOffer?'Confirm your authority to offer this item.':null,
-    imageNeedsSource?'Tell us where each photograph came from.':null,
-    suspicious?'This offer needs specialist review; it cannot be shared or listed in this preview.':null,
-    sensitive?'This category needs applicable licensing and eligibility checks before publication.':null,
-    !stockStatement.trim()?'Availability has not been checked. Buyers should know this.':null
-  ].filter((line):line is string=>line!==null);
+  const remainingQuestions=[
+    imageNeedsSource?'photograph':null,
+    !rightToOffer?'right to sell':null,
+    !stockStatement.trim()?'availability':null
+  ].filter((value):value is string=>value!==null);
   const choosePhoto=(file?:File)=>{
     if(!file)return;
     setError('');
@@ -168,7 +201,7 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
     if(quantity.trim()&&(!/^\d+(?:\.\d{1,3})?$/.test(quantity)||Number(quantity)<=0)){
       setError('Please check the quantity.');return;
     }
-    setShelf(null);setStage('review');
+    setShelf(null);setShowMorePills(false);setStage('review');
   };
   const finish=(kind:Result)=>{
     if(kind!=='save'&&!canOffer)return;
@@ -188,7 +221,7 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
     setWarranty('');setDescription('');setDescriptionReviewed(false);
     setStockStatement('Seller says 20 bags available — not verified');
     setRightType('Owner');setRightToOffer(false);
-    setError('');setShelf('describe');
+    setError('');setToolsOpen(true);setShelf('describe');
   };
   const label=(text:string,id:string,value:string,set:(v:string)=>void,placeholder:string,rows=0)=>
     <label className="spm-sell-label" htmlFor={id}><span>{text}</span>
@@ -257,7 +290,7 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
             id==='people'&&people.length>0||id==='timing'&&!!timing||id==='places'&&!!place||
             id==='describe'&&!!descriptionReviewed)&&<CheckCircle2 size={13}/>}
         </button>)}</div>
-      {toolsOpen&&shelf&&<div className="spm-sell-tool-panel" aria-label={toolList.find(t=>t.id===shelf)?.label}>
+      {toolsOpen&&shelf&&<div data-mini-sell-tool-panel className="spm-sell-tool-panel" aria-label={toolList.find(t=>t.id===shelf)?.label}>
         <div className="spm-sell-panel-head"><strong>{toolList.find(t=>t.id===shelf)?.label}</strong>
           <button type="button" aria-label="Close tool" onClick={()=>setShelf(null)}><X size={17}/></button></div>
         {shelf==='describe'&&<>
@@ -408,7 +441,7 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
       <p className="spm-sell-hint">The Store and settings are fictional examples in this owner preview. Verified account, billing and permissions are not changed.</p>
     </>}
     {stage==='review'&&<>
-      <h1 className="spm-question">Let's check your offer</h1>
+      <h1 className="spm-question" data-mini-sell-review>Let's check your offer</h1>
       <p className="spm-lead">Make sure it is clear and yours to offer. The other person has not accepted anything yet.</p>
       <div className="spm-sell-review-card">
         {pictures[0]&&<div className="spm-sell-cover"><img src={pictures[0].preview} alt="Seller-provided offer"/>
