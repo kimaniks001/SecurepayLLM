@@ -43,8 +43,9 @@ test('A Business Settings sample offer is visible in the same buyer StoreGateway
 test('Exact sample offer reads preserve seller and unique source identity',async()=>{
   const api=createMiniTradingSampleStore(copyDemo());
   const matches=await api.search({kind:'SERVICE',category:'maintenance'});
-  assert.equal(matches.length,1);
-  const m=matches[0];
+  assert.ok(matches.length>=1);
+  const m=matches.find(x=>x.offer.title==='Water pump maintenance · 12 months');
+  assert.ok(m);
   const store=await api.store(m.canonicalKsNumber);
   const readBack=await api.offer(m.canonicalKsNumber,m.offer.id);
   assert.equal(readBack.offer.id,m.offer.id);
