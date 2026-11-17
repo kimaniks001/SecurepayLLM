@@ -233,3 +233,23 @@ export interface StoreImageUseResponse {
   declaredOrigin: StoreImageUseOrigin;
   createdAt: string;
 }
+
+
+// ─── Phase 3: seller-explicit, UNVERIFIED rights evidence link (API draft) ───
+// Must refer to a real PHOTO/DOCUMENT already ingested from the SAME saved
+// KS001 conversation as the pending image use; no local files or invented IDs.
+export type StoreImageEvidencePurpose =
+  'SUPPLIER_PERMISSION' | 'SELLER_AUTHORITY' | 'OTHER_RIGHTS_EVIDENCE';
+export type StoreImageEvidenceStatus = 'LINKED_UNVERIFIED' | 'REVOKED';
+export interface LinkStoreImageEvidenceRequest {
+  sourceArtifactId: string;
+  expectedOfferUpdatedAt: string;
+  purpose: StoreImageEvidencePurpose;
+}
+export interface StoreImageEvidenceView {
+  /** Private evidence-link ID, NOT a published photo, verified licence or mediaRef. */
+  id: string;
+  purpose: StoreImageEvidencePurpose;
+  status: StoreImageEvidenceStatus;
+  createdAt: string;
+}
