@@ -56,7 +56,7 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
   storeGateway?:Pick<StoreGateway,'search'|'store'|'offer'>;
   /** Only after a fresh Store offer check, never on Add to cart alone. */
   onDiscuss?:(lines:MiniStorePlanLine[], fulfilment:MiniBasketFulfilment | null,
-    buyerAnswers:Array<{sellerKsNumber:string;offerId:string;question:string;proposedAnswer:string}>)=>void;
+    buyerAnswers:Array<{sellerKsNumber:string;offerId:string;offerUpdatedAt:string;question:string;proposedAnswer:string}>)=>void;
   /** Isolated preview host only; never live offers or financial authority. */
   playground?:boolean;
   onSampleFunded?:(purchase:MiniSamplePurchase)=>void;
