@@ -13,23 +13,27 @@ test('The owner-visible examination names all 12 exactly as canonical API snapsh
  const page=read('src/mini/MiniFairTradeExaminationPreview.tsx');
  const names=[...page.matchAll(/^ '(To [^']+)'[,]?$/gm)].map(match=>match[1]);
  assert.deepEqual(names,titles);
- assert.match(page,/Not yet assessed/);
+ assert.match(page,/not yet assessed/i);
  assert.match(page,/not been assessed by SecurePayAPI/);
  assert.match(page,/FAIR_TRADE_PREVIEW_TITLES/);
  assert.doesNotMatch(page,/fullyExamined\s*[:=]\s*true|fairnessPassed|paymentAuthorised|score:\s*100/);
 });
-test('The optional inspection unfolds WWWWWH, material provider concerns and principle lenses',()=>{
+test('The basket initially exposes only three essentials; twelve principles require two optional taps',()=>{
  const page=read('src/mini/MiniFairTradeExaminationPreview.tsx');
- assert.match(page,/See the Fair Trade check/);
- assert.match(page,/What do we understand\?/);
- assert.match(page,/What is worth clarifying\?/);
- assert.match(page,/What happens next\?/);
- assert.match(page,/Who/);assert.match(page,/What/);assert.match(page,/Where/);
- assert.match(page,/When/);assert.match(page,/Why/);assert.match(page,/How/);
+ for(const label of ['Understood','Needs attention','Next'])
+   assert.ok(page.includes('>'+label+'</span>'),label);
+ for(const essential of ['Who','What','Where','When','Why','How'])
+   assert.ok(page.includes("['"+essential+"',"),essential);
+ assert.match(page,/Fair Trade check/);
  assert.match(page,/mini-fair-inspection-panel/);
- assert.match(page,/setExpanded\(v=>!v\)/);
- assert.match(page,/setShowLenses\(v=>!v\)/);
- assert.match(page,/sourceVersion:request.source.offerUpdatedAt/);
+ assert.match(page,/const \[expanded,setExpanded\]=useState\(showcase\)/);
+ assert.match(page,/const \[details,setDetails\]=useState\(false\)/);
+ assert.match(page,/const \[showLenses,setShowLenses\]=useState\(false\)/);
+ assert.match(page,/details&&<div className="spm-fair-compact-deep">/);
+ assert.match(page,/showLenses&&<ol className="spm-fair-compact-lenses-list">/);
+ assert.match(page,/Offer: \{firstRequest.source.offerId\}/);
+ assert.match(page,/Published: \{firstRequest.source.offerUpdatedAt\}/);
+ assert.doesNotMatch(page,/Behind your basket|What do we understand\?|What is worth clarifying\?/);
 });
 test('An unknown offer is not shown as a Fair Trade approval',()=>{
  const assessment=miniBasketQuietPreflight([],{sourceFresh:true});
@@ -52,10 +56,14 @@ test('Real Mini keeps examination hidden until requested, owner preview opens it
  assert.match(app,/get\('miniTradeDemo'\)==='1'/);
  assert.match(app,/fairTradeShowcase=\{fairTradeShowcase\}/);
 });
-test('The examination does not add payment, agreement-authority or extra seller commands',()=>{
+test('The examination is explanation only, not Money or seller authority',()=>{
  const page=read('src/mini/MiniFairTradeExaminationPreview.tsx');
  assert.doesNotMatch(page,/fetch\(|\.post\(|acceptAgreement|releaseFunds|paymentIntent/);
  assert.match(page,/This is a demonstration of the examination view/);
- assert.match(page,/source:request.source.offerId/);
- assert.match(page,/sourceVersion:request.source.offerUpdatedAt/);
+ assert.match(page,/firstRequest.source.offerId/);
+ assert.match(page,/firstRequest.source.offerUpdatedAt/);
+ const css=read('src/mini/mini.css');
+ assert.match(css,/Compact Fair Trade check/);
+ assert.match(css,/\.spm-fair-compact-row \{display:grid/);
+ assert.match(css,/\.spm-fair-compact-lenses-list \{display:grid/);
 });
