@@ -59,13 +59,3 @@ export async function miniSellerCreateCanonicalStoreDraft({
     return {ok:false,reason:'CHECK_MY_STORE_BEFORE_RETRY'};
   }
 }
-
-/** SecureLink cannot be fabricated from Store ID, route or a public URL. */
-export function miniSellerShareReadiness({prepared,realOffer,issuer}) {
-  if (!prepared?.ok) return {ready:false,reason:'OFFER_NOT_PREPARED'};
-  if (!realOffer?.ok || !realOffer.offerId)
-    return {ready:false,reason:'CANONICAL_OFFER_REQUIRED'};
-  if (typeof issuer!=='function')
-    return {ready:false,reason:'AUTHORIZED_SECURELINK_ISSUER_REQUIRED'};
-  return {ready:true,reason:null};
-}
