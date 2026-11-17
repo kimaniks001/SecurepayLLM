@@ -16,6 +16,7 @@ import { MiniFairTradeExaminationPreview } from './MiniFairTradeExaminationPrevi
 import type {MiniSamplePurchase} from './miniSampleLivingPurchases.mjs';
 import {miniBasketQuestions,miniBasketAnswersForOffer} from './miniBasketQuestions.mjs';
 import {miniSampleAgreementTerms,miniSellerScopedProposal} from './miniTradeTerms.mjs';
+import {miniStraightSaleMoneyPreview} from './miniAgreementActions.mjs';
 import {miniDeliveryContracts,miniDeliveryContractSummary,SAMPLE_DELIVERY_WINDOWS} from './miniDeliveryContract.mjs';
 import {readSampleBasketDraft,saveSampleBasketDraft} from './miniSampleBasketDraft.mjs';
 import {miniBasketQuietPreflight,miniSampleProviderReply,miniProviderReplyMatchesSource,
@@ -412,12 +413,42 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
   const sampleTotalMinor=quotedMinor+deliveryFeeMinor;
   const confirmedSellers=[...sampleSellers,
     ...(fulfilmentChoice==='explore_combined'&&deliveryQuoteSelected?['KS90004']:[])];
+  // SecureLink is never a required stepping stone. A straightforward,
+  // published, fixed-price sale may open the isolated sample Money rails
+  // directly. Real Money remains solely server-authorised.
+  const directSale=miniStraightSaleMoneyPreview(cart,{
+    sourceFresh:reviewed&&preflight.provenanceComplete,
+    basketReady:readiness.readyToReview,
+    questionsComplete:basketQuestions.complete,
+    fulfilmentChoice,deliveryContracts,
+    providerRequests:preflight.providerRequests,
+    priceQuoted:unpriced.length===0&&allPricesResolved,
+  });
+  const sellerReviewed=sampleRequests&&allSampleAccepted&&
+    preflight.pendingProviderRequests.length===0;
   const sampleMoneyReady=playground&&reviewed&&!checking&&!freshnessError&&
-    readiness.readyToReview&&basketQuestions.complete&&sampleRequests&&allSampleAccepted&&
-    preflight.pendingProviderRequests.length===0&&preflight.provenanceComplete&&
+    readiness.readyToReview&&basketQuestions.complete&&preflight.provenanceComplete&&
     deliveryComplete&&allPricesResolved&&
     (!deliveryNeedsQuote||deliveryContractState.feeMinor===deliveryFeeMinor)&&
-    Number.isSafeInteger(sampleTotalMinor);
+    Number.isSafeInteger(sampleTotalMinor)&&
+    (directSale.canOpenMoney||sellerReviewed);
+  const connectSampleMoney=async()=>{
+    if(!sampleMoneyReady||checking||working)return;
+    // Recheck the actual published source before even a simulated rail opens.
+    setChecking(true);setError('');
+    try{
+      const fresh=await Promise.all(cart.map(line=>client.offer(line.sellerKsNumber,line.offerId)));
+      if(!miniStoreOfferSnapshotFresh(cart,fresh)){
+        setReviewed(false);setProposalOpen(false);setMoneyOpen(false);
+        setChangedOffers(offerChanges(fresh));
+        setFreshnessError('A Store changed an item. Review the update before choosing Money.');
+        return;
+      }
+      setMoneyOpen(true);
+    }catch{
+      setError('We could not check the current Store offer. Nothing was paid. Try again.');
+    }finally{setChecking(false);}
+  };
   // A displayed total is illustrative: it is not a seller quote or provider amount.
   const total=readiness.totalMinor!==null&&readiness.currency==='KES'
     ? money(readiness.totalMinor,'KES'):null;
@@ -706,7 +737,7 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
             <ShieldCheck size={22}/><span><small>NEXT · MAKE AN AGREEMENT</small>
             <strong>Ready to go ahead?</strong></span>
           </div>
-          <p>Here's your choice. Every Store confirms only what it has agreed to supply.</p>
+          <p>Your Agreement is organised. Choose what you want to do next.</p>
           <div className="spm-shop-review-summary">
             <div><span>Items and services</span><strong>{money(quotedMinor,'KES')}</strong></div>
             {deliveryFeeMinor>0&&<div><span>Delivery</span><strong>{money(deliveryFeeMinor,'KES')}</strong></div>}
