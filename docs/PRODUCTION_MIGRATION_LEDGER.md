@@ -2003,3 +2003,6 @@ Details and regression log: `docs/PHASE3_SIMPLICITY_INTELLIGENT_TOOLS_LEDGER_202
 | Agreement/Store/Money authority | UNCHANGED | Seller owner-preview share/store buttons are illustrative only. No canonical Store write, SecureLink, Agreement or financial command. |
 
 This Phase 3 UI/Policy slice is **not completed backend certification**, and no production rollout is authorized by passing frontend tests.
+
+
+- Phase 3 exact same-file safeguard: FRONTEND_COMPOSITION_ONLY — local Web Crypto SHA-256 can prevent attaching identical bytes twice within the owner preview, with no upload, persistent fingerprint, image provenance, ownership assertion or published media reference. It does not replace SecurePayAPI's scoped source-digest/rights/Store verification.
