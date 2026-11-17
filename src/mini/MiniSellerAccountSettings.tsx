@@ -90,13 +90,17 @@ export function MiniSellerAccountSettings({
       await prepare();
       // A second server read prevents a stale no-subscription screen from
       // trying to reselect an already-opened plan.
+      let present:SubscriptionStatusResponse|null=null;
       try{
-        const present=await subscriptionGateway.myStatus();
-        if(present){setMembership(present);setMemberState('ready');
-          throw new Error('Subscription appeared since review');}
+        present=await subscriptionGateway.myStatus();
       }catch(e){
         if(!(e instanceof ApiError&&e.kind==='http'&&
           e.status===404&&e.code==='NO_SUBSCRIPTION'))throw e;
+      }
+      if(present){
+        setMembership(present);setMemberState('ready');setChosenPlan(null);
+        setPlanMessage('Your account already has a plan. No new plan or payment was created.');
+        return;
       }
       const opened=await subscriptionGateway.selectPlan(chosenPlan);
       if(opened.plan!==chosenPlan||!opened.subscriptionId||
