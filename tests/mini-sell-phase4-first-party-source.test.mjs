@@ -23,7 +23,8 @@ test('seller explicitly sends a real KS001 user turn and verifies current server
   assert.ok(firstParty.includes('context.conversationId!==snapshot.conversationId'));
   assert.ok(firstParty.includes('reviewedTradeContextVersion:context.version'));
   assert.ok(seller.includes('Prepare these terms in KS001'));
-  assert.ok(seller.includes('onPrepareInKs001(statement)'));
+  assert.ok(seller.includes('onPrepareInKs001(composed.statement)'));
+  assert.ok(seller.includes('miniSellerKs001Statement({prepared})'));
   assert.ok(seller.includes('sourceSignature===offerSignature'));
 });
 test('seller Store publication requires a separate explicit answer pill and real revision',()=>{
