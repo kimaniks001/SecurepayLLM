@@ -32,3 +32,7 @@ The backend in `kimaniks001/SecurePayAPI` separately contains genuine source-ing
 Focused test: `tests/mini-sell-phase3-trust-examination.test.mjs`. Mini prebuild also includes previous phases and performs TypeScript/Vite. Report Vercel READY separately from API certification. No production merge until owners approve the integrated authority and tests.
 
 **Engineering assumption:** Image Identimark unique registration and permission governance remain unresolved backend design decisions, not promised current capability.
+
+
+### Same-file photo repeats
+The owner preview now computes an optional SHA-256 on **local selected bytes** (maximum 5 MB) and politely refuses a second byte-identical photo within the same draft. The digest remains in component memory only, is excluded from saved draft and public candidate, and is not a copyright detector, a server digest, a perceptual matcher or an issued Identimark. Browsers without Web Crypto may skip the check without inventing a result. Focused test: `tests/mini-sell-phase3-local-image-digest.test.mjs`.
