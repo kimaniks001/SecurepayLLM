@@ -158,11 +158,23 @@ export function createStoreController(gateway: Gateway, trustedMediaOrigin: stri
 
     async submitDraft() {
       if (state.draftBusy || !state.draft.title.trim()) return;
+      const existing = state.editingOfferId && state.mine.status === 'ready'
+        ? state.mine.data.raw.find(o => o.id === state.editingOfferId) : null;
+      // New offers and edits to private drafts stay private. Publication is
+      // an independent, owner-confirmed, current-version action below.
+      // Older already-published listing edits retain their legacy route until
+      // the separate version-safe editing migration is certified.
+      if (!existing?.published && state.draft.published) {
+        update({ draftError: 'Save the private draft first. Review it again to publish its written details.' });
+        return;
+      }
       update({ draftBusy: true, draftError: null });
       const body: UpsertStoreOfferRequest = {
         kind: state.draft.kind, title: state.draft.title.trim(), description: state.draft.description.trim() || undefined,
         priceMinor: state.draft.priceMinor, quantityAvailable: state.draft.kind === 'PRODUCT' ? state.draft.quantityAvailable : undefined,
-        availabilityState: state.draft.availabilityState, published: state.draft.published, mediaRefs: state.draft.mediaRefs,
+        availabilityState: state.draft.availabilityState,
+        published: existing?.published === true ? state.draft.published : false,
+        mediaRefs: state.draft.mediaRefs,
       };
       try {
         if (state.managedBusiness) {
@@ -176,6 +188,74 @@ export function createStoreController(gateway: Gateway, trustedMediaOrigin: stri
         await loadMine();
       } catch (error) {
         update({ draftBusy: false, draftError: errorText(error) });
+      }
+    },
+
+    /**
+     * Publish only an unchanged, already-saved text-only private offer.
+     * User chooses this AFTER reviewing a canonical private Store draft.
+     * The backend performs the decisive version-fenced CAS; the extra reads
+     * prevent the client from presenting old or edited local terms as current.
+     */
+    async publishReviewedTextOffer() {
+      const id = state.editingOfferId;
+      if (state.draftBusy || !id || state.mine.status !== 'ready') return;
+      const selected = state.mine.data.raw.find(o => o.id === id);
+      const draft = state.draft;
+      const unchanged = selected &&
+        selected.published === false &&
+        selected.kind === draft.kind &&
+        selected.title === draft.title.trim() &&
+        (selected.description ?? '') === draft.description.trim() &&
+        selected.priceMinor === draft.priceMinor &&
+        selected.quantityAvailable === draft.quantityAvailable &&
+        selected.availabilityState === draft.availabilityState &&
+        JSON.stringify(selected.mediaRefs) === JSON.stringify(draft.mediaRefs);
+      if (!unchanged || !selected.updatedAt) {
+        update({ draftError: 'This offer has changes. Save your private draft and review the latest version first.' });
+        return;
+      }
+      if (selected.availabilityState !== 'NEEDS_CONFIRMATION' ||
+          selected.quantityAvailable !== null ||
+          selected.mediaRefs.length !== 0 ||
+          (selected.priceMinor !== null && selected.priceMinor <= 0)) {
+        update({ draftError: 'This listing needs another check before publication. Remove unverified photographs and stock quantities, and mark availability as needing confirmation.' });
+        return;
+      }
+      const business = state.managedBusiness;
+      update({ draftBusy: true, draftError: null });
+      try {
+        // Re-read the exact owner and revision immediately before publication.
+        const list = business ? await gateway.businessOffers(business.ksNumber) : await gateway.myOffers();
+        const matches = list.filter(o => o.id === id);
+        if (matches.length !== 1) throw new Error('The latest Store offer is not available.');
+        const fresh = matches[0];
+        if (fresh.updatedAt !== selected.updatedAt ||
+            fresh.published !== false || fresh.kind !== selected.kind ||
+            fresh.title !== selected.title ||
+            (fresh.description ?? '') !== (selected.description ?? '') ||
+            fresh.priceMinor !== selected.priceMinor ||
+            fresh.quantityAvailable !== null ||
+            fresh.availabilityState !== 'NEEDS_CONFIRMATION' ||
+            !Array.isArray(fresh.mediaRefs) || fresh.mediaRefs.length !== 0) {
+          update({ draftBusy: false, draftError: 'This Store offer changed. Review the latest draft before publishing.' });
+          return;
+        }
+        const payload = { expectedUpdatedAt: fresh.updatedAt, sellerConfirmsCurrentListing: true as const };
+        const published = business
+          ? await gateway.publishBusinessTextOffer(business.ksNumber, id, payload)
+          : await gateway.publishMyTextOffer(id, payload);
+        if (published.id !== id || published.published !== true ||
+            published.availabilityState !== 'NEEDS_CONFIRMATION' ||
+            published.mediaRefs.length !== 0 || published.availabilityConfirmedAt !== null)
+          throw new Error('The server did not confirm a safe text-only publication.');
+        update({ view: 'manage', editingOfferId: null, draft: emptyOfferDraft, draftBusy: false });
+        await loadMine();
+      } catch {
+        // A timeout may have committed publication. Never submit again without
+        // a fresh Store read and explicit seller action.
+        update({ draftBusy: false,
+          draftError: 'SecurePay could not confirm publication. Check My Store before trying again.' });
       }
     },
 
