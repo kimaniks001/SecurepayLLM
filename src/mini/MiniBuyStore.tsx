@@ -98,6 +98,7 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
   const [working, setWorking] = useState(false);
   const [error, setError] = useState('');
   const [openingStore,setOpeningStore]=useState<string|null>(null);
+  const [lastStoreAttempt,setLastStoreAttempt]=useState<string|null>(null);
   const [changedOffers,setChangedOffers]=useState<MiniChangedOffer[]>([]);
   const [reviewed, setReviewed] = useState(false);
   const [fulfilmentChoice, setFulfilmentChoice] = useState<MiniBasketFulfilment | null>(savedDraft?.fulfilmentChoice??null);
@@ -202,7 +203,7 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
   const openStore = async (ks: string) => {
     if (!/^KS\d{3,12}$/.test(ks)) return;
     const request = ++generation.current;
-    setWorking(true); setOpeningStore(ks); setError(''); setChosenStore(null);
+    setWorking(true); setOpeningStore(ks); setLastStoreAttempt(ks); setError(''); setChosenStore(null);
     try {
       const found = await client.store(ks);
       if (request === generation.current && found.canonicalKsNumber === ks &&
@@ -449,8 +450,9 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
     {view==='search'&&<MiniShopDiscovery results={results} onOpen={ks=>void openStore(ks)}
       playground={playground} onBack={onBack} label={term?'Stores for '+(term.trim()||'goods'):'Stores to explore'}
       cartCount={itemCount} onBasket={()=>setView('plan')} searchControls={shopControls}
-      loading={working} error={view==='search'?error:''}
-      onRetry={()=>void (openingStore?openStore(openingStore):find())}/>}
+      loading={working} busyText={openingStore?'Opening Store…':'Finding Stores…'}
+      error={view==='search'?error:''}
+      onRetry={()=>void (lastStoreAttempt&&/Store|Duka/i.test(error)?openStore(lastStoreAttempt):find())}/>}
     {view==='store'&&chosenStore&&<MiniShopGallery key={chosenStore.canonicalKsNumber}
       store={chosenStore} playground={playground}
       cartCount={itemCount} cartQty={cartQuantity} onAdd={add}
