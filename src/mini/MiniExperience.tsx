@@ -104,7 +104,7 @@ function readSavedMiniDraft(): MiniDraft | null {
 
 export function MiniExperience() {
   const [lang, setLang] = useState<MiniLanguage>('en');
-  const [previewCapacity, setPreviewCapacity] = useState<MiniPreviewCapacity>('business');
+  const [previewCapacity, setPreviewCapacity] = useState<MiniPreviewCapacity>('personal');
   const [demoBusiness,setDemoBusiness] = useState(copyDemo);
   const [settingsEntry,setSettingsEntry] = useState<'store'|null>(null);
   const [verifiedStoreRequested,setVerifiedStoreRequested] = useState(false);
