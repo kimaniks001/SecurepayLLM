@@ -135,6 +135,13 @@ export function createAgreementGateway(http: HttpClient) {
     people: (id: string) => http.request<AgreementPeopleResponse>(`${agreement(id)}/people`, { auth: 'required' }),
     // Draft -> Proposed (creator only, idempotent if already PROPOSED). Invitations can only be issued from PROPOSED onward.
     propose: (id: string) => http.request<{ id: string; status: string }>(`${agreement(id)}/propose`, { method: 'POST', auth: 'required' }),
+    /** Phase 4 seller: atomically propose only the exact server-reviewed version. */
+    proposeReviewed: (id: string, expected: {versionId:string;versionNumber:number;contentHash:string}) =>
+      http.request<{id:string;status:string}>(`${agreement(id)}/propose-reviewed`, {
+        method:'POST', auth:'required',
+        body:{expectedVersionId:expected.versionId,expectedVersionNumber:expected.versionNumber,
+          expectedContentHash:expected.contentHash}
+      }),
     // Real shape: List<AgreementInvitationResponse> -- id, roleCode, status (ISSUED|VIEWED|JOINED|REVOKED|EXPIRED), issuedAt, expiresAt, revokedAt. No target, no token.
     invitations: (id: string) => http.request<AgreementInvitationDto[]>(`${agreement(id)}/invitations`, { auth: 'required' }),
     revokeInvitation: (id: string, invitationId: string) => http.request<AgreementInvitationDto>(`${agreement(id)}/invitations/${segment(invitationId)}/revoke`, { method: 'POST', auth: 'required' }),
