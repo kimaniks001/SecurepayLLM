@@ -135,6 +135,18 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
     } finally { if (request === generation.current) setWorking(false); }
   };
 
+  useEffect(()=>{
+    // Reopen a seller's latest Store view if the source changes while Mini is
+    // still mounted (for example editing the sample Business in another area).
+    if(view!=='store'||!chosenStore)return;
+    let active=true;
+    void client.store(chosenStore.canonicalKsNumber).then(store=>{
+      if(active&&store.status==='ACTIVE')setChosenStore(store);
+    }).catch(()=>{/* The basket's own source check remains authoritative. */});
+    return()=>{active=false;};
+    // The stable KSNumber, view and StoreGateway determine refresh.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[view,chosenStore?.canonicalKsNumber,client]);
   const add = (offer: PublicOfferView,countRequested=1) => {
     if (!chosenStore || !activeStates.has(offer.availabilityState)) return;
     const count = Math.min(20, Math.max(1, countRequested));
@@ -251,7 +263,8 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
   const itemCount=cart.reduce((count,line)=>count+line.quantity,0);
   const cartQuantity=(offerId:string)=>cart.find(line=>line.offerId===offerId)?.quantity||0;
   const moneyBlocked=readiness.readyToPay===false;
-  const sampleMoneyReady=playground&&sampleRequests&&allSampleAccepted&&
+  const sampleMoneyReady=playground&&reviewed&&!checking&&!freshnessError&&
+    readiness.readyToReview&&sampleRequests&&allSampleAccepted&&
     !readiness.amountNeedsQuote&&(!readiness.goods||fulfilmentChoice==='collect');
   // A displayed total is illustrative: it is not a seller quote or provider amount.
   const total=readiness.totalMinor!==null&&readiness.currency==='KES'
