@@ -24,10 +24,11 @@ import { MiniServerCheckout } from './MiniServerCheckout';
 import { MiniRealStoreOffer } from './MiniRealStoreOffer';
 import { MiniBuyStore, type MiniStorePlanLine, type MiniBasketFulfilment } from './MiniBuyStore';
 import { MiniCollectConversation } from './MiniCollectConversation';
+import { MiniSellSomething } from './MiniSellSomething';
 import { miniMergeUserDescription, miniCaptureText, type MiniCaptureSource, type MiniCaptureKind } from './miniCapture';
 import './mini.css';
 
-type View = MiniScreen | 'choose' | 'buy' | 'collect-interview' | 'business-settings' | 'sample-agreements';
+type View = MiniScreen | 'choose' | 'buy' | 'sell-preview' | 'collect-interview' | 'business-settings' | 'sample-agreements';
 const STORE_KEY = 'securepay-mini-phase1-local-draft-v1';
 const words = {
   en: {
@@ -109,13 +110,14 @@ export function MiniExperience() {
   const [settingsEntry,setSettingsEntry] = useState<'store'|null>(null);
   const [verifiedStoreRequested,setVerifiedStoreRequested] = useState(false);
   const t = words[lang];
-  const [screen, setScreen] = useState<View>(()=>
-    typeof window!=='undefined' &&
-    isMiniExperiencePreviewHost(window.location.hostname) &&
-    (new URLSearchParams(window.location.search).get('fairTradePreview')==='1'||
-    new URLSearchParams(window.location.search).get('agreementActionsPreview')==='1') &&
-    new URLSearchParams(window.location.search).get('miniTradeDemo')==='1'
-      ? 'buy' : 'home');
+  const [screen, setScreen] = useState<View>(() => {
+    if (typeof window === 'undefined' || !isMiniExperiencePreviewHost(window.location.hostname)) return 'home';
+    const qs = new URLSearchParams(window.location.search);
+    if (qs.get('miniTradeDemo') !== '1') return 'home';
+    if (qs.get('sellPreview') === '1') return 'sell-preview';
+    if (qs.get('fairTradePreview') === '1' || qs.get('agreementActionsPreview') === '1') return 'buy';
+    return 'home';
+  });
   const [buyPrefill, setBuyPrefill] = useState('');
   const [buyResetKey, setBuyResetKey] = useState(0);
   const [buyingPlanForHelp,setBuyingPlanForHelp] = useState<{
@@ -199,7 +201,7 @@ export function MiniExperience() {
   };
   const beginSell = () => {
     if (playground) {
-      setPreviewCapacity('business');setSettingsEntry('store');setScreen('business-settings');
+      setError('');setScreen('sell-preview');
       return;
     }
     // A supported backend opens the canonical, authority-checked Business Store
@@ -409,6 +411,8 @@ export function MiniExperience() {
           </div>
         </section>}
 
+        {playground && screen === 'sell-preview' && <MiniSellSomething
+          language={lang} seed={opening.trim()} onBack={() => setScreen('home')}/>}
         <div hidden={screen !== 'buy'} aria-hidden={screen !== 'buy'}>
           <MiniBuyStore key={buyResetKey} language={lang} initialQuery={buyPrefill} onBack={() => setScreen('home')}
             playground={playground} fairTradeShowcase={fairTradeShowcase}
