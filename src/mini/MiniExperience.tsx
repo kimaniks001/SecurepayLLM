@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft, ArrowRight, Camera, CheckCircle2, CircleHelp, FileText, HandCoins,
   MessageCircle, Pencil, RotateCcw, ShieldCheck, ShoppingBag, Sparkles, X
@@ -15,6 +15,9 @@ import { MiniBusinessCapacity, type MiniPreviewCapacity } from './MiniBusinessCa
 import { MiniBusinessSettings } from './MiniBusinessSettings';
 import {copyDemo} from './MiniBusinessDemoModel';
 import { getMiniFirstPartyOrigin } from './miniFirstPartyConfig';
+import { isMiniExperiencePreviewHost } from './miniInteractiveDemo';
+import { createMiniTradingSampleStore } from './miniTradePlayground';
+import { MiniTradeSampleHelp } from './MiniTradeSampleHelp';
 import { MiniServerCheckout } from './MiniServerCheckout';
 import { MiniRealStoreOffer } from './MiniRealStoreOffer';
 import { MiniBuyStore, type MiniStorePlanLine, type MiniBasketFulfilment } from './MiniBuyStore';
@@ -130,7 +133,12 @@ export function MiniExperience() {
   const urlParams = typeof window === 'undefined' ? null : new URLSearchParams(window.location.search);
   const compact = urlParams?.get('embedded') === '1';
   // Explicitly opt-in visual review only. Ordinary /mini.html remains unchanged.
-  const businessDemo = urlParams?.get('miniBusinessPreview') === '1';
+  // This only activates on a known isolated owner preview host AND explicit opt-in.
+  // No sample catalogue or fake payment path is enabled on securepay.ke.
+  const playground = urlParams?.get('miniTradeDemo') === '1' &&
+    typeof window !== 'undefined' && isMiniExperiencePreviewHost(window.location.hostname);
+  const businessDemo = playground || urlParams?.get('miniBusinessPreview') === '1';
+  const sampleStoreGateway = useMemo(()=>createMiniTradingSampleStore(demoBusiness),[demoBusiness]);
   const storeOfferSession = urlParams?.get('storeOfferSession') ?? null;
   const checkoutSession = urlParams?.get('checkoutSession') ?? null;
 
@@ -174,6 +182,10 @@ export function MiniExperience() {
     setScreen('describe');
   };
   const beginSell = () => {
+    if (playground) {
+      setPreviewCapacity('business');setSettingsEntry('store');setScreen('business-settings');
+      return;
+    }
     // A supported backend opens the canonical, authority-checked Business Store
     // rather than creating another independent Mini seller record.
     if (getMiniFirstPartyOrigin()) {
@@ -301,6 +313,10 @@ export function MiniExperience() {
         {storeOfferSession ? <MiniRealStoreOffer session={storeOfferSession} language={lang}/> :
           checkoutSession ? <MiniServerCheckout session={checkoutSession} language={lang}/> : <>
         {screen === 'home' && <section className="spm-entrance">
+          {playground && <div className="spm-mini-buy-result" role="note" data-mini-playground-banner="fictional">
+            <strong>Sample trading playground</strong>
+            <p>Try Buy something or Sell something with example shops, goods and services. All data is fictional. No real SecureLinks, orders or payments.</p>
+          </div>}
           {businessDemo && <MiniBusinessCapacity part="identity" language={lang}
             capacity={previewCapacity} onChange={setPreviewCapacity}
             onStartSelling={beginSell}
@@ -349,9 +365,9 @@ export function MiniExperience() {
         {businessDemo && screen === 'business-settings' && previewCapacity === 'business' &&
           <MiniBusinessSettings language={lang} onBack={() => setScreen('home')}
             demo={demoBusiness} setDemo={setDemoBusiness} initialArea={settingsEntry ?? undefined}
-            verifiedStoreAvailable={!!getMiniFirstPartyOrigin()}
+            verifiedStoreAvailable={!playground && !!getMiniFirstPartyOrigin()}
             onOpenVerifiedStore={()=>{
-              if (!getMiniFirstPartyOrigin()) return;
+              if (playground || !getMiniFirstPartyOrigin()) return;
               setDiscussDraft(null);
               setVerifiedStoreRequested(true);
               setScreen('help');
@@ -376,7 +392,8 @@ export function MiniExperience() {
 
         <div hidden={screen !== 'buy'} aria-hidden={screen !== 'buy'}>
           <MiniBuyStore key={buyResetKey} language={lang} initialQuery={buyPrefill} onBack={() => setScreen('home')}
-            onDiscuss={getMiniFirstPartyOrigin() ? (lines,fulfilment)=>{
+            playground={playground} storeGateway={playground?sampleStoreGateway:undefined}
+            onDiscuss={playground || getMiniFirstPartyOrigin() ? (lines,fulfilment)=>{
               setBuyingPlanForHelp({lines,fulfilment});setDiscussDraft(null);setScreen('help');
             } : undefined}/>
         </div>
@@ -484,7 +501,10 @@ export function MiniExperience() {
           <p className="spm-disclaimer">{t.fullDisclaimer}</p>
         </section>}
 
-        {screen === 'help' && (getMiniFirstPartyOrigin()
+        {screen === 'help' && (playground
+          ? <MiniTradeSampleHelp language={lang} basket={buyingPlanForHelp}
+              onBack={() => {setScreen(buyingPlanForHelp?'buy':discussDraft?'review':'home');setBuyingPlanForHelp(null);}}/>
+          : getMiniFirstPartyOrigin()
           ? <MiniFirstPartyKs001 apiOrigin={getMiniFirstPartyOrigin()!} draft={discussDraft} language={lang}
               startInStore={verifiedStoreRequested}
               initialBuyingPlan={buyingPlanForHelp}
