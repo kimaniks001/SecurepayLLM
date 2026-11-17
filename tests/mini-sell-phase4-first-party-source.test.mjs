@@ -10,7 +10,8 @@ test('native seller composer is mounted only within authenticated first-party St
   assert.ok(firstParty.includes('sellerOfferContext && signedIn && !demo'));
   assert.ok(firstParty.includes('<MiniSellSomething'));
   assert.ok(firstParty.includes('storeGateway={stores} sellerContext={sellerOfferContext}'));
-  assert.ok(firstParty.includes('agreementGateway={agreements} handoffGateway={pair.gateway}'));
+  assert.ok(firstParty.includes("agreementGateway={sellerOfferContext.type==='personal'?agreements:undefined}"));
+  assert.ok(firstParty.includes("handoffGateway={sellerOfferContext.type==='personal'?pair.gateway:undefined}"));
   assert.ok(firstParty.includes("if(!signedIn){setSellerOfferContext(null);}"));
   assert.ok(sellerStore.includes('onPrepareOffer?'));
   assert.ok(sellerStore.includes('onPrepareOffer(storeBusiness'));
