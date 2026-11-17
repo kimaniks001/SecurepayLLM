@@ -826,7 +826,7 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
           <Send size={16}/>{shareIssued?'SecureLink issued':shareCreating?'Preparing…':'Create SecureLink'}
         </button>
         {shareUrl&&<button type="button" className="spm-secondary spm-sell-wide"
-          onClick={()=>{void navigator.clipboard?.writeText(shareUrl).then(
+          onClick={()=>{if(!shareUrl)return;void navigator.clipboard?.writeText(shareUrl).then(
             ()=>setShareStatus('SecureLink copied. Send it to your buyer when ready.'),
             ()=>setShareStatus('Could not copy. You can open the Agreement to share it.')
           );}}>Copy SecureLink</button>}
