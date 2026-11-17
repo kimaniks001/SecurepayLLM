@@ -214,7 +214,8 @@ export interface BusinessStoreOpportunityResponse {
 export type StoreImageUseOrigin = 'SELLER_PHOTOGRAPH' | 'SUPPLIER_IMAGE' | 'OTHER_PERMISSIONED';
 export type StoreImageUseStatus =
   | 'PENDING_REVIEW' | 'STALE_OFFER_REVIEW_REQUIRED'
-  | 'SOURCE_CHANGED_REVIEW_REQUIRED' | 'REVOKED';
+  | 'SOURCE_CHANGED_REVIEW_REQUIRED' | 'REVOKED'
+  | 'MORE_INFORMATION_REQUIRED' | 'ESCALATED' | 'REJECTED';
 
 export interface RegisterStoreImageUseRequest {
   /** Already saved source conversation OWNED by the authenticated human. */
