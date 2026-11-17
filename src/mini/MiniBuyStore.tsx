@@ -11,6 +11,7 @@ import { miniTradeSampleSearches } from './miniTradePlayground';
 import { MiniShopDiscovery, MiniShopGallery } from './MiniStoreGallery';
 import { MiniOfferPhoto } from './MiniStoreVisuals';
 import { MiniSampleMoneyJourney } from './MiniSampleMoneyJourney';
+import { MiniFairTradeExaminationPreview } from './MiniFairTradeExaminationPreview';
 import type {MiniSamplePurchase} from './miniSampleLivingPurchases.mjs';
 import {miniBasketQuestions,miniBasketAnswersForOffer} from './miniBasketQuestions.mjs';
 import {miniDeliveryContracts,miniDeliveryContractSummary,SAMPLE_DELIVERY_WINDOWS} from './miniDeliveryContract.mjs';
@@ -50,7 +51,7 @@ export type MiniBasketFulfilment = 'collect' | 'ask_sellers' | 'explore_combined
 type View = 'search' | 'store' | 'plan';
 
 /** Never infer seller acceptance or stock reservation from a public Store listing. */
-export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway, onDiscuss, playground = false, onSampleFunded, onViewSampleAgreements }: {
+export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway, onDiscuss, playground = false, fairTradeShowcase=false, onSampleFunded, onViewSampleAgreements }: {
   language:MiniLanguage; onBack:()=>void; initialQuery?:string;
   /** Existing public StoreGateway, optionally on the same isolated API as KS001. */
   storeGateway?:Pick<StoreGateway,'search'|'store'|'offer'>;
@@ -59,6 +60,8 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
     buyerAnswers:Array<{sellerKsNumber:string;offerId:string;offerUpdatedAt:string;question:string;proposedAnswer:string}>)=>void;
   /** Isolated preview host only; never live offers or financial authority. */
   playground?:boolean;
+  /** Explicit opt-in preview-host example; never seeds a real customer's basket. */
+  fairTradeShowcase?:boolean;
   onSampleFunded?:(purchase:MiniSamplePurchase)=>void;
   onViewSampleAgreements?:()=>void;
 }) {
@@ -123,6 +126,41 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
   };
   const invalidateDelivery=()=>{setDeliveryQuoteSelected(false);setDeliveryWindow(null);setDeliveryContractConfirmed(false);};
   const generation = useRef(0);
+  const showcaseSeeded=useRef(false);
+  useEffect(()=>{
+    if(!playground||!fairTradeShowcase||showcaseSeeded.current)return;
+    showcaseSeeded.current=true;
+    let alive=true;
+    // Owner-preview-only example: pump + an uncertain 12-month service.
+    // The source values come from the same sample StoreGateway as ordinary
+    // browsing, with no third-party source/Agreement/payment claims.
+    void Promise.all([client.store('KS90002'),client.store('KS90003')]).then(([pumpStore,careStore])=>{
+      if(!alive)return;
+      const pump=pumpStore.offers.find(o=>o.title==='Solar irrigation water pump');
+      const service=careStore.offers.find(o=>o.title==='Water pump maintenance · 12 months');
+      if(!pump||!service)return;
+      setCart([{
+        sellerKsNumber:pumpStore.canonicalKsNumber,sellerName:pumpStore.displayName,
+        offerId:pump.id,title:pump.title,kind:pump.kind as MiniStorePlanLine['kind'],
+        quantity:1,description:pump.description,mediaRefs:pump.mediaRefs,
+        priceMinor:pump.priceMinor,currency:pump.currency,
+        offerUpdatedAt:pump.updatedAt,availabilityState:pump.availabilityState,
+      },{
+        sellerKsNumber:careStore.canonicalKsNumber,sellerName:careStore.displayName,
+        offerId:service.id,title:service.title,kind:service.kind as MiniStorePlanLine['kind'],
+        quantity:1,description:service.description,mediaRefs:service.mediaRefs,
+        priceMinor:service.priceMinor,currency:service.currency,
+        offerUpdatedAt:service.updatedAt,availabilityState:service.availabilityState,
+      }]);
+      setFulfilmentChoice('collect');
+      setBasketAnswers({});
+      setProviderReplies({});
+      setProposalOpen(false);
+      setReviewed(false);
+      setView('plan');
+    }).catch(()=>{/* Isolated sample missing: do not invent an offer. */});
+    return()=>{alive=false};
+  },[client,playground,fairTradeShowcase]);
 
   useEffect(()=>{
     if(!playground)return;
@@ -436,6 +474,10 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
             total?'Items subtotal · Delivery and any fees not included':
             'Some offers require a seller quotation'}</small>
         </div>
+        {playground&&<MiniFairTradeExaminationPreview
+          key={fairTradeShowcase?'owner-fair-examination':'ordinary-basket-inspection'}
+          preflight={preflight} cart={cart} fulfilmentChoice={fulfilmentChoice}
+          buyerQuestions={basketQuestions.outstanding} showcase={fairTradeShowcase}/>}
         {!proposalOpen&&<div className="spm-shop-next" aria-live="polite">
           {nextBasketQuestion&&<>
             <small>ONE DETAIL TO CONFIRM</small>
