@@ -6,6 +6,7 @@ import { quotedRecordProof } from '../api/securepay/store-quotations';
 import type { StoreOfferFulfilmentResponse } from '../api/securepay/store/dto';
 import type { BusinessGateway, BusinessRepresentationDto } from '../api/securepay/business';
 import type {SubscriptionGateway} from '../api/securepay/subscription';
+import type {AuthorizationGateway} from '../api/securepay/authorization';
 import {MiniSellerAccountSettings} from './MiniSellerAccountSettings';
 import { createStoreController } from '../features/store/controller';
 import { availabilityOptionsFor } from '../features/store/view';
@@ -19,11 +20,13 @@ import { miniStoreOfferSnapshotFresh } from './miniStoreOfferFresh.mjs';
  * payment/Agreement version mutation. Business permission is checked by
  * the canonical BusinessGateway before loading and again before fulfilment.
  */
-export function MiniSellerStore({storeGateway,businessGateway,subscriptionGateway,quotationGateway,liveQuotes,prepare,onBack,onInvitations,onSellerDiscuss,onPrepareOffer}:{
+export function MiniSellerStore({storeGateway,businessGateway,subscriptionGateway,authorizationGateway,visibilityEnabled=false,quotationGateway,liveQuotes,prepare,onBack,onInvitations,onSellerDiscuss,onPrepareOffer}:{
   storeGateway:StoreGateway;
   quotationGateway:StoreQuotationGateway;
   liveQuotes:boolean;
-  businessGateway:Pick<BusinessGateway,'mine'|'representation'>;
+  businessGateway:Pick<BusinessGateway,'mine'|'representation'|'get'|'members'>;
+  authorizationGateway?:Pick<AuthorizationGateway,'authoritySummary'>;
+  visibilityEnabled?:boolean;
   subscriptionGateway?:Pick<SubscriptionGateway,'myStatus'>;
   prepare:()=>Promise<unknown>;
   onBack:()=>void;
@@ -338,6 +341,10 @@ export function MiniSellerStore({storeGateway,businessGateway,subscriptionGatewa
         businessName={storeBusiness?.displayName??null}
         businessGateway={businessGateway}
         subscriptionGateway={subscriptionGateway}
+        authorizationGateway={authorizationGateway}
+        storeGateway={visibilityEnabled?storeGateway:undefined}
+        offers={visibilityEnabled?opened.raw:undefined}
+        onRefreshOffers={visibilityEnabled?async()=>{await prepare();await controller.refreshMine();}:undefined}
         prepare={prepare}
         publicOffers={opened.raw.filter(o=>o.published).length}
         privateOffers={opened.raw.filter(o=>!o.published).length}
