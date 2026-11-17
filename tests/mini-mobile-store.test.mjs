@@ -54,6 +54,9 @@ test('Sample storefronts contain a browsable range of offers, not two warehouse 
   const api=m.createMiniTradingSampleStore(m.copyDemo());
   const hardware=await api.store('KS90001'),pumps=await api.store('KS90002');
   const care=await api.store('KS90003');
+  const discover=await api.search({kind:'PRODUCT',limit:10});
+  assert.ok(new Set(discover.map(x=>x.canonicalKsNumber)).size>=3,
+    'The first mobile discovery must reveal different merchants');
   assert.ok(hardware.offers.length>=6,'hardware needs several browse-worthy goods');
   assert.ok(pumps.offers.length>=5,'pump shop needs a meaningful grid');
   assert.ok(care.offers.filter(x=>x.kind==='SERVICE').length>=4,'service shop needs a meaningful grid');
