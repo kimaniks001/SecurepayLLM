@@ -15,6 +15,7 @@ import { MiniSampleMoneyJourney } from './MiniSampleMoneyJourney';
 import { MiniFairTradeExaminationPreview } from './MiniFairTradeExaminationPreview';
 import type {MiniSamplePurchase} from './miniSampleLivingPurchases.mjs';
 import {miniBasketQuestions,miniBasketAnswersForOffer} from './miniBasketQuestions.mjs';
+import {miniSampleAgreementTerms,miniSellerScopedProposal} from './miniTradeTerms.mjs';
 import {miniDeliveryContracts,miniDeliveryContractSummary,SAMPLE_DELIVERY_WINDOWS} from './miniDeliveryContract.mjs';
 import {readSampleBasketDraft,saveSampleBasketDraft} from './miniSampleBasketDraft.mjs';
 import {miniBasketQuietPreflight,miniSampleProviderReply,miniProviderReplyMatchesSource,
@@ -127,7 +128,10 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
     answers:basketAnswers,fulfilmentChoice,deliveryArea,sourceFresh:reviewed,
     providerReplies,
   });
-  const sampleSellers=[...new Set(cart.map(line=>line.sellerKsNumber))];
+  const preparedTerms=miniSampleAgreementTerms(cart,
+    miniBasketAnswersForOffer(cart,basketAnswers),preflight.providerRequests,providerReplies);
+  const sellerProposals=miniSellerScopedProposal(cart,preparedTerms);
+  const sampleSellers=sellerProposals.sellers.map(seller=>seller.sellerKsNumber);
   const allSampleAccepted=sampleRequests&&sampleSellers.length>0&&
     sampleSellers.every(id=>sampleResponses[id]==='accepted');
   const resetSample=()=>{
@@ -463,6 +467,7 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
       }))} amountMinor={sampleTotalMinor}
         delivery={fulfilmentChoice==='collect'?'I will collect':(deliveryArea||'Delivery to confirm')}
         deliveryFeeMinor={deliveryFeeMinor}
+        terms={preparedTerms}
         deliveryContracts={deliveryContracts.map(c=>({...c,customerApproved:deliveryContractConfirmed,providerAccepted:sampleRequests&&
           (c.providerKsNumber==='KS90004'||sampleResponses[c.providerKsNumber]==='accepted')}))}
         deliveryProvider={fulfilmentChoice==='explore_combined'?'KS90004':
