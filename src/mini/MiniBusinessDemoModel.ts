@@ -30,13 +30,18 @@ export const sampleBusiness:BusinessDemo = {
     {id:'o1',title:'Solar floodlight 200W',description:'Outdoor solar lighting. Collection or delivery by quotation.',price:8500,unit:'each',quantity:6,stockChecked:true,visible:true,delivery:true,version:1},
     {id:'o2',title:'Cement 50kg bag',description:'Cement for building and repairs; quantity and delivery to confirm.',price:750,unit:'bag',quantity:24,stockChecked:true,visible:true,delivery:true,version:1},
     {id:'o3',title:'Local delivery',description:'Transport of eligible hardware orders around Ruiru.',price:null,unit:'trip',quantity:0,stockChecked:false,visible:false,delivery:true,version:1},
+    {id:'o4',title:'Solar wall light',description:'Sample compact light for the veranda and gate.',price:3200,unit:'each',quantity:10,stockChecked:true,visible:true,delivery:true,version:1},
+    {id:'o5',title:'Outdoor paint 4L',description:'Sample exterior paint for home projects; colour to confirm.',price:2450,unit:'tin',quantity:12,stockChecked:true,visible:true,delivery:true,version:1},
+    {id:'o6',title:'PVC pipe 6 metres',description:'Sample plumbing pipe; correct diameter to be agreed.',price:1150,unit:'length',quantity:25,stockChecked:true,visible:true,delivery:true,version:1},
+    {id:'o7',title:'Fixings and fasteners kit',description:'Sample household repair kit.',price:450,unit:'set',quantity:40,stockChecked:true,visible:true,delivery:true,version:1},
+    {id:'o8',title:'Garden pathway light',description:'Sample warm outdoor lighting for walkways.',price:1800,unit:'each',quantity:18,stockChecked:true,visible:true,delivery:true,version:1},
   ],
   enquiries:[
     {id:'q1',offerId:'o1',buyer:'Sample buyer · Nyeri guesthouse',quantity:2,question:'Can you supply two lights and deliver them next week?',status:'new',created:'Example enquiry'},
   ],
   agreements:[], team:[],invoices:[],
   networks:{mini:true,estate:false,shortstays:false},directory:false,guideEnabled:true,
-  etimsWanted:false,planWanted:false,activity:[],sequence:2
+  etimsWanted:false,planWanted:false,activity:[],sequence:9
 };
 export const listed = (offer:Listing)=>offer.visible&&offer.stockChecked&&offer.quantity>0;
 export const amount = (value:number|null)=>value===null?'Price by quotation':'KSh '+value.toLocaleString('en-KE',{maximumFractionDigits:2});
