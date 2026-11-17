@@ -113,9 +113,9 @@ export function MiniExperience() {
   const [screen, setScreen] = useState<View>(() => {
     if (typeof window === 'undefined' || !isMiniExperiencePreviewHost(window.location.hostname)) return 'home';
     const qs = new URLSearchParams(window.location.search);
-    if (qs.get('miniTradeDemo') !== '1') return 'home';
+    if (!(qs.get('miniTradeDemo')==='1')) return 'home';
     if (qs.get('sellPreview') === '1') return 'sell-preview';
-    if (qs.get('fairTradePreview') === '1' || qs.get('agreementActionsPreview') === '1') return 'buy';
+    if (qs.get('fairTradePreview')==='1' || qs.get('agreementActionsPreview')==='1') return 'buy';
     return 'home';
   });
   const [buyPrefill, setBuyPrefill] = useState('');
