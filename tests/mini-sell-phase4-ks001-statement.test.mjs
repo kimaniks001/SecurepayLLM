@@ -36,3 +36,28 @@ test('invalid prepared offer is never sent',()=>{
   assert.deepEqual(miniSellerKs001Statement({prepared:{ok:false}}),
     {ok:false,reason:'OFFER_NOT_PREPARED'});
 });
+
+test('seller condition, specifications, included items and intended use reach KS001 separately',()=>{
+  const actual=miniSellerKs001Statement({prepared:{...prepared,offerTerms:{
+    ...prepared.offerTerms,
+    commercialDetails:{condition:'Pre-owned but functional',specifications:'Stainless frame',
+      included:'Two spare filters',purpose:'Farm irrigation'}
+  }}});
+  assert.equal(actual.ok,true);
+  for(const term of ['Pre-owned but functional','Stainless frame','Two spare filters','Farm irrigation'])
+    assert.ok(actual.statement.includes(term),'Dropped seller term: '+term);
+});
+test('local people, photos and documents are disclosed without copying private identities or files',()=>{
+  const actual=miniSellerKs001Statement({prepared:{...prepared,offerTerms:{
+    ...prepared.offerTerms,
+    proposedPeople:[{label:'Private Buyer',role:'buyer'}],
+    localPhotos:[{name:'photo-of-client-location.jpg'}],
+    localDocuments:[{name:'private-tax-reference.pdf'}]
+  }}});
+  assert.equal(actual.ok,true);
+  for(const term of ['1 people locally','1 local photos','1 local supporting documents',
+    'NOT been sent','NOT uploaded','NOT transferred'])
+    assert.ok(actual.statement.includes(term),term);
+  for(const secret of ['Private Buyer','photo-of-client-location.jpg','private-tax-reference.pdf'])
+    assert.equal(actual.statement.includes(secret),false);
+});
