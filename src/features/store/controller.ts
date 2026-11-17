@@ -179,6 +179,15 @@ export function createStoreController(gateway: Gateway, trustedMediaOrigin: stri
       };
       try {
         const reviewedEdit = storePublishedTextEditReview(existing, state.draft);
+        const originallyTextOnly = existing?.published === true &&
+          existing.availabilityState === 'NEEDS_CONFIRMATION' &&
+          existing.quantityAvailable === null &&
+          Array.isArray(existing.mediaRefs) && existing.mediaRefs.length === 0;
+        if (originallyTextOnly && !reviewedEdit.ok) {
+          update({ draftBusy: false, draftError:
+            'This published text-only offer needs another review for stock, photographs, availability or a changed offer type. The public listing was not altered.' });
+          return;
+        }
         if (existing?.published && reviewedEdit.ok) {
           // Only safe public text updates use the version-fenced endpoint.
           // Existing media/quantity-bearing listings keep the older path
