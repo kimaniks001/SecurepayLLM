@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft, ArrowRight, Bookmark, BookOpenText, CalendarDays, Camera, CheckCircle2,
-  ChevronRight, FileText, MapPin, MessageCircle, Package, Send, ShieldCheck,
+  ChevronRight, FileText, MapPin, MessageCircle, Send, ShieldCheck,
   Store, UserRoundPlus, X
 } from 'lucide-react';
 import { buildTimingProposal, type TimingDraft } from '../features/living-workspace/DateTimeTool';
@@ -88,7 +88,6 @@ export function MiniSellSomething({language,onBack,seed=''}:{
   const [rightToOffer,setRightToOffer]=useState(false);
   const [rightType,setRightType]=useState('Owner');
   const [stockStatement,setStockStatement]=useState('');
-  const [note,setNote]=useState('');
   const [error,setError]=useState('');
   const [result,setResult]=useState<Result>(null);
   const [ksHelp,setKsHelp]=useState(false);
