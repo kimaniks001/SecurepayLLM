@@ -81,7 +81,7 @@ test('The buyer never clicks seller acceptance; the sample checks staged rail an
  assert.match(money,/M-PESA/);
  assert.match(money,/Bank card/);
  assert.match(money,/Bank transfer/);
- assert.match(money,/Simulate provider confirmation/);
+ assert.match(money,/fictional payment confirmation is arriving automatically/i);
  assert.match(money,/onConfirmed\(purchase\)/);
  assert.match(app,/recordMiniSamplePurchase\(window\.sessionStorage,purchase\)/);
  assert.match(app,/MiniSampleAgreements/);
