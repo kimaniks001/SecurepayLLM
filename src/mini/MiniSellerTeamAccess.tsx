@@ -137,7 +137,7 @@ export function MiniSellerTeamAccess({
         </div>}
       </div>}
     </>}
-    {inviteNotice&&<p className="spm-sell-hint" role="status">{inviteNotice}</p>
+    {inviteNotice&&<p className="spm-sell-hint" role="status">{inviteNotice}</p>}
     <small>Store editing or a pending invitation never permits a helper to sign on behalf of the Business, accept on another person's behalf, or authorize Money.</small>
   </div>;
 }
