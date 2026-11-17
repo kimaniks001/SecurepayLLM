@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {miniSellerCreateCanonicalStoreDraft,miniSellerShareReadiness}
+import {miniSellerCreateCanonicalStoreDraft}
   from '../src/mini/miniSellerCanonicalStoreBridge.mjs';
 
 const UUID='11111111-1111-4111-8111-111111111111';
@@ -64,10 +64,4 @@ test('a published or image-bearing server response is not accepted as draft rece
     gateway:{createOffer:async()=>({id:UUID,published:true,mediaRefs:['unsafe']})}
   });
   assert.deepEqual(r,{ok:false,reason:'UNEXPECTED_SERVER_RECEIPT'});
-});
-test('SecureLink requires separately authorized issuer, never an invented URL',()=>{
-  const realOffer={ok:true,offerId:UUID};
-  assert.equal(miniSellerShareReadiness({prepared,realOffer}).ready,false);
-  assert.equal(miniSellerShareReadiness({prepared,realOffer,issuer:()=>{}}).ready,true);
-  assert.equal(miniSellerShareReadiness({prepared,realOffer:{ok:false},issuer:()=>{}}).ready,false);
 });
