@@ -10,6 +10,8 @@ import { miniBasketReadiness } from './miniBasketReadiness.mjs';
 import { miniTradeSampleSearches } from './miniTradePlayground';
 import { MiniShopDiscovery, MiniShopGallery } from './MiniStoreGallery';
 import { MiniOfferPhoto } from './MiniStoreVisuals';
+import { MiniSampleMoneyJourney } from './MiniSampleMoneyJourney';
+import type {MiniSamplePurchase} from './miniSampleLivingPurchases.mjs';
 
 /**
  * Public Store read-only transport reuses the existing, server-allowlisted
@@ -43,7 +45,7 @@ export type MiniBasketFulfilment = 'collect' | 'ask_sellers' | 'explore_combined
 type View = 'search' | 'store' | 'plan';
 
 /** Never infer seller acceptance or stock reservation from a public Store listing. */
-export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway, onDiscuss, playground = false }: {
+export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway, onDiscuss, playground = false, onSampleFunded, onViewSampleAgreements }: {
   language:MiniLanguage; onBack:()=>void; initialQuery?:string;
   /** Existing public StoreGateway, optionally on the same isolated API as KS001. */
   storeGateway?:Pick<StoreGateway,'search'|'store'|'offer'>;
@@ -51,6 +53,8 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
   onDiscuss?:(lines:MiniStorePlanLine[], fulfilment:MiniBasketFulfilment | null)=>void;
   /** Isolated preview host only; never live offers or financial authority. */
   playground?:boolean;
+  onSampleFunded?:(purchase:MiniSamplePurchase)=>void;
+  onViewSampleAgreements?:()=>void;
 }) {
   const client=storeGateway??stores;
   const sw = language === 'sw';
@@ -84,11 +88,14 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
   const [freshnessError,setFreshnessError] = useState('');
   const [sampleRequests,setSampleRequests] = useState(false);
   const [sampleResponses,setSampleResponses] = useState<Record<string,'accepted'|'declined'>>({});
-  const [samplePaid,setSamplePaid] = useState(false);
+  const [moneyOpen,setMoneyOpen] = useState(false);
+  const [deliveryArea,setDeliveryArea] = useState('');
+  const [deliveryQuoteSelected,setDeliveryQuoteSelected] = useState(false);
+  const [quoteAccepted,setQuoteAccepted] = useState<Record<string,number>>({});
   const sampleSellers=[...new Set(cart.map(line=>line.sellerKsNumber))];
   const allSampleAccepted=sampleRequests&&sampleSellers.length>0&&
     sampleSellers.every(id=>sampleResponses[id]==='accepted');
-  const resetSample=()=>{setSampleRequests(false);setSampleResponses({});setSamplePaid(false);};
+  const resetSample=()=>{setSampleRequests(false);setSampleResponses({});setMoneyOpen(false);};
   const generation = useRef(0);
 
   useEffect(()=>{
@@ -263,13 +270,26 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
   const itemCount=cart.reduce((count,line)=>count+line.quantity,0);
   const cartQuantity=(offerId:string)=>cart.find(line=>line.offerId===offerId)?.quantity||0;
   const moneyBlocked=readiness.readyToPay===false;
+  const deliveryNeedsQuote=readiness.goods&&fulfilmentChoice!=='collect';
+  const deliveryComplete=!deliveryNeedsQuote||(playground&&!!deliveryArea&&deliveryQuoteSelected);
+  const deliveryFeeMinor=deliveryQuoteSelected&&playground?
+    fulfilmentChoice==='explore_combined'?45000:
+    fulfilmentChoice==='ask_sellers'?25000*sampleSellers.length:0:0;
+  const unpriced=cart.filter(line=>line.priceMinor===null);
+  const allPricesResolved=unpriced.every(line=>quoteAccepted[line.sellerKsNumber+':'+line.offerId]>0);
+  const quotedMinor=cart.reduce((sum,line)=>sum+
+    (line.priceMinor??quoteAccepted[line.sellerKsNumber+':'+line.offerId]??0)*line.quantity,0);
+  const sampleTotalMinor=quotedMinor+deliveryFeeMinor;
+  const confirmedSellers=[...sampleSellers,
+    ...(fulfilmentChoice==='explore_combined'&&deliveryQuoteSelected?['KS90004']:[])];
   const sampleMoneyReady=playground&&reviewed&&!checking&&!freshnessError&&
     readiness.readyToReview&&sampleRequests&&allSampleAccepted&&
-    !readiness.amountNeedsQuote&&(!readiness.goods||fulfilmentChoice==='collect');
+    deliveryComplete&&allPricesResolved&&Number.isSafeInteger(sampleTotalMinor);
   // A displayed total is illustrative: it is not a seller quote or provider amount.
   const total=readiness.totalMinor!==null&&readiness.currency==='KES'
     ? money(readiness.totalMinor,'KES'):null;
-  const ready=readiness.readyToReview&&!checking&&!freshnessError;
+  const ready=readiness.readyToReview&&!checking&&!freshnessError&&
+    (!playground||deliveryComplete)&&(!playground||allPricesResolved);
   const shopControls=<form className="spm-shop-search-form" onSubmit={e=>{e.preventDefault();void find();}}>
       <label className="spm-label" htmlFor="mini-store-query">What are you looking for?</label>
       <div className="spm-shop-searchbar">
@@ -306,7 +326,18 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
       store={chosenStore} playground={playground}
       cartCount={itemCount} cartQty={cartQuantity} onAdd={add}
       onBack={()=>setView('search')} onBasket={()=>setView('plan')}/>}
-    {view==='plan'&&<>
+    {view==='plan'&&moneyOpen&&playground&&sampleMoneyReady&&
+      <MiniSampleMoneyJourney lines={cart.map(line=>({
+        ...line,priceMinor:line.priceMinor??quoteAccepted[line.sellerKsNumber+':'+line.offerId]??null,
+      }))} amountMinor={sampleTotalMinor}
+        delivery={fulfilmentChoice==='collect'?'I will collect':(deliveryArea||'Delivery to confirm')}
+        deliveryFeeMinor={deliveryFeeMinor}
+        deliveryProvider={fulfilmentChoice==='explore_combined'?'KS90004':
+          fulfilmentChoice==='ask_sellers'?'SELLERS':null}
+        onBack={()=>setMoneyOpen(false)}
+        onConfirmed={purchase=>onSampleFunded?.(purchase)}
+        onViewAgreements={()=>onViewSampleAgreements?.()}/>}
+    {view==='plan'&&!moneyOpen&&<>
       <div className="spm-shop-basket-top">
         <button type="button" className="spm-shop-back" aria-label="Continue shopping"
           onClick={()=>setView(chosenStore?'store':'search')}><ArrowLeft size={18}/></button>
