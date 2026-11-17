@@ -25,7 +25,7 @@ export function MiniSellerStore({storeGateway,businessGateway,subscriptionGatewa
   storeGateway:StoreGateway;
   quotationGateway:StoreQuotationGateway;
   liveQuotes:boolean;
-  businessGateway:Pick<BusinessGateway,'mine'|'representation'|'get'|'members'>;
+  businessGateway:Pick<BusinessGateway,'mine'|'representation'|'get'|'members'|'inviteMember'>;
   authorizationGateway?:Pick<AuthorizationGateway,'authoritySummary'>;
   visibilityEnabled?:boolean;
   subscriptionGateway?:Pick<SubscriptionGateway,'myStatus'|'selectPlan'>;
