@@ -1,12 +1,21 @@
 import {useEffect,useState} from 'react';
 import {CreditCard,ShieldCheck,Store,UsersRound} from 'lucide-react';
 import type {BusinessGateway} from '../api/securepay/business';
+import type {StoreGateway} from '../api/securepay/store';
+import type {StoreOfferResponse} from '../api/securepay/store/dto';
+import type {AuthorizationGateway} from '../api/securepay/authorization';
+import {MiniSellerTeamAccess} from './MiniSellerTeamAccess';
+import {MiniSellerVisibilityControls} from './MiniSellerVisibilityControls';
 import type {SubscriptionGateway,SubscriptionStatusResponse} from '../api/securepay/subscription';
 
 type Props={
   businessKsNumber:string|null;
   businessName:string|null;
-  businessGateway:Pick<BusinessGateway,'representation'>;
+  businessGateway:Pick<BusinessGateway,'representation'|'get'|'members'>;
+  authorizationGateway?:Pick<AuthorizationGateway,'authoritySummary'>;
+  storeGateway?:Pick<StoreGateway,'myOffers'|'businessOffers'|'makeMyOfferPrivate'|'makeBusinessOfferPrivate'>;
+  offers?:StoreOfferResponse[];
+  onRefreshOffers?:()=>Promise<void>;
   subscriptionGateway?:Pick<SubscriptionGateway,'myStatus'>;
   prepare:()=>Promise<unknown>;
   publicOffers:number;
@@ -22,7 +31,8 @@ type Props={
  * Business Agreement authority, initiates Money or publishes stock.
  */
 export function MiniSellerAccountSettings({
-  businessKsNumber,businessName,businessGateway,subscriptionGateway,prepare,
+  businessKsNumber,businessName,businessGateway,authorizationGateway,storeGateway,
+  offers,onRefreshOffers,subscriptionGateway,prepare,
   publicOffers,privateOffers,unconfirmedOffers
 }:Props){
   const [representation,setRepresentation]=useState<'personal'|'checking'|'verified'|'unavailable'>(
@@ -80,6 +90,24 @@ export function MiniSellerAccountSettings({
       {representation==='unavailable'&&<p role="alert">Business representation could not be verified. Do not rely on this Store's editing permissions until authority is rechecked.</p>}
       {businessKsNumber&&<small>Managing a Business Store does not authorize you to accept, sign or fund an Agreement in the Business's name. Business Agreements require their own verified authority.</small>}
     </div>
+    {(representation==='personal'||representation==='verified')&&storeGateway&&
+      offers&&onRefreshOffers&&<MiniSellerVisibilityControls
+        key={businessKsNumber??'personal'}
+        offers={offers}
+        businessKsNumber={businessKsNumber}
+        storeGateway={storeGateway}
+        businessGateway={businessGateway}
+        prepare={prepare}
+        onRefresh={onRefreshOffers}
+      />}
+    {representation==='verified'&&businessKsNumber&&authorizationGateway&&
+      <MiniSellerTeamAccess
+        businessKsNumber={businessKsNumber}
+        verifiedRepresentation
+        businessGateway={businessGateway}
+        authorizationGateway={authorizationGateway}
+        prepare={prepare}
+      />}
     <div className="spm-sell-review-card">
       <strong><CreditCard size={15}/> Account membership</strong>
       {memberState==='checking'&&<p role="status">Checking your account plan…</p>}
@@ -90,6 +118,6 @@ export function MiniSellerAccountSettings({
       </>}
       <small>This is the signed-in account's subscription status, not proof of Business-specific billing or permission to issue payments. Plan changes require a separate explicit action.</small>
     </div>
-    <p className="spm-sell-hint">Store visibility, team invitations, community directory permissions and eTIMS connections will remain separate, voluntary, and server-authorized.</p>
+    <p className="spm-sell-hint">Community-directory opt-in, team invitations, public profiles and eTIMS connections remain separate, voluntary and server-authorized.</p>
   </section>;
 }
