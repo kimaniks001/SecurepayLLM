@@ -48,8 +48,8 @@ export function MiniSampleAgreements({purchases,focusId,onBack,onShop}:{
          <span>Example funded amount</span><strong>{fmt(selected.amountMinor)}</strong>
        </div>
        <div className="spm-sample-agreement-facts">
-         <div><Landmark size={15}/> Rail: {selected.rail==='MPESA'?'M-PESA':
-           selected.rail==='CARD'?'Bank card':'Bank transfer'}</div>
+         <div><Landmark size={15}/> Rail: {selected.rail==='MPESA_STK'?'M-PESA':
+           selected.rail==='PESALINK'?'PesaLink':'Choice Bank'}</div>
          <div><Clock3 size={15}/> Payment event: {new Date(selected.fundedAt).toLocaleString('en-KE')}</div>
          <div>Receiving: {selected.delivery}</div>
          <small>Example reference: {selected.id}</small>
