@@ -12,7 +12,7 @@ export function miniChangedOffers(lines,responses){
     if(detail?.status==='ACTIVE'&&miniStoreOfferSnapshotFresh([line],[detail]))return [];
     const offer=detail?.canonicalKsNumber===line.sellerKsNumber&&
       detail?.offer?.id===line.offerId?detail.offer:null;
-    const valid=!!(offer&&sellable.has(offer.availabilityState)&&
+    const valid=!!(detail?.status==='ACTIVE'&&offer&&sellable.has(offer.availabilityState)&&
       Number.isSafeInteger(offer.priceMinor??0)&&
       offer.currency===line.currency);
     const enough=valid&&(offer.quantityAvailable===null||
