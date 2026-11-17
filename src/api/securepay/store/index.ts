@@ -1,6 +1,6 @@
 import { segment, type HttpClient } from '../http';
 import type {
-  BusinessStoreOpportunityResponse, BusinessStoreProfileResponse, PublicOfferDetailView, PublicSearchResultView, PublicStoreView, StoreOfferFulfilmentResponse, StoreOfferResponse,
+  BusinessStoreOpportunityResponse, BusinessStoreProfileResponse, PublicOfferDetailView, PublicSearchResultView, PublicStoreView, StoreOfferFulfilmentResponse, StoreOfferResponse, RegisterStoreImageUseRequest, StoreImageUseResponse,
   StoreProfileResponse, StoreSearchParams, UpsertStoreOfferFulfilmentRequest, UpdateStoreProfileRequest, UpsertStoreOfferRequest,
 } from './dto';
 
@@ -13,6 +13,9 @@ export function createStoreGateway(http: HttpClient) {
   const offer = (offerId: string) => `/api/v1/store/me/offers/${segment(offerId)}`;
   const businessStore = (businessKsNumber: string) => `/api/v1/business/${segment(businessKsNumber)}/store`;
   const businessOffer = (businessKsNumber: string, offerId: string) => `${businessStore(businessKsNumber)}/offers/${segment(offerId)}`;
+  // Private pending image-use routes only; not an Identimark or published Store mediaRef.
+  const personalImageUses = (offerId: string) => `${offer(offerId)}/image-uses`;
+  const businessImageUses = (businessKsNumber: string, offerId: string) => `${businessOffer(businessKsNumber, offerId)}/image-uses`;
   const search = (params: StoreSearchParams) => {
     if (params.limit !== undefined && (!Number.isInteger(params.limit) || params.limit < 1 || params.limit > 10)) {
       throw new Error('Store search limit must be an integer between 1 and 10');
@@ -39,6 +42,21 @@ export function createStoreGateway(http: HttpClient) {
     createOffer: (body: UpsertStoreOfferRequest) => http.request<StoreOfferResponse>('/api/v1/store/me/offers', { method: 'POST', body, auth: 'required' }),
     updateOffer: (offerId: string, body: UpsertStoreOfferRequest) => http.request<StoreOfferResponse>(offer(offerId), { method: 'PUT', body, auth: 'required' }),
     confirmAvailability: (offerId: string) => http.request<StoreOfferResponse>(`${offer(offerId)}/availability-confirmation`, { method: 'POST', auth: 'required' }),
+    // Phase 3 candidate API: caller must first have a real signed-in session,
+    // a saved source conversation, and the currently-authorized Store offer revision.
+    // These methods are deliberately NOT invoked by Mini's owner demo.
+    registerMyImageUse: (offerId: string, body: RegisterStoreImageUseRequest) =>
+      http.request<StoreImageUseResponse>(personalImageUses(offerId), { method: 'POST', body, auth: 'required' }),
+    myImageUses: (offerId: string) =>
+      http.request<StoreImageUseResponse[]>(personalImageUses(offerId), { auth: 'required' }),
+    revokeMyImageUse: (offerId: string, imageUseId: string) =>
+      http.request<StoreImageUseResponse>(`${personalImageUses(offerId)}/${segment(imageUseId)}/revoke`, { method: 'POST', auth: 'required' }),
+    registerBusinessImageUse: (businessKsNumber: string, offerId: string, body: RegisterStoreImageUseRequest) =>
+      http.request<StoreImageUseResponse>(businessImageUses(businessKsNumber, offerId), { method: 'POST', body, auth: 'required' }),
+    businessImageUses: (businessKsNumber: string, offerId: string) =>
+      http.request<StoreImageUseResponse[]>(businessImageUses(businessKsNumber, offerId), { auth: 'required' }),
+    revokeBusinessImageUse: (businessKsNumber: string, offerId: string, imageUseId: string) =>
+      http.request<StoreImageUseResponse>(`${businessImageUses(businessKsNumber, offerId)}/${segment(imageUseId)}/revoke`, { method: 'POST', auth: 'required' }),
     store: (canonicalKsNumber: string) => http.request<PublicStoreView>(`/api/v1/stores/${segment(canonicalKsNumber)}`, { auth: 'none' }),
     offer: (canonicalKsNumber: string, offerId: string) => http.request<PublicOfferDetailView>(`/api/v1/stores/${segment(canonicalKsNumber)}/offers/${segment(offerId)}`, { auth: 'none' }),
     search: (params: StoreSearchParams) => http.request<PublicSearchResultView[]>(search(params), { auth: 'none' }),
