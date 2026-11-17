@@ -7,10 +7,13 @@ import {
 import { buildTimingProposal, type TimingDraft } from '../features/living-workspace/DateTimeTool';
 import type { MiniLanguage } from './miniModel';
 import {miniSellerPreparedOffer,miniSellerSafeDraft,miniSellerRestoreDraft} from './miniSellerPreparedOffer.mjs';
+import {miniSellerTrustExamination} from './miniSellerTrustExamination.mjs';
+import {miniSellerLocalExactImageDigest} from './miniSellerLocalExactImageDigest.mjs';
+import {miniSellerReviewAnswerPills} from './miniSellerReviewAnswerPills.mjs';
 
 type Shelf = 'describe'|'photos'|'documents'|'places'|'timing'|'people'|null;
 type PhotoSource = 'own'|'supplier'|'permission'|'unknown';
-type Picture = { name:string; preview:string; source:PhotoSource; supplierPermission?:boolean };
+type Picture = { name:string; preview:string; source:PhotoSource; supplierPermission?:boolean; localDigest?:string };
 type Support = { name:string; purpose:string };
 type Person = { name:string; role:string };
 type Result = 'share'|'store'|'save'|null;
@@ -132,8 +135,18 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
   const currentQuestion:ReviewIssue=suspicious?'safety':sensitive?'regulated':
     pendingPhotoIndex>=0?(pictures[pendingPhotoIndex].source==='supplier'?'photo-permission':'photo'):
     !rightToOffer?'authority':!stockStatement.trim()?'availability':null;
+  const trust=miniSellerTrustExamination({
+    title,description,descriptionReviewed,photos:pictures,documents,rightToOffer,rightType,
+    stockStatement,suspicious,sensitive
+  });
+  // Local example ONLY. Real reviewer questions come from authenticated Store
+  // APIs; this browser draft has no source IDs, evidence uploads or decisions.
+  const exampleReviewerQuestion=pictures.length?
+    miniSellerReviewAnswerPills('MORE_INFORMATION_REQUIRED',
+      pictures[0]?.source==='supplier'?'SUPPLIER_PERMISSION':'PHOTO_SOURCE'):null;
+  // A local, fictional offer-review path only. Trust.canPublish is ALWAYS false.
   const canOffer=prepared.ok&&!invalidPrice&&!suspicious&&!sensitive&&
-    rightToOffer&&!imageNeedsSource&&!!stockStatement.trim();
+    rightToOffer&&!imageNeedsSource&&!!stockStatement.trim()&&trust.localReady;
   const photoSourceName=(source:PhotoSource)=>({
     own:'Photo I took',supplier:'Supplier image (permission declared)',
     permission:'Photo used with permission',unknown:'Source not stated'
@@ -183,17 +196,21 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
     !rightToOffer?'right to sell':null,
     !stockStatement.trim()?'availability':null
   ].filter((value):value is string=>value!==null);
-  const choosePhoto=(file?:File)=>{
+  const choosePhoto=async(file?:File)=>{
     if(!file)return;
     setError('');
     if(!['image/jpeg','image/png'].includes(file.type)||file.size>5*1024*1024||file.size===0) {
       setError('Choose a JPG or PNG photo up to 5 MB. Nothing was uploaded.');return;
     }
     if(pictures.length>=4){setError('You can add up to four photographs in this first preview.');return;}
+    const localDigest=await miniSellerLocalExactImageDigest(file);
+    if(localDigest&&pictures.some(p=>p.localDigest===localDigest)){
+      setError('This exact photo is already in your offer. You can keep the existing one.');return;
+    }
     const reader=new FileReader();
     reader.onload=()=>{
       if(typeof reader.result!=='string')return;
-      setPictures(current=>[...current,{name:file.name.slice(0,100),preview:reader.result as string,source:'unknown' as PhotoSource,supplierPermission:false}].slice(0,4));
+      setPictures(current=>[...current,{name:file.name.slice(0,100),preview:reader.result as string,source:'unknown' as PhotoSource,supplierPermission:false,localDigest:localDigest||undefined}].slice(0,4));
       setPhotoCount(n=>n+1);
     };
     reader.onerror=()=>setError('The photo could not be opened. Nothing was uploaded.');
@@ -367,7 +384,7 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
         </>}
         {shelf==='photos'&&<>
           <p className="spm-sell-hint">Show the actual product or use a supplier image with permission. An Identimark records SecurePay usage, not ownership.</p>
-          <input ref={photoRef} className="spm-file-hidden" type="file" accept="image/jpeg,image/png" onChange={e=>{choosePhoto(e.target.files?.[0]);e.target.value='';}}/>
+          <input ref={photoRef} className="spm-file-hidden" type="file" accept="image/jpeg,image/png" onChange={e=>{void choosePhoto(e.target.files?.[0]);e.target.value='';}}/>
           <button type="button" className="spm-secondary" onClick={()=>photoRef.current?.click()}><Camera size={16}/>Choose photo</button>
           {pictures.map((p,i)=><div className="spm-sell-photo-record" key={i}>
             <div className="spm-sell-photo-wrap"><img src={p.preview} alt={'Seller-selected '+p.name}/>
@@ -526,7 +543,7 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
       <p className="spm-lead">Make sure it is clear and yours to offer. The other person has not accepted anything yet.</p>
       <div className="spm-sell-review-card">
         {pictures[0]&&<div className="spm-sell-cover"><img src={pictures[0].preview} alt="Seller-provided offer"/>
-          <span>SecurePay Identimark · preview only</span></div>}
+          <span>Local photo · image registration pending</span></div>}
         <strong className="spm-sell-review-title">{title}</strong>
         <strong className="spm-sell-review-price">{prepared.ok?prepared.summary.moneyText:priceType==='fixed'?readableAmount(price):'Price to agree'}</strong>
         {quantity&&<small>Proposed quantity: {quantity} {unit} · not confirmed stock</small>}
@@ -652,7 +669,47 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
           <button type="button" onClick={()=>setStockStatement('')}><Pencil size={13}/>Change availability</button>
           {pictures.length>0&&<button type="button" onClick={()=>openReviewTool('photos')}><Pencil size={13}/>Change photo details</button>}
         </div>}
-        <p className="spm-sell-disclosure">Image fingerprinting, legality, licensing, ownership, document validity and inventory checks require server services that are not connected in this preview.</p>
+        <p className="spm-sell-disclosure">Independent checks are still pending. A seller's answer does not verify lawfulness, identity, stock, copyright or a document.</p>
+        <details data-mini-sell-trust-examination className="spm-sell-phase3-details">
+          <summary>What did Mini look at? <ChevronRight size={15}/></summary>
+          <div className="spm-sell-phase3-checks">
+            {trust.checks.map(item=><div className="spm-sell-phase3-check" key={item.key}>
+              <strong>{item.title}</strong>
+              <span>{item.status==='NEEDS_SELLER_ANSWER'?'Answer needed':
+                item.status==='NEEDS_SPECIALIST_REVIEW'?'Specialist review needed':
+                item.status==='SELLER_DECLARED'?'Seller statement':
+                item.status==='PERMISSION_DECLARED_UNVERIFIED'?'Permission stated · unverified':
+                item.status==='SELLER_REVIEWED'?'Seller reviewed':
+                item.status==='NOT_APPLICABLE'?'Not needed':
+                item.status==='LOCAL_REFERENCE_ONLY'?'Not uploaded':
+                item.status==='OPTIONAL_IMPROVEMENT'?'Optional':'Not independently checked'}</span>
+              <small>{item.detail}</small>
+            </div>)}
+            <p>No real Identimark has been registered. The backend source-ingestion service supports server-checked file signatures and an exact SHA-256 digest, but is not yet connected to this seller review or authorized Store image use.</p>
+          </div>
+        </details>
+        {exampleReviewerQuestion&&<details className="spm-sell-phase3-details" data-mini-seller-review-example>
+          <summary>If we need one more detail <ChevronRight size={15}/></summary>
+          <div className="spm-sell-clarification-help">
+            <small>Example question only — no reviewer has examined this draft.</small>
+            <strong>{exampleReviewerQuestion.question}</strong>
+            <p>{exampleReviewerQuestion.detail}</p>
+            <div className="spm-sell-pill-row">
+              {exampleReviewerQuestion.pills.map(pill=><AnswerPill key={pill.id} onClick={()=>{
+                if(pill.id==='documents'){setDocPurpose('Photo use permission');openReviewTool('documents');}
+                else if(pill.id==='photos')openReviewTool('photos');
+                else if(pill.id==='describe')openReviewTool('describe');
+                else if(pill.id==='submitted'){
+                  openReviewTool('documents');
+                  setError('A real Store must receive and check new evidence before requesting another review. This preview has not uploaded any document.');
+                }else if(pill.id==='save')finish('save');
+                else if(pill.id==='remove')setPictures(previous=>previous.slice(1));
+                else if(pill.id==='help')setKsHelp(true);
+              }}>{pill.label}</AnswerPill>)}
+            </div>
+            <p>No real reviewer response, approval, Identimark or public Store image is created by these example answers.</p>
+          </div>
+        </details>}
       </div>
       {currentQuestion===null&&<div className="spm-sell-review-enrich" data-sell-additions>
         <strong>Anything else that would help the buyer?</strong>

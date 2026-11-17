@@ -1989,3 +1989,61 @@ The 16 October 2026 frontend simplification work is **draft/stacked**, not a cla
 | Phase 3 authenticated browser six-journey certification | HUMAN_DOCTRINE_BLOCKER | Preview proxy forwards to production SecurePay API; isolated staging and human-operated/authorized accounts needed before actual E2E evidence or screenshots can justify production readiness. |
 
 Details and regression log: `docs/PHASE3_SIMPLICITY_INTELLIGENT_TOOLS_LEDGER_20261016.md`.
+
+
+## 2026-11-17 — Mini Sell Something Phase 3 seller-side Trust examination
+
+| Experience | Classification | Evidence / constraint |
+| --- | --- | --- |
+| Seller-side quiet Fair Trade examination, contextual answer pills | FRONTEND_COMPOSITION_ONLY | `miniSellerTrustExamination.mjs` checks only seller-entered statements for missing source declaration, photo reuse permission, authority and availability. It does not grant legal, identity or Store clearance. Full detail is hidden in a review disclosure. |
+| Local photo preview and image-source statements | DEMO_ONLY_REMOVE_BEFORE_PRODUCTION | No server upload/image-use registration/Identimark. Private photos remain local; a filename or image badge is not a genuine media reference or proof of rights/stock. |
+| Exact SHA-256 and valid image signature at conversation-scoped KS001 ingestion | REAL_API_AVAILABLE_NOT_WIRED | Existing backend `AgentSourceIngestionService` validates and digests an authenticated conversation's photo source. Mini Sell owner demo is not connected to authenticated source ingestion or the Store offer/version owner. |
+| Proposed backend SellerImageIntegrityPolicy and pending image-use registry | BACKEND_PR_PENDING | SecurePayAPI draft PR #475 now includes a pure integrity policy plus a private, authenticated pending-only image-use registration/revocation service and Flyway migration. This binds only an actor-owned saved conversation PHOTO to an exact unpublished personal or represented Business Store offer revision; no approved Identimark, permission validation or publication authorization is created. API Java/JDBC/authorization/migration certification pending. |
+| Actual per-image Identimark, image-use audit, duplicate detection, rights/approval and published Store checks | HUMAN_DOCTRINE_BLOCKER | Requires explicit actor/Business/Store rights, source+offer version binding, audited persistence, review/appeals, image-use revocation, privacy and separate legal eligibility rules. No honest public mark or ownership claim can be issued without those services. |
+| Agreement/Store/Money authority | UNCHANGED | Seller owner-preview share/store buttons are illustrative only. No canonical Store write, SecureLink, Agreement or financial command. |
+
+This Phase 3 UI/Policy slice is **not completed backend certification**, and no production rollout is authorized by passing frontend tests.
+
+
+- Phase 3 exact same-file safeguard: FRONTEND_COMPOSITION_ONLY — local Web Crypto SHA-256 can prevent attaching identical bytes twice within the owner preview, with no upload, persistent fingerprint, image provenance, ownership assertion or published media reference. It does not replace SecurePayAPI's scoped source-digest/rights/Store verification.
+
+### 2026-11-17 Phase 3 — private Store image-use transport adapter
+
+- **BACKEND_PR_PENDING:** SecurePayAPI PR #475 proposes authenticated personal and represented Business Store pending-only image-use endpoints, a revision-bound registration table, revocation and event history. No backend deployment or certified tests have been observed.
+- **REAL_API_AVAILABLE_NOT_WIRED (pending backend branch only):** The typed `createStoreGateway` now contains `registerMyImageUse`, `myImageUses`, `revokeMyImageUse` and Business equivalents. These methods require authenticated HTTP and use exact Store IDs and server-returned offer `updatedAt`; they are not called from Mini's owner preview and cannot issue a public mark.
+- **HUMAN_DOCTRINE_BLOCKER:** Existing `StoreService` can still publish arbitrary client-supplied `mediaRefs` without consulting image-use registration. Any production UI that displays a verified image mark or trusts registered images as publishable would be misleading until that legacy publishing route is safely migrated, governing rules approved and server integration certified.
+
+
+### 2026-11-17 Phase 3 continuation — public Store image-bypass closure (SecurePayAPI draft PR #475)
+
+- **BACKEND_PR_PENDING, NOT DEPLOYED:** Personal/Business Store offer controllers and central `StoreService` on companion API branch now reject `published=true` plus nonblank, unverified `mediaRefs`. Private draft references and text-only Store listings remain available.
+- **LEGACY PUBLIC IMAGE SAFETY:** Public Store/search/shared-offer projections on the API branch redact all legacy unreviewed image refs, while retaining seller-private records. A DB trigger also prevents new/changed published refs without wiping legacy data. Before merging, audit impact on existing Store photographs, product cards and authorized owner workflows.
+- **NOT AN IDENTIMARK:** Pending source-to-offer registrations still have no copyright, licence, stock or server-approved media-use authority; no public image can be claimed verified. The approved-photo publication path is still missing.
+- **CERTIFICATION BLOCKER:** The API branch needs Java 21/Gradle, PostgreSQL/Flyway, concurrency, security, cross-client visual and 20-person acceptance gates. This Mini preview deliberately does not call the pending image endpoints, and its prior 197 focused frontend passes are not API evidence.
+- Runbook: `SecurePayAPI/docs/operations/MINI_SELL_PHASE3_PUBLIC_MEDIA_BYPASS_CLOSURE_20261117.md`.
+
+
+### 2026-11-17 — Private independent Store image review (backend PR #475, not deployed)
+
+- **BACKEND_PR_PENDING:** A dedicated `STORE_IMAGE_USE` capability checks an independently authorized, ACTIVE reviewer. The scoped private review queue and decisions can request further evidence, escalate or reject; the actor cannot review their own Store, submission or any Business they actively represent.
+- **STORE OWNER READ CONTRACT:** Private `StoreImageUseStatus` also supports `MORE_INFORMATION_REQUIRED`, `ESCALATED` and `REJECTED` alongside PENDING/STALE/REVOKED. No reviewed image is converted into an approved public media reference, and no reviewer notes, source IDs, digests or image bytes are exposed to other users.
+- **UNFINISHED BACKEND CERTIFICATION:** The new `StoreImageIndependentReviewService`, controller, `V20271117162000__store_image_independent_review_events.sql`, reviewer-authority tests and private OpenAPI are draft-only. Java 21/Gradle, SQL migration, concurrency, security, retention, reviewer governance and owner/remediation UI review are pending.
+- **PUBLIC PUBLISHING STILL CLOSED:** An image request that has been reviewed or escalated is not a genuine Identimark, licence, inventory proof, server-approved image or a right to list publicly. Legacy media redaction and the published-media fail-closed gate remain intact.
+
+
+### 2026-11-17 — Phase 3 seller-linked permission evidence and private assigned-reviewer bytes
+
+- **BACKEND_PR_PENDING:** SecurePayAPI draft PR #475 now contains seller-explicit evidence linking (`SUPPLIER_PERMISSION`, `SELLER_AUTHORITY`, `OTHER_RIGHTS_EVIDENCE`) to a pending image use. Each link references a current source from the image submitter's own saved KS001 conversation; it is NOT evidence verification.
+- **REVIEW PRIVACY:** The authenticated reviewer requires an ACTIVE `STORE_IMAGE_USE` capability **and** an individual 48-hour case assignment issued by an independently authorized `STORE_IMAGE_USE_ASSIGN` administrator, with no self-review/Business conflicts. Content reads are audited and SHA-256 rechecked; photo bytes are re-encoded without EXIF metadata, documents are generic non-inline downloads and no public URLs are minted.
+- **MINI INTEGRATION TYPE ONLY:** `createStoreGateway` now types personal/represented Business seller evidence link/list/revoke routes. The owner-demo still has local photos/documents, and cannot claim to have uploaded source evidence or recorded a real reviewer response.
+- **HARD BLOCKERS:** API Java 21/Gradle, PostgreSQL/Flyway, role revocation/concurrency, cross-owner privacy and end-to-end browser tests remain unexecuted. Reviewer provisioning, remediation after MORE_INFORMATION_REQUIRED, formal rights decisions, positive approvals, public media use/Identimark, legacy photo migration and real Store publishing remain disabled.
+- Reference: `SecurePayAPI/docs/operations/MINI_SELL_PHASE3_PRIVATE_REVIEWER_EVIDENCE_20261117.md`.
+
+
+### 2026-11-17 — Phase 3 structured seller replies after independent review
+
+- **BACKEND_PR_PENDING:** SecurePayAPI draft PR #475 adds `MORE_INFORMATION_REQUIRED` typed `request_topic` and original-seller `EVIDENCE_ATTACHED` reply. Server demands a NEW, active evidence link dated after the exact latest review request, a current non-revoked photo source, saved-conversation ownership and the unchanged unpublished offer revision. This produces `RESUBMITTED_FOR_REVIEW`, never `APPROVED` or a public Identimark. A reviewer must have current case assignment again before reading/responding.
+- **OWNER UX PREVIEW:** `miniSellerReviewAnswerPills.mjs` selects simple topic-specific pills. Mini shows a folded **If we need one more detail** example ONLY when a photo is present, clearly saying no actual reviewer has examined the local draft. Answers open the existing Documents, Photos, Description, Save, Remove or KS001 actions. It does not call unshipped submission APIs or claim evidence upload.
+- **FRONTEND CONTRACT:** Typed personal/represented Business `myImageReviewQuestion` and `respondMyImageReviewQuestion` equivalents. No client proof can set a verified or publishable status. Vercel branch preview passed 203 focused frontend tests plus TypeScript/Vite, but **this is not API certification**.
+- **CANDIDATE POLICY:** New backend `StoreImageApprovalPreparationPolicy` proposes proportional risk routing (quiet declaration vs independent/specialist review), but all results explicitly have `approvedRights=false`, `canIssueIdentimark=false`, and `canPublishImage=false`. This is not a production image-approval policy.
+- **REMAINING GATES:** Java 21/Gradle, PostgreSQL migrations, source/offer concurrency and authorization tests have **not run**; positive rights adjudication, version-bound revocable Identimark and public sanitized image delivery remain unimplemented. Existing Store media-ref publication safeguard remains closed.

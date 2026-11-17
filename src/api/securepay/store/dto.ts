@@ -206,3 +206,81 @@ export interface BusinessStoreOpportunityResponse {
   poolable: boolean;
   matchedOffers: BusinessStoreOpportunityMatchedOffer[];
 }
+
+
+// ─── Phase 3 pending-only Store photo-source linkage (API draft PR #475) ──
+// These are PRIVATE, authenticated, backend-bound statuses. No rights-verified,
+// licensed, stock-confirmed, approved, published or Identimark status exists.
+export type StoreImageUseOrigin = 'SELLER_PHOTOGRAPH' | 'SUPPLIER_IMAGE' | 'OTHER_PERMISSIONED';
+export type StoreImageUseStatus =
+  | 'PENDING_REVIEW' | 'STALE_OFFER_REVIEW_REQUIRED'
+  | 'SOURCE_CHANGED_REVIEW_REQUIRED' | 'REVOKED'
+  | 'MORE_INFORMATION_REQUIRED' | 'ESCALATED' | 'REJECTED'
+  | 'RESUBMITTED_FOR_REVIEW';
+
+export interface RegisterStoreImageUseRequest {
+  /** Already saved source conversation OWNED by the authenticated human. */
+  conversationId: string;
+  sourceArtifactId: string;
+  /** Exact Store offer updatedAt returned by the backend, not a client timestamp. */
+  expectedOfferUpdatedAt: string;
+  origin: StoreImageUseOrigin;
+  permissionToUse: boolean;
+}
+export interface StoreImageUseResponse {
+  /** Private, pending image-use row ID. NOT a public mediaRef or Identimark. */
+  id: string;
+  status: StoreImageUseStatus;
+  declaredOrigin: StoreImageUseOrigin;
+  createdAt: string;
+  /** A seller-safe question category. The reviewer's private note stays private. */
+  requestTopic?: StoreImageReviewTopic | null;
+}
+
+
+// ─── Phase 3: seller-explicit, UNVERIFIED rights evidence link (API draft) ───
+// Must refer to a real PHOTO/DOCUMENT already ingested from the SAME saved
+// KS001 conversation as the pending image use; no local files or invented IDs.
+export type StoreImageEvidencePurpose =
+  'SUPPLIER_PERMISSION' | 'SELLER_AUTHORITY' | 'OTHER_RIGHTS_EVIDENCE';
+export type StoreImageEvidenceStatus = 'LINKED_UNVERIFIED' | 'REVOKED';
+export interface LinkStoreImageEvidenceRequest {
+  sourceArtifactId: string;
+  expectedOfferUpdatedAt: string;
+  purpose: StoreImageEvidencePurpose;
+}
+export interface StoreImageEvidenceView {
+  /** Private evidence-link ID, NOT a published photo, verified licence or mediaRef. */
+  id: string;
+  purpose: StoreImageEvidencePurpose;
+  status: StoreImageEvidenceStatus;
+  createdAt: string;
+}
+
+
+// ─── Phase 3: structured answer-pill response to independent review ───
+// No free-form explanation. "I added proof" is accepted by the backend ONLY
+// when a NEW validated, still-linked source was attached after the request.
+export type StoreImageReviewTopic =
+  | 'PHOTO_SOURCE' | 'SUPPLIER_PERMISSION' | 'SELLER_AUTHORITY'
+  | 'PHOTO_CLARITY' | 'OFFER_DETAILS' | 'OTHER';
+export type StoreImageSellerReviewStatus =
+  | 'AWAITING_REVIEW' | 'MORE_INFORMATION_REQUIRED' | 'RESUBMITTED_FOR_REVIEW'
+  | 'ESCALATED' | 'REJECTED';
+export type StoreImageSellerResponseChoice = 'EVIDENCE_ATTACHED';
+export interface StoreImageReviewQuestion {
+  imageUseId: string;
+  status: StoreImageSellerReviewStatus;
+  topic: StoreImageReviewTopic | null;
+  requestedAt: string | null;
+}
+export interface RespondStoreImageReviewRequest {
+  expectedOfferUpdatedAt: string;
+  choice: StoreImageSellerResponseChoice;
+}
+export interface StoreImageSellerReviewReply {
+  id: string;
+  imageUseId: string;
+  status: 'RESUBMITTED_FOR_REVIEW';
+  createdAt: string;
+}
