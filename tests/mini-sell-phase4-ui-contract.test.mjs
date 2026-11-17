@@ -11,7 +11,8 @@ test('seller still has three independent clear exits and no seller Connect to Mo
   assert.equal(mini.includes('Connect to Money'),false);
 });
 test('local owner demo never silently receives signed-in Store or Agreement mutation gateways',()=>{
-  const mount=experience.slice(experience.indexOf('<MiniSellSomething'),experience.indexOf('</MiniSellSomething>')+25);
+  const start=experience.indexOf('<MiniSellSomething');
+  const mount=experience.slice(start,experience.indexOf('/>',start)+2);
   assert.ok(mount.includes('language={lang}'));
   assert.equal(mount.includes('handoffGateway='),false);
   assert.equal(mount.includes('agreementGateway='),false);
