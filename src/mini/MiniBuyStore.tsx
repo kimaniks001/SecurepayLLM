@@ -7,6 +7,7 @@ import type { MiniLanguage } from './miniModel';
 import { suggestedStoreSearchTerm } from '../features/living-workspace/suggestedStoreSearchTerm.mjs';
 import { miniStoreOfferSnapshotFresh } from './miniStoreOfferFresh.mjs';
 import { miniBasketReadiness } from './miniBasketReadiness.mjs';
+import { miniTradeSampleSearches } from './miniTradePlayground';
 
 /**
  * Public Store read-only transport reuses the existing, server-allowlisted
@@ -39,12 +40,14 @@ export type MiniBasketFulfilment = 'collect' | 'ask_sellers' | 'explore_combined
 type View = 'search' | 'store' | 'plan';
 
 /** Never infer seller acceptance or stock reservation from a public Store listing. */
-export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway, onDiscuss }: {
+export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway, onDiscuss, playground = false }: {
   language:MiniLanguage; onBack:()=>void; initialQuery?:string;
   /** Existing public StoreGateway, optionally on the same isolated API as KS001. */
   storeGateway?:Pick<StoreGateway,'search'|'store'|'offer'>;
   /** Only after a fresh Store offer check, never on Add to cart alone. */
   onDiscuss?:(lines:MiniStorePlanLine[], fulfilment:MiniBasketFulfilment | null)=>void;
+  /** Isolated preview host only; never live offers or financial authority. */
+  playground?:boolean;
 }) {
   const client=storeGateway??stores;
   const sw = language === 'sw';
@@ -76,20 +79,35 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
   const [proposalOpen, setProposalOpen] = useState(false);
   const readiness = miniBasketReadiness(cart,{sourcesFresh:reviewed,fulfilmentChoice});
   const [checking, setChecking] = useState(false);
+  const [sampleRequests,setSampleRequests] = useState(false);
+  const [sampleResponses,setSampleResponses] = useState<Record<string,'accepted'|'declined'>>({});
+  const [samplePaid,setSamplePaid] = useState(false);
+  const sampleSellers=[...new Set(cart.map(line=>line.sellerKsNumber))];
+  const allSampleAccepted=sampleRequests&&sampleSellers.length>0&&
+    sampleSellers.every(id=>sampleResponses[id]==='accepted');
+  const resetSample=()=>{setSampleRequests(false);setSampleResponses({});setSamplePaid(false);};
   const generation = useRef(0);
 
-  const find = async () => {
-    const word = term.trim();
-    if (!word || word.length > 100) {
+  useEffect(()=>{
+    if(!playground)return;
+    let mounted=true;
+    void client.search({kind:'PRODUCT',limit:10}).then(found=>{
+      if(mounted)setResults(found);
+    }).catch(()=>{ /* synthetic catalogue is optional even in preview */ });
+    return()=>{mounted=false;};
+  },[client,playground]);
+  const find = async (requestedKind:'PRODUCT'|'SERVICE'=kind,requestedTerm:string=term) => {
+    const word = requestedTerm.trim();
+    if ((!word&&!playground) || word.length > 100) {
       setError(sw ? 'Andika bidhaa unayotafuta.' : 'Tell me what you are looking for.');
       return;
     }
     const request = ++generation.current;
     setWorking(true); setResults([]); setError(''); setChosenStore(null); setView('search');
     try {
-      const found = await client.search({kind, category: word, limit: 10});
+      const found = await client.search({kind:requestedKind, category: word, limit: 10});
       if (request === generation.current) setResults(found.filter(x =>
-        /^KS\d{3,12}$/.test(x.canonicalKsNumber) && x.offer?.kind === kind &&
+        /^KS\d{3,12}$/.test(x.canonicalKsNumber) && x.offer?.kind === requestedKind &&
         typeof x.offer.id === 'string' && typeof x.offer.title === 'string'));
     } catch {
       if (request === generation.current) setError(sw
@@ -129,6 +147,7 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
     });
     setReviewed(false);
     setProposalOpen(false);
+    resetSample();
     setError('');
   };
 
@@ -139,7 +158,7 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
 
   const verify = async () => {
     if(!cart.length||working||checking)return;
-    setChecking(true);setReviewed(false);setProposalOpen(false);setError('');
+    setChecking(true);setReviewed(false);setProposalOpen(false);resetSample();setError('');
     try{
       if(!await latestOffersMatch()){
         setError('A seller changed a published offer, price, or available quantity. Review the Store again before continuing.');
@@ -198,11 +217,12 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
   </button>;
 
   const selected = chosenStore?.offers.filter(o => o.kind === kind) ?? [];
-  return <section className="spm-content spm-buy" data-mini-store-source="public-read-only">
+  return <section className="spm-content spm-buy" data-mini-store-source={playground?'fictional-local-playground':'public-read-only'}>
     {view === 'search' && <>
       {header(sw ? 'Rudi' : 'Back', onBack)}
       <div className="spm-persona"><ShoppingBag size={16}/>{sw ? 'Nunua kitu' : 'Buy something'}</div>
       <h1 className="spm-question">{sw ? 'Unatafuta nini?' : 'What are you looking for?'}</h1>
+      {playground && <p className="spm-lead"><strong>Sample shops are ready.</strong> Try buying from different stores. All prices, sellers and stock are fictional; nothing will be charged.</p>}
       <form onSubmit={e => {e.preventDefault(); void find();}}>
         <label className="spm-label" htmlFor="mini-store-query">{sw ? 'Bidhaa au huduma' : 'Goods or services'}</label>
         <input className="spm-field" id="mini-store-query" maxLength={100} value={term}
@@ -215,8 +235,12 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
           <Search size={17}/>{working ? 'Searching…' : (sw ? 'Tafuta maduka' : 'Find Stores')}
         </button>
       </form>
+      {playground && <div className="spm-mini-buy-types" aria-label="Try a sample trade">
+        {miniTradeSampleSearches.map(p=><button type="button" key={p.label}
+          onClick={()=>{setKind(p.kind);setTerm(p.query);void find(p.kind,p.query);}}>{p.label}</button>)}
+      </div>}
       {results.length > 0 && <div className="spm-mini-buy-results" aria-label="Published Store matches">
-        {results.slice(0, 5).map(record => <article className="spm-mini-buy-result"
+        {results.slice(0, playground?10:5).map(record => <article className="spm-mini-buy-result"
           key={record.canonicalKsNumber + ':' + record.offer.id}>
           <strong>{record.displayName}</strong>
           <p>{record.offer.title}</p>
@@ -229,6 +253,7 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
       </div>}
       {!working && !error && results.length === 0 && term.trim() && <p className="spm-lead">
         {sw ? 'Tafuta bidhaa kutoka kwa maduka yaliyochapishwa.' :
+          playground?'Try the sample search suggestions above.':
           'Search published Store offers. Results come from SecurePay, not from sample shops.'}</p>}
       {cart.length > 0 && <button type="button" className="spm-quiet-button" onClick={() => setView('plan')}>
         View basket ({cart.length})</button>}
@@ -236,7 +261,7 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
 
     {view === 'store' && chosenStore && <>
       {header(sw ? 'Matokeo' : 'Back to results', () => setView('search'))}
-      <div className="spm-persona"><Store size={16}/>Published Digital Store</div>
+      <div className="spm-persona"><Store size={16}/>{playground?'Fictional sample Store':'Published Digital Store'}</div>
       <h1 className="spm-question">{chosenStore.displayName}</h1>
       <p className="spm-lead">{chosenStore.profile?.tagline || chosenStore.profile?.about || 'Store products and services'}</p>
       <p className="spm-lead">{chosenStore.profile?.locationLabel || 'Location not published'}</p>
@@ -269,6 +294,7 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
         <small>{line.quantity} × {money(line.priceMinor, line.currency)}</small>
         <button type="button" className="spm-quiet-button" onClick={() => {
           setCart(old => old.filter(x => x !== line)); setReviewed(false);setProposalOpen(false);
+        setSampleRequests(false);setSampleResponses({});setSamplePaid(false);
         }}>Remove</button>
       </div>)}
       <p className="spm-lead">
@@ -285,7 +311,7 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
         ] as const).map(([value,label])=>
           <label key={value} className="spm-label" style={{display:'flex',alignItems:'center',gap:10,cursor:'pointer'}}>
             <input type="radio" name="spm-basket-fulfilment" checked={fulfilmentChoice===value}
-              onChange={()=>{setFulfilmentChoice(value);setProposalOpen(false);}}/>{label}
+              onChange={()=>{setFulfilmentChoice(value);setProposalOpen(false);resetSample();}}/>{label}
           </label>)}
       </div>}
       <button type="button" className="spm-secondary" disabled={!cart.length || checking}
@@ -311,15 +337,47 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
           disabled={working||checking} onClick={()=>void discussCurrent()}>
           <MessageCircle size={16}/>Ask KS001 about this basket<ArrowRight size={16}/>
         </button>}
-        {!onDiscuss && <p>SecurePay's seller-confirmation handoff is not connected on this preview. Your review has not been sent.</p>}
-        {cart.length === 1 && cart[0].priceMinor !== null &&
+        {!onDiscuss && !playground && <p>SecurePay's seller-confirmation handoff is not connected on this preview. Your review has not been sent.</p>}
+        {!playground && cart.length === 1 && cart[0].priceMinor !== null &&
           <button type="button" className="spm-secondary" disabled={working}
             onClick={() => void reviewSingleOffer()}>
             View single-offer review (simulation)<ArrowRight size={16}/>
           </button>}
+        {playground && <div className="spm-mini-buy-result" aria-label="Local example of independent seller responses">
+          <strong>Try the seller responses</strong>
+          <p>Test-only rehearsal. These actions do not send SecureLinks, reserve goods or create Agreements.</p>
+          {!sampleRequests ? <button type="button" className="spm-secondary"
+            onClick={()=>{setSampleRequests(true);setSampleResponses({});setSamplePaid(false);}}>
+            Send sample requests to each Store<ArrowRight size={16}/></button> :
+            <>
+              {sampleSellers.map(seller=><div key={seller} className="spm-mini-buy-result">
+                <strong>{cart.find(line=>line.sellerKsNumber===seller)?.sellerName}</strong>
+                <p>{cart.filter(line=>line.sellerKsNumber===seller).map(l=>l.quantity+' × '+l.title).join(', ')}</p>
+                <small>Example response: {sampleResponses[seller]||'Awaiting seller'}</small>
+                <button className="spm-secondary" type="button" onClick={()=>{
+                  setSampleResponses(old=>({...old,[seller]:'accepted'}));setSamplePaid(false);
+                }}>Simulate acceptance</button>
+                <button className="spm-quiet-button" type="button" onClick={()=>{
+                  setSampleResponses(old=>({...old,[seller]:'declined'}));setSamplePaid(false);
+                }}>Simulate decline</button>
+              </div>)}
+              {allSampleAccepted && <div className="spm-mini-buy-result">
+                <strong>All sample sellers accepted their parts</strong>
+                {readiness.amountNeedsQuote ? <p>A price still needs a quotation, so consolidated checkout remains unavailable.</p> :
+                  fulfilmentChoice && fulfilmentChoice!=='collect' ?
+                  <p>Delivery still needs a confirmed provider and quote. Choose collection to test the sample checkout.</p> :
+                  <>
+                    <p>You may try a fictional one-payment completion. This does not process funds.</p>
+                    <button type="button" className="spm-primary" disabled={samplePaid}
+                      onClick={()=>setSamplePaid(true)}>{samplePaid?'Sample payment recorded in this tab':'Simulate one payment · no money moves'}</button>
+                    {samplePaid && <p role="status"><strong>Sample journey completed.</strong> Your fictional sellers remain separately responsible for their individual offers. No live order, Agreement, receipt or payment exists.</p>}
+                  </>}
+              </div>}
+            </>}
+        </div>}
       </div>}
     </>}
     {error && <p className="spm-error" role="alert">{error}</p>}
-    <p className="spm-disclaimer">Public Store information only · No signed Agreement, stock reservation or payment.</p>
+    <p className="spm-disclaimer">{playground?'Fictional sample data · No real payment, delivery booking, SecureLink or accepted Agreement.':'Public Store information only · No signed Agreement, stock reservation or payment.'}</p>
   </section>;
 }
