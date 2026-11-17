@@ -71,6 +71,15 @@ export interface PublishStoreTextOfferRequest {
   /** The seller reviewed this listing and deliberately chose publication. */
   sellerConfirmsCurrentListing: true;
 }
+/** Revised text for an already-public offer: no media, stock or availability claim. */
+export interface UpdatePublishedStoreTextOfferRequest {
+  expectedUpdatedAt: string;
+  sellerConfirmsCurrentListing: true;
+  title: string;
+  description: string | null;
+  priceMinor: number | null;
+}
+
 export interface PublishedStoreTextOfferResponse {
   id: string;
   kind: OfferKind;
