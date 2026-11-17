@@ -67,5 +67,5 @@ test('Phase 1 protects buyer and seller authority; favourite contacts and Quick 
   const existing = readFileSync(new URL('../src/mini/MiniFirstPartyKs001.tsx',import.meta.url),'utf8');
   assert.match(existing,/createStoreGateway\(http\)/);
   assert.match(existing,/MiniSellerStore storeGateway=\{stores\}/);
-  assert.match(existing,/startInStore=\s*false/);
+  assert.match(existing,/startInStore\s*=\s*false/);
 });
