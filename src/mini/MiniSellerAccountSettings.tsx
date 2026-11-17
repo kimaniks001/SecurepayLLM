@@ -63,7 +63,7 @@ export function MiniSellerAccountSettings({
   const fee=membership?.currency&&Number.isSafeInteger(membership.monthlyFeeMinor)
     ?membership.currency+' '+(membership.monthlyFeeMinor/100).toLocaleString('en-KE',{maximumFractionDigits:2})
     :null;
-  const humanStatus=(text:string)=>text.toLowerCase().replaceAll('_',' ').replace(/^\w/,x=>x.toUpperCase());
+  const humanStatus=(text:string)=>text.toLowerCase().replace(/_/g,' ').replace(/^\w/,(x:string)=>x.toUpperCase());
   return <section className="spm-mini-seller-settings" aria-label="Verified seller settings" data-mini-seller-settings="server-read-only">
     <strong className="spm-sell-link-actions-head"><Store size={17}/> Store settings</strong>
     <p className="spm-sell-hint">These are the Store and account facts SecurePay can check now. Nothing changes just by opening settings.</p>
