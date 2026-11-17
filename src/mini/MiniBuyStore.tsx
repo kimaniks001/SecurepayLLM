@@ -6,6 +6,7 @@ import type { PublicSearchResultView, PublicStoreView, PublicOfferView } from '.
 import type { MiniLanguage } from './miniModel';
 import { suggestedStoreSearchTerm } from '../features/living-workspace/suggestedStoreSearchTerm.mjs';
 import { miniStoreOfferSnapshotFresh } from './miniStoreOfferFresh.mjs';
+import {miniChangedOffers,type MiniChangedOffer} from './miniChangedOffers.mjs';
 import { miniBasketReadiness } from './miniBasketReadiness.mjs';
 import { miniTradeSampleSearches } from './miniTradePlayground';
 import { MiniShopDiscovery, MiniShopGallery } from './MiniStoreGallery';
@@ -38,7 +39,7 @@ const stores = createStoreGateway(createHttpClient('https://securepay.ke', () =>
 
 const activeStates = new Set(['AVAILABLE', 'LOW_AVAILABILITY', 'NEEDS_CONFIRMATION', 'TAKING_WORK', 'LIMITED']);
 const money = (amountMinor: number | null, currency: string) =>
-  amountMinor === null ? 'Price to confirm' : currency + ' ' +
+  amountMinor === null ? 'Price to confirm' : (currency==='KES'?'KSh':currency) + ' ' +
   (amountMinor / 100).toLocaleString('en-KE', { maximumFractionDigits: 2 });
 
 export type MiniStorePlanLine = {
@@ -70,6 +71,11 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
   const savedDraft=useRef(playground&&typeof window!=='undefined'?
     readSampleBasketDraft(window.sessionStorage):null).current;
   const [view, setView] = useState<View>('search');
+  const reviewAnchor=useRef<HTMLDivElement|null>(null);
+  useEffect(()=>{
+    window.scrollTo(0,0);
+    document.querySelector<HTMLElement>('.spm-frame')?.scrollTo(0,0);
+  },[view]);
   const asSearchTerm = (phrase: string) => {
     const explicitShopping = suggestedStoreSearchTerm(phrase);
     if (explicitShopping) return explicitShopping;
@@ -91,6 +97,8 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
   const [cart, setCart] = useState<MiniStorePlanLine[]>(savedDraft?.lines??[]);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState('');
+  const [openingStore,setOpeningStore]=useState<string|null>(null);
+  const [changedOffers,setChangedOffers]=useState<MiniChangedOffer[]>([]);
   const [reviewed, setReviewed] = useState(false);
   const [fulfilmentChoice, setFulfilmentChoice] = useState<MiniBasketFulfilment | null>(savedDraft?.fulfilmentChoice??null);
   const [basketAnswers,setBasketAnswers]=useState<Record<string,string>>(savedDraft?.answers??{});
@@ -99,6 +107,7 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
   const basketQuestions=miniBasketQuestions(cart,basketAnswers);
   const nextBasketQuestion=basketQuestions.nextQuestion;
   const [proposalOpen, setProposalOpen] = useState(false);
+  useEffect(()=>{if(proposalOpen)reviewAnchor.current?.scrollIntoView({block:'start'});},[proposalOpen]);
   const readiness = miniBasketReadiness(cart,{sourcesFresh:reviewed,fulfilmentChoice});
   const [checking, setChecking] = useState(false);
   const [freshnessError,setFreshnessError] = useState('');
@@ -177,7 +186,7 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
       return;
     }
     const request = ++generation.current;
-    setWorking(true); setResults([]); setError(''); setChosenStore(null); setView('search');
+    setWorking(true); setResults([]); setOpeningStore(null); setError(''); setChosenStore(null); setView('search');
     try {
       const found = await client.search({kind:requestedKind, category: word, limit: 10});
       if (request === generation.current) setResults(found.filter(x =>
@@ -193,7 +202,7 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
   const openStore = async (ks: string) => {
     if (!/^KS\d{3,12}$/.test(ks)) return;
     const request = ++generation.current;
-    setWorking(true); setError(''); setChosenStore(null);
+    setWorking(true); setOpeningStore(ks); setError(''); setChosenStore(null);
     try {
       const found = await client.store(ks);
       if (request === generation.current && found.canonicalKsNumber === ks &&
@@ -203,7 +212,7 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
     } catch {
       if (request === generation.current) setError(sw
         ? 'Duka halipatikani kwa sasa.' : 'This Store is unavailable right now.');
-    } finally { if (request === generation.current) setWorking(false); }
+    } finally { if (request === generation.current){setWorking(false);setOpeningStore(null);} }
   };
 
   useEffect(()=>{
@@ -218,10 +227,12 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
     // The stable KSNumber, view and StoreGateway determine refresh.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   },[view,chosenStore?.canonicalKsNumber,client]);
-  const add = (offer: PublicOfferView,countRequested=1) => {
-    if (!chosenStore || !activeStates.has(offer.availabilityState)) return;
+  const add = (offer: PublicOfferView,countRequested=1):boolean => {
+    if (!chosenStore || !activeStates.has(offer.availabilityState)) return false;
     const count = Math.min(20, Math.max(1, countRequested));
     const key = chosenStore.canonicalKsNumber + ':' + offer.id;
+    const existing=cart.find(line=>line.sellerKsNumber+':'+line.offerId===key);
+    if((!existing&&cart.length>=20)||(existing&&existing.quantity>=20))return false;
     setCart(old => {
       const prior = old.find(line => line.sellerKsNumber + ':' + line.offerId === key);
       if (prior) return old.map(line => line === prior ? {...line, quantity: Math.min(20, line.quantity + count)} : line);
@@ -235,20 +246,24 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
     setReviewed(false);
     setProposalOpen(false);
     setSavedNotice(false);
-    invalidateDelivery();
+    setChangedOffers([]);
+    if(offer.kind==='PRODUCT')invalidateDelivery();
     resetSample();
     setFreshnessError('');
     setError('');
+    return true;
   };
   const changeQuantity=(line:MiniStorePlanLine,next:number)=>{
     setCart(old=>old.map(item=>item===line?{...item,quantity:Math.min(20,Math.max(1,next))}:item));
-    setReviewed(false);setProposalOpen(false);setSavedNotice(false);invalidateDelivery();resetSample();
-    setFreshnessError('');
+    setReviewed(false);setProposalOpen(false);setSavedNotice(false);
+    if(line.kind==='PRODUCT')invalidateDelivery();resetSample();
+    setChangedOffers([]);setFreshnessError('');
   };
   const removeLine=(line:MiniStorePlanLine)=>{
     setCart(old=>old.filter(item=>item!==line));
-    setReviewed(false);setProposalOpen(false);setSavedNotice(false);invalidateDelivery();resetSample();
-    setFreshnessError('');
+    setReviewed(false);setProposalOpen(false);setSavedNotice(false);
+    if(line.kind==='PRODUCT')invalidateDelivery();resetSample();
+    setChangedOffers([]);setFreshnessError('');
   };
 
   const latestOffersMatch = async () => {
