@@ -74,7 +74,11 @@ test('seller-review clarifications ask one question with tappable answers and di
   for(const issue of ["'photo'","'authority'","'availability'","'safety'","'regulated'"])
     assert.ok(seller.includes(issue),issue);
   assert.match(seller,/currentQuestion:ReviewIssue/);
-  assert.match(seller,/pendingPhotoIndex>=0\?'photo'/);
+  assert.match(seller,/pendingPhotoIndex>=0/);
+  assert.match(seller,/pictures\[pendingPhotoIndex\]\.source==='supplier'\?'photo-permission':'photo'/);
+  assert.match(seller,/data-sell-question="photo-permission"/);
+  assert.match(seller,/supplierPermission:true/);
+  assert.match(seller,/supplierPermission:false/);
   assert.match(seller,/data-sell-question="photo"/);
   assert.match(seller,/Where did this photograph come from/);
   for(const answer of ["I took it","Supplier's image","I have permission","Not sure","Remove photo"])
