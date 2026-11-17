@@ -29,7 +29,7 @@ export function MiniSellerStore({storeGateway,businessGateway,subscriptionGatewa
   businessGateway:Pick<BusinessGateway,'mine'|'representation'|'get'|'members'|'inviteMember'|'acceptInvitation'>;
   authorizationGateway?:Pick<AuthorizationGateway,'authoritySummary'>;
   visibilityEnabled?:boolean;
-  subscriptionGateway?:Pick<SubscriptionGateway,'myStatus'|'selectPlan'>;
+  subscriptionGateway?:Pick<SubscriptionGateway,'myStatus'|'selectPlan'|'activationAgreement'|'establishActivationAgreement'|'confirmActivationAgreement'>;
   preferencesGateway?:MiniBusinessPreferencesGateway;
   prepare:()=>Promise<unknown>;
   onBack:()=>void;
