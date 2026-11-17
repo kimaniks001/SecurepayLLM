@@ -52,3 +52,11 @@ The real signed-in entry now uses `pair.controller.sendStatement` **not** best-e
 - Existing published offers containing media references or quantity claims are NOT silently transformed, unpublished or moved to text-only. Their older direct `updateOffer` path is still present. Thus the `securepay.store.strict-versioned-publication` switch MUST remain **OFF** pending migration of that legacy editing contract, including versioned inventory and authorised media support.
 - Separate Business Agreement creation remains gated; verified Business Store management ≠ power to bind the Business in an Agreement. Buyer alone authorises Money.
 - No PR merged or deployed, no real Store published, and no live SecureLink or Money operation initiated during these commits.
+
+### Fail-closed migration amendment
+
+A listing that **was already compliant text-only** cannot change into a media-bearing, inventory-claimed, different-kind or different-availability offer via the fallback generic PUT in the migrated Store editor. `StoreController.submitDraft` detects the originally compliant public record and rejects unsupported edits before any mutation. It continues using the CAS `update-published-text` route for reviewed price/title/description changes.
+
+Older public listings with real existing photographs/quantity continue on the legacy path until a separate versioned update design and media/availability certification exist. Enabling strict legacy publication before that work is **not approved**.
+
+The migrated Store policy has **12/12 newly executed focused checks**; earlier Phase 2–4 seller checks total 52/52, for 64 checked assertions across both groups in an isolated JavaScript harness. No complete TypeScript/Java/PostgreSQL test pass is claimed.
