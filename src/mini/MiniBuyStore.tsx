@@ -271,36 +271,64 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
     return miniStoreOfferSnapshotFresh(cart,fresh);
   };
 
+  const offerChanges=(fresh:Awaited<ReturnType<typeof client.offer>>[]) =>
+    miniChangedOffers(cart,fresh.map(value=>({status:'fulfilled' as const,value})));
   useEffect(()=>{
-    // Automatically re-read the original Store sources before offering review.
-    // This browser check is not seller acceptance or Money readiness.
+    // Automatically check source versions without imposing a manual task.
     if(view!=='plan'||!cart.length||(readiness.goods&&!fulfilmentChoice)){
       setReviewed(false);return;
     }
     let active=true;
-    setChecking(true);setReviewed(false);setFreshnessError('');
+    setChecking(true);setReviewed(false);setFreshnessError('');setChangedOffers([]);
     void Promise.all(cart.map(line=>client.offer(line.sellerKsNumber,line.offerId)))
       .then(fresh=>{
         if(!active)return;
-        if(miniStoreOfferSnapshotFresh(cart,fresh))setReviewed(true);
-        else setFreshnessError('A Store changed one of your items. Browse that Store again before proceeding.');
+        const changes=offerChanges(fresh);
+        if(!changes.length){setChangedOffers([]);setReviewed(true);}
+        else{
+          setChangedOffers(changes);
+          setFreshnessError('A Store has updated an item. Review the change to continue.');
+        }
       })
-      .catch(()=>{if(active)setFreshnessError('We could not check these Store offers. Try again. Nothing has been ordered.');})
+      .catch(()=>{if(active){
+        setChangedOffers([]);
+        setFreshnessError('We could not confirm the latest Store details. You can retry or return to the Store.');
+      }})
       .finally(()=>{if(active)setChecking(false);});
     return()=>{active=false;};
-    // The cart, choice and store gateway are the only sources for this check.
+    // Source identity and basket state are stable dependencies.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   },[view,cart,fulfilmentChoice,client]);
   const verify = async () => {
     if(!cart.length||working||checking)return;
-    setChecking(true);setReviewed(false);setProposalOpen(false);resetSample();setError('');setFreshnessError('');
+    setChecking(true);setReviewed(false);setProposalOpen(false);resetSample();
+    setError('');setFreshnessError('');setChangedOffers([]);
     try{
-      if(!await latestOffersMatch()){
-        setFreshnessError('A Store changed an item. Browse the Store again to see the latest offer.');
+      const fresh=await Promise.all(cart.map(line=>client.offer(line.sellerKsNumber,line.offerId)));
+      const changes=offerChanges(fresh);
+      if(changes.length){
+        setChangedOffers(changes);
+        setFreshnessError('A Store has updated an item. Review the change to continue.');
       }else setReviewed(true);
     }catch{
-      setFreshnessError('Could not check every item. Nothing was ordered.');
+      setFreshnessError('We could not check every item. Nothing was ordered. Try again or return to the Store.');
     }finally{setChecking(false);}
+  };
+  const acceptUpdatedOffer=(change:MiniChangedOffer)=>{
+    const offer=change.fresh;
+    if(!change.available||!offer)return;
+    const newQuantity=change.canUse?undefined:change.maxQuantity;
+    if(newQuantity!==undefined&&(newQuantity===null||newQuantity<1))return;
+    setCart(current=>current.map(line=>
+      line.sellerKsNumber===change.sellerKsNumber&&line.offerId===change.offerId
+        ?{...line,title:offer.title,description:offer.description,
+          mediaRefs:offer.mediaRefs,priceMinor:offer.priceMinor,currency:offer.currency,
+          availabilityState:offer.availabilityState,offerUpdatedAt:offer.updatedAt,
+          quantity:newQuantity??line.quantity}:line));
+    const key=change.sellerKsNumber+':'+change.offerId;
+    setQuoteAccepted(quoted=>Object.fromEntries(Object.entries(quoted).filter(([id])=>id!==key)));
+    setReviewed(false);setProposalOpen(false);setChangedOffers([]);setFreshnessError('');
+    setSavedNotice(false);invalidateDelivery();resetSample();
   };
 
   const discussCurrent = async () => {
