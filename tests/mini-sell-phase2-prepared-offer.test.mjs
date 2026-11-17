@@ -82,3 +82,22 @@ test('seller component uses preparation module, keeps independent seller exits a
   assert.ok(!c.includes('storeGateway.createOffer('));
   assert.ok(!c.includes('storeGateway.createBusinessOffer('));
 });
+
+test('material seller fields are not silently clipped before Agreement preparation',()=>{
+  for(const [field,max] of [['title',240],['description',2000],
+    ['condition',300],['specifications',800],['included',300],
+    ['purpose',300],['limitations',600],['warranty',600],
+    ['place',300],['timing',600]]){
+    const p=miniSellerPreparedOffer({...product,[field]:'X'.repeat(max+1)});
+    assert.equal(p.ok,false,field);
+    assert.match(p.error,/too long/);
+  }
+});
+test('unreviewed but nonempty description remains visibly pending on the offer terms',()=>{
+  const p=miniSellerPreparedOffer({...product,descriptionReviewed:false});
+  assert.equal(p.ok,true);
+  assert.equal(p.offerTerms.descriptionRequiresReview,true);
+  assert.equal(p.storeCandidate.description,null);
+  assert.equal(miniSellerPreparedOffer({...product,description:'',descriptionReviewed:false})
+    .offerTerms.descriptionRequiresReview,false);
+});
