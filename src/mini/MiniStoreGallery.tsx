@@ -129,7 +129,7 @@ export function MiniShopGallery({store,playground,onBack,cartCount,cartQty,onAdd
       <p className="spm-shop-gentle-note">Browse freely. Your choices remain yours until you review and proceed.</p>
     </>:<>
       <div className="spm-shop-detail">
-        <MiniOfferPhoto offer={selected} playground={playground} large/>
+        <MiniOfferPhoto key={selected.id} offer={selected} playground={playground} large/>
         <div className="spm-shop-detail-copy">
           <small>{selected.kind==='SERVICE'?'SERVICE':'GOOD'} · {display}</small>
           <h1>{selected.title}</h1>
