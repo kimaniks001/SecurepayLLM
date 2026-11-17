@@ -11,6 +11,7 @@ import type { AgreementGateway } from '../api/securepay/agreements';
 import type { MiniSellerHandoffGateway, MiniSellerReviewedHandoff } from './miniSellerAgreementHandoff.mjs';
 import { miniSellerCreateCanonicalStoreDraft } from './miniSellerCanonicalStoreBridge.mjs';
 import { miniSellerPublishTextOnly } from './miniSellerPublishTextOnly.mjs';
+import { miniSellerKs001Statement } from './miniSellerKs001Statement.mjs';
 import { miniSellerIssueAgreementDoorway } from './miniSellerSecureLinkDoorway.mjs';
 import { miniSellerBeginAgreementHandoff, miniSellerReviewAgreementHandoff,
   miniSellerCreateReviewedAgreement, miniSellerProposeAgreement } from './miniSellerAgreementHandoff.mjs';
@@ -341,26 +342,16 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
   const prepareOfferInKs001=async()=>{
     if(!onPrepareInKs001||!prepared.ok||!canOffer||sourceSaving||handoffBusy||
        realDraftAgreement||proposedAgreement)return;
-    const offer=prepared.offerTerms;
-    const price=offer.pricing.priceMinor===null
-      ?'Price to agree'
-      :'KSh '+(offer.pricing.priceMinor/100).toLocaleString('en-KE',{maximumFractionDigits:2})+
-        ' per '+offer.pricing.per;
-    // Seller-authored, explicit transcript statement only. No images, filenames,
-    // phone numbers, unverified identities or silent product publication.
-    const statement=[
-      'I am offering to sell: '+offer.title+'.',
-      offer.description?'Description: '+offer.description+'.':'',
-      'Price proposed: '+price+'.',
-      offer.quantityRequested!==null?'Proposed quantity: '+offer.quantityRequested+'.':'',
-      offer.fulfilment.placeLabel?'Proposed place: '+offer.fulfilment.placeLabel+'.':'',
-      offer.fulfilment.timingProposal?'Proposed timing: '+offer.fulfilment.timingProposal+'.':'',
-      offer.fulfilment.availabilityDeclaration?'Seller says: '+offer.fulfilment.availabilityDeclaration+'.':'',
-      'Please help me prepare a Fair Trade Agreement for buyer review. My statements are unverified. Nothing is accepted, published or paid.'
-    ].filter(Boolean).join(' ').slice(0,1200);
+    const composed=miniSellerKs001Statement({prepared});
+    if(!composed.ok){
+      setHandoffMessage(composed.reason==='TERMS_TOO_LONG_FOR_SINGLE_KS001_TURN'
+        ? 'Your offer has more details than one KS001 message can safely carry. Open KS001 to review them in smaller parts; no terms were sent or shortened.'
+        : 'Complete and review your offer before preparing its Agreement.');
+      return;
+    }
     setSourceSaving(true);setHandoffMessage('');
     try {
-      const source=await onPrepareInKs001(statement);
+      const source=await onPrepareInKs001(composed.statement);
       if(source?.conversationId&&Number.isSafeInteger(source.reviewedTradeContextVersion)){
         setTrustedSellerSource(source);
         setSourceSignature(offerSignature);
