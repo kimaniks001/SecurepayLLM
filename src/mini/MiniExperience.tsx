@@ -109,7 +109,12 @@ export function MiniExperience() {
   const [settingsEntry,setSettingsEntry] = useState<'store'|null>(null);
   const [verifiedStoreRequested,setVerifiedStoreRequested] = useState(false);
   const t = words[lang];
-  const [screen, setScreen] = useState<View>('home');
+  const [screen, setScreen] = useState<View>(()=>
+    typeof window!=='undefined' &&
+    isMiniExperiencePreviewHost(window.location.hostname) &&
+    new URLSearchParams(window.location.search).get('fairTradePreview')==='1' &&
+    new URLSearchParams(window.location.search).get('miniTradeDemo')==='1'
+      ? 'buy' : 'home');
   const [buyPrefill, setBuyPrefill] = useState('');
   const [buyResetKey, setBuyResetKey] = useState(0);
   const [buyingPlanForHelp,setBuyingPlanForHelp] = useState<{
@@ -143,6 +148,7 @@ export function MiniExperience() {
   const playground = urlParams?.get('miniTradeDemo') === '1' &&
     typeof window !== 'undefined' && isMiniExperiencePreviewHost(window.location.hostname);
   const businessDemo = playground || urlParams?.get('miniBusinessPreview') === '1';
+  const fairTradeShowcase=playground&&urlParams?.get('fairTradePreview')==='1';
   const [samplePurchases,setSamplePurchases]=useState<MiniSamplePurchase[]>(()=>
     playground&&typeof window!=='undefined'?readMiniSamplePurchases(window.sessionStorage):[]);
   const [sampleFocus,setSampleFocus]=useState<string|null>(null);
@@ -403,7 +409,7 @@ export function MiniExperience() {
 
         <div hidden={screen !== 'buy'} aria-hidden={screen !== 'buy'}>
           <MiniBuyStore key={buyResetKey} language={lang} initialQuery={buyPrefill} onBack={() => setScreen('home')}
-            playground={playground} storeGateway={playground?sampleStoreGateway:undefined}
+            playground={playground} fairTradeShowcase={fairTradeShowcase} storeGateway={playground?sampleStoreGateway:undefined}
             onSampleFunded={playground?(purchase)=>{
               const stored=recordMiniSamplePurchase(window.sessionStorage,purchase);
               setSamplePurchases(stored);setSampleFocus(purchase.id);
