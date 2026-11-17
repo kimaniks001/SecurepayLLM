@@ -1549,3 +1549,44 @@ textarea.spm-field { resize:vertical; }
  gap:12px;text-align:left;font-size:11px;line-height:1.45;padding:6px 2px;}
 .spm-sell-suggestion:hover{text-decoration:underline;}
 .spm-sell-suggestion svg{flex:none;}
+
+
+/* Sell Something Phase 1: simple seller entrance; deeper Store and relationships only on demand. */
+.spm-sell-phase1-capacity{
+  display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 12px;
+  padding:10px 12px;margin:4px 0 15px;border-radius:11px;
+  background:#f4f8f2;border:1px solid #e1ebe0;color:#426b4c;font-size:11px;
+}
+.spm-sell-phase1-capacity strong{color:#27533a;font-weight:700;}
+.spm-sell-phase1-capacity small{font-size:10px;color:#819181;}
+.spm-sell-phase1-divider{position:relative;text-align:center;margin:21px 0 13px;color:#829181;font-size:10px;}
+.spm-sell-phase1-divider:before{content:"";position:absolute;top:50%;left:0;right:0;border-top:1px solid #e1e8dd;}
+.spm-sell-phase1-divider span{position:relative;background:#fafbf6;padding:0 12px;}
+.spm-sell-phase1-link{
+  display:flex;align-items:center;gap:12px;width:100%;margin:0 0 8px;padding:13px 12px;
+  border-radius:13px;border:1px solid #e0e8dc;background:#fffefa;text-align:left;color:#3d6b4b;min-height:68px;
+}
+.spm-sell-phase1-link:hover{background:#f2f8f0;border-color:#b7d1b8;}
+.spm-sell-phase1-link>svg:first-child{flex:none;}
+.spm-sell-phase1-link>span{display:grid;gap:4px;flex:1;min-width:0;}
+.spm-sell-phase1-link strong{font-size:12px;color:#254b35;}
+.spm-sell-phase1-link small{font-size:10px;line-height:1.5;color:#778a79;}
+.spm-sell-phase1-link>svg:last-child{flex:none;color:#849889;}
+.spm-sell-phase1-store{background:#f7faf5;border-color:#cfe0cf;}
+.spm-sell-phase1-settings{
+  display:flex;align-items:center;justify-content:flex-start;gap:8px;min-height:43px;
+  border:0;background:transparent;color:#577a60;font-size:11px;font-weight:700;
+  padding:6px 3px;margin:6px 0;width:100%;text-align:left;
+}
+.spm-sell-phase1-settings>svg:last-child{margin-left:auto;}
+.spm-sell-phase1-destination{display:grid;gap:10px;}
+.spm-sell-phase1-destination .spm-question{margin-top:0;}
+.spm-sell-phase1-symbol{
+  display:grid;place-items:center;color:#3c7852;background:#eef6ec;
+  width:46px;height:46px;border-radius:13px;margin-top:7px;
+}
+.spm-sell-phase1-hint{
+  border:1px solid #e0e8dd;background:#f6f9f4;border-radius:12px;
+  padding:12px;color:#607965;font-size:11px;line-height:1.6;
+}
+@media(max-width:340px){.spm-sell-phase1-capacity{display:grid;}}
