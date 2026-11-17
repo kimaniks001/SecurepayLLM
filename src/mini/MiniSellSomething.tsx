@@ -7,7 +7,9 @@ import {
 import { buildTimingProposal, type TimingDraft } from '../features/living-workspace/DateTimeTool';
 import type { MiniLanguage } from './miniModel';
 import type { StoreGateway } from '../api/securepay/store';
+import type { AgreementGateway } from '../api/securepay/agreements';
 import { miniSellerCreateCanonicalStoreDraft } from './miniSellerCanonicalStoreBridge.mjs';
+import { miniSellerIssueAgreementDoorway } from './miniSellerSecureLinkDoorway.mjs';
 import {miniSellerPreparedOffer,miniSellerSafeDraft,miniSellerRestoreDraft} from './miniSellerPreparedOffer.mjs';
 import {miniSellerTrustExamination} from './miniSellerTrustExamination.mjs';
 import {miniSellerLocalExactImageDigest} from './miniSellerLocalExactImageDigest.mjs';
@@ -67,11 +69,14 @@ function writeDescription(input:{
  * Identity, Agreement, media-provenance, invitation, SecureLink or Money writes.
  * Local declaration is not verification; local output is not a canonical offer.
  */
-export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,onBrowseStores,actingAs,seed='',storeGateway,sellerContext}:{
+export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,onBrowseStores,actingAs,seed='',storeGateway,sellerContext,agreementGateway,canonicalAgreement}:{
   language:MiniLanguage;onBack:()=>void;onOpenStore:()=>void;onOpenSettings:()=>void;
   onBrowseStores:()=>void;actingAs:string;seed?:string;
   storeGateway?:StoreGateway;
   sellerContext?:{type:'personal'}|{type:'business';businessKsNumber:string};
+  agreementGateway?:Pick<AgreementGateway,'activeDoorway'|'issuePublicDoorway'>;
+  /** Only a backend-created proposed Agreement, not a Store offer ID. */
+  canonicalAgreement?:{id:string;status:string};
 }) {
   const sw=language==='sw';
   const [stage,setStage]=useState<'compose'|'review'|'result'>('compose');
@@ -118,6 +123,11 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
   const [canonicalStoreStatus,setCanonicalStoreStatus]=useState('');
   const [canonicalOfferId,setCanonicalOfferId]=useState<string|null>(null);
   const [storeCreating,setStoreCreating]=useState(false);
+  const [shareCreating,setShareCreating]=useState(false);
+  const [shareStatus,setShareStatus]=useState('');
+  const [shareUrl,setShareUrl]=useState<string|null>(null);
+  const [shareIssued,setShareIssued]=useState(false);
+  const shareKey=useRef<string|null>(null);
   const [ksHelp,setKsHelp]=useState(false);
   const photoRef=useRef<HTMLInputElement>(null);
   const docRef=useRef<HTMLInputElement>(null);
@@ -272,6 +282,32 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
           : 'The Store draft could not be saved. Nothing was published.');
       }
     } finally {setStoreCreating(false);}
+  };
+  const issueSecureLink=async()=>{
+    // Only issue from an actual proposed Agreement. No local proposal or
+    // Store ID can become a SecureLink without canonical Agreement authority.
+    if(!agreementGateway||!canonicalAgreement||!prepared.ok||!canOffer||shareCreating||shareIssued)return;
+    setShareCreating(true);setShareStatus('');
+    try{
+      shareKey.current??=crypto.randomUUID();
+      const issued=await miniSellerIssueAgreementDoorway({
+        gateway:agreementGateway,agreement:canonicalAgreement,
+        idempotencyKey:shareKey.current,confirmed:true
+      });
+      if(issued.ok){
+        setShareIssued(true);
+        setShareUrl(issued.publicUrl);
+        setShareStatus(issued.publicUrl
+          ? 'Your SecureLink is ready. You decide who to send it to.'
+          : 'The SecureLink was issued, but a sharing address is not configured here.');
+      }else if(issued.reason==='EXISTING_SECURELINK_MANAGE_IN_AGREEMENT'){
+        setShareStatus('This Agreement already has a SecureLink. Open the Agreement to manage it.');
+      }else if(issued.reason==='CHECK_AGREEMENT_BEFORE_RETRY'){
+        setShareStatus('SecurePay could not confirm this request. Check your Agreement before trying again.');
+      }else{
+        setShareStatus('SecureLink cannot be issued until this Agreement is ready for sharing.');
+      }
+    }finally{setShareCreating(false);}
   };
   const restoreSavedOffer=()=>{
     try{
@@ -771,7 +807,7 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
       <p className="spm-lead">{result==='save'
         ? 'Only your written offer details were kept in this browser tab when storage was available. Photos, document files, people and private directions were not saved or uploaded.'
         : result==='share'
-        ? 'This is the buyer-facing proposal. No real SecureLink or invitation has been created, and nobody has accepted it.'
+        ? (shareIssued?'A SecureLink was issued from your actual Agreement. Opening it does not accept, join or pay.':'This is the buyer-facing proposal. No real SecureLink or invitation has been created, and nobody has accepted it.')
         : 'This is how the seller’s offer could appear in a Store. Nothing has been published or registered.'}</p>
       <div className="spm-sell-review-card">
         <strong className="spm-sell-review-title">{title}</strong>
@@ -784,6 +820,18 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
         {!!timing&&<div className="spm-sell-review-line"><CalendarDays size={15}/>{timing}</div>}
         {personPlan&&<div className="spm-sell-review-line"><UserRoundPlus size={15}/>{personPlan==='later'?'Other person to be agreed':'Buyer to be invited later'}</div>}
       </div>
+      {result==='share'&&agreementGateway&&canonicalAgreement&&prepared.ok&&canOffer&&<>
+        <button type="button" className="spm-secondary spm-sell-wide"
+          disabled={shareCreating||shareIssued} onClick={issueSecureLink}>
+          <Send size={16}/>{shareIssued?'SecureLink issued':shareCreating?'Preparing…':'Create SecureLink'}
+        </button>
+        {shareUrl&&<button type="button" className="spm-secondary spm-sell-wide"
+          onClick={()=>{void navigator.clipboard?.writeText(shareUrl).then(
+            ()=>setShareStatus('SecureLink copied. Send it to your buyer when ready.'),
+            ()=>setShareStatus('Could not copy. You can open the Agreement to share it.')
+          );}}>Copy SecureLink</button>}
+        {shareStatus&&<p className="spm-sell-hint" role="status">{shareStatus}</p>}
+      </>}
       {result==='store'&&storeGateway&&sellerContext&&prepared.ok&&<>
         <p className="spm-sell-hint">Want to save this to your actual Store? It will stay private, with no photos or confirmed stock.</p>
         <button type="button" className="spm-secondary spm-sell-wide"
