@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   ArrowLeft, ArrowRight, Bookmark, BookOpenText, CalendarDays, Camera, CheckCircle2,
   ChevronRight, FileText, MapPin, MessageCircle, Send, ShieldCheck,
@@ -17,7 +17,7 @@ type Category = 'Goods'|'Agriculture'|'Equipment'|'Furniture'|'Services';
 
 type ReviewIssue = 'safety'|'regulated'|'photo'|'authority'|'availability'|null;
 function AnswerPill({children,onClick,selected=false,disabled=false}:{
-  children:React.ReactNode;onClick:()=>void;selected?:boolean;disabled?:boolean;
+  children:ReactNode;onClick:()=>void;selected?:boolean;disabled?:boolean;
 }){
   return <button type="button" className={'spm-sell-answer-pill'+(selected?' selected':'')}
     aria-pressed={selected} disabled={disabled} onClick={onClick}>{children}</button>;
@@ -98,6 +98,9 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
   const [people,setPeople]=useState<Person[]>([]);
   const [personName,setPersonName]=useState('');
   const [personRole,setPersonRole]=useState('Buyer');
+  const [personPlan,setPersonPlan]=useState<'later'|'securelink'|null>(null);
+  const [showPersonEntry,setShowPersonEntry]=useState(false);
+  const [peopleHint,setPeopleHint]=useState(false);
   const [rightToOffer,setRightToOffer]=useState(false);
   const [rightType,setRightType]=useState('Owner');
   const [stockStatement,setStockStatement]=useState('');
@@ -320,13 +323,16 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
             <div className="spm-sell-photo-wrap"><img src={p.preview} alt={'Seller-selected '+p.name}/>
               <span>SP · IMG {i+1}</span></div>
             <div className="spm-sell-photo-right"><strong>{p.name}</strong>
-              <label className="spm-sell-label"><span>Where did this photo come from?</span>
-                <select value={p.source} className="spm-field" onChange={e=>setPictures(prev=>prev.map((x,j)=>j===i?{...x,source:e.target.value as PhotoSource}:x))}>
-                  <option value="unknown">Choose its source</option><option value="own">I took it</option>
-                  <option value="supplier">Authorized supplier image</option><option value="permission">I have permission</option>
-                </select></label>
+              <strong className="spm-sell-inline-question">Where did this photo come from?</strong>
+              <div className="spm-sell-pill-row">
+                <AnswerPill selected={p.source==='own'} onClick={()=>setPictures(prev=>prev.map((x,j)=>j===i?{...x,source:'own'}:x))}>I took it</AnswerPill>
+                <AnswerPill selected={p.source==='supplier'} onClick={()=>setPictures(prev=>prev.map((x,j)=>j===i?{...x,source:'supplier'}:x))}>Supplier's image</AnswerPill>
+                <AnswerPill selected={p.source==='permission'} onClick={()=>setPictures(prev=>prev.map((x,j)=>j===i?{...x,source:'permission'}:x))}>With permission</AnswerPill>
+                <AnswerPill selected={p.source==='unknown'} onClick={()=>setPhotoUncertain(true)}>Not sure</AnswerPill>
+              </div>
               <button className="spm-sell-text-button" type="button" onClick={()=>setPictures(prev=>prev.filter((_,j)=>j!==i))}>Remove</button>
             </div></div>)}
+          {photoUncertain&&<p className="spm-sell-hint">If permission is unclear, ask the photo owner or remove the photo. Selecting a source is not an ownership check.</p>}
           <p className="spm-sell-hint">{photoCount} chosen in this session. No upload, ownership proof, duplicate-image scan or genuine Identimark registration has occurred.</p>
         </>}
         {shelf==='documents'&&<>
@@ -344,8 +350,13 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
         </>}
         {shelf==='places'&&<>
           <p className="spm-sell-hint">Where does the buyer collect, receive delivery or expect the work?</p>
-          <label className="spm-sell-label"><span>Place purpose</span><select className="spm-field" value={placeType} onChange={e=>setPlaceType(e.target.value as typeof placeType)}>
-            <option>Pickup</option><option>Delivery</option><option>Work location</option></select></label>
+          <strong className="spm-sell-inline-question">Where does the exchange happen?</strong>
+          <div className="spm-sell-pill-row">
+            <AnswerPill selected={placeType==='Pickup'&&place!=='To be agreed'} onClick={()=>{setPlaceType('Pickup');if(place==='To be agreed')setPlace('');}}>Buyer collects</AnswerPill>
+            <AnswerPill selected={placeType==='Delivery'&&place!=='To be agreed'} onClick={()=>{setPlaceType('Delivery');if(place==='To be agreed')setPlace('');}}>I can deliver</AnswerPill>
+            <AnswerPill selected={placeType==='Work location'&&place!=='To be agreed'} onClick={()=>{setPlaceType('Work location');if(place==='To be agreed')setPlace('');}}>Work location</AnswerPill>
+            <AnswerPill selected={place==='To be agreed'} onClick={()=>setPlace('To be agreed')}>To agree later</AnswerPill>
+          </div>
           {label('Public area, place name, Plus Code or map link','sell-place',place,setPlace,'e.g. Kamakis, Ruiru or a Google Maps link')}
           {label('Specific meeting or access instructions (private)','sell-meeting',privateMeeting,setPrivateMeeting,'Only share with the relevant party when necessary',2)}
           <p className="spm-sell-hint">Typing a location doesn't confirm it. Private meeting details are not shown on the public Store preview.</p>
@@ -357,11 +368,13 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
             {(['pickup','delivery','commencement','completion','inspection','other'] as const).map(x=><option key={x} value={x}>{x==='commencement'?'Start of work':x.charAt(0).toUpperCase()+x.slice(1)}</option>)}</select></label>
           {timingDraft.purpose==='other'&&label('What happens?','sell-time-purpose',timingDraft.freePurpose,
             v=>setTimingDraft(t=>({...t,freePurpose:v})),'Describe the event')}
-          <label className="spm-sell-label"><span>Timing arrangement</span><select className="spm-field" value={timingDraft.mode}
-            onChange={e=>setTimingDraft(t=>({...t,mode:e.target.value as TimingDraft['mode']}))}>
-            <option value="on">On a date</option><option value="between">Between dates</option>
-            <option value="every">Repeating</option><option value="after">After an event</option>
-          </select></label>
+          <strong className="spm-sell-inline-question">What kind of timing?</strong>
+          <div className="spm-sell-pill-row">
+            <AnswerPill selected={timingDraft.mode==='on'} onClick={()=>setTimingDraft(t=>({...t,mode:'on'}))}>Choose date</AnswerPill>
+            <AnswerPill selected={timingDraft.mode==='between'} onClick={()=>setTimingDraft(t=>({...t,mode:'between'}))}>Date range</AnswerPill>
+            <AnswerPill selected={timingDraft.mode==='every'} onClick={()=>setTimingDraft(t=>({...t,mode:'every'}))}>Repeating</AnswerPill>
+            <AnswerPill selected={timingDraft.mode==='after'} onClick={()=>setTimingDraft(t=>({...t,mode:'after'}))}>After an event</AnswerPill>
+          </div>
           {(['on','between'].includes(timingDraft.mode))&&<>
             <label className="spm-sell-label"><span>{timingDraft.mode==='between'?'Start date':'Date'}</span>
               <input type="date" className="spm-field" value={timingDraft.day} onChange={e=>setTimingDraft(t=>({...t,day:e.target.value}))}/></label>
@@ -401,12 +414,26 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
         </>}
         {shelf==='people'&&<>
           <p className="spm-sell-hint">Add a buyer or agent to your draft. This does not invite anyone or confirm their consent.</p>
-          {label('Name or KS Number','sell-person',personName,setPersonName,'e.g. Kamau, or KS Number')}
-          <label className="spm-sell-label"><span>Role</span><select className="spm-field" value={personRole} onChange={e=>setPersonRole(e.target.value)}>
-            {['Buyer','Agent','Provider','Witness','Other'].map(x=><option key={x}>{x}</option>)}</select></label>
-          <button className="spm-secondary spm-sell-wide" type="button" disabled={!personName.trim()} onClick={()=>{
-            setPeople(p=>[...p,{name:personName.trim().slice(0,120),role:personRole}].slice(0,8));setPersonName('');
-          }}><UserRoundPlus size={16}/>Add proposed person</button>
+          <strong className="spm-sell-inline-question">Who should be involved?</strong>
+          <div className="spm-sell-pill-row">
+            <AnswerPill selected={personPlan==='later'} onClick={()=>{setPersonPlan('later');setShowPersonEntry(false);}}>Decide later</AnswerPill>
+            <AnswerPill selected={personPlan==='securelink'} onClick={()=>{setPersonPlan('securelink');setShowPersonEntry(false);}}>Share with buyer later</AnswerPill>
+            <AnswerPill selected={showPersonEntry} onClick={()=>{setShowPersonEntry(true);setPersonPlan(null);}}>Name someone</AnswerPill>
+            <AnswerPill onClick={()=>setPeopleHint(show=>!show)}>My People</AnswerPill>
+          </div>
+          {peopleHint&&<p className="spm-sell-hint">Verified saved contacts aren't connected to this preview. Mini will offer a secure person picker when account-linked My People is ready; no contacts are fabricated.</p>}
+          {showPersonEntry&&<>
+            <strong className="spm-sell-inline-question">What is their role?</strong>
+            <div className="spm-sell-pill-row">
+              {['Buyer','Agent','Provider','Witness','Other'].map(role=>
+                <AnswerPill key={role} selected={personRole===role} onClick={()=>setPersonRole(role)}>{role}</AnswerPill>)}
+            </div>
+            {label('Name or KS Number','sell-person',personName,setPersonName,'Name or KS Number, only if you choose',1)}
+            <button className="spm-secondary spm-sell-wide" type="button" disabled={!personName.trim()} onClick={()=>{
+              setPeople(p=>[...p,{name:personName.trim().slice(0,120),role:personRole}].slice(0,8));
+              setPersonName('');setShowPersonEntry(false);
+            }}><UserRoundPlus size={16}/>Add this person to the proposal</button>
+          </>}
           {people.map((p,i)=><div className="spm-sell-data-row" key={i}><UserRoundPlus size={16}/>
             <span><strong>{p.name}</strong><small>{p.role} · not verified or invited</small></span>
             <button type="button" aria-label={'Remove '+p.name} onClick={()=>setPeople(x=>x.filter((_,j)=>i!==j))}><X size={17}/></button></div>)}
@@ -453,6 +480,7 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
         {!!place&&<div className="spm-sell-review-line"><MapPin size={15}/>{placeType}: {place}</div>}
         {!!timing&&<div className="spm-sell-review-line"><CalendarDays size={15}/>{timing}</div>}
         {people.map((p,i)=><div className="spm-sell-review-line" key={i}><UserRoundPlus size={15}/>{p.role}: {p.name} (not invited)</div>)}
+        {personPlan&&<div className="spm-sell-review-line"><UserRoundPlus size={15}/>{personPlan==='later'?'Other person to be agreed':'Buyer to be invited after proposal review'}</div>}
         {documents.map((d,i)=><div className="spm-sell-review-line" key={i}><FileText size={15}/>{d.purpose}: {d.name} (not verified)</div>)}
       </div>
       <div className="spm-sell-check">
@@ -579,6 +607,7 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
         <p>{descriptionReviewed&&description?description:'Seller-provided details will appear here after review.'}</p>
         {!!place&&<div className="spm-sell-review-line"><MapPin size={15}/>{placeType}: {place}</div>}
         {!!timing&&<div className="spm-sell-review-line"><CalendarDays size={15}/>{timing}</div>}
+        {personPlan&&<div className="spm-sell-review-line"><UserRoundPlus size={15}/>{personPlan==='later'?'Other person to be agreed':'Buyer to be invited later'}</div>}
       </div>
       <button type="button" className="spm-primary" onClick={()=>{setStage('review');setResult(null);}}>Back to offer <ArrowRight size={17}/></button>
       <button type="button" className="spm-sell-sample" onClick={onBack}>Back to Mini</button>
