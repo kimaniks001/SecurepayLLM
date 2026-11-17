@@ -2,6 +2,7 @@ import { segment, type HttpClient } from '../http';
 import type {
   BusinessStoreOpportunityResponse, BusinessStoreProfileResponse, PublicOfferDetailView, PublicSearchResultView, PublicStoreView, StoreOfferFulfilmentResponse, StoreOfferResponse, RegisterStoreImageUseRequest, StoreImageUseResponse,
   LinkStoreImageEvidenceRequest, StoreImageEvidenceView,
+  StoreImageReviewQuestion, RespondStoreImageReviewRequest, StoreImageSellerReviewReply,
   StoreProfileResponse, StoreSearchParams, UpsertStoreOfferFulfilmentRequest, UpdateStoreProfileRequest, UpsertStoreOfferRequest,
 } from './dto';
 
@@ -21,6 +22,10 @@ export function createStoreGateway(http: HttpClient) {
     `${personalImageUses(offerId)}/${segment(imageUseId)}/evidence`;
   const businessImageEvidence = (businessKsNumber: string, offerId: string, imageUseId: string) =>
     `${businessImageUses(businessKsNumber, offerId)}/${segment(imageUseId)}/evidence`;
+  const myImageReviewQuestion = (offerId: string,imageUseId: string) =>
+    `${personalImageUses(offerId)}/${segment(imageUseId)}/review-request`;
+  const businessImageReviewQuestion = (businessKsNumber: string,offerId: string,imageUseId: string) =>
+    `${businessImageUses(businessKsNumber,offerId)}/${segment(imageUseId)}/review-request`;
   const search = (params: StoreSearchParams) => {
     if (params.limit !== undefined && (!Number.isInteger(params.limit) || params.limit < 1 || params.limit > 10)) {
       throw new Error('Store search limit must be an integer between 1 and 10');
@@ -77,6 +82,17 @@ export function createStoreGateway(http: HttpClient) {
       http.request<StoreImageEvidenceView[]>(businessImageEvidence(businessKsNumber, offerId, imageUseId), { auth: 'required' }),
     revokeBusinessImageEvidence: (businessKsNumber: string, offerId: string, imageUseId: string, evidenceId: string) =>
       http.request<StoreImageEvidenceView>(`${businessImageEvidence(businessKsNumber, offerId, imageUseId)}/${segment(evidenceId)}/revoke`, { method: 'POST', auth: 'required' }),
+    // Phase 3: seller-facing answer pill question and fresh-evidence
+    // re-review. Requires actual authenticated Store/source records and does
+    // not submit local browser files or create an approved image/Identimark.
+    myImageReviewQuestion: (offerId: string, imageUseId: string) =>
+      http.request<StoreImageReviewQuestion>(myImageReviewQuestion(offerId,imageUseId), {auth: 'required'}),
+    respondMyImageReviewQuestion: (offerId: string,imageUseId: string,body: RespondStoreImageReviewRequest) =>
+      http.request<StoreImageSellerReviewReply>(`${myImageReviewQuestion(offerId,imageUseId)}/respond`, {method: 'POST',body,auth:'required'}),
+    businessImageReviewQuestion: (businessKsNumber: string, offerId: string, imageUseId: string) =>
+      http.request<StoreImageReviewQuestion>(businessImageReviewQuestion(businessKsNumber,offerId,imageUseId), {auth:'required'}),
+    respondBusinessImageReviewQuestion: (businessKsNumber: string, offerId: string, imageUseId: string, body: RespondStoreImageReviewRequest) =>
+      http.request<StoreImageSellerReviewReply>(`${businessImageReviewQuestion(businessKsNumber,offerId,imageUseId)}/respond`, {method:'POST',body,auth:'required'}),
     store: (canonicalKsNumber: string) => http.request<PublicStoreView>(`/api/v1/stores/${segment(canonicalKsNumber)}`, { auth: 'none' }),
     offer: (canonicalKsNumber: string, offerId: string) => http.request<PublicOfferDetailView>(`/api/v1/stores/${segment(canonicalKsNumber)}/offers/${segment(offerId)}`, { auth: 'none' }),
     search: (params: StoreSearchParams) => http.request<PublicSearchResultView[]>(search(params), { auth: 'none' }),
