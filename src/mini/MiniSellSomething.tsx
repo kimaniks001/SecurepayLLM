@@ -109,11 +109,11 @@ export function MiniSellSomething({language,onBack,seed=''}:{
       return {id:'describe',message:'Want help describing what is in your photo?'};
     if(sensitive&&!documents.length)
       return {id:'documents',message:'This item may need a licence or supporting document.'};
-    if(/\\b(?:deliver|delivery|collect|collection|pickup|pick-up)\\b/.test(words)&&!place)
+    if(/\b(?:deliver|delivery|collect|collection|pickup|pick-up)\b/.test(words)&&!place)
       return {id:'places',message:'Where will the buyer collect or receive it?'};
-    if(/\\b(?:tomorrow|next week|monday|tuesday|wednesday|thursday|friday|saturday|sunday|appointment)\\b/.test(words)&&!timing)
+    if(/\b(?:tomorrow|next week|monday|tuesday|wednesday|thursday|friday|saturday|sunday|appointment)\b/.test(words)&&!timing)
       return {id:'timing',message:'Add a proposed date or time?'};
-    if(/\\b(?:buyer|customer|client)\\b/.test(words)&&!people.length)
+    if(/\b(?:buyer|customer|client)\b/.test(words)&&!people.length)
       return {id:'people',message:'Want to name the buyer or agent?'};
     if(!descriptionReviewed)
       return {id:'describe',message:'I can help make this offer clearer to buyers.'};
