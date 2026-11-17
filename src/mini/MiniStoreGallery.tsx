@@ -113,6 +113,7 @@ export function MiniShopGallery({store,playground,onBack,cartCount,cartQty,onAdd
           <span className="spm-shop-tile-text">
             <small>{offer.kind==='PRODUCT'?'GOOD':'SERVICE'}</small>
             <strong>{offer.title}</strong>
+            {offer.description&&<span className="spm-shop-tile-teaser">{offer.description}</span>}
             <b>{price(offer.priceMinor,offer.currency)}</b>
           </span>
         </button>)}
@@ -151,6 +152,18 @@ export function MiniShopGallery({store,playground,onBack,cartCount,cartQty,onAdd
           </div>}
         </>}
         <button type="button" className="spm-shop-back-to-grid" onClick={goBack}>Keep browsing this Store</button>
+        {store.offers.filter(o=>o.id!==selected.id&&!['PAUSED','UNAVAILABLE','FULLY_BOOKED','RESTING'].includes(o.availabilityState)).length>0&&
+          <div className="spm-shop-related">
+            <h2>Something else to explore</h2>
+            <div className="spm-shop-related-grid">
+              {store.offers.filter(o=>o.id!==selected.id&&
+                !['PAUSED','UNAVAILABLE','FULLY_BOOKED','RESTING'].includes(o.availabilityState)).slice(0,3)
+                .map(other=><button type="button" key={other.id} onClick={()=>open(other)}>
+                  <MiniOfferPhoto offer={other} playground={playground}/>
+                  <span><strong>{other.title}</strong><small>{price(other.priceMinor,other.currency)}</small></span>
+                </button>)}
+            </div>
+          </div>}
       </div>
     </>}
     {cartCount>0&&<button type="button" className="spm-shop-bottom-basket" onClick={onBasket}>
