@@ -14,7 +14,7 @@ export declare function validSamplePurchase(record:unknown):record is MiniSample
 export declare function makeSampleLivingPurchase(input:{
  lines:MiniSampleLine[];rail:MiniSampleRail;delivery:string;
  deliveryFeeMinor?:number;deliveryProvider?:string|null;deliveryContracts?:Array<{
- providerAccepted:boolean;customerApprovalRequired:boolean;providerKsNumber:string;providerName:string;
+ providerAccepted:boolean;customerApproved:boolean;customerApprovalRequired:boolean;providerKsNumber:string;providerName:string;
  destination:string;window:string;pickupStores:string[];feeMinor:number;
  goods:Array<{quantity:number;title:string}>;
  }>;now?:Date;
