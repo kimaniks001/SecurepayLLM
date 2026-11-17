@@ -1535,3 +1535,17 @@ textarea.spm-field { resize:vertical; }
 .spm-sell-exits>button:disabled{opacity:.45;}
 .spm-sell-done-icon{display:grid;place-items:center;border-radius:17px;width:54px;height:54px;background:#e8f5e7;color:#346a4b;margin:15px 0;}
 @media(max-width:350px){.spm-sell-tool-grid{grid-template-columns:1fr;}.spm-sell-grid2{grid-template-columns:1fr;}}
+
+/* Small single entrance for the seller's optional tool shelf. */
+.spm-sell-tools-toggle{display:flex;align-items:center;justify-content:space-between;gap:12px;
+ width:100%;margin:14px 0 8px;min-height:48px;border:1px solid #dce8d9;border-radius:12px;
+ background:#f7faf5;color:#315f43;text-align:left;padding:11px 12px;font-size:12px;font-weight:700;}
+.spm-sell-tools-toggle>span{display:flex;gap:9px;align-items:center;}
+.spm-sell-tools-toggle>span svg{flex:none;}
+.spm-sell-tools-chevron{transition:transform .15s ease;flex:none;}
+.spm-sell-tools-chevron.open{transform:rotate(90deg);}
+.spm-sell-suggestion{width:100%;min-height:38px;margin-top:10px;border:0;
+ background:transparent;color:#547e60;display:flex;align-items:center;justify-content:space-between;
+ gap:12px;text-align:left;font-size:11px;line-height:1.45;padding:6px 2px;}
+.spm-sell-suggestion:hover{text-decoration:underline;}
+.spm-sell-suggestion svg{flex:none;}
