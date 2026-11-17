@@ -80,7 +80,7 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
   onBrowseStores:()=>void;actingAs:string;seed?:string;
   storeGateway?:StoreGateway;
   sellerContext?:{type:'personal'}|{type:'business';businessKsNumber:string};
-  agreementGateway?:Pick<AgreementGateway,'activeDoorway'|'issuePublicDoorway'|'detail'|'propose'>;
+  agreementGateway?:Pick<AgreementGateway,'activeDoorway'|'issuePublicDoorway'|'detail'|'proposeReviewed'>;
   handoffGateway?:MiniSellerHandoffGateway;
   /** Trusted saved KS001 conversation context, never a local Mini draft ID. */
   sellerSavedSource?:{conversationId:string;reviewedTradeContextVersion:number};
