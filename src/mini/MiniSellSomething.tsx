@@ -8,6 +8,7 @@ import { buildTimingProposal, type TimingDraft } from '../features/living-worksp
 import type { MiniLanguage } from './miniModel';
 import type { StoreGateway } from '../api/securepay/store';
 import type { AgreementGateway } from '../api/securepay/agreements';
+import type { AgreementVersionSummaryResponse } from '../api/securepay/agreements/dto';
 import type { MiniSellerHandoffGateway, MiniSellerReviewedHandoff } from './miniSellerAgreementHandoff.mjs';
 import { miniSellerCreateCanonicalStoreDraft } from './miniSellerCanonicalStoreBridge.mjs';
 import { miniSellerPublishTextOnly } from './miniSellerPublishTextOnly.mjs';
@@ -152,10 +153,10 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
   const [reviewAcknowledged,setReviewAcknowledged]=useState(false);
   const [reviewedOfferSignature,setReviewedOfferSignature]=useState<string|null>(null);
   const [realDraftAgreement,setRealDraftAgreement]=useState<{
-    id:string;status:'DRAFT';version:{versionId:string;versionNumber:number;contentHash:string}
+    id:string;status:'DRAFT';version:AgreementVersionSummaryResponse
   }|null>(null);
   const [proposedAgreement,setProposedAgreement]=useState<{
-    id:string;status:'PROPOSED';version:{versionId:string;versionNumber:number;contentHash:string}
+    id:string;status:'PROPOSED';version:AgreementVersionSummaryResponse
   }|null>(null);
   const [ksHelp,setKsHelp]=useState(false);
   const photoRef=useRef<HTMLInputElement>(null);
