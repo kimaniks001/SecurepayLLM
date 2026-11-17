@@ -17,7 +17,7 @@ import { miniStoreOfferSnapshotFresh } from './miniStoreOfferFresh.mjs';
  * payment/Agreement version mutation. Business permission is checked by
  * the canonical BusinessGateway before loading and again before fulfilment.
  */
-export function MiniSellerStore({storeGateway,businessGateway,quotationGateway,liveQuotes,prepare,onBack,onInvitations,onSellerDiscuss}:{
+export function MiniSellerStore({storeGateway,businessGateway,quotationGateway,liveQuotes,prepare,onBack,onInvitations,onSellerDiscuss,onPrepareOffer}:{
   storeGateway:StoreGateway;
   quotationGateway:StoreQuotationGateway;
   liveQuotes:boolean;
@@ -27,6 +27,8 @@ export function MiniSellerStore({storeGateway,businessGateway,quotationGateway,l
   onInvitations:()=>void;
   /** Seller's words travel to the SAME KS001 conversation, never to an order endpoint. */
   onSellerDiscuss:(proposal:MiniSellerQuotationDraft)=>Promise<boolean>;
+  /** Opens the native Mini seller composer only after this Store was authorised. */
+  onPrepareOffer?:(context:{type:'personal'}|{type:'business';businessKsNumber:string})=>void;
 }){
   const controller=useMemo(()=>createStoreController(storeGateway),[storeGateway]);
   const state=useSyncExternalStore(controller.subscribe,controller.getSnapshot,controller.getSnapshot);
@@ -320,6 +322,12 @@ export function MiniSellerStore({storeGateway,businessGateway,quotationGateway,l
     {notice&&<p role="status">{notice}</p>}
     {opened&&<>
       <strong>{storeBusiness?storeBusiness.displayName:'My personal Store'}</strong>
+      {onPrepareOffer&&<button type="button" className="spm-secondary spm-sell-wide"
+        onClick={()=>onPrepareOffer(storeBusiness
+          ?{type:'business',businessKsNumber:storeBusiness.ksNumber}
+          :{type:'personal'})}>
+        <Store size={16}/>Sell something <ArrowRight size={16}/>
+      </button>}
       {!opened.raw.length&&<p>This Store has no offers to review.</p>}
       {opened.raw.map(o=><div key={o.id} className="spm-mini-owned-item">
         <div><strong>{o.title}</strong>
