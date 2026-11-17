@@ -106,6 +106,7 @@ test('Store controller routes safe public text revisions to CAS endpoints, not l
   const source=fs.readFileSync(new URL('../src/features/store/controller.ts',import.meta.url),'utf8');
   const gateway=fs.readFileSync(new URL('../src/api/securepay/store/index.ts',import.meta.url),'utf8');
   assert.ok(source.includes('storePublishedTextEditReview(existing, state.draft)'));
+  assert.ok(source.includes('originallyTextOnly && !reviewedEdit.ok'));
   assert.ok(source.includes('storePublishedTextEditFresh(existing, candidates[0])'));
   assert.ok(source.includes('updateMyPublishedTextOffer(existing.id, changed)'));
   assert.ok(source.includes('updateBusinessPublishedTextOffer(business.ksNumber, existing.id, changed)'));
