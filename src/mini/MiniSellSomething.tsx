@@ -1,20 +1,27 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   ArrowLeft, ArrowRight, Bookmark, BookOpenText, CalendarDays, Camera, CheckCircle2,
-  ChevronRight, FileText, MapPin, MessageCircle, Send, ShieldCheck,
-  Store, UserRoundPlus, X
+  ChevronRight, FileText, MapPin, MessageCircle, Pencil, Send, ShieldCheck,
+  Store, UserRoundPlus, Heart, Handshake, Settings2, ShoppingBag, UsersRound, X
 } from 'lucide-react';
 import { buildTimingProposal, type TimingDraft } from '../features/living-workspace/DateTimeTool';
 import type { MiniLanguage } from './miniModel';
 
 type Shelf = 'describe'|'photos'|'documents'|'places'|'timing'|'people'|null;
 type PhotoSource = 'own'|'supplier'|'permission'|'unknown';
-type Picture = { name:string; preview:string; source:PhotoSource };
+type Picture = { name:string; preview:string; source:PhotoSource; supplierPermission?:boolean };
 type Support = { name:string; purpose:string };
 type Person = { name:string; role:string };
 type Result = 'share'|'store'|'save'|null;
 type Category = 'Goods'|'Agriculture'|'Equipment'|'Furniture'|'Services';
 
+type ReviewIssue = 'safety'|'regulated'|'photo'|'photo-permission'|'authority'|'availability'|null;
+function AnswerPill({children,onClick,selected=false,disabled=false}:{
+  children:ReactNode;onClick:()=>void;selected?:boolean;disabled?:boolean;
+}){
+  return <button type="button" className={'spm-sell-answer-pill'+(selected?' selected':'')}
+    aria-pressed={selected} disabled={disabled} onClick={onClick}>{children}</button>;
+}
 const toolList = [
   {id:'describe' as const, label:'Describe & Present', hint:'Help buyers understand your offer', icon:BookOpenText},
   {id:'photos' as const, label:'Photos', hint:'Show the actual item or an authorised image', icon:Camera},
@@ -54,13 +61,19 @@ function writeDescription(input:{
  * Identity, Agreement, media-provenance, invitation, SecureLink or Money writes.
  * Local declaration is not verification; local output is not a canonical offer.
  */
-export function MiniSellSomething({language,onBack,seed=''}:{
-  language:MiniLanguage;onBack:()=>void;seed?:string;
+export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,onBrowseStores,actingAs,seed=''}:{
+  language:MiniLanguage;onBack:()=>void;onOpenStore:()=>void;onOpenSettings:()=>void;
+  onBrowseStores:()=>void;actingAs:string;seed?:string;
 }) {
   const sw=language==='sw';
   const [stage,setStage]=useState<'compose'|'review'|'result'>('compose');
+  const [sellerArea,setSellerArea]=useState<'offer'|'quick'|'relationships'>('offer');
   const [shelf,setShelf]=useState<Shelf>(null);
   const [toolsOpen,setToolsOpen]=useState(false);
+  const [showMorePills,setShowMorePills]=useState(false);
+  const [returningToReview,setReturningToReview]=useState(false);
+  const [photoUncertain,setPhotoUncertain]=useState(false);
+  const [authorityUncertain,setAuthorityUncertain]=useState(false);
   const [title,setTitle]=useState(seed.slice(0,240));
   const [category,setCategory]=useState<Category>('Goods');
   const [priceType,setPriceType]=useState<'fixed'|'quote'>('fixed');
@@ -86,6 +99,9 @@ export function MiniSellSomething({language,onBack,seed=''}:{
   const [people,setPeople]=useState<Person[]>([]);
   const [personName,setPersonName]=useState('');
   const [personRole,setPersonRole]=useState('Buyer');
+  const [personPlan,setPersonPlan]=useState<'later'|'securelink'|null>(null);
+  const [showPersonEntry,setShowPersonEntry]=useState(false);
+  const [peopleHint,setPeopleHint]=useState(false);
   const [rightToOffer,setRightToOffer]=useState(false);
   const [rightType,setRightType]=useState('Owner');
   const [stockStatement,setStockStatement]=useState('');
@@ -98,8 +114,35 @@ export function MiniSellSomething({language,onBack,seed=''}:{
   const invalidPrice=priceType==='fixed' && !readableAmount(price);
   const suspicious=useMemo(()=>/\b(?:stolen|counterfeit|fake passport|ivory|illegal drugs|firearms?|ammunition)\b/i.test(title+' '+description),[title,description]);
   const sensitive=useMemo(()=>/\b(?:medicine|pharmaceutical|pesticide|alcohol|vehicle registration)\b/i.test(title+' '+description),[title,description]);
-  const imageNeedsSource=pictures.some(p=>p.source==='unknown');
-  const canOffer=!!title.trim()&&!invalidPrice&&!suspicious&&!sensitive&&rightToOffer&&!imageNeedsSource;
+  const imageNeedsSource=pictures.some(p=>p.source==='unknown'||(p.source==='supplier'&&!p.supplierPermission));
+  const pendingPhotoIndex=pictures.findIndex(p=>p.source==='unknown'||(p.source==='supplier'&&!p.supplierPermission));
+  // The examiner asks one small question, with a meaningful pill for every answer.
+  // Seller declarations are NOT legal, image, licence, identity or stock verification.
+  const currentQuestion:ReviewIssue=suspicious?'safety':sensitive?'regulated':
+    pendingPhotoIndex>=0?(pictures[pendingPhotoIndex].source==='supplier'?'photo-permission':'photo'):
+    !rightToOffer?'authority':!stockStatement.trim()?'availability':null;
+  const canOffer=!!title.trim()&&!invalidPrice&&!suspicious&&!sensitive&&
+    rightToOffer&&!imageNeedsSource&&!!stockStatement.trim();
+  const photoSourceName=(source:PhotoSource)=>({
+    own:'Photo I took',supplier:'Supplier image (permission declared)',
+    permission:'Photo used with permission',unknown:'Source not stated'
+  })[source];
+  const openReviewTool=(tool:Exclude<Shelf,null>)=>{
+    setReturningToReview(true);setStage('compose');setSellerArea('offer');setToolsOpen(true);setShelf(tool);setError('');
+  };
+  const photoAnswered=(source:Exclude<PhotoSource,'unknown'>)=>{
+    setPictures(current=>current.map((picture,i)=>i===pendingPhotoIndex?
+      {...picture,source,supplierPermission:source==='supplier'?false:true}:picture));
+    setPhotoUncertain(false);
+  };
+  const authorityAnswered=(role:string)=>{setRightType(role);setRightToOffer(true);setAuthorityUncertain(false);};
+  useEffect(()=>{
+    if(stage==='compose'&&toolsOpen&&shelf){
+      document.querySelector('[data-mini-sell-tool-panel]')?.scrollIntoView({block:'start',behavior:'smooth'});
+    }else if(stage==='review'){
+      document.querySelector('[data-mini-sell-review]')?.scrollIntoView({block:'start',behavior:'smooth'});
+    }
+  },[stage,shelf,toolsOpen]);
   const refreshDescription=()=>{setDescriptionReviewed(false);setError('');};
   // Progressive disclosure: one gentle next-step suggestion, never a compulsory tool.
   const suggestion=useMemo<{id:Exclude<Shelf,null>;message:string}|null>(()=>{
@@ -124,13 +167,11 @@ export function MiniSellSomething({language,onBack,seed=''}:{
     setToolsOpen(true);setShelf(suggestion.id);setError('');
   };
   const fields = {title,category,condition,specifications,purpose,included,limitations,warranty};
-  const evidenceNotices=[
-    !rightToOffer?'Confirm your authority to offer this item.':null,
-    imageNeedsSource?'Tell us where each photograph came from.':null,
-    suspicious?'This offer needs specialist review; it cannot be shared or listed in this preview.':null,
-    sensitive?'This category needs applicable licensing and eligibility checks before publication.':null,
-    !stockStatement.trim()?'Availability has not been checked. Buyers should know this.':null
-  ].filter((line):line is string=>line!==null);
+  const remainingQuestions=[
+    imageNeedsSource?'photograph':null,
+    !rightToOffer?'right to sell':null,
+    !stockStatement.trim()?'availability':null
+  ].filter((value):value is string=>value!==null);
   const choosePhoto=(file?:File)=>{
     if(!file)return;
     setError('');
@@ -141,7 +182,7 @@ export function MiniSellSomething({language,onBack,seed=''}:{
     const reader=new FileReader();
     reader.onload=()=>{
       if(typeof reader.result!=='string')return;
-      setPictures(current=>[...current,{name:file.name.slice(0,100),preview:reader.result as string,source:'unknown' as PhotoSource}].slice(0,4));
+      setPictures(current=>[...current,{name:file.name.slice(0,100),preview:reader.result as string,source:'unknown' as PhotoSource,supplierPermission:false}].slice(0,4));
       setPhotoCount(n=>n+1);
     };
     reader.onerror=()=>setError('The photo could not be opened. Nothing was uploaded.');
@@ -166,7 +207,7 @@ export function MiniSellSomething({language,onBack,seed=''}:{
     if(quantity.trim()&&(!/^\d+(?:\.\d{1,3})?$/.test(quantity)||Number(quantity)<=0)){
       setError('Please check the quantity.');return;
     }
-    setShelf(null);setStage('review');
+    setShelf(null);setReturningToReview(false);setShowMorePills(false);setStage('review');
   };
   const finish=(kind:Result)=>{
     if(kind!=='save'&&!canOffer)return;
@@ -186,7 +227,7 @@ export function MiniSellSomething({language,onBack,seed=''}:{
     setWarranty('');setDescription('');setDescriptionReviewed(false);
     setStockStatement('Seller says 20 bags available — not verified');
     setRightType('Owner');setRightToOffer(false);
-    setError('');setShelf('describe');
+    setError('');setToolsOpen(true);setShelf('describe');
   };
   const label=(text:string,id:string,value:string,set:(v:string)=>void,placeholder:string,rows=0)=>
     <label className="spm-sell-label" htmlFor={id}><span>{text}</span>
@@ -196,10 +237,37 @@ export function MiniSellSomething({language,onBack,seed=''}:{
           placeholder={placeholder} maxLength={300} onChange={e=>set(e.target.value)}/>}
     </label>;
   return <section className="spm-content spm-sell" data-mini-sell-something="preview">
-    <button type="button" className="spm-back" onClick={stage==='compose'?onBack:()=>{setStage(stage==='result'?'review':'compose');setError('');}}>
-      <ArrowLeft size={18}/>{stage==='compose'?'Mini':stage==='result'?'Offer review':'Change offer'}</button>
+    <button type="button" className="spm-back" onClick={sellerArea!=='offer'?()=>setSellerArea('offer'):stage==='compose'?onBack:()=>{setStage(stage==='result'?'review':'compose');setError('');}}>
+      <ArrowLeft size={18}/>{sellerArea!=='offer'?'Sell something':stage==='compose'?'Mini':stage==='result'?'Offer review':'Change offer'}</button>
     <div className="spm-persona"><ShieldCheck size={15}/><span>Sell something</span><span className="spm-dot"/><span>Owner preview</span></div>
-    {stage==='compose'&&<>
+    {stage==='compose'&&sellerArea==='quick'&&<div className="spm-sell-phase1-destination" data-seller-phase1="quick-contract">
+      <div className="spm-sell-phase1-symbol"><Handshake size={25}/></div>
+      <h1 className="spm-question">Quick Contract</h1>
+      <p className="spm-lead">A quicker way to trade with someone you already know. The terms and each person's agreement must still be checked.</p>
+      <div className="spm-sell-phase1-hint">Choose how to begin. The current preview prepares an offer or opens the Store browser; it cannot reuse or sign an existing Agreement.</div>
+      <button type="button" className="spm-sell-phase1-link" onClick={()=>{setSellerArea('offer');setToolsOpen(true);setShelf('people');}}>
+        <UsersRound size={19}/><span><strong>Start with a person</strong><small>Add the buyer or agent to an offer you will review.</small></span><ChevronRight size={17}/>
+      </button>
+      <button type="button" className="spm-sell-phase1-link" onClick={onBrowseStores}>
+        <ShoppingBag size={19}/><span><strong>Find a Store to trade with</strong><small>Review the current public offer before preparing terms.</small></span><ChevronRight size={17}/>
+      </button>
+      <p className="spm-sell-hint">Trade-again shortcuts and saved contract templates will connect in Phase 6. No SecureLink, Agreement or payment is created here.</p>
+    </div>}
+    {stage==='compose'&&sellerArea==='relationships'&&<div className="spm-sell-phase1-destination" data-seller-phase1="relationships">
+      <div className="spm-sell-phase1-symbol"><Heart size={25}/></div>
+      <h1 className="spm-question">My People & Favourite Stores</h1>
+      <p className="spm-lead">Find the traders and people you return to. Your relationships stay private unless you choose to share them.</p>
+      <div className="spm-sell-phase1-hint">Favourites are not yet stored in a verified SecurePay account on this preview. We won't invent a list of people or claim a Store is your favourite.</div>
+      <button type="button" className="spm-sell-phase1-link" onClick={onBrowseStores}>
+        <ShoppingBag size={19}/><span><strong>Explore Stores</strong><small>Browse current examples. You can return here to sell.</small></span><ChevronRight size={17}/>
+      </button>
+      <button type="button" className="spm-sell-phase1-link" onClick={()=>{setSellerArea('offer');setToolsOpen(true);setShelf('people');}}>
+        <UsersRound size={19}/><span><strong>Prepare an offer for someone</strong><small>Use People & Invitations to name the other party.</small></span><ChevronRight size={17}/>
+      </button>
+      <p className="spm-sell-hint">Private, account-linked favourites and Trade again belong to Phase 6. No contacts are copied from your device.</p>
+    </div>}
+    {stage==='compose'&&sellerArea==='offer'&&<>
+      <div className="spm-sell-phase1-capacity"><span>Acting as <strong>{actingAs}</strong></span><small>Example only · authority not verified</small></div>
       <h1 className="spm-question">{sw?'Unauza nini?':'What are you selling?'}</h1>
       <p className="spm-lead">Tell Mini a little. Add pictures or details only when they help you make a better offer.</p>
       {label('Your item or service','sell-title',title,v=>{setTitle(v);refreshDescription();},'e.g. 20 bags of animal feed',2)}
@@ -228,7 +296,7 @@ export function MiniSellSomething({language,onBack,seed=''}:{
             id==='people'&&people.length>0||id==='timing'&&!!timing||id==='places'&&!!place||
             id==='describe'&&!!descriptionReviewed)&&<CheckCircle2 size={13}/>}
         </button>)}</div>
-      {toolsOpen&&shelf&&<div className="spm-sell-tool-panel" aria-label={toolList.find(t=>t.id===shelf)?.label}>
+      {toolsOpen&&shelf&&<div data-mini-sell-tool-panel className="spm-sell-tool-panel" aria-label={toolList.find(t=>t.id===shelf)?.label}>
         <div className="spm-sell-panel-head"><strong>{toolList.find(t=>t.id===shelf)?.label}</strong>
           <button type="button" aria-label="Close tool" onClick={()=>setShelf(null)}><X size={17}/></button></div>
         {shelf==='describe'&&<>
@@ -258,13 +326,16 @@ export function MiniSellSomething({language,onBack,seed=''}:{
             <div className="spm-sell-photo-wrap"><img src={p.preview} alt={'Seller-selected '+p.name}/>
               <span>SP · IMG {i+1}</span></div>
             <div className="spm-sell-photo-right"><strong>{p.name}</strong>
-              <label className="spm-sell-label"><span>Where did this photo come from?</span>
-                <select value={p.source} className="spm-field" onChange={e=>setPictures(prev=>prev.map((x,j)=>j===i?{...x,source:e.target.value as PhotoSource}:x))}>
-                  <option value="unknown">Choose its source</option><option value="own">I took it</option>
-                  <option value="supplier">Authorized supplier image</option><option value="permission">I have permission</option>
-                </select></label>
+              <strong className="spm-sell-inline-question">Where did this photo come from?</strong>
+              <div className="spm-sell-pill-row">
+                <AnswerPill selected={p.source==='own'} onClick={()=>setPictures(prev=>prev.map((x,j)=>j===i?{...x,source:'own' as PhotoSource}:x))}>I took it</AnswerPill>
+                <AnswerPill selected={p.source==='supplier'} onClick={()=>setPictures(prev=>prev.map((x,j)=>j===i?{...x,source:'supplier' as PhotoSource,supplierPermission:false}:x))}>Supplier's image</AnswerPill>
+                <AnswerPill selected={p.source==='permission'} onClick={()=>setPictures(prev=>prev.map((x,j)=>j===i?{...x,source:'permission' as PhotoSource,supplierPermission:true}:x))}>With permission</AnswerPill>
+                <AnswerPill selected={p.source==='unknown'} onClick={()=>setPhotoUncertain(true)}>Not sure</AnswerPill>
+              </div>
               <button className="spm-sell-text-button" type="button" onClick={()=>setPictures(prev=>prev.filter((_,j)=>j!==i))}>Remove</button>
             </div></div>)}
+          {photoUncertain&&<p className="spm-sell-hint">If permission is unclear, ask the photo owner or remove the photo. Selecting a source is not an ownership check.</p>}
           <p className="spm-sell-hint">{photoCount} chosen in this session. No upload, ownership proof, duplicate-image scan or genuine Identimark registration has occurred.</p>
         </>}
         {shelf==='documents'&&<>
@@ -282,8 +353,13 @@ export function MiniSellSomething({language,onBack,seed=''}:{
         </>}
         {shelf==='places'&&<>
           <p className="spm-sell-hint">Where does the buyer collect, receive delivery or expect the work?</p>
-          <label className="spm-sell-label"><span>Place purpose</span><select className="spm-field" value={placeType} onChange={e=>setPlaceType(e.target.value as typeof placeType)}>
-            <option>Pickup</option><option>Delivery</option><option>Work location</option></select></label>
+          <strong className="spm-sell-inline-question">Where does the exchange happen?</strong>
+          <div className="spm-sell-pill-row">
+            <AnswerPill selected={placeType==='Pickup'&&place!=='To be agreed'} onClick={()=>{setPlaceType('Pickup');if(place==='To be agreed')setPlace('');}}>Buyer collects</AnswerPill>
+            <AnswerPill selected={placeType==='Delivery'&&place!=='To be agreed'} onClick={()=>{setPlaceType('Delivery');if(place==='To be agreed')setPlace('');}}>I can deliver</AnswerPill>
+            <AnswerPill selected={placeType==='Work location'&&place!=='To be agreed'} onClick={()=>{setPlaceType('Work location');if(place==='To be agreed')setPlace('');}}>Work location</AnswerPill>
+            <AnswerPill selected={place==='To be agreed'} onClick={()=>setPlace('To be agreed')}>To agree later</AnswerPill>
+          </div>
           {label('Public area, place name, Plus Code or map link','sell-place',place,setPlace,'e.g. Kamakis, Ruiru or a Google Maps link')}
           {label('Specific meeting or access instructions (private)','sell-meeting',privateMeeting,setPrivateMeeting,'Only share with the relevant party when necessary',2)}
           <p className="spm-sell-hint">Typing a location doesn't confirm it. Private meeting details are not shown on the public Store preview.</p>
@@ -295,11 +371,13 @@ export function MiniSellSomething({language,onBack,seed=''}:{
             {(['pickup','delivery','commencement','completion','inspection','other'] as const).map(x=><option key={x} value={x}>{x==='commencement'?'Start of work':x.charAt(0).toUpperCase()+x.slice(1)}</option>)}</select></label>
           {timingDraft.purpose==='other'&&label('What happens?','sell-time-purpose',timingDraft.freePurpose,
             v=>setTimingDraft(t=>({...t,freePurpose:v})),'Describe the event')}
-          <label className="spm-sell-label"><span>Timing arrangement</span><select className="spm-field" value={timingDraft.mode}
-            onChange={e=>setTimingDraft(t=>({...t,mode:e.target.value as TimingDraft['mode']}))}>
-            <option value="on">On a date</option><option value="between">Between dates</option>
-            <option value="every">Repeating</option><option value="after">After an event</option>
-          </select></label>
+          <strong className="spm-sell-inline-question">What kind of timing?</strong>
+          <div className="spm-sell-pill-row">
+            <AnswerPill selected={timingDraft.mode==='on'} onClick={()=>setTimingDraft(t=>({...t,mode:'on'}))}>Choose date</AnswerPill>
+            <AnswerPill selected={timingDraft.mode==='between'} onClick={()=>setTimingDraft(t=>({...t,mode:'between'}))}>Date range</AnswerPill>
+            <AnswerPill selected={timingDraft.mode==='every'} onClick={()=>setTimingDraft(t=>({...t,mode:'every'}))}>Repeating</AnswerPill>
+            <AnswerPill selected={timingDraft.mode==='after'} onClick={()=>setTimingDraft(t=>({...t,mode:'after'}))}>After an event</AnswerPill>
+          </div>
           {(['on','between'].includes(timingDraft.mode))&&<>
             <label className="spm-sell-label"><span>{timingDraft.mode==='between'?'Start date':'Date'}</span>
               <input type="date" className="spm-field" value={timingDraft.day} onChange={e=>setTimingDraft(t=>({...t,day:e.target.value}))}/></label>
@@ -334,21 +412,39 @@ export function MiniSellSomething({language,onBack,seed=''}:{
             const prepared=buildTimingProposal(timingDraft);
             if(prepared.error){setError(prepared.error);return;}
             setTiming(prepared.text.split(' Ask me to review')[0]);setShelf(null);setError('');
+            if(returningToReview){setStage('review');setReturningToReview(false);}
           }}><CalendarDays size={16}/>Add proposed timing</button>
           {timing&&<p className="spm-sell-hint">Current proposal: {timing}</p>}
         </>}
         {shelf==='people'&&<>
           <p className="spm-sell-hint">Add a buyer or agent to your draft. This does not invite anyone or confirm their consent.</p>
-          {label('Name or KS Number','sell-person',personName,setPersonName,'e.g. Kamau, or KS Number')}
-          <label className="spm-sell-label"><span>Role</span><select className="spm-field" value={personRole} onChange={e=>setPersonRole(e.target.value)}>
-            {['Buyer','Agent','Provider','Witness','Other'].map(x=><option key={x}>{x}</option>)}</select></label>
-          <button className="spm-secondary spm-sell-wide" type="button" disabled={!personName.trim()} onClick={()=>{
-            setPeople(p=>[...p,{name:personName.trim().slice(0,120),role:personRole}].slice(0,8));setPersonName('');
-          }}><UserRoundPlus size={16}/>Add proposed person</button>
+          <strong className="spm-sell-inline-question">Who should be involved?</strong>
+          <div className="spm-sell-pill-row">
+            <AnswerPill selected={personPlan==='later'} onClick={()=>{setPersonPlan('later');setShowPersonEntry(false);}}>Decide later</AnswerPill>
+            <AnswerPill selected={personPlan==='securelink'} onClick={()=>{setPersonPlan('securelink');setShowPersonEntry(false);}}>Share with buyer later</AnswerPill>
+            <AnswerPill selected={showPersonEntry} onClick={()=>{setShowPersonEntry(true);setPersonPlan(null);}}>Name someone</AnswerPill>
+            <AnswerPill onClick={()=>setPeopleHint(show=>!show)}>My People</AnswerPill>
+          </div>
+          {peopleHint&&<p className="spm-sell-hint">Verified saved contacts aren't connected to this preview. Mini will offer a secure person picker when account-linked My People is ready; no contacts are fabricated.</p>}
+          {showPersonEntry&&<>
+            <strong className="spm-sell-inline-question">What is their role?</strong>
+            <div className="spm-sell-pill-row">
+              {['Buyer','Agent','Provider','Witness','Other'].map(role=>
+                <AnswerPill key={role} selected={personRole===role} onClick={()=>setPersonRole(role)}>{role}</AnswerPill>)}
+            </div>
+            {label('Name or KS Number','sell-person',personName,setPersonName,'Name or KS Number, only if you choose',1)}
+            <button className="spm-secondary spm-sell-wide" type="button" disabled={!personName.trim()} onClick={()=>{
+              setPeople(p=>[...p,{name:personName.trim().slice(0,120),role:personRole}].slice(0,8));
+              setPersonName('');setShowPersonEntry(false);
+            }}><UserRoundPlus size={16}/>Add this person to the proposal</button>
+          </>}
           {people.map((p,i)=><div className="spm-sell-data-row" key={i}><UserRoundPlus size={16}/>
             <span><strong>{p.name}</strong><small>{p.role} · not verified or invited</small></span>
             <button type="button" aria-label={'Remove '+p.name} onClick={()=>setPeople(x=>x.filter((_,j)=>i!==j))}><X size={17}/></button></div>)}
         </>}
+        {returningToReview&&<button type="button" className="spm-secondary spm-sell-wide" onClick={()=>{
+          setReturningToReview(false);setShelf(null);setStage('review');setError('');
+        }}><CheckCircle2 size={16}/>Back to offer review</button>}
       </div>}
       </div>}
       {(!!descriptionReviewed||pictures.length>0||documents.length>0||!!place||!!timing||people.length>0)&&
@@ -363,9 +459,23 @@ export function MiniSellSomething({language,onBack,seed=''}:{
       {!!error&&<p className="spm-error" role="alert">{error}</p>}
       <button type="button" className="spm-primary" onClick={reviewOffer}>Review my offer <ArrowRight size={18}/></button>
       <button type="button" className="spm-sell-sample" onClick={sample}>Try an example: 20 bags of feed</button>
+      <div className="spm-sell-phase1-divider"><span>Or manage your trading</span></div>
+      <button type="button" className="spm-sell-phase1-link spm-sell-phase1-store" onClick={onOpenStore} data-seller-phase1="my-store">
+        <Store size={21}/><span><strong>My Store</strong><small>Offers, customer requests and your shopfront</small></span><ChevronRight size={18}/>
+      </button>
+      <button type="button" className="spm-sell-phase1-link" onClick={()=>setSellerArea('quick')} data-seller-phase1="quick-contract-entry">
+        <Handshake size={20}/><span><strong>Quick Contract</strong><small>Trade again with someone you know</small></span><ChevronRight size={17}/>
+      </button>
+      <button type="button" className="spm-sell-phase1-link" onClick={()=>setSellerArea('relationships')} data-seller-phase1="relationships-entry">
+        <Heart size={20}/><span><strong>My People & Favourite Stores</strong><small>Return to familiar trading relationships</small></span><ChevronRight size={17}/>
+      </button>
+      <button type="button" className="spm-sell-phase1-settings" onClick={onOpenSettings}>
+        <Settings2 size={16}/>Store Settings <ChevronRight size={16}/>
+      </button>
+      <p className="spm-sell-hint">The Store and settings are fictional examples in this owner preview. Verified account, billing and permissions are not changed.</p>
     </>}
     {stage==='review'&&<>
-      <h1 className="spm-question">Let's check your offer</h1>
+      <h1 className="spm-question" data-mini-sell-review>Let's check your offer</h1>
       <p className="spm-lead">Make sure it is clear and yours to offer. The other person has not accepted anything yet.</p>
       <div className="spm-sell-review-card">
         {pictures[0]&&<div className="spm-sell-cover"><img src={pictures[0].preview} alt="Seller-provided offer"/>
@@ -377,26 +487,123 @@ export function MiniSellSomething({language,onBack,seed=''}:{
         {!!place&&<div className="spm-sell-review-line"><MapPin size={15}/>{placeType}: {place}</div>}
         {!!timing&&<div className="spm-sell-review-line"><CalendarDays size={15}/>{timing}</div>}
         {people.map((p,i)=><div className="spm-sell-review-line" key={i}><UserRoundPlus size={15}/>{p.role}: {p.name} (not invited)</div>)}
+        {personPlan&&<div className="spm-sell-review-line"><UserRoundPlus size={15}/>{personPlan==='later'?'Other person to be agreed':'Buyer to be invited after proposal review'}</div>}
         {documents.map((d,i)=><div className="spm-sell-review-line" key={i}><FileText size={15}/>{d.purpose}: {d.name} (not verified)</div>)}
       </div>
       <div className="spm-sell-check">
         <div className="spm-sell-check-head"><ShieldCheck size={18}/><strong>Quiet Fair Trade examination</strong></div>
-        <p>We ask what matters before you share. This preview does not make legal, stock or identity decisions.</p>
-        <label className="spm-sell-label"><span>My authority to sell</span>
-          <select value={rightType} className="spm-field" onChange={e=>{setRightType(e.target.value);setRightToOffer(false);}}>
-            <option>Owner</option><option>Authorised reseller</option><option>Agent with permission</option><option>Supplier under an agreement</option>
-          </select></label>
-        <label className="spm-sell-checkline"><input type="checkbox" checked={rightToOffer} onChange={e=>setRightToOffer(e.target.checked)}/>
-          <span>I declare I have the right to make this offer as {rightType.toLowerCase()}.</span></label>
-        <label className="spm-sell-label"><span>What can you say about availability?</span>
-          <select className="spm-field" value={stockStatement} onChange={e=>setStockStatement(e.target.value)}>
-            <option value="">Not yet checked</option><option>Seller says available — not verified</option>
-            <option>Made or sourced after buyer's order</option><option>Limited stock — buyer must confirm</option>
-            <option>Service availability to be agreed</option>
-          </select></label>
-        {evidenceNotices.length>0&&<div className="spm-sell-concerns">{evidenceNotices.map((x,i)=><p key={i}>{x}</p>)}</div>}
+        <p>One small question at a time. Tap an answer to continue; no forms to complete.</p>
+        {currentQuestion==='photo'&&<section className="spm-sell-question" aria-label="Photograph source clarification" data-sell-question="photo">
+          <span className="spm-sell-question-kicker">Just to clarify · {pendingPhotoIndex+1} of {pictures.length} photos</span>
+          <strong>Where did this photograph come from?</strong>
+          <p>{pictures[pendingPhotoIndex]?.name} · Your answer is a declaration, not proof of ownership.</p>
+          <div className="spm-sell-pill-row">
+            <AnswerPill onClick={()=>photoAnswered('own')}>I took it</AnswerPill>
+            <AnswerPill onClick={()=>photoAnswered('supplier')}>Supplier's image</AnswerPill>
+            <AnswerPill onClick={()=>photoAnswered('permission')}>I have permission</AnswerPill>
+            <AnswerPill onClick={()=>setPhotoUncertain(true)}>Not sure</AnswerPill>
+            <AnswerPill onClick={()=>setPictures(current=>current.filter((_,i)=>i!==pendingPhotoIndex))}>Remove photo</AnswerPill>
+          </div>
+          {photoUncertain&&<div className="spm-sell-clarification-help">
+            <p>If you're unsure, ask the owner for permission or leave the photo out. That way you can continue without making an unsupported claim.</p>
+            <button type="button" onClick={()=>openReviewTool('photos')}>Review photographs <ChevronRight size={15}/></button>
+          </div>}
+        </section>}
+        {currentQuestion==='photo-permission'&&<section className="spm-sell-question" aria-label="Permission to reuse supplier photo" data-sell-question="photo-permission">
+          <span className="spm-sell-question-kicker">One more thing about the photo</span>
+          <strong>Has the supplier allowed you to use their image?</strong>
+          <p>Knowing where a photograph came from is different from having permission to use it.</p>
+          <div className="spm-sell-pill-row">
+            <AnswerPill onClick={()=>{
+              setPictures(current=>current.map((picture,i)=>i===pendingPhotoIndex?{...picture,supplierPermission:true}:picture));
+              setPhotoUncertain(false);
+            }}>Yes, I have permission</AnswerPill>
+            <AnswerPill onClick={()=>setPhotoUncertain(true)}>Not sure</AnswerPill>
+            <AnswerPill onClick={()=>setPictures(current=>current.filter((_,i)=>i!==pendingPhotoIndex))}>Remove photo</AnswerPill>
+          </div>
+          {photoUncertain&&<div className="spm-sell-clarification-help">
+            <p>Ask the supplier or choose a photo you can use. Mini won't treat a supplier image as authorised just because you identified its source.</p>
+            <button type="button" onClick={()=>openReviewTool('photos')}>Review photographs <ChevronRight size={15}/></button>
+          </div>}
+        </section>}
+        {currentQuestion==='authority'&&<section className="spm-sell-question" aria-label="Authority to sell clarification" data-sell-question="authority">
+          <span className="spm-sell-question-kicker">Next question</span>
+          <strong>What gives you the right to offer this?</strong>
+          <p>Tap only what is true for you. This records your declaration; SecurePay has not verified it.</p>
+          <div className="spm-sell-pill-row">
+            <AnswerPill onClick={()=>authorityAnswered('Owner')}>It's mine</AnswerPill>
+            <AnswerPill onClick={()=>authorityAnswered('Authorised reseller')}>I'm an authorised reseller</AnswerPill>
+            <AnswerPill onClick={()=>authorityAnswered('Agent with permission')}>I'm an authorised agent</AnswerPill>
+            <AnswerPill onClick={()=>authorityAnswered('Supplier under an agreement')}>Supplier agreement</AnswerPill>
+            <AnswerPill onClick={()=>setAuthorityUncertain(true)}>Not sure</AnswerPill>
+          </div>
+          {authorityUncertain&&<div className="spm-sell-clarification-help">
+            <p>Keep this as a draft while you confirm permission. You can attach a supporting document for later review; a file alone does not prove authority.</p>
+            <button type="button" onClick={()=>{setDocPurpose('Right to sell / authorisation');openReviewTool('documents');}}>Add a document <ChevronRight size={15}/></button>
+          </div>}
+        </section>}
+        {currentQuestion==='availability'&&<section className="spm-sell-question" aria-label="Availability clarification" data-sell-question="availability">
+          <span className="spm-sell-question-kicker">Next question</span>
+          <strong>When could the buyer get this?</strong>
+          <p>We won't say your stock has been verified. Select what you can genuinely offer.</p>
+          <div className="spm-sell-pill-row">
+            <AnswerPill onClick={()=>setStockStatement('Seller says available — not verified')}>Available now</AnswerPill>
+            <AnswerPill onClick={()=>setStockStatement('Limited stock — buyer must confirm')}>Limited stock</AnswerPill>
+            <AnswerPill onClick={()=>setStockStatement('Made or sourced after buyer’s order')}>Made to order</AnswerPill>
+            <AnswerPill onClick={()=>setStockStatement('Service availability to be agreed')}>By appointment</AnswerPill>
+            <AnswerPill onClick={()=>setStockStatement('Availability to be confirmed before agreement')}>Need to confirm</AnswerPill>
+          </div>
+        </section>}
+        {currentQuestion==='safety'&&<section className="spm-sell-question" aria-label="Offer requiring specialist review" data-sell-question="safety">
+          <strong>This offer needs further review.</strong>
+          <p>Mini cannot clear a potentially restricted or unlawful offer from these answers. You may correct inaccurate wording or save your draft.</p>
+          <div className="spm-sell-pill-row">
+            <AnswerPill onClick={()=>openReviewTool('describe')}>Review item details</AnswerPill>
+            <AnswerPill onClick={()=>finish('save')}>Save for later</AnswerPill>
+          </div>
+        </section>}
+        {currentQuestion==='regulated'&&<section className="spm-sell-question" aria-label="Regulated offer clarification" data-sell-question="regulated">
+          <strong>Does this item need special permission?</strong>
+          <p>Some items need licences or eligibility checks. Attaching a document will not clear the restriction automatically in this preview.</p>
+          <div className="spm-sell-pill-row">
+            <AnswerPill onClick={()=>{setDocPurpose('Certificate / licence');openReviewTool('documents');}}>Add licence or document</AnswerPill>
+            <AnswerPill onClick={()=>openReviewTool('describe')}>Check description</AnswerPill>
+            <AnswerPill onClick={()=>finish('save')}>Save for later</AnswerPill>
+          </div>
+        </section>}
+        {currentQuestion===null&&<section className="spm-sell-review-ready" role="status" data-sell-question="resolved">
+          <CheckCircle2 size={17}/><span><strong>That's enough to prepare the offer.</strong>
+          <small>Your answers are seller declarations, not verified clearance, availability or image ownership.</small></span>
+        </section>}
+        {remainingQuestions.length>0&&currentQuestion!=='safety'&&currentQuestion!=='regulated'&&
+          <p className="spm-sell-question-count">{remainingQuestions.length} detail{remainingQuestions.length===1?'':'s'} still to clarify. Each answer moves to the next.</p>}
+        {currentQuestion===null&&<div className="spm-sell-review-facts">
+          <span>Right to offer: {rightType} · seller-declared</span>
+          <span>Availability: {stockStatement}</span>
+          {pictures.map((picture,i)=><span key={i}>{picture.name}: {photoSourceName(picture.source)} · unverified</span>)}
+          <button type="button" onClick={()=>{setRightToOffer(false);setAuthorityUncertain(false);}}><Pencil size={13}/>Change right to sell</button>
+          <button type="button" onClick={()=>setStockStatement('')}><Pencil size={13}/>Change availability</button>
+          {pictures.length>0&&<button type="button" onClick={()=>openReviewTool('photos')}><Pencil size={13}/>Change photo details</button>}
+        </div>}
         <p className="spm-sell-disclosure">Image fingerprinting, legality, licensing, ownership, document validity and inventory checks require server services that are not connected in this preview.</p>
       </div>
+      {currentQuestion===null&&<div className="spm-sell-review-enrich" data-sell-additions>
+        <strong>Anything else that would help the buyer?</strong>
+        <p>Optional. Choose what matters, or continue straight to the offer.</p>
+        <div className="spm-sell-pill-row">
+          {!timing&&<AnswerPill onClick={()=>openReviewTool('timing')}><CalendarDays size={15}/>Choose a date</AnswerPill>}
+          {!people.length&&<AnswerPill onClick={()=>openReviewTool('people')}><UserRoundPlus size={15}/>Add a person</AnswerPill>}
+          {!place&&<AnswerPill onClick={()=>openReviewTool('places')}><MapPin size={15}/>Pickup or delivery</AnswerPill>}
+          <AnswerPill onClick={()=>setShowMorePills(open=>!open)}>{showMorePills?'Fewer options':'More options'} <ChevronRight size={14}/></AnswerPill>
+        </div>
+        {showMorePills&&<div className="spm-sell-pill-row" data-sell-more-options>
+          <AnswerPill onClick={()=>openReviewTool('photos')}><Camera size={15}/>Photos</AnswerPill>
+          <AnswerPill onClick={()=>openReviewTool('documents')}><FileText size={15}/>Supporting documents</AnswerPill>
+          <AnswerPill onClick={()=>openReviewTool('describe')}><BookOpenText size={15}/>Improve description</AnswerPill>
+          <AnswerPill onClick={()=>openReviewTool('timing')}>Repeat or after an event</AnswerPill>
+          <AnswerPill onClick={()=>openReviewTool('people')}>Other people or roles</AnswerPill>
+        </div>}
+      </div>}
       <div className="spm-sell-action-header"><strong>What would you like to do?</strong><small>Three independent choices</small></div>
       <div className="spm-sell-exits">
         <button type="button" onClick={()=>finish('share')} disabled={!canOffer}>
@@ -424,6 +631,7 @@ export function MiniSellSomething({language,onBack,seed=''}:{
         <p>{descriptionReviewed&&description?description:'Seller-provided details will appear here after review.'}</p>
         {!!place&&<div className="spm-sell-review-line"><MapPin size={15}/>{placeType}: {place}</div>}
         {!!timing&&<div className="spm-sell-review-line"><CalendarDays size={15}/>{timing}</div>}
+        {personPlan&&<div className="spm-sell-review-line"><UserRoundPlus size={15}/>{personPlan==='later'?'Other person to be agreed':'Buyer to be invited later'}</div>}
       </div>
       <button type="button" className="spm-primary" onClick={()=>{setStage('review');setResult(null);}}>Back to offer <ArrowRight size={17}/></button>
       <button type="button" className="spm-sell-sample" onClick={onBack}>Back to Mini</button>
