@@ -8,7 +8,7 @@
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ks=/^KS\d{3,12}$/;
 const text=(v,max)=>typeof v==='string' ? v.trim().slice(0,max) : '';
-export function miniStoreIntent(lines, {fulfilmentPreference=null}={}){
+export function miniStoreIntent(lines, {fulfilmentPreference=null,buyerAnswers=[]}={}){
   if(!Array.isArray(lines)||lines.length<1||lines.length>20) return null;
   const seen=new Set();
   const safe=[];
@@ -24,7 +24,8 @@ export function miniStoreIntent(lines, {fulfilmentPreference=null}={}){
     seen.add(key);
     safe.push({key,offerId:line.offerId,sellerKsNumber:line.sellerKsNumber,
       sellerName:text(line.sellerName,90),title:text(line.title,140),
-      quantity:line.quantity,priceMinor:line.priceMinor,currency:line.currency});
+      quantity:line.quantity,priceMinor:line.priceMinor,currency:line.currency,
+      offerUpdatedAt:text(line.offerUpdatedAt,60)});
   }
   const header='I want to DISCUSS a buying plan, not place an order. Keep each Store and seller separate; do not assume availability, delivery, price, or acceptance. ';
   const rows=safe.map((s,i)=>String(i+1)+') '+s.quantity+' x '+s.title+
@@ -34,7 +35,19 @@ export function miniStoreIntent(lines, {fulfilmentPreference=null}={}){
   const preference=fulfilmentPreference==='collect'?' Buyer prefers collection.':
     fulfilmentPreference==='ask_sellers'?' Buyer wants each store to quote delivery.':
     fulfilmentPreference==='explore_combined'?' Buyer wants to explore combined delivery, subject to verified transport offers and independent acceptance.':'';
-  const tail=preference+' Please ask where, when, and how delivery and each seller approval should work. No payments or stock reservation.';
+  const sourceIds=new Map(safe.map(x=>[x.key,x.offerUpdatedAt]));
+  const questions=Array.isArray(buyerAnswers)?buyerAnswers.slice(0,20):[];
+  const buyerProposals=questions.filter(a=>a&&
+    sourceIds.has(a.sellerKsNumber+':'+a.offerId)&&
+    sourceIds.get(a.sellerKsNumber+':'+a.offerId)===text(a.offerUpdatedAt,60)&&
+    text(a.question,220)&&text(a.proposedAnswer,240)).map(a=>
+     ' '+text(a.question,220)+' ['+a.sellerKsNumber+' / '+a.offerId+' / source '+text(a.offerUpdatedAt,60)+']'+
+     ' — buyer proposes: '+text(a.proposedAnswer,240)+'.');
+  const context=buyerProposals.length?
+    ' Buyer-proposed clarifications (seller must still review):'+buyerProposals.join(''):'';
+  const tail=preference+context+
+    ' Please verify any material unresolved terms with the correct seller. Do not accept an Agreement, allocate Money, or reserve stock on the buyer\'s behalf.'+
+    ' No payments or stock reservation.';
   const statement=header+rows.join(' ')+tail;
   if(statement.length>5000)return null; // refuse truncation hiding a seller.
   return {

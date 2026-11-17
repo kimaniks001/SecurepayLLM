@@ -8,8 +8,8 @@ export interface MiniBasketQuestionPlan {
  complete:boolean;resolved:number;outstanding:number;
 }
 export declare function miniBasketQuestions(lines:readonly {sellerKsNumber:string;offerId:string;title:string;
-  description?:string|null;kind?:'PRODUCT'|'SERVICE'}[],answers?:Record<string,string>):MiniBasketQuestionPlan;
+  description?:string|null;kind?:'PRODUCT'|'SERVICE';offerUpdatedAt?:string}[],answers?:Record<string,string>):MiniBasketQuestionPlan;
 export declare function miniBasketAnswersForOffer(lines:readonly {sellerKsNumber:string;offerId:string;title:string;
- description?:string|null;kind?:'PRODUCT'|'SERVICE'}[],answers?:Record<string,string>):Array<{
- offerId:string;sellerKsNumber:string;question:string;proposedAnswer:string
+ description?:string|null;kind?:'PRODUCT'|'SERVICE';offerUpdatedAt?:string}[],answers?:Record<string,string>):Array<{
+ offerId:string;sellerKsNumber:string;offerUpdatedAt:string;question:string;proposedAnswer:string
 }>;
