@@ -1445,3 +1445,24 @@ textarea.spm-field { resize:vertical; }
 .spm-shop-agreed-terms strong {color:#2e593f;font-size:11px;}
 .spm-shop-agreed-terms p {margin:0;font-size:11px;color:#667969;line-height:1.48;}
 .spm-shop-agreed-terms small {color:#819180;font-size:9px;line-height:1.3;}
+
+/* Three independent Agreement choices: SecureLink is optional, never a gate to Money. */
+.spm-shop-agreement-actions {display:grid;gap:9px;margin:15px 0 11px;}
+.spm-shop-agreement-option {width:100%;min-height:66px;display:flex;align-items:center;gap:12px;
+ border:1px solid #dce6d8;background:#fffefa;border-radius:14px;padding:11px 12px;
+ color:#36583f;text-align:left;cursor:pointer;}
+.spm-shop-agreement-option>span:nth-child(2) {flex:1;display:grid;gap:4px;min-width:0;}
+.spm-shop-agreement-option strong {font-size:12px;line-height:1.3;font-weight:800;color:#335b41;}
+.spm-shop-agreement-option small {font-size:10px;line-height:1.37;color:#859485;}
+.spm-shop-agreement-option>svg:last-child {flex:none;color:#638971;}
+.spm-shop-agreement-option-icon {height:37px;width:37px;flex:none;display:grid;place-items:center;
+ border-radius:11px;background:#edf3e9;color:#427d56;}
+.spm-shop-agreement-option-money {background:#eff7ed;border-color:#c7dfc6;}
+.spm-shop-agreement-option-money .spm-shop-agreement-option-icon {background:#dceedd;color:#2e764b;}
+.spm-shop-agreement-option:disabled {opacity:.55;cursor:not-allowed;}
+.spm-shop-agreement-option:focus-visible {outline:2px solid #316f4a;outline-offset:2px;}
+.spm-shop-agreement-option:not(:disabled):active {transform:translateY(1px);}
+@media(max-width:350px){
+ .spm-shop-agreement-option {gap:9px;padding:10px;}
+ .spm-shop-agreement-option-icon {width:33px;height:33px;}
+}

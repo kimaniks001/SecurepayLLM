@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, MessageCircle, Search, ShoppingBag, CheckCircle2, Minus, Plus, RefreshCcw, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, ArrowRight, MessageCircle, Search, ShoppingBag, CheckCircle2, Minus, Plus, RefreshCcw, ShieldCheck, Share2, Bookmark } from 'lucide-react';
 import { createHttpClient } from '../api/securepay/http';
 import { createStoreGateway, type StoreGateway } from '../api/securepay/store';
 import type { PublicSearchResultView, PublicStoreView, PublicOfferView } from '../api/securepay/store/dto';
@@ -16,6 +16,7 @@ import { MiniFairTradeExaminationPreview } from './MiniFairTradeExaminationPrevi
 import type {MiniSamplePurchase} from './miniSampleLivingPurchases.mjs';
 import {miniBasketQuestions,miniBasketAnswersForOffer} from './miniBasketQuestions.mjs';
 import {miniSampleAgreementTerms,miniSellerScopedProposal} from './miniTradeTerms.mjs';
+import {miniStraightSaleMoneyPreview} from './miniAgreementActions.mjs';
 import {miniDeliveryContracts,miniDeliveryContractSummary,SAMPLE_DELIVERY_WINDOWS} from './miniDeliveryContract.mjs';
 import {readSampleBasketDraft,saveSampleBasketDraft} from './miniSampleBasketDraft.mjs';
 import {miniBasketQuietPreflight,miniSampleProviderReply,miniProviderReplyMatchesSource,
@@ -53,7 +54,7 @@ export type MiniBasketFulfilment = 'collect' | 'ask_sellers' | 'explore_combined
 type View = 'search' | 'store' | 'plan';
 
 /** Never infer seller acceptance or stock reservation from a public Store listing. */
-export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway, onDiscuss, playground = false, fairTradeShowcase=false, onSampleFunded, onViewSampleAgreements }: {
+export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway, onDiscuss, playground = false, fairTradeShowcase=false, agreementActionsShowcase=false, onSampleFunded, onViewSampleAgreements }: {
   language:MiniLanguage; onBack:()=>void; initialQuery?:string;
   /** Existing public StoreGateway, optionally on the same isolated API as KS001. */
   storeGateway?:Pick<StoreGateway,'search'|'store'|'offer'>;
@@ -64,6 +65,8 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
   playground?:boolean;
   /** Explicit opt-in preview-host example; never seeds a real customer's basket. */
   fairTradeShowcase?:boolean;
+  /** Explicit owner-only URL to inspect the ordinary straight-sale actions. */
+  agreementActionsShowcase?:boolean;
   onSampleFunded?:(purchase:MiniSamplePurchase)=>void;
   onViewSampleAgreements?:()=>void;
 }) {
@@ -177,6 +180,27 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
     }).catch(()=>{/* Isolated sample missing: do not invent an offer. */});
     return()=>{alive=false};
   },[client,playground,fairTradeShowcase]);
+  useEffect(()=>{
+    if(!playground||!agreementActionsShowcase||fairTradeShowcase||showcaseSeeded.current)return;
+    showcaseSeeded.current=true;
+    let active=true;
+    void client.store('KS90002').then(store=>{
+      if(!active)return;
+      const offer=store.offers.find(o=>o.title==='Solar irrigation water pump');
+      if(!offer)return;
+      setCart([{
+        sellerKsNumber:store.canonicalKsNumber,sellerName:store.displayName,
+        offerId:offer.id,title:offer.title,kind:'PRODUCT',quantity:1,
+        description:offer.description,mediaRefs:offer.mediaRefs,
+        priceMinor:offer.priceMinor,currency:offer.currency,
+        offerUpdatedAt:offer.updatedAt,availabilityState:offer.availabilityState,
+      }]);
+      setFulfilmentChoice('collect');setBasketAnswers({});setProviderReplies({});
+      setSampleRequests(false);setSampleResponses({});setMoneyOpen(false);
+      setReviewed(false);setProposalOpen(true);setView('plan');
+    }).catch(()=>{/* Never substitute an invented Store offer. */});
+    return()=>{active=false};
+  },[client,playground,agreementActionsShowcase,fairTradeShowcase]);
 
   useEffect(()=>{
     if(!playground)return;
@@ -412,12 +436,42 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
   const sampleTotalMinor=quotedMinor+deliveryFeeMinor;
   const confirmedSellers=[...sampleSellers,
     ...(fulfilmentChoice==='explore_combined'&&deliveryQuoteSelected?['KS90004']:[])];
+  // SecureLink is never a required stepping stone. A straightforward,
+  // published, fixed-price sale may open the isolated sample Money rails
+  // directly. Real Money remains solely server-authorised.
+  const directSale=miniStraightSaleMoneyPreview(cart,{
+    sourceFresh:reviewed&&preflight.provenanceComplete,
+    basketReady:readiness.readyToReview,
+    questionsComplete:basketQuestions.complete,
+    fulfilmentChoice,deliveryContracts,
+    providerRequests:preflight.providerRequests,
+    priceQuoted:unpriced.length===0&&allPricesResolved,
+  });
+  const sellerReviewed=sampleRequests&&allSampleAccepted&&
+    preflight.pendingProviderRequests.length===0;
   const sampleMoneyReady=playground&&reviewed&&!checking&&!freshnessError&&
-    readiness.readyToReview&&basketQuestions.complete&&sampleRequests&&allSampleAccepted&&
-    preflight.pendingProviderRequests.length===0&&preflight.provenanceComplete&&
+    readiness.readyToReview&&basketQuestions.complete&&preflight.provenanceComplete&&
     deliveryComplete&&allPricesResolved&&
     (!deliveryNeedsQuote||deliveryContractState.feeMinor===deliveryFeeMinor)&&
-    Number.isSafeInteger(sampleTotalMinor);
+    Number.isSafeInteger(sampleTotalMinor)&&
+    (directSale.canOpenMoney||sellerReviewed);
+  const connectSampleMoney=async()=>{
+    if(!sampleMoneyReady||checking||working)return;
+    // Recheck the actual published source before even a simulated rail opens.
+    setChecking(true);setError('');
+    try{
+      const fresh=await Promise.all(cart.map(line=>client.offer(line.sellerKsNumber,line.offerId)));
+      if(!miniStoreOfferSnapshotFresh(cart,fresh)){
+        setReviewed(false);setProposalOpen(false);setMoneyOpen(false);
+        setChangedOffers(offerChanges(fresh));
+        setFreshnessError('A Store changed an item. Review the update before choosing Money.');
+        return;
+      }
+      setMoneyOpen(true);
+    }catch{
+      setError('We could not check the current Store offer. Nothing was paid. Try again.');
+    }finally{setChecking(false);}
+  };
   // A displayed total is illustrative: it is not a seller quote or provider amount.
   const total=readiness.totalMinor!==null&&readiness.currency==='KES'
     ? money(readiness.totalMinor,'KES'):null;
@@ -706,7 +760,7 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
             <ShieldCheck size={22}/><span><small>NEXT · MAKE AN AGREEMENT</small>
             <strong>Ready to go ahead?</strong></span>
           </div>
-          <p>Here's your choice. Every Store confirms only what it has agreed to supply.</p>
+          <p>Your Agreement is organised. Choose what you want to do next.</p>
           <div className="spm-shop-review-summary">
             <div><span>Items and services</span><strong>{money(quotedMinor,'KES')}</strong></div>
             {deliveryFeeMinor>0&&<div><span>Delivery</span><strong>{money(deliveryFeeMinor,'KES')}</strong></div>}
@@ -726,28 +780,56 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
               <strong>{c.providerName.replace(/\s*·\s*Sample$/,'')} · {money(c.feeMinor,'KES')}</strong>
             </div>)}
           </div>
-          {!sampleRequests&&playground&&<button type="button" className="spm-shop-proceed"
-            onClick={()=>{
-              // Sample-only: independent fictional provider responses.
-              // A seller with material service terms cannot be marked accepted
-              // until the buyer has explicitly reviewed the changed terms.
-              const requests=preflight.providerRequests;
-              const needClarifying=new Set(requests.map(r=>r.source.sellerKsNumber));
-              setProviderReplies(Object.fromEntries(requests.map(req=>[
-                req.id,miniSampleProviderReply(req),
-              ]).filter((pair):pair is [string,MiniSampleProviderReply]=>!!pair[1])));
-              setSampleResponses(Object.fromEntries(
-                sampleSellers.filter(id=>!needClarifying.has(id))
-                  .map(id=>[id,'accepted' as const])));
-              setSampleRequests(true);setMoneyOpen(false);
-            }}>
-            <span>Send SecureLink · sample review</span><ArrowRight size={19}/>
-          </button>}
-          {!playground&&<button type="button" disabled className="spm-shop-proceed">
-            <span>Send SecureLink for review</span><ArrowRight size={19}/>
-          </button>}
+          <div className="spm-shop-agreement-actions"
+            aria-label="Choose what to do with your Agreement">
+            <button type="button" className="spm-shop-agreement-option" disabled={!playground||sampleRequests}
+              onClick={()=>{
+                if(!playground||sampleRequests)return;
+                // Optional rehearsal only: ask other parties to confirm or
+                // clarify, not a precondition to an ordinary straight sale.
+                const requests=preflight.providerRequests;
+                const needClarifying=new Set(requests.map(r=>r.source.sellerKsNumber));
+                setProviderReplies(Object.fromEntries(requests.map(req=>[
+                  req.id,miniSampleProviderReply(req),
+                ]).filter((pair):pair is [string,MiniSampleProviderReply]=>!!pair[1])));
+                setSampleResponses(Object.fromEntries(
+                  sampleSellers.filter(id=>!needClarifying.has(id))
+                    .map(id=>[id,'accepted' as const])));
+                setSampleRequests(true);setMoneyOpen(false);
+              }}>
+              <span className="spm-shop-agreement-option-icon"><Share2 size={19}/></span>
+              <span><strong>{sampleRequests?'SecureLink review started':'Send SecureLink'}</strong>
+                <small>Someone else needs to review or confirm</small></span>
+              <ArrowRight size={17}/>
+            </button>
+            <button type="button" className="spm-shop-agreement-option spm-shop-agreement-option-money"
+              disabled={!playground||!sampleMoneyReady} onClick={()=>void connectSampleMoney()}>
+              <span className="spm-shop-agreement-option-icon"><ShieldCheck size={19}/></span>
+              <span><strong>{checking?'Checking latest offer…':'Connect to Money'}</strong>
+                <small>Choose how to pay for this Agreement</small></span>
+              <ArrowRight size={17}/>
+            </button>
+            <button type="button" className="spm-shop-agreement-option"
+              disabled={!playground} onClick={saveForLater}>
+              <span className="spm-shop-agreement-option-icon"><Bookmark size={19}/></span>
+              <span><strong>Save for later</strong>
+                <small>Keep your work and continue another time</small></span>
+              <ArrowRight size={17}/>
+            </button>
+          </div>
+          {playground&&!sampleMoneyReady&&<p className="spm-shop-gentle-note"
+            data-money-next-reason="material-terms">
+            {sampleRequests
+              ?'The other party’s sample clarifications must be reviewed before Money.'
+              :directSale.reason||'The other parties need to confirm their own terms before Money.'}
+          </p>}
           {!playground&&<p className="spm-shop-gentle-note">
-            Sharing will open once seller-specific SecureLinks are connected. Nothing has been sent.</p>}
+            These three choices will use real authenticated Agreements and certified Money
+            once the server connection is ready. Nothing has been sent or paid.</p>}
+          {playground&&directSale.canOpenMoney&&!sampleRequests&&
+            <p className="spm-shop-gentle-note" data-straight-sale="no-securelink-needed">
+              Straight sale: you can choose Money directly. Sending SecureLink is optional.
+              This demonstration does not create a real seller acceptance or payment.</p>}
           {sampleRequests&&playground&&<div className="spm-shop-seller-replies">
             <div className="spm-shop-replies-heading"><CheckCircle2 size={18}/>
               <span><strong>Example replies received</strong>
@@ -804,20 +886,6 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
                 <span className="spm-shop-seller-state"><CheckCircle2 size={14}/> Example quotes accepted</span>
               </div>}
           </div>}
-          {playground&&<button type="button" className="spm-shop-money-next"
-            disabled={!sampleMoneyReady} onClick={()=>setMoneyOpen(true)}>
-            <ShieldCheck size={17}/> Connect to Money <ArrowRight size={17}/>
-          </button>}
-          {playground&&!sampleMoneyReady&&<p className="spm-shop-gentle-note">
-            Money becomes available only after the sample seller and delivery Agreements are confirmed.</p>}
-          {!playground&&<button type="button" disabled className="spm-shop-money-next">
-            <ShieldCheck size={17}/> Connect to Money <ArrowRight size={17}/>
-          </button>}
-          <button type="button" className="spm-shop-save" disabled={!playground}
-            onClick={saveForLater}>Save for later</button>
-          {playground&&<p className="spm-shop-gentle-note">
-            In this rehearsal, separate sample seller confirmations unlock the rail choices.
-            No real SecureLink, Money instruction or binding acceptance exists.</p>}
           <button type="button" className="spm-shop-continue" onClick={()=>{
             setProposalOpen(false);setSampleRequests(false);setSampleResponses({});setMoneyOpen(false);
           }}><ArrowLeft size={17}/> Back to basket</button>

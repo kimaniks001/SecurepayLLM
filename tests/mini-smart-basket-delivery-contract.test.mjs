@@ -118,7 +118,7 @@ test('A sample draft survives refresh without becoming a live Agreement or prese
 test('Three standard Agreement actions, and only the repository-recognised rail names',()=>{
  const basket=read('src/mini/MiniBuyStore.tsx');
  const money=read('src/mini/MiniSampleMoneyJourney.tsx');
- assert.match(basket,/Send SecureLink · sample review/);
+ assert.match(basket,/'Send SecureLink'/);
  assert.match(basket,/Connect to Money/);
  assert.match(basket,/Save for later/);
  assert.match(basket,/miniBasketQuestions\(cart,basketAnswers\)/);
