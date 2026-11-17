@@ -108,6 +108,7 @@ export function MiniExperience() {
   const [previewCapacity, setPreviewCapacity] = useState<MiniPreviewCapacity>('personal');
   const [demoBusiness,setDemoBusiness] = useState(copyDemo);
   const [settingsEntry,setSettingsEntry] = useState<'store'|null>(null);
+  const [sellerSettingsReturn,setSellerSettingsReturn] = useState(false);
   const [verifiedStoreRequested,setVerifiedStoreRequested] = useState(false);
   const t = words[lang];
   const [screen, setScreen] = useState<View>(() => {
@@ -340,8 +341,8 @@ export function MiniExperience() {
             onStartSelling={beginSell}
             onAskKs001={() => { setDiscussDraft(null); setScreen('help'); }}
             demo={demoBusiness}
-            onOpenStore={() => {setSettingsEntry('store');setScreen('business-settings');}}
-            onOpenSettings={() => {setSettingsEntry(null);setScreen('business-settings');}} />}
+            onOpenStore={() => {setSellerSettingsReturn(false);setSettingsEntry('store');setScreen('business-settings');}}
+            onOpenSettings={() => {setSellerSettingsReturn(false);setSettingsEntry(null);setScreen('business-settings');}} />}
           <div className="spm-persona"><Sparkles size={16}/><span>KS001</span><span className="spm-dot"/><span>Agreement Commerce</span></div>
           <h1 className="spm-hero">{t.hello}</h1>
           <p className="spm-lead">{t.intro}</p>
@@ -383,8 +384,8 @@ export function MiniExperience() {
             onOpenSettings={() => {setSettingsEntry(null);setScreen('business-settings');}} />}
         </section>}
 
-        {businessDemo && screen === 'business-settings' && previewCapacity === 'business' &&
-          <MiniBusinessSettings language={lang} onBack={() => setScreen('home')}
+        {businessDemo && screen === 'business-settings' && (previewCapacity === 'business' || sellerSettingsReturn) &&
+          <MiniBusinessSettings language={lang} onBack={() => setScreen(sellerSettingsReturn?'sell-preview':'home')}
             demo={demoBusiness} setDemo={setDemoBusiness} initialArea={settingsEntry ?? undefined}
             verifiedStoreAvailable={!playground && !!getMiniFirstPartyOrigin()}
             onOpenVerifiedStore={()=>{
@@ -411,8 +412,14 @@ export function MiniExperience() {
           </div>
         </section>}
 
-        {playground && screen === 'sell-preview' && <MiniSellSomething
-          language={lang} seed={opening.trim()} onBack={() => setScreen('home')}/>}
+        {playground && <div hidden={screen !== 'sell-preview'} aria-hidden={screen !== 'sell-preview'}>
+          <MiniSellSomething
+            language={lang} seed={opening.trim()} onBack={() => setScreen('home')}
+            actingAs={previewCapacity==='business'?demoBusiness.name+' · sample Business':'Yourself · personal example'}
+            onOpenStore={()=>{setSellerSettingsReturn(true);setSettingsEntry('store');setScreen('business-settings');}}
+            onOpenSettings={()=>{setSellerSettingsReturn(true);setSettingsEntry(null);setScreen('business-settings');}}
+            onBrowseStores={()=>{setBuyPrefill('');setScreen('buy');}}/>
+        </div>}
         <div hidden={screen !== 'buy'} aria-hidden={screen !== 'buy'}>
           <MiniBuyStore key={buyResetKey} language={lang} initialQuery={buyPrefill} onBack={() => setScreen('home')}
             playground={playground} fairTradeShowcase={fairTradeShowcase}
