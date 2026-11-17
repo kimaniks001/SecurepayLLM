@@ -10,6 +10,7 @@ import type {SubscriptionGateway,SubscriptionStatusResponse,SubscriptionPlan} fr
 import {ApiError} from '../api/securepay/http';
 import type {MiniBusinessPreferencesGateway} from '../api/securepay/mini-business-preferences';
 import {MiniSellerBusinessOptIns} from './MiniSellerBusinessOptIns';
+import {MiniSellerActivationAgreement} from './MiniSellerActivationAgreement';
 
 type Props={
   businessKsNumber:string|null;
@@ -19,7 +20,7 @@ type Props={
   storeGateway?:Pick<StoreGateway,'myOffers'|'businessOffers'|'makeMyOfferPrivate'|'makeBusinessOfferPrivate'>;
   offers?:StoreOfferResponse[];
   onRefreshOffers?:()=>Promise<void>;
-  subscriptionGateway?:Pick<SubscriptionGateway,'myStatus'|'selectPlan'>;
+  subscriptionGateway?:Pick<SubscriptionGateway,'myStatus'|'selectPlan'|'activationAgreement'|'establishActivationAgreement'|'confirmActivationAgreement'>;
   preferencesGateway?:MiniBusinessPreferencesGateway;
   prepare:()=>Promise<unknown>;
   publicOffers:number;
@@ -193,6 +194,8 @@ export function MiniSellerAccountSettings({
         <p>{membership.plan==='FOR_YOU'?'SecurePay for You':'SecurePay for Business'} — {humanStatus(membership.status)}</p>
         {fee&&<small>Server-reported monthly fee: {fee}</small>}
       </>}
+      {memberState==='ready'&&membership&&subscriptionGateway&&
+        <MiniSellerActivationAgreement subscriptionGateway={subscriptionGateway} prepare={prepare}/>}
       <small>Plans belong to the signed-in KSNumber; this is not proof of Business-specific billing. Selecting a plan creates no payment authorization or funding. An existing plan cannot be changed by selecting another.</small>
     </div>
     <p className="spm-sell-hint">Business directory and eTIMS setup requests are optional and version-confirmed; neither is an actual external connection, publicity permission, or tax invoice.</p>
