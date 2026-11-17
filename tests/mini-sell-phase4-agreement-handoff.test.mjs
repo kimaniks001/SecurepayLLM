@@ -109,7 +109,8 @@ test('seller must separately propose confirmed draft; proposal never shares or p
   let proposals=0;
   const agreements={
     detail:async()=>({overview:{agreementId:AGREEMENT,status:proposals?'PROPOSED':'DRAFT'},currentVersion:VERSION}),
-    propose:async()=>{proposals++;return{id:AGREEMENT,status:'PROPOSED'}}
+    proposeReviewed:async(id,expected)=>{proposals++;assert.equal(id,AGREEMENT);
+      assert.deepEqual(expected,VERSION);return{id:AGREEMENT,status:'PROPOSED'}}
   };
   const no=await miniSellerProposeAgreement({agreements,agreementId:AGREEMENT,expectedAgreementVersion:VERSION,confirmed:false});
   assert.equal(no.ok,false);
@@ -147,7 +148,7 @@ test('changed Agreement version cannot be proposed or sent to SecureLink',async(
   const result=await miniSellerProposeAgreement({
     agreements:{detail:async()=>({overview:{agreementId:AGREEMENT,status:'DRAFT'},
       currentVersion:{...VERSION,contentHash:'different'}}),
-      propose:async()=>{proposals++;return{id:AGREEMENT,status:'PROPOSED'}}},
+      proposeReviewed:async()=>{proposals++;return{id:AGREEMENT,status:'PROPOSED'}}},
     agreementId:AGREEMENT,expectedAgreementVersion:VERSION,confirmed:true
   });
   assert.deepEqual(result,{ok:false,reason:'REVIEW_AGREEMENT_BEFORE_PROPOSING'});
