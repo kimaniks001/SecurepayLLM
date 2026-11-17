@@ -203,7 +203,7 @@ export function createStoreController(gateway: Gateway, trustedMediaOrigin: stri
       if (state.draftBusy || !id || state.mine.status !== 'ready') return;
       const selected = state.mine.data.raw.find(o => o.id === id);
       const review = storeTextPublicationReview(selected, state.draft);
-      if (!review.ok || !selected) {
+      if (!review.ok) {
         update({ draftError: review.reason === 'TEXT_ONLY_UNVERIFIED_AVAILABILITY_REQUIRED'
           ? 'Remove unverified photographs and stock quantities, and mark availability as needing confirmation before publication.'
           : 'Save your private draft and review the current Store details before publishing.' });
