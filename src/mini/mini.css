@@ -1386,3 +1386,41 @@ textarea.spm-field { resize:vertical; }
  .spm-fair-compact-row {grid-template-columns:82px minmax(0,1fr);gap:7px;}
  .spm-fair-compact-lenses-list {grid-template-columns:1fr;}
 }
+
+/* Human usability gate — helpful states, direct actions and gentle recovery. */
+.spm-shop-live-status {margin:12px 2px;padding:13px;display:flex;align-items:center;
+ color:#436750;background:#eef6ec;border-radius:12px;font-size:11px;line-height:1.5;}
+.spm-shop-inline-error {display:flex;align-items:center;flex-wrap:wrap;gap:10px;
+ margin:10px 2px 14px;padding:12px;background:#fcf1e7;border:1px solid #edd6c7;
+ color:#875341;border-radius:12px;font-size:11px;line-height:1.45;}
+.spm-shop-inline-error button {background:#fffaf4;border:1px solid #dfc5b4;
+ color:#865b47;border-radius:9px;padding:9px 12px;font-size:11px;font-weight:750;}
+.spm-shop-inline-error:focus-within {outline:2px solid #9c7d62;outline-offset:2px;}
+.spm-shop-basket-browse {display:flex;align-items:center;justify-content:space-between;
+ gap:12px;margin:6px 15px 10px;}
+.spm-shop-basket-browse .spm-shop-continue {margin:0;}
+.spm-shop-browse-more {background:none;border:0;color:#356f4e;font-size:11px;
+ font-weight:750;text-decoration:underline;padding:11px 0;}
+.spm-shop-early-save {display:flex;align-items:center;justify-content:center;gap:16px;
+ margin:3px 15px 16px;}
+.spm-shop-quiet-save,.spm-shop-early-save>button {background:transparent;border:0;
+ color:#326f4c;font-size:11px;font-weight:750;min-height:38px;
+ text-decoration:underline;text-underline-offset:3px;}
+.spm-shop-price-change {display:grid;gap:9px;background:#fffdfa;border:1px solid #e4d0be;
+ border-radius:12px;padding:12px;margin:9px 0;}
+.spm-shop-price-change>strong {font-size:12px;color:#664735;}
+.spm-shop-price-change>span {font-size:11px;color:#906643;line-height:1.45;}
+.spm-shop-price-change .spm-secondary {margin:0;min-height:43px;font-size:11px;}
+.spm-shop-price-change-actions {display:flex;align-items:center;gap:10px;}
+.spm-shop-price-change-actions button {background:transparent;border:0;
+ color:#6e654c;font-size:10px;text-decoration:underline;min-height:38px;padding:3px 0;}
+.spm-shop-price-change-actions button+button {margin-left:auto;color:#2f6749;}
+.spm-shop-visit {padding-bottom:max(12px,env(safe-area-inset-bottom));}
+.spm-shop-searchbar:focus-within {border-color:#5d9e71;box-shadow:0 0 0 2px #d8eddd;}
+.spm-shop-visit button:focus-visible,.spm-shop-screen button:focus-visible,
+.spm-shop-search-form input:focus-visible {outline:2px solid #2e7350;outline-offset:2px;}
+.spm-shop-discovery-card:disabled {opacity:.55;}
+@media(max-width:350px){
+ .spm-shop-basket-browse {gap:5px;margin-left:12px;margin-right:12px;}
+ .spm-shop-early-save {flex-wrap:wrap;}
+}
