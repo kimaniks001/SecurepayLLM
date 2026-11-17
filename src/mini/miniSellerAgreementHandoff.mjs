@@ -148,7 +148,7 @@ export async function miniSellerProposeAgreement({
 }) {
   if (!confirmed) return {ok:false,reason:'SELLER_CONFIRMATION_REQUIRED'};
   if (!isId(agreementId) || typeof agreements?.detail!=='function' ||
-      typeof agreements?.propose!=='function' ||
+      typeof agreements?.proposeReviewed!=='function' ||
       !isId(expectedAgreementVersion?.versionId) ||
       !Number.isSafeInteger(expectedAgreementVersion.versionNumber) ||
       !expectedAgreementVersion.contentHash)
@@ -161,7 +161,7 @@ export async function miniSellerProposeAgreement({
     if (current?.overview?.agreementId!==agreementId ||
         current.overview.status!=='DRAFT' || !sameVersion(current.currentVersion))
       return {ok:false,reason:'REVIEW_AGREEMENT_BEFORE_PROPOSING'};
-    const proposed=await agreements.propose(agreementId);
+    const proposed=await agreements.proposeReviewed(agreementId,expectedAgreementVersion);
     if (proposed?.id!==agreementId || proposed.status!=='PROPOSED')
       return {ok:false,reason:'PROPOSAL_NOT_CONFIRMED'};
     const verified=await agreements.detail(agreementId);
