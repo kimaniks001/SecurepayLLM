@@ -1,6 +1,7 @@
 import { segment, type HttpClient } from '../http';
 import type {
   BusinessStoreOpportunityResponse, BusinessStoreProfileResponse, PublicOfferDetailView, PublicSearchResultView, PublicStoreView, StoreOfferFulfilmentResponse, StoreOfferResponse, RegisterStoreImageUseRequest, StoreImageUseResponse,
+  LinkStoreImageEvidenceRequest, StoreImageEvidenceView,
   StoreProfileResponse, StoreSearchParams, UpsertStoreOfferFulfilmentRequest, UpdateStoreProfileRequest, UpsertStoreOfferRequest,
 } from './dto';
 
@@ -16,6 +17,10 @@ export function createStoreGateway(http: HttpClient) {
   // Private pending image-use routes only; not an Identimark or published Store mediaRef.
   const personalImageUses = (offerId: string) => `${offer(offerId)}/image-uses`;
   const businessImageUses = (businessKsNumber: string, offerId: string) => `${businessOffer(businessKsNumber, offerId)}/image-uses`;
+  const myImageEvidence = (offerId: string, imageUseId: string) =>
+    `${personalImageUses(offerId)}/${segment(imageUseId)}/evidence`;
+  const businessImageEvidence = (businessKsNumber: string, offerId: string, imageUseId: string) =>
+    `${businessImageUses(businessKsNumber, offerId)}/${segment(imageUseId)}/evidence`;
   const search = (params: StoreSearchParams) => {
     if (params.limit !== undefined && (!Number.isInteger(params.limit) || params.limit < 1 || params.limit > 10)) {
       throw new Error('Store search limit must be an integer between 1 and 10');
@@ -57,6 +62,21 @@ export function createStoreGateway(http: HttpClient) {
       http.request<StoreImageUseResponse[]>(businessImageUses(businessKsNumber, offerId), { auth: 'required' }),
     revokeBusinessImageUse: (businessKsNumber: string, offerId: string, imageUseId: string) =>
       http.request<StoreImageUseResponse>(`${businessImageUses(businessKsNumber, offerId)}/${segment(imageUseId)}/revoke`, { method: 'POST', auth: 'required' }),
+    // Rights evidence remains UNVERIFIED. These private calls require a
+    // server-ingested, explicitly selected source from the image submitter's
+    // SAVED conversation. Never call from Mini's local owner-demo.
+    linkMyImageEvidence: (offerId: string, imageUseId: string, body: LinkStoreImageEvidenceRequest) =>
+      http.request<StoreImageEvidenceView>(myImageEvidence(offerId, imageUseId), { method: 'POST', body, auth: 'required' }),
+    myImageEvidence: (offerId: string, imageUseId: string) =>
+      http.request<StoreImageEvidenceView[]>(myImageEvidence(offerId, imageUseId), { auth: 'required' }),
+    revokeMyImageEvidence: (offerId: string, imageUseId: string, evidenceId: string) =>
+      http.request<StoreImageEvidenceView>(`${myImageEvidence(offerId, imageUseId)}/${segment(evidenceId)}/revoke`, { method: 'POST', auth: 'required' }),
+    linkBusinessImageEvidence: (businessKsNumber: string, offerId: string, imageUseId: string, body: LinkStoreImageEvidenceRequest) =>
+      http.request<StoreImageEvidenceView>(businessImageEvidence(businessKsNumber, offerId, imageUseId), { method: 'POST', body, auth: 'required' }),
+    businessImageEvidence: (businessKsNumber: string, offerId: string, imageUseId: string) =>
+      http.request<StoreImageEvidenceView[]>(businessImageEvidence(businessKsNumber, offerId, imageUseId), { auth: 'required' }),
+    revokeBusinessImageEvidence: (businessKsNumber: string, offerId: string, imageUseId: string, evidenceId: string) =>
+      http.request<StoreImageEvidenceView>(`${businessImageEvidence(businessKsNumber, offerId, imageUseId)}/${segment(evidenceId)}/revoke`, { method: 'POST', auth: 'required' }),
     store: (canonicalKsNumber: string) => http.request<PublicStoreView>(`/api/v1/stores/${segment(canonicalKsNumber)}`, { auth: 'none' }),
     offer: (canonicalKsNumber: string, offerId: string) => http.request<PublicOfferDetailView>(`/api/v1/stores/${segment(canonicalKsNumber)}/offers/${segment(offerId)}`, { auth: 'none' }),
     search: (params: StoreSearchParams) => http.request<PublicSearchResultView[]>(search(params), { auth: 'none' }),
