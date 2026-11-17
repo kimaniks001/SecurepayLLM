@@ -78,9 +78,12 @@ test('team read uses exact Business Organization and caller-scoped authority, ne
   assert.ok(team.includes('businessGateway.members(businessKsNumber)'));
   assert.ok(team.includes("allowed.has('ORGANIZATION_MANAGE_MEMBERS')"));
   assert.ok(team.includes("allowed.has('ORGANIZATION_ASSIGN_ROLES')"));
-  for(const forbidden of ['inviteMember(', 'removeMember(', 'initiateRoleAssignment(',
+  for(const forbidden of ['removeMember(', 'initiateRoleAssignment(',
     'approveProtectedAction(','executeRoleAssignment('])
     assert.equal(team.includes(forbidden),false,forbidden);
+  assert.ok(team.includes('businessGateway.inviteMember(businessKsNumber,target)'));
+  assert.ok(team.includes("summary.permissions.includes('ORGANIZATION_MANAGE_MEMBERS')"));
+  assert.ok(team.includes('Yes, send invitation'));
 });
 
 test('owner Business settings preview shows the feature without fake privacy mutations',()=>{
