@@ -16,3 +16,7 @@ export function storePublishedTextEditReview(
   current:StoreOfferResponse|null|undefined,
   draft:OfferDraftFields
 ):StoreTextPublicationCheck;
+export function storePublishedTextEditFresh(
+  original:StoreOfferResponse,
+  current:StoreOfferResponse|null|undefined
+):{ok:true;expectedUpdatedAt:string}|{ok:false;reason:string};
