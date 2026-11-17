@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowLeft, ArrowRight, Camera, CheckCircle2, CircleHelp, FileText, HandCoins,
+  ArrowLeft, ArrowRight, Camera, CheckCircle2, CircleHelp, ClipboardList, FileText, HandCoins,
   MessageCircle, Pencil, RotateCcw, ShieldCheck, ShoppingBag, Sparkles, X
 } from 'lucide-react';
 import {
@@ -18,6 +18,8 @@ import { getMiniFirstPartyOrigin } from './miniFirstPartyConfig';
 import { isMiniExperiencePreviewHost } from './miniInteractiveDemo';
 import { createMiniTradingSampleStore } from './miniTradePlayground';
 import { MiniTradeSampleHelp } from './MiniTradeSampleHelp';
+import { MiniSampleAgreements } from './MiniSampleAgreements';
+import {readMiniSamplePurchases,recordMiniSamplePurchase,type MiniSamplePurchase} from './miniSampleLivingPurchases.mjs';
 import { MiniServerCheckout } from './MiniServerCheckout';
 import { MiniRealStoreOffer } from './MiniRealStoreOffer';
 import { MiniBuyStore, type MiniStorePlanLine, type MiniBasketFulfilment } from './MiniBuyStore';
@@ -25,7 +27,7 @@ import { MiniCollectConversation } from './MiniCollectConversation';
 import { miniMergeUserDescription, miniCaptureText, type MiniCaptureSource, type MiniCaptureKind } from './miniCapture';
 import './mini.css';
 
-type View = MiniScreen | 'choose' | 'buy' | 'collect-interview' | 'business-settings';
+type View = MiniScreen | 'choose' | 'buy' | 'collect-interview' | 'business-settings' | 'sample-agreements';
 const STORE_KEY = 'securepay-mini-phase1-local-draft-v1';
 const words = {
   en: {
@@ -138,6 +140,9 @@ export function MiniExperience() {
   const playground = urlParams?.get('miniTradeDemo') === '1' &&
     typeof window !== 'undefined' && isMiniExperiencePreviewHost(window.location.hostname);
   const businessDemo = playground || urlParams?.get('miniBusinessPreview') === '1';
+  const [samplePurchases,setSamplePurchases]=useState<MiniSamplePurchase[]>(()=>
+    playground&&typeof window!=='undefined'?readMiniSamplePurchases(window.sessionStorage):[]);
+  const [sampleFocus,setSampleFocus]=useState<string|null>(null);
   const sampleStoreGateway = useMemo(()=>createMiniTradingSampleStore(demoBusiness),[demoBusiness]);
   const storeOfferSession = urlParams?.get('storeOfferSession') ?? null;
   const checkoutSession = urlParams?.get('checkoutSession') ?? null;
@@ -349,6 +354,9 @@ export function MiniExperience() {
               <span className="spm-option-icon"><HandCoins size={20}/></span>
               <span className="spm-option-text"><strong>{t.collect}</strong><small>{t.collectHint}</small></span><ArrowRight size={18}/></button>
           </div>
+          {playground&&<button type="button" className="spm-sample-agreements-home" onClick={()=>{
+            setSampleFocus(null);setScreen('sample-agreements');
+          }}><ClipboardList size={18}/><span><strong>My Agreements</strong><small>{samplePurchases.length} sample Living Agreements to explore</small></span><ArrowRight size={17}/></button>}
           <div className="spm-foot-row">
             <button type="button" className="spm-text-btn" onClick={() => { setDiscussDraft(null); setScreen('help'); }}><MessageCircle size={17}/>{t.ask}</button>
             {hasSaved && <button type="button" className="spm-text-btn" onClick={resume}><RotateCcw size={17}/>{t.resume}</button>}
@@ -393,10 +401,19 @@ export function MiniExperience() {
         <div hidden={screen !== 'buy'} aria-hidden={screen !== 'buy'}>
           <MiniBuyStore key={buyResetKey} language={lang} initialQuery={buyPrefill} onBack={() => setScreen('home')}
             playground={playground} storeGateway={playground?sampleStoreGateway:undefined}
+            onSampleFunded={playground?(purchase)=>{
+              const stored=recordMiniSamplePurchase(window.sessionStorage,purchase);
+              setSamplePurchases(stored);setSampleFocus(purchase.id);
+            }:undefined}
+            onViewSampleAgreements={playground?()=>setScreen('sample-agreements'):undefined}
             onDiscuss={playground || getMiniFirstPartyOrigin() ? (lines,fulfilment)=>{
               setBuyingPlanForHelp({lines,fulfilment});setDiscussDraft(null);setScreen('help');
             } : undefined}/>
         </div>
+        {playground&&screen==='sample-agreements'&&<MiniSampleAgreements
+          key={sampleFocus||'list'} purchases={samplePurchases} focusId={sampleFocus}
+          onBack={()=>setScreen('home')}
+          onShop={()=>{setBuyPrefill('');setBuyResetKey(n=>n+1);setScreen('buy');}}/>}
         <div hidden={screen !== 'collect-interview'} aria-hidden={screen !== 'collect-interview'}>
           <MiniCollectConversation key={collectResetKey} language={lang} seed={collectPrefill}
             onBack={()=>setScreen('home')}

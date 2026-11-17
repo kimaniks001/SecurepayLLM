@@ -10,6 +10,8 @@ import { miniBasketReadiness } from './miniBasketReadiness.mjs';
 import { miniTradeSampleSearches } from './miniTradePlayground';
 import { MiniShopDiscovery, MiniShopGallery } from './MiniStoreGallery';
 import { MiniOfferPhoto } from './MiniStoreVisuals';
+import { MiniSampleMoneyJourney } from './MiniSampleMoneyJourney';
+import type {MiniSamplePurchase} from './miniSampleLivingPurchases.mjs';
 
 /**
  * Public Store read-only transport reuses the existing, server-allowlisted
@@ -43,7 +45,7 @@ export type MiniBasketFulfilment = 'collect' | 'ask_sellers' | 'explore_combined
 type View = 'search' | 'store' | 'plan';
 
 /** Never infer seller acceptance or stock reservation from a public Store listing. */
-export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway, onDiscuss, playground = false }: {
+export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway, onDiscuss, playground = false, onSampleFunded, onViewSampleAgreements }: {
   language:MiniLanguage; onBack:()=>void; initialQuery?:string;
   /** Existing public StoreGateway, optionally on the same isolated API as KS001. */
   storeGateway?:Pick<StoreGateway,'search'|'store'|'offer'>;
@@ -51,6 +53,8 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
   onDiscuss?:(lines:MiniStorePlanLine[], fulfilment:MiniBasketFulfilment | null)=>void;
   /** Isolated preview host only; never live offers or financial authority. */
   playground?:boolean;
+  onSampleFunded?:(purchase:MiniSamplePurchase)=>void;
+  onViewSampleAgreements?:()=>void;
 }) {
   const client=storeGateway??stores;
   const sw = language === 'sw';
@@ -84,11 +88,14 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
   const [freshnessError,setFreshnessError] = useState('');
   const [sampleRequests,setSampleRequests] = useState(false);
   const [sampleResponses,setSampleResponses] = useState<Record<string,'accepted'|'declined'>>({});
-  const [samplePaid,setSamplePaid] = useState(false);
+  const [moneyOpen,setMoneyOpen] = useState(false);
+  const [deliveryArea,setDeliveryArea] = useState('');
+  const [deliveryQuoteSelected,setDeliveryQuoteSelected] = useState(false);
+  const [quoteAccepted,setQuoteAccepted] = useState<Record<string,number>>({});
   const sampleSellers=[...new Set(cart.map(line=>line.sellerKsNumber))];
   const allSampleAccepted=sampleRequests&&sampleSellers.length>0&&
     sampleSellers.every(id=>sampleResponses[id]==='accepted');
-  const resetSample=()=>{setSampleRequests(false);setSampleResponses({});setSamplePaid(false);};
+  const resetSample=()=>{setSampleRequests(false);setSampleResponses({});setMoneyOpen(false);};
   const generation = useRef(0);
 
   useEffect(()=>{
@@ -263,13 +270,26 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
   const itemCount=cart.reduce((count,line)=>count+line.quantity,0);
   const cartQuantity=(offerId:string)=>cart.find(line=>line.offerId===offerId)?.quantity||0;
   const moneyBlocked=readiness.readyToPay===false;
+  const deliveryNeedsQuote=readiness.goods&&fulfilmentChoice!=='collect';
+  const deliveryComplete=!deliveryNeedsQuote||(playground&&!!deliveryArea&&deliveryQuoteSelected);
+  const deliveryFeeMinor=deliveryQuoteSelected&&playground?
+    fulfilmentChoice==='explore_combined'?45000:
+    fulfilmentChoice==='ask_sellers'?25000*sampleSellers.length:0:0;
+  const unpriced=cart.filter(line=>line.priceMinor===null);
+  const allPricesResolved=unpriced.every(line=>quoteAccepted[line.sellerKsNumber+':'+line.offerId]>0);
+  const quotedMinor=cart.reduce((sum,line)=>sum+
+    (line.priceMinor??quoteAccepted[line.sellerKsNumber+':'+line.offerId]??0)*line.quantity,0);
+  const sampleTotalMinor=quotedMinor+deliveryFeeMinor;
+  const confirmedSellers=[...sampleSellers,
+    ...(fulfilmentChoice==='explore_combined'&&deliveryQuoteSelected?['KS90004']:[])];
   const sampleMoneyReady=playground&&reviewed&&!checking&&!freshnessError&&
     readiness.readyToReview&&sampleRequests&&allSampleAccepted&&
-    !readiness.amountNeedsQuote&&(!readiness.goods||fulfilmentChoice==='collect');
+    deliveryComplete&&allPricesResolved&&Number.isSafeInteger(sampleTotalMinor);
   // A displayed total is illustrative: it is not a seller quote or provider amount.
   const total=readiness.totalMinor!==null&&readiness.currency==='KES'
     ? money(readiness.totalMinor,'KES'):null;
-  const ready=readiness.readyToReview&&!checking&&!freshnessError;
+  const ready=readiness.readyToReview&&!checking&&!freshnessError&&
+    (!playground||deliveryComplete)&&(!playground||allPricesResolved);
   const shopControls=<form className="spm-shop-search-form" onSubmit={e=>{e.preventDefault();void find();}}>
       <label className="spm-label" htmlFor="mini-store-query">What are you looking for?</label>
       <div className="spm-shop-searchbar">
@@ -306,7 +326,18 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
       store={chosenStore} playground={playground}
       cartCount={itemCount} cartQty={cartQuantity} onAdd={add}
       onBack={()=>setView('search')} onBasket={()=>setView('plan')}/>}
-    {view==='plan'&&<>
+    {view==='plan'&&moneyOpen&&playground&&sampleMoneyReady&&
+      <MiniSampleMoneyJourney lines={cart.map(line=>({
+        ...line,priceMinor:line.priceMinor??quoteAccepted[line.sellerKsNumber+':'+line.offerId]??null,
+      }))} amountMinor={sampleTotalMinor}
+        delivery={fulfilmentChoice==='collect'?'I will collect':(deliveryArea||'Delivery to confirm')}
+        deliveryFeeMinor={deliveryFeeMinor}
+        deliveryProvider={fulfilmentChoice==='explore_combined'?'KS90004':
+          fulfilmentChoice==='ask_sellers'?'SELLERS':null}
+        onBack={()=>setMoneyOpen(false)}
+        onConfirmed={purchase=>onSampleFunded?.(purchase)}
+        onViewAgreements={()=>onViewSampleAgreements?.()}/>}
+    {view==='plan'&&!moneyOpen&&<>
       <div className="spm-shop-basket-top">
         <button type="button" className="spm-shop-back" aria-label="Continue shopping"
           onClick={()=>setView(chosenStore?'store':'search')}><ArrowLeft size={18}/></button>
@@ -350,8 +381,11 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
         <div className="spm-shop-basket-money">
           <div><span>{itemCount} item{itemCount===1?'':'s'} · {sampleSellers.length} Store{sampleSellers.length===1?'':'s'}</span>
             <strong>{total||'Prices to agree'}</strong></div>
-          <small>{total?'Items subtotal · Delivery and any fees not included':
-            'Some offers require the seller to confirm a price'}</small>
+          <small>{playground&&deliveryQuoteSelected?
+            'Sample delivery: '+money(deliveryFeeMinor,'KES')+
+            ' · Example total: '+money(sampleTotalMinor,'KES'):
+            total?'Items subtotal · Delivery and any fees not included':
+            'Some offers require a seller quotation'}</small>
         </div>
         {!proposalOpen&&<div className="spm-shop-next" aria-live="polite">
           {readiness.goods&&!fulfilmentChoice&&<>
@@ -359,12 +393,13 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
             <h2>How would you like to receive your items?</h2>
             <div className="spm-shop-next-choices">
               {([
-                ['collect','I’ll collect them'],
-                ['ask_sellers','Ask the Stores to deliver'],
-                ['explore_combined','Find one delivery option'],
+                ['collect','I’ll collect'],
+                ['ask_sellers','Each Store can deliver'],
+                ['explore_combined','One delivery for everything'],
               ] as const).map(([value,label])=>
                 <button type="button" key={value} onClick={()=>{
-                    setFulfilmentChoice(value);setProposalOpen(false);resetSample();
+                    setFulfilmentChoice(value);setDeliveryArea('');setDeliveryQuoteSelected(false);
+                    setProposalOpen(false);resetSample();
                   }}>{label}<ArrowRight size={16}/></button>)}
             </div>
           </>}
@@ -372,8 +407,49 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
             {readiness.goods&&<div className="spm-shop-choice-line">
               <span>Receiving items: {fulfilmentChoice==='collect'?'I’ll collect':
                 fulfilmentChoice==='ask_sellers'?'Ask Stores about delivery':'Explore combined delivery'}</span>
-              <button type="button" onClick={()=>{setFulfilmentChoice(null);setProposalOpen(false);resetSample();}}>
+              <button type="button" onClick={()=>{setFulfilmentChoice(null);setDeliveryArea('');
+                setDeliveryQuoteSelected(false);setProposalOpen(false);resetSample();}}>
                 Change</button>
+            </div>}
+            {playground&&deliveryNeedsQuote&&<>
+              <div className="spm-shop-delivery-choices">
+                <strong>Where should the items go?</strong>
+                <div className="spm-shop-next-choices">
+                  {['Varsityville, Ruiru','Kamakis, Ruiru'].map(area=>
+                    <button type="button" key={area} className={deliveryArea===area?'selected':''}
+                      onClick={()=>{setDeliveryArea(area);setDeliveryQuoteSelected(false);
+                        setProposalOpen(false);resetSample();}}>
+                      {area}{deliveryArea===area?<CheckCircle2 size={16}/>:<ArrowRight size={16}/>}
+                    </button>)}
+                </div>
+                {deliveryArea&&<div className="spm-shop-illustrative-quote">
+                  <span><strong>{fulfilmentChoice==='explore_combined'?'Kamakis Transport':'Your Stores'}</strong>
+                    <small>{fulfilmentChoice==='explore_combined'?
+                      'One example trip to '+deliveryArea:
+                      'Example delivery by each Store to '+deliveryArea}</small></span>
+                  <b>{money(fulfilmentChoice==='explore_combined'?45000:25000*sampleSellers.length,'KES')}</b>
+                  <button type="button" className="spm-secondary" disabled={deliveryQuoteSelected}
+                    onClick={()=>{setDeliveryQuoteSelected(true);resetSample();}}>
+                    {deliveryQuoteSelected?'Sample delivery selected':'Choose this sample delivery'}
+                  </button>
+                  <small>Fictional quote for this rehearsal; no driver or seller has been booked.</small>
+                </div>}
+              </div>
+            </>}
+            {playground&&unpriced.length>0&&<div className="spm-shop-delivery-choices">
+              <strong>{unpriced.length===1?'One item needs a price':'Some items need a price'}</strong>
+              {unpriced.map(line=>{
+                const key=line.sellerKsNumber+':'+line.offerId;
+                return <div className="spm-shop-illustrative-quote" key={key}>
+                  <span><strong>{line.title}</strong><small>{line.sellerName}</small></span>
+                  <b>{money(quoteAccepted[key]??45000,'KES')}</b>
+                  <button type="button" className="spm-secondary"
+                    disabled={!!quoteAccepted[key]} onClick={()=>{
+                      setQuoteAccepted(old=>({...old,[key]:45000}));resetSample();
+                    }}>{quoteAccepted[key]?'Sample quote added':'Use a sample quotation'}</button>
+                  <small>Example quote only. Real price needs its seller's accepted offer.</small>
+                </div>;
+              })}
             </div>}
             {checking&&<p className="spm-shop-quiet-check" role="status">
               <RefreshCcw size={16}/> Checking the latest Store details…</p>}
@@ -383,8 +459,8 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
             </div>}
             {!checking&&!freshnessError&&ready&&<div className="spm-shop-ready-note">
               <CheckCircle2 size={18}/><span>Your choices are ready to review.</span></div>}
-            {!checking&&!freshnessError&&!ready&&<p className="spm-shop-quiet-check">
-              We’ll check the latest Store details before you continue.</p>}
+            {!checking&&!freshnessError&&!ready&&!deliveryNeedsQuote&&
+              <p className="spm-shop-quiet-check">We’ll check the latest Store details before you continue.</p>}
           </>}
         </div>}
         {!proposalOpen&&<button type="button" className="spm-shop-proceed" disabled={!ready}
@@ -393,66 +469,71 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
           <ArrowRight size={19}/></button>}
         {proposalOpen&&<div className="spm-shop-agreement-next">
           <div className="spm-shop-agreement-heading">
-            <ShieldCheck size={22}/><span><small>NEXT · YOUR AGREEMENT</small>
-            <strong>Shall we go ahead?</strong></span>
+            <ShieldCheck size={22}/><span><small>NEXT · MAKE AN AGREEMENT</small>
+            <strong>Ready to go ahead?</strong></span>
           </div>
-          <p>Each Store keeps responsibility for its own goods or services. Nothing is agreed until the right people accept.</p>
+          <p>Here's your choice. Every Store confirms only what it has agreed to supply.</p>
+          <div className="spm-shop-review-summary">
+            <div><span>Items and services</span><strong>{money(quotedMinor,'KES')}</strong></div>
+            {deliveryFeeMinor>0&&<div><span>Delivery</span><strong>{money(deliveryFeeMinor,'KES')}</strong></div>}
+            <div className="spm-shop-review-total"><span>Example total</span>
+              <strong>{money(sampleTotalMinor,'KES')}</strong></div>
+            {readiness.goods&&<small>{fulfilmentChoice==='collect'?'You will collect':
+              'Delivery to '+deliveryArea}</small>}
+          </div>
           {!sampleRequests&&playground&&<button type="button" className="spm-shop-proceed"
-            onClick={()=>{setSampleRequests(true);setSampleResponses({});setSamplePaid(false);}}>
-            <span>Send sample SecureLinks for review</span><ArrowRight size={19}/>
+            onClick={()=>{
+              // Sample-only: separate fictional merchants each return an event.
+              // The buyer is never asked to press Accept on another seller's behalf.
+              setSampleResponses(Object.fromEntries(
+                sampleSellers.map(id=>[id,'accepted' as const])));
+              setSampleRequests(true);setMoneyOpen(false);
+            }}>
+            <span>Send for review · sample</span><ArrowRight size={19}/>
           </button>}
           {!playground&&<button type="button" disabled className="spm-shop-proceed">
             <span>Send SecureLink for review</span><ArrowRight size={19}/>
           </button>}
-          {!playground&&<p className="spm-shop-gentle-note">SecureLink sharing will open when the seller-confirmation connection is ready. Nothing has been sent.</p>}
+          {!playground&&<p className="spm-shop-gentle-note">
+            Sharing will open once seller-specific SecureLinks are connected. Nothing has been sent.</p>}
           {sampleRequests&&playground&&<div className="spm-shop-seller-replies">
-            <small>TEST THE RESPONSES · NO REAL MESSAGES</small>
+            <div className="spm-shop-replies-heading"><CheckCircle2 size={18}/>
+              <span><strong>Example replies received</strong>
+                <small>Fictional sellers, not real messages or Agreements</small></span>
+            </div>
             {sampleSellers.map(seller=><div className="spm-shop-seller" key={seller}>
-              <strong>{cart.find(line=>line.sellerKsNumber===seller)?.sellerName}</strong>
+              <strong>{cart.find(line=>line.sellerKsNumber===seller)?.sellerName.replace(/\s*·\s*Sample$/,'')}</strong>
               <small>{cart.filter(line=>line.sellerKsNumber===seller)
                 .map(line=>line.quantity+' × '+line.title).join(', ')}</small>
-              <span className="spm-shop-seller-state">{sampleResponses[seller]==='accepted'?'Accepted in sample':
-                sampleResponses[seller]==='declined'?'Declined in sample':'Waiting for response'}</span>
-              <div>
-                <button type="button" onClick={()=>{
-                  setSampleResponses(old=>({...old,[seller]:'accepted'}));setSamplePaid(false);
-                }}>Accept</button>
-                <button type="button" onClick={()=>{
-                  setSampleResponses(old=>({...old,[seller]:'declined'}));setSamplePaid(false);
-                }}>Decline</button>
-              </div>
+              <span className="spm-shop-seller-state"><CheckCircle2 size={14}/>
+                Confirmed in this sample</span>
             </div>)}
-            {Object.values(sampleResponses).includes('declined')&&
-              <p>Someone declined. You can remove that item, change your choice or seek another Store. The other responses stay separate.</p>}
+            {fulfilmentChoice==='explore_combined'&&deliveryQuoteSelected&&
+              <div className="spm-shop-seller">
+                <strong>Kamakis Transport</strong>
+                <small>One sample delivery to {deliveryArea}</small>
+                <span className="spm-shop-seller-state"><CheckCircle2 size={14}/> Example quote accepted</span>
+              </div>}
+            {fulfilmentChoice==='ask_sellers'&&deliveryQuoteSelected&&
+              <div className="spm-shop-seller">
+                <strong>Each Store's delivery</strong>
+                <small>Example separate deliveries to {deliveryArea}</small>
+                <span className="spm-shop-seller-state"><CheckCircle2 size={14}/> Example quotes accepted</span>
+              </div>}
           </div>}
-          {!samplePaid&&<>
-            <button type="button" className="spm-shop-money-next"
-              disabled={!sampleMoneyReady||moneyBlocked&&!playground}
-              onClick={()=>{if(sampleMoneyReady)setSamplePaid(true);}}>
-              <ShieldCheck size={17}/> {playground?'Simulate one payment · no money moves':'Continue to Money'}
-              <ArrowRight size={17}/>
-            </button>
-            {playground&&<p className="spm-shop-gentle-note">{!allSampleAccepted?
-              'Money opens only after every sample seller accepts.':
-              readiness.amountNeedsQuote?'A Store still needs to quote a price.':
-              readiness.goods&&fulfilmentChoice!=='collect'?
-                'A delivery provider and price still need confirmation. Collection can be tested now.':
-                'Sample only. No live payment or real Agreement will be created.'}</p>}
-            {!playground&&<p className="spm-shop-gentle-note">
-              Money follows the accepted Agreement and certified payment route—not a button click.</p>}
-          </>}
-          {samplePaid&&playground&&<div className="spm-shop-living-demo" role="status">
-            <span className="spm-shop-living-light"><CheckCircle2 size={20}/></span>
-            <h2>Your purchase is in motion</h2>
-            <p>Sample Living Purchase · The example funding step is complete.</p>
-            {sampleSellers.map(seller=><div key={seller}>
-              <strong>{cart.find(line=>line.sellerKsNumber===seller)?.sellerName}</strong>
-              <small>Next: fulfil the accepted sample obligation</small>
-            </div>)}
-            <p>No real money, payment receipt, order or binding Agreement exists.</p>
-          </div>}
-          <button type="button" className="spm-shop-continue" onClick={()=>setProposalOpen(false)}>
-            <ArrowLeft size={17}/> Back to basket</button>
+          {sampleRequests&&playground&&<button type="button" className="spm-shop-money-next"
+            disabled={!sampleMoneyReady} onClick={()=>setMoneyOpen(true)}>
+            <ShieldCheck size={17}/> Continue to Money <ArrowRight size={17}/>
+          </button>}
+          {!playground&&<button type="button" disabled className="spm-shop-money-next">
+            <ShieldCheck size={17}/> Continue to Money <ArrowRight size={17}/>
+          </button>}
+          {playground&&<p className="spm-shop-gentle-note">
+            In this rehearsal, separate sample seller confirmations unlock the rail choices.
+            No real SecureLink, Money instruction or binding acceptance exists.</p>}
+          <button type="button" className="spm-shop-continue" onClick={()=>{
+            setProposalOpen(false);setSampleRequests(false);setSampleResponses({});setMoneyOpen(false);
+          }}><ArrowLeft size={17}/> Back to basket</button>
         </div>}
         {cart.length>0&&<div className="spm-shop-basket-assist">
           <MessageCircle size={16}/>

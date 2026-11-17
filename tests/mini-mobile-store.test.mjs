@@ -36,12 +36,12 @@ test('Basket checks offer freshness in the background; unnecessary check button 
   assert.match(basket,/onDiscuss\(cart\.map/);
 });
 test('Offer review, seller confirmation, regulated Money and living work remain separate stages',()=>{
-  assert.match(basket,/NEXT · YOUR AGREEMENT/);
-  assert.match(basket,/Each Store keeps responsibility for its own goods or services/);
+  assert.match(basket,/NEXT · MAKE AN AGREEMENT/);
+  assert.match(basket,/Every Store confirms only what it has agreed to supply/);
   assert.match(basket,/Send SecureLink for review/);
   assert.match(basket,/allSampleAccepted/);
-  assert.match(basket,/Simulate one payment · no money moves/);
-  assert.match(basket,/Your purchase is in motion/);
+  assert.match(basket,/MiniSampleMoneyJourney/);
+  assert.match(read('src/mini/MiniSampleMoneyJourney.tsx'),/Your purchase is in motion/);
   assert.match(basket,/moneyBlocked/);
   assert.doesNotMatch(basket,/fetch\(.*\/api\/v1\/payments\/start/s);
 });
