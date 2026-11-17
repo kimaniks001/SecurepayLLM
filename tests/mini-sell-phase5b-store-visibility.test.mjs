@@ -82,3 +82,12 @@ test('team read uses exact Business Organization and caller-scoped authority, ne
     'approveProtectedAction(','executeRoleAssignment('])
     assert.equal(team.includes(forbidden),false,forbidden);
 });
+
+test('owner Business settings preview shows the feature without fake privacy mutations',()=>{
+  const demo=fs.readFileSync(new URL('../src/mini/MiniBusinessSettings.tsx',import.meta.url),'utf8');
+  assert.ok(demo.includes('data-mini-phase5b-visibility-example'));
+  assert.ok(demo.includes('Make private'));
+  assert.ok(demo.includes('No listing is hidden here'));
+  assert.ok(demo.includes('disabled={!verifiedStoreAvailable}'));
+  assert.ok(demo.includes('Organization membership and your own server permissions'));
+});
