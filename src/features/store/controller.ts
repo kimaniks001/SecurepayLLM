@@ -4,7 +4,7 @@ import type { BusinessStoreOpportunityResponse, StoreOfferResponse, UpsertStoreO
 import type { StoreIdentity, StoreOffer } from '../../types';
 import type { OfferDraftFields } from '../../components/OfferBuilderView';
 import { emptyOfferDraft, mergeSearchResults, searchRequests, type StoreManageGateway, type StoreReadGateway } from './view';
-import {storeTextPublicationReview, storeTextPublicationFresh} from './storeTextPublicationPolicy.mjs';
+import {storeTextPublicationReview, storeTextPublicationFresh, storePublishedTextEditReview} from './storeTextPublicationPolicy.mjs';
 
 export function errorText(error: unknown): string {
   if (error instanceof ApiError) {
@@ -178,7 +178,41 @@ export function createStoreController(gateway: Gateway, trustedMediaOrigin: stri
         mediaRefs: state.draft.mediaRefs,
       };
       try {
-        if (state.managedBusiness) {
+        const reviewedEdit = storePublishedTextEditReview(existing, state.draft);
+        if (existing?.published && reviewedEdit.ok) {
+          // Only safe public text updates use the version-fenced endpoint.
+          // Existing media/quantity-bearing listings keep the older path
+          // until their separate versioned editing migration is certified.
+          const business = state.managedBusiness;
+          const latest = business
+            ? await gateway.businessOffers(business.ksNumber)
+            : await gateway.myOffers();
+          const candidates = latest.filter(o => o.id === existing.id);
+          if (candidates.length !== 1 ||
+              !storeTextPublicationFresh(existing, candidates[0]).ok) {
+            update({ draftBusy: false, draftError:
+              'This published offer changed. Review the latest listing before saving.' });
+            return;
+          }
+          const changed = {
+            expectedUpdatedAt: reviewedEdit.expectedUpdatedAt,
+            sellerConfirmsCurrentListing: true as const,
+            title: state.draft.title.trim(),
+            description: state.draft.description.trim() || null,
+            priceMinor: state.draft.priceMinor
+          };
+          const updated = business
+            ? await gateway.updateBusinessPublishedTextOffer(business.ksNumber, existing.id, changed)
+            : await gateway.updateMyPublishedTextOffer(existing.id, changed);
+          if (updated.id !== existing.id || !updated.published ||
+              updated.availabilityState !== 'NEEDS_CONFIRMATION' ||
+              updated.availabilityConfirmedAt !== null ||
+              updated.title !== changed.title ||
+              (updated.description ?? null) !== changed.description ||
+              updated.priceMinor !== changed.priceMinor ||
+              updated.mediaRefs.length !== 0)
+            throw new Error('Unexpected published text revision');
+        } else if (state.managedBusiness) {
           if (state.editingOfferId) await gateway.updateBusinessOffer(state.managedBusiness.ksNumber, state.editingOfferId, body);
           else await gateway.createBusinessOffer(state.managedBusiness.ksNumber, body);
         } else {
