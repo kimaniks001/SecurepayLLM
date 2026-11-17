@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft, ArrowRight, Bookmark, BookOpenText, CalendarDays, Camera, CheckCircle2,
   ChevronRight, FileText, MapPin, MessageCircle, Send, ShieldCheck,
-  Store, UserRoundPlus, X
+  Store, UserRoundPlus, Heart, Handshake, Settings2, ShoppingBag, UsersRound, X
 } from 'lucide-react';
 import { buildTimingProposal, type TimingDraft } from '../features/living-workspace/DateTimeTool';
 import type { MiniLanguage } from './miniModel';
@@ -54,11 +54,13 @@ function writeDescription(input:{
  * Identity, Agreement, media-provenance, invitation, SecureLink or Money writes.
  * Local declaration is not verification; local output is not a canonical offer.
  */
-export function MiniSellSomething({language,onBack,seed=''}:{
-  language:MiniLanguage;onBack:()=>void;seed?:string;
+export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,onBrowseStores,actingAs,seed=''}:{
+  language:MiniLanguage;onBack:()=>void;onOpenStore:()=>void;onOpenSettings:()=>void;
+  onBrowseStores:()=>void;actingAs:string;seed?:string;
 }) {
   const sw=language==='sw';
   const [stage,setStage]=useState<'compose'|'review'|'result'>('compose');
+  const [sellerArea,setSellerArea]=useState<'offer'|'quick'|'relationships'>('offer');
   const [shelf,setShelf]=useState<Shelf>(null);
   const [toolsOpen,setToolsOpen]=useState(false);
   const [title,setTitle]=useState(seed.slice(0,240));
@@ -196,10 +198,37 @@ export function MiniSellSomething({language,onBack,seed=''}:{
           placeholder={placeholder} maxLength={300} onChange={e=>set(e.target.value)}/>}
     </label>;
   return <section className="spm-content spm-sell" data-mini-sell-something="preview">
-    <button type="button" className="spm-back" onClick={stage==='compose'?onBack:()=>{setStage(stage==='result'?'review':'compose');setError('');}}>
-      <ArrowLeft size={18}/>{stage==='compose'?'Mini':stage==='result'?'Offer review':'Change offer'}</button>
+    <button type="button" className="spm-back" onClick={sellerArea!=='offer'?()=>setSellerArea('offer'):stage==='compose'?onBack:()=>{setStage(stage==='result'?'review':'compose');setError('');}}>
+      <ArrowLeft size={18}/>{sellerArea!=='offer'?'Sell something':stage==='compose'?'Mini':stage==='result'?'Offer review':'Change offer'}</button>
     <div className="spm-persona"><ShieldCheck size={15}/><span>Sell something</span><span className="spm-dot"/><span>Owner preview</span></div>
-    {stage==='compose'&&<>
+    {stage==='compose'&&sellerArea==='quick'&&<div className="spm-sell-phase1-destination" data-seller-phase1="quick-contract">
+      <div className="spm-sell-phase1-symbol"><Handshake size={25}/></div>
+      <h1 className="spm-question">Quick Contract</h1>
+      <p className="spm-lead">A quicker way to trade with someone you already know. The terms and each person's agreement must still be checked.</p>
+      <div className="spm-sell-phase1-hint">Choose how to begin. The current preview prepares an offer or opens the Store browser; it cannot reuse or sign an existing Agreement.</div>
+      <button type="button" className="spm-sell-phase1-link" onClick={()=>{setSellerArea('offer');setToolsOpen(true);setShelf('people');}}>
+        <UsersRound size={19}/><span><strong>Start with a person</strong><small>Add the buyer or agent to an offer you will review.</small></span><ChevronRight size={17}/>
+      </button>
+      <button type="button" className="spm-sell-phase1-link" onClick={onBrowseStores}>
+        <ShoppingBag size={19}/><span><strong>Find a Store to trade with</strong><small>Review the current public offer before preparing terms.</small></span><ChevronRight size={17}/>
+      </button>
+      <p className="spm-sell-hint">Trade-again shortcuts and saved contract templates will connect in Phase 6. No SecureLink, Agreement or payment is created here.</p>
+    </div>}
+    {stage==='compose'&&sellerArea==='relationships'&&<div className="spm-sell-phase1-destination" data-seller-phase1="relationships">
+      <div className="spm-sell-phase1-symbol"><Heart size={25}/></div>
+      <h1 className="spm-question">My People & Favourite Stores</h1>
+      <p className="spm-lead">Find the traders and people you return to. Your relationships stay private unless you choose to share them.</p>
+      <div className="spm-sell-phase1-hint">Favourites are not yet stored in a verified SecurePay account on this preview. We won't invent a list of people or claim a Store is your favourite.</div>
+      <button type="button" className="spm-sell-phase1-link" onClick={onBrowseStores}>
+        <ShoppingBag size={19}/><span><strong>Explore Stores</strong><small>Browse current examples. You can return here to sell.</small></span><ChevronRight size={17}/>
+      </button>
+      <button type="button" className="spm-sell-phase1-link" onClick={()=>{setSellerArea('offer');setToolsOpen(true);setShelf('people');}}>
+        <UsersRound size={19}/><span><strong>Prepare an offer for someone</strong><small>Use People & Invitations to name the other party.</small></span><ChevronRight size={17}/>
+      </button>
+      <p className="spm-sell-hint">Private, account-linked favourites and Trade again belong to Phase 6. No contacts are copied from your device.</p>
+    </div>}
+    {stage==='compose'&&sellerArea==='offer'&&<>
+      <div className="spm-sell-phase1-capacity"><span>Acting as <strong>{actingAs}</strong></span><small>Example only · authority not verified</small></div>
       <h1 className="spm-question">{sw?'Unauza nini?':'What are you selling?'}</h1>
       <p className="spm-lead">Tell Mini a little. Add pictures or details only when they help you make a better offer.</p>
       {label('Your item or service','sell-title',title,v=>{setTitle(v);refreshDescription();},'e.g. 20 bags of animal feed',2)}
@@ -363,6 +392,20 @@ export function MiniSellSomething({language,onBack,seed=''}:{
       {!!error&&<p className="spm-error" role="alert">{error}</p>}
       <button type="button" className="spm-primary" onClick={reviewOffer}>Review my offer <ArrowRight size={18}/></button>
       <button type="button" className="spm-sell-sample" onClick={sample}>Try an example: 20 bags of feed</button>
+      <div className="spm-sell-phase1-divider"><span>Or manage your trading</span></div>
+      <button type="button" className="spm-sell-phase1-link spm-sell-phase1-store" onClick={onOpenStore} data-seller-phase1="my-store">
+        <Store size={21}/><span><strong>My Store</strong><small>Offers, customer requests and your shopfront</small></span><ChevronRight size={18}/>
+      </button>
+      <button type="button" className="spm-sell-phase1-link" onClick={()=>setSellerArea('quick')} data-seller-phase1="quick-contract-entry">
+        <Handshake size={20}/><span><strong>Quick Contract</strong><small>Trade again with someone you know</small></span><ChevronRight size={17}/>
+      </button>
+      <button type="button" className="spm-sell-phase1-link" onClick={()=>setSellerArea('relationships')} data-seller-phase1="relationships-entry">
+        <Heart size={20}/><span><strong>My People & Favourite Stores</strong><small>Return to familiar trading relationships</small></span><ChevronRight size={17}/>
+      </button>
+      <button type="button" className="spm-sell-phase1-settings" onClick={onOpenSettings}>
+        <Settings2 size={16}/>Store Settings <ChevronRight size={16}/>
+      </button>
+      <p className="spm-sell-hint">The Store and settings are fictional examples in this owner preview. Verified account, billing and permissions are not changed.</p>
     </>}
     {stage==='review'&&<>
       <h1 className="spm-question">Let's check your offer</h1>
