@@ -412,7 +412,7 @@ export function MiniExperience() {
           </div>
         </section>}
 
-        {playground && <div hidden={screen !== 'sell-preview'} aria-hidden={screen !== 'sell-preview'}>
+        {playground && <div hidden={!(screen === 'sell-preview')} aria-hidden={screen !== 'sell-preview'}>
           <MiniSellSomething
             language={lang} seed={opening.trim()} onBack={() => setScreen('home')}
             actingAs={previewCapacity==='business'?demoBusiness.name+' · sample Business':'Yourself · personal example'}
