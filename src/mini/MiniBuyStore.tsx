@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, MessageCircle, Search, ShoppingBag, CheckCircle2, Minus, Plus, RefreshCcw, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, ArrowRight, MessageCircle, Search, ShoppingBag, CheckCircle2, Minus, Plus, RefreshCcw, ShieldCheck, Share2, Bookmark } from 'lucide-react';
 import { createHttpClient } from '../api/securepay/http';
 import { createStoreGateway, type StoreGateway } from '../api/securepay/store';
 import type { PublicSearchResultView, PublicStoreView, PublicOfferView } from '../api/securepay/store/dto';
@@ -757,28 +757,56 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
               <strong>{c.providerName.replace(/\s*·\s*Sample$/,'')} · {money(c.feeMinor,'KES')}</strong>
             </div>)}
           </div>
-          {!sampleRequests&&playground&&<button type="button" className="spm-shop-proceed"
-            onClick={()=>{
-              // Sample-only: independent fictional provider responses.
-              // A seller with material service terms cannot be marked accepted
-              // until the buyer has explicitly reviewed the changed terms.
-              const requests=preflight.providerRequests;
-              const needClarifying=new Set(requests.map(r=>r.source.sellerKsNumber));
-              setProviderReplies(Object.fromEntries(requests.map(req=>[
-                req.id,miniSampleProviderReply(req),
-              ]).filter((pair):pair is [string,MiniSampleProviderReply]=>!!pair[1])));
-              setSampleResponses(Object.fromEntries(
-                sampleSellers.filter(id=>!needClarifying.has(id))
-                  .map(id=>[id,'accepted' as const])));
-              setSampleRequests(true);setMoneyOpen(false);
-            }}>
-            <span>Send SecureLink · sample review</span><ArrowRight size={19}/>
-          </button>}
-          {!playground&&<button type="button" disabled className="spm-shop-proceed">
-            <span>Send SecureLink for review</span><ArrowRight size={19}/>
-          </button>}
+          <div className="spm-shop-agreement-actions"
+            aria-label="Choose what to do with your Agreement">
+            <button type="button" className="spm-shop-agreement-option" disabled={!playground||sampleRequests}
+              onClick={()=>{
+                if(!playground||sampleRequests)return;
+                // Optional rehearsal only: ask other parties to confirm or
+                // clarify, not a precondition to an ordinary straight sale.
+                const requests=preflight.providerRequests;
+                const needClarifying=new Set(requests.map(r=>r.source.sellerKsNumber));
+                setProviderReplies(Object.fromEntries(requests.map(req=>[
+                  req.id,miniSampleProviderReply(req),
+                ]).filter((pair):pair is [string,MiniSampleProviderReply]=>!!pair[1])));
+                setSampleResponses(Object.fromEntries(
+                  sampleSellers.filter(id=>!needClarifying.has(id))
+                    .map(id=>[id,'accepted' as const])));
+                setSampleRequests(true);setMoneyOpen(false);
+              }}>
+              <span className="spm-shop-agreement-option-icon"><Share2 size={19}/></span>
+              <span><strong>{sampleRequests?'SecureLink review started':'Send SecureLink'}</strong>
+                <small>Someone else needs to review or confirm</small></span>
+              <ArrowRight size={17}/>
+            </button>
+            <button type="button" className="spm-shop-agreement-option spm-shop-agreement-option-money"
+              disabled={!playground||!sampleMoneyReady} onClick={()=>void connectSampleMoney()}>
+              <span className="spm-shop-agreement-option-icon"><ShieldCheck size={19}/></span>
+              <span><strong>{checking?'Checking latest offer…':'Connect to Money'}</strong>
+                <small>Choose how to pay for this Agreement</small></span>
+              <ArrowRight size={17}/>
+            </button>
+            <button type="button" className="spm-shop-agreement-option"
+              disabled={!playground} onClick={saveForLater}>
+              <span className="spm-shop-agreement-option-icon"><Bookmark size={19}/></span>
+              <span><strong>Save for later</strong>
+                <small>Keep your work and continue another time</small></span>
+              <ArrowRight size={17}/>
+            </button>
+          </div>
+          {playground&&!sampleMoneyReady&&<p className="spm-shop-gentle-note"
+            data-money-next-reason="material-terms">
+            {sampleRequests
+              ?'The other party’s sample clarifications must be reviewed before Money.'
+              :directSale.reason||'The other parties need to confirm their own terms before Money.'}
+          </p>}
           {!playground&&<p className="spm-shop-gentle-note">
-            Sharing will open once seller-specific SecureLinks are connected. Nothing has been sent.</p>}
+            These three choices will use real authenticated Agreements and certified Money
+            once the server connection is ready. Nothing has been sent or paid.</p>}
+          {playground&&directSale.canOpenMoney&&!sampleRequests&&
+            <p className="spm-shop-gentle-note" data-straight-sale="no-securelink-needed">
+              Straight sale: you can choose Money directly. Sending SecureLink is optional.
+              This demonstration does not create a real seller acceptance or payment.</p>}
           {sampleRequests&&playground&&<div className="spm-shop-seller-replies">
             <div className="spm-shop-replies-heading"><CheckCircle2 size={18}/>
               <span><strong>Example replies received</strong>
@@ -835,20 +863,6 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
                 <span className="spm-shop-seller-state"><CheckCircle2 size={14}/> Example quotes accepted</span>
               </div>}
           </div>}
-          {playground&&<button type="button" className="spm-shop-money-next"
-            disabled={!sampleMoneyReady} onClick={()=>setMoneyOpen(true)}>
-            <ShieldCheck size={17}/> Connect to Money <ArrowRight size={17}/>
-          </button>}
-          {playground&&!sampleMoneyReady&&<p className="spm-shop-gentle-note">
-            Money becomes available only after the sample seller and delivery Agreements are confirmed.</p>}
-          {!playground&&<button type="button" disabled className="spm-shop-money-next">
-            <ShieldCheck size={17}/> Connect to Money <ArrowRight size={17}/>
-          </button>}
-          <button type="button" className="spm-shop-save" disabled={!playground}
-            onClick={saveForLater}>Save for later</button>
-          {playground&&<p className="spm-shop-gentle-note">
-            In this rehearsal, separate sample seller confirmations unlock the rail choices.
-            No real SecureLink, Money instruction or binding acceptance exists.</p>}
           <button type="button" className="spm-shop-continue" onClick={()=>{
             setProposalOpen(false);setSampleRequests(false);setSampleResponses({});setMoneyOpen(false);
           }}><ArrowLeft size={17}/> Back to basket</button>
