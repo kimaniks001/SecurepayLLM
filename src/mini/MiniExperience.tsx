@@ -112,7 +112,8 @@ export function MiniExperience() {
   const [screen, setScreen] = useState<View>(()=>
     typeof window!=='undefined' &&
     isMiniExperiencePreviewHost(window.location.hostname) &&
-    new URLSearchParams(window.location.search).get('fairTradePreview')==='1' &&
+    (new URLSearchParams(window.location.search).get('fairTradePreview')==='1'||
+    new URLSearchParams(window.location.search).get('agreementActionsPreview')==='1') &&
     new URLSearchParams(window.location.search).get('miniTradeDemo')==='1'
       ? 'buy' : 'home');
   const [buyPrefill, setBuyPrefill] = useState('');
@@ -149,6 +150,7 @@ export function MiniExperience() {
     typeof window !== 'undefined' && isMiniExperiencePreviewHost(window.location.hostname);
   const businessDemo = playground || urlParams?.get('miniBusinessPreview') === '1';
   const fairTradeShowcase=playground&&urlParams?.get('fairTradePreview')==='1';
+  const agreementActionsShowcase=playground&&urlParams?.get('agreementActionsPreview')==='1';
   const [samplePurchases,setSamplePurchases]=useState<MiniSamplePurchase[]>(()=>
     playground&&typeof window!=='undefined'?readMiniSamplePurchases(window.sessionStorage):[]);
   const [sampleFocus,setSampleFocus]=useState<string|null>(null);
@@ -409,7 +411,8 @@ export function MiniExperience() {
 
         <div hidden={screen !== 'buy'} aria-hidden={screen !== 'buy'}>
           <MiniBuyStore key={buyResetKey} language={lang} initialQuery={buyPrefill} onBack={() => setScreen('home')}
-            playground={playground} fairTradeShowcase={fairTradeShowcase} storeGateway={playground?sampleStoreGateway:undefined}
+            playground={playground} fairTradeShowcase={fairTradeShowcase}
+            agreementActionsShowcase={agreementActionsShowcase} storeGateway={playground?sampleStoreGateway:undefined}
             onSampleFunded={playground?(purchase)=>{
               const stored=recordMiniSamplePurchase(window.sessionStorage,purchase);
               setSamplePurchases(stored);setSampleFocus(purchase.id);
