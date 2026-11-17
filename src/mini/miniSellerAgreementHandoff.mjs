@@ -50,6 +50,9 @@ export async function miniSellerReviewAgreementHandoff({gateway,handoffId}) {
       typeof gateway?.readHandoff !== 'function')
     return {ok:false,reason:'AUTHORIZED_HANDOFF_REQUIRED'};
   try {
+    // Snapshot the exact server handoff on both sides of the review call.
+    // A changed digest/version between reads invalidates what the seller saw.
+    const before=await gateway.readHandoff(handoffId);
     const review=await gateway.reviewHandoff(handoffId);
     const current=await gateway.readHandoff(handoffId);
     if (current?.handoffId!==handoffId || !isId(current?.conversationId) ||
@@ -57,6 +60,14 @@ export async function miniSellerReviewAgreementHandoff({gateway,handoffId}) {
         typeof current.candidateDigest!=='string' || !current.candidateDigest ||
         !review?.agreementCandidateSummary) {
       return {ok:false,reason:'HANDOFF_REVIEW_UNAVAILABLE'};
+    }
+    if(before?.handoffId!==current.handoffId ||
+       before.conversationId!==current.conversationId ||
+       before.tradeContextVersion!==current.tradeContextVersion ||
+       before.candidateDigest!==current.candidateDigest ||
+       JSON.stringify(review.agreementCandidateSummary)!==
+         JSON.stringify(current.agreementCandidateSummary)) {
+      return {ok:false,reason:'HANDOFF_CHANGED_DURING_REVIEW'};
     }
     const summary=review.agreementCandidateSummary;
     const state=current.status;
@@ -128,20 +139,37 @@ export async function miniSellerCreateReviewedAgreement({
 }
 
 /** Proposal is a separate seller decision; it never issues the SecureLink. */
-export async function miniSellerProposeAgreement({agreements,agreementId,confirmed}) {
+/** Explicit, unchanged-version proposal. The backend's existing propose API
+ * has no compare-and-set request, so we also verify version after proposal.
+ * Never issue a SecureLink if the version changed around this operation.
+ */
+export async function miniSellerProposeAgreement({
+  agreements,agreementId,expectedAgreementVersion,confirmed
+}) {
   if (!confirmed) return {ok:false,reason:'SELLER_CONFIRMATION_REQUIRED'};
   if (!isId(agreementId) || typeof agreements?.detail!=='function' ||
-      typeof agreements?.propose!=='function')
-    return {ok:false,reason:'CANONICAL_AGREEMENT_REQUIRED'};
+      typeof agreements?.propose!=='function' ||
+      !isId(expectedAgreementVersion?.versionId) ||
+      !Number.isSafeInteger(expectedAgreementVersion.versionNumber) ||
+      !expectedAgreementVersion.contentHash)
+    return {ok:false,reason:'REVIEWED_AGREEMENT_VERSION_REQUIRED'};
+  const sameVersion=(version)=>version?.versionId===expectedAgreementVersion.versionId &&
+    version.versionNumber===expectedAgreementVersion.versionNumber &&
+    version.contentHash===expectedAgreementVersion.contentHash;
   try {
     const current=await agreements.detail(agreementId);
     if (current?.overview?.agreementId!==agreementId ||
-        !current.currentVersion || current.overview.status!=='DRAFT')
+        current.overview.status!=='DRAFT' || !sameVersion(current.currentVersion))
       return {ok:false,reason:'REVIEW_AGREEMENT_BEFORE_PROPOSING'};
     const proposed=await agreements.propose(agreementId);
     if (proposed?.id!==agreementId || proposed.status!=='PROPOSED')
       return {ok:false,reason:'PROPOSAL_NOT_CONFIRMED'};
+    const verified=await agreements.detail(agreementId);
+    if(verified?.overview?.agreementId!==agreementId ||
+       verified.overview.status!=='PROPOSED' || !sameVersion(verified.currentVersion))
+      return {ok:false,reason:'PROPOSAL_VERSION_CHANGED_DO_NOT_SHARE'};
     return {ok:true,agreementId,status:'PROPOSED',
+      agreementVersion:verified.currentVersion,
       secureLinkIssued:false,buyerAccepted:false,moneyAuthorized:false};
   } catch {
     return {ok:false,reason:'CHECK_AGREEMENT_BEFORE_RETRY'};
