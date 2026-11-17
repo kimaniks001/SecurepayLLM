@@ -1,4 +1,4 @@
-import {useRef,useState} from 'react';
+import {useEffect,useRef,useState} from 'react';
 import {ArrowLeft,ArrowRight,CheckCircle2,Smartphone,CreditCard,Landmark,ShieldCheck,Clock3} from 'lucide-react';
 import {makeSampleLivingPurchase,type MiniSamplePurchase,type MiniSampleRail} from './miniSampleLivingPurchases.mjs';
 import type {MiniStorePlanLine} from './MiniBuyStore';
@@ -24,16 +24,25 @@ export function MiniSampleMoneyJourney({lines,amountMinor,delivery,deliveryFeeMi
    if(!rail||stage!=='choose'||completed.current)return;
    setStage('pending');
  };
- const providerConfirmed=()=>{
+ useEffect(()=>{
    if(!rail||stage!=='pending'||completed.current)return;
-   const purchase=makeSampleLivingPurchase({lines,rail,delivery,
-     deliveryFeeMinor,deliveryProvider});
-   if(!purchase)return;
-   completed.current=true;
-   setReceipt(purchase);
-   setStage('confirmed');
-   onConfirmed(purchase);
- };
+   // Sandbox test double: a fictional provider confirms after the customer's
+   // explicit Pay action. A real provider NEVER auto-confirms here.
+   const id=window.setTimeout(()=>{
+     if(completed.current)return;
+     const purchase=makeSampleLivingPurchase({lines,rail,delivery,
+       deliveryFeeMinor,deliveryProvider});
+     if(!purchase)return;
+     completed.current=true;
+     setReceipt(purchase);
+     setStage('confirmed');
+     onConfirmed(purchase);
+   },1200);
+   return()=>window.clearTimeout(id);
+   // The pending payment packet is fixed when the customer selected a rail.
+   // Callback and merchant revisions are deliberately not live here.
+   // eslint-disable-next-line react-hooks/exhaustive-deps
+ },[stage,rail]);
  return <div className="spm-sample-money" aria-label="Sample payment and Living Agreement">
    {stage!=='confirmed'&&<button type="button" className="spm-shop-continue" onClick={onBack}>
      <ArrowLeft size={16}/> Back to Agreement
@@ -66,17 +75,14 @@ export function MiniSampleMoneyJourney({lines,amountMinor,delivery,deliveryFeeMi
          'No bank details or transfer are required.'} This is only a payment rehearsal.</span>
      </div>}
      <button type="button" className="spm-shop-proceed" disabled={!rail} onClick={start}>
-       <span>{rail?'Continue with '+selected?.title:'Choose a payment method'}</span><ArrowRight size={18}/>
+       <span>{rail?'Pay '+fmt(amountMinor)+' with '+selected?.title+' · sample':'Choose a payment method'}</span><ArrowRight size={18}/>
      </button>
    </>}
    {stage==='pending'&&<div className="spm-sample-payment-pending">
       <Clock3 size={24}/>
       <h3>Waiting for payment confirmation</h3>
       <p>{selected?.title} selected. A real payment would remain pending until the provider confirms the transaction.</p>
-      <p>For this test, you can trigger a fictional provider callback. It will update only your sample Agreement.</p>
-      <button type="button" className="spm-shop-proceed" onClick={providerConfirmed}>
-        <span>Simulate provider confirmation</span><ArrowRight size={18}/>
-      </button>
+      <p>A fictional payment confirmation is arriving automatically. No real provider has been contacted or money moved.</p>
    </div>}
    {stage==='confirmed'&&receipt&&<>
      <div className="spm-sample-money-success" role="status">
