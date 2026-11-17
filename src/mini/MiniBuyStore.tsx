@@ -6,6 +6,7 @@ import type { PublicSearchResultView, PublicStoreView, PublicOfferView } from '.
 import type { MiniLanguage } from './miniModel';
 import { suggestedStoreSearchTerm } from '../features/living-workspace/suggestedStoreSearchTerm.mjs';
 import { miniStoreOfferSnapshotFresh } from './miniStoreOfferFresh.mjs';
+import { miniBasketReadiness } from './miniBasketReadiness.mjs';
 
 /**
  * Public Store read-only transport reuses the existing, server-allowlisted
@@ -31,9 +32,10 @@ const money = (amountMinor: number | null, currency: string) =>
 
 export type MiniStorePlanLine = {
   sellerKsNumber: string; sellerName: string; offerId: string; title: string;
-  quantity: number; priceMinor: number | null; currency: string;
+  kind?: 'PRODUCT' | 'SERVICE'; quantity: number; priceMinor: number | null; currency: string;
   offerUpdatedAt: string; availabilityState: string;
 };
+export type MiniBasketFulfilment = 'collect' | 'ask_sellers' | 'explore_combined';
 type View = 'search' | 'store' | 'plan';
 
 /** Never infer seller acceptance or stock reservation from a public Store listing. */
@@ -42,7 +44,7 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
   /** Existing public StoreGateway, optionally on the same isolated API as KS001. */
   storeGateway?:Pick<StoreGateway,'search'|'store'|'offer'>;
   /** Only after a fresh Store offer check, never on Add to cart alone. */
-  onDiscuss?:(lines:MiniStorePlanLine[])=>void;
+  onDiscuss?:(lines:MiniStorePlanLine[], fulfilment:MiniBasketFulfilment | null)=>void;
 }) {
   const client=storeGateway??stores;
   const sw = language === 'sw';
@@ -70,6 +72,9 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
   const [working, setWorking] = useState(false);
   const [error, setError] = useState('');
   const [reviewed, setReviewed] = useState(false);
+  const [fulfilmentChoice, setFulfilmentChoice] = useState<MiniBasketFulfilment | null>(null);
+  const [proposalOpen, setProposalOpen] = useState(false);
+  const readiness = miniBasketReadiness(cart,{sourcesFresh:reviewed,fulfilmentChoice});
   const [checking, setChecking] = useState(false);
   const generation = useRef(0);
 
@@ -118,11 +123,12 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
       if (prior) return old.map(line => line === prior ? {...line, quantity: Math.min(20, line.quantity + count)} : line);
       if (old.length >= 20) return old;
       return [...old, {sellerKsNumber: chosenStore.canonicalKsNumber, sellerName: chosenStore.displayName,
-        offerId: offer.id, title: offer.title, quantity: count,
+        offerId: offer.id, title: offer.title, kind:offer.kind as MiniStorePlanLine['kind'], quantity: count,
         priceMinor: offer.priceMinor, currency: offer.currency,
         offerUpdatedAt: offer.updatedAt, availabilityState: offer.availabilityState}];
     });
     setReviewed(false);
+    setProposalOpen(false);
     setError('');
   };
 
@@ -133,7 +139,7 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
 
   const verify = async () => {
     if(!cart.length||working||checking)return;
-    setChecking(true);setReviewed(false);setError('');
+    setChecking(true);setReviewed(false);setProposalOpen(false);setError('');
     try{
       if(!await latestOffersMatch()){
         setError('A seller changed a published offer, price, or available quantity. Review the Store again before continuing.');
@@ -154,7 +160,7 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
         setError('This Store offer changed since you checked it. Review the seller’s current listing again; nothing was ordered.');
         return;
       }
-      onDiscuss(cart.map(line=>({...line})));
+      onDiscuss(cart.map(line=>({...line})),fulfilmentChoice);
     }catch{
       setReviewed(false);
       setError('The latest Store offer could not be verified. No buyer plan was sent to KS001.');
@@ -225,7 +231,7 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
         {sw ? 'Tafuta bidhaa kutoka kwa maduka yaliyochapishwa.' :
           'Search published Store offers. Results come from SecurePay, not from sample shops.'}</p>}
       {cart.length > 0 && <button type="button" className="spm-quiet-button" onClick={() => setView('plan')}>
-        View buying plan ({cart.length})</button>}
+        View basket ({cart.length})</button>}
     </>}
 
     {view === 'store' && chosenStore && <>
@@ -244,52 +250,73 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
             value={quantity[offer.id] ?? 1} onChange={e => setQuantity(old => ({...old,[offer.id]:
               Math.min(20, Math.max(1, Number(e.target.value) || 1))}))}/>
           <button className="spm-secondary" type="button" onClick={() => add(offer)}>
-            Add to buying plan <ArrowRight size={15}/>
+            Add to basket <ArrowRight size={15}/>
           </button>
         </>}
       </article>)}
       <button className="spm-primary" type="button" disabled={!cart.length} onClick={() => setView('plan')}>
-        Review buying plan ({cart.length})<ArrowRight size={17}/>
+        View basket ({cart.length})<ArrowRight size={17}/>
       </button>
     </>}
 
     {view === 'plan' && <>
       {header(sw ? 'Rudi dukani' : 'Continue shopping', () => setView(chosenStore ? 'store' : 'search'))}
       <div className="spm-persona"><CheckCircle2 size={16}/>Buyer intention · Not an order</div>
-      <h1 className="spm-question">{sw ? 'Kagua unachotaka kununua' : 'Review your buying plan'}</h1>
+      <h1 className="spm-question">{sw ? 'Kagua unachotaka kununua' : 'Your basket'}</h1>
       {cart.map(line => <div className="spm-mini-buy-result" key={line.sellerKsNumber + ':' + line.offerId}>
         <strong>{line.title}</strong>
         <p>{line.sellerName} · {line.sellerKsNumber}</p>
         <small>{line.quantity} × {money(line.priceMinor, line.currency)}</small>
         <button type="button" className="spm-quiet-button" onClick={() => {
-          setCart(old => old.filter(x => x !== line)); setReviewed(false);
+          setCart(old => old.filter(x => x !== line)); setReviewed(false);setProposalOpen(false);
         }}>Remove</button>
       </div>)}
       <p className="spm-lead">
-        {sw
-          ? 'Kila muuzaji lazima athibitishe bidhaa, kiasi, bei na masharti. Haya si makubaliano yaliyokubaliwa.'
-          : 'Each seller must confirm quantities, prices and delivery terms. Nothing is ordered, agreed or reserved yet.'}
+        {sw ? 'Kila muuzaji atathibitisha sehemu yake. Hakuna oda wala malipo bado.' :
+          'Offers from different stores stay separate underneath one basket. Each seller must confirm their own part.'}
       </p>
-      <button type="button" className="spm-primary" disabled={!cart.length || checking}
+      {readiness.goods && <div className="spm-mini-buy-result" aria-label="How would you like to receive the goods?">
+        <strong>How would you like to receive the goods?</strong>
+        <p>This is your preference, not a confirmed delivery service.</p>
+        {([
+          ['collect', 'I will collect'],
+          ['ask_sellers', 'Ask the stores about delivery'],
+          ['explore_combined', 'Explore combined delivery'],
+        ] as const).map(([value,label])=>
+          <label key={value} className="spm-label" style={{display:'flex',alignItems:'center',gap:10,cursor:'pointer'}}>
+            <input type="radio" name="spm-basket-fulfilment" checked={fulfilmentChoice===value}
+              onChange={()=>{setFulfilmentChoice(value);setProposalOpen(false);}}/>{label}
+          </label>)}
+      </div>}
+      <button type="button" className="spm-secondary" disabled={!cart.length || checking}
         onClick={() => void verify()}>
-        {checking ? 'Refreshing offers…' : 'Check current Store offers'}<ArrowRight size={17}/>
+        {checking ? 'Checking offers…' : 'Check latest Store offers'}<ArrowRight size={17}/>
       </button>
-      {reviewed && <div className="spm-mini-buy-result">
-        <strong>Published sources checked</strong>
-        {onDiscuss && <button type="button" className="spm-primary"
+      {readiness.missing.length>0 && <div className="spm-mini-buy-result" role="status">
+        <strong>Before you continue</strong>
+        {readiness.missing.map(message=><p key={message}>{message}</p>)}
+      </div>}
+      <button type="button" className="spm-primary" disabled={!readiness.readyToReview || working || checking}
+        onClick={()=>setProposalOpen(true)}>
+        Review your proposal<ArrowRight size={17}/>
+      </button>
+      {proposalOpen && readiness.readyToReview && <div className="spm-mini-buy-result">
+        <strong>Ready to review — not yet an order</strong>
+        <p>{readiness.itemCount} offer(s) from {readiness.sellerCount} seller(s).
+          {readiness.totalMinor !== null && readiness.currency === 'KES'
+            ? ' Indicative items subtotal: KSh '+(readiness.totalMinor/100).toLocaleString('en-KE')+'.' : ' Final prices require confirmation.'}
+        </p>
+        <p>Each seller still needs to accept their items, prices and obligations. A consolidated payment is not yet available.</p>
+        {onDiscuss && <button type="button" className="spm-secondary"
           disabled={working||checking} onClick={()=>void discussCurrent()}>
-          <MessageCircle size={16}/>Discuss this buying plan with KS001
-          <ArrowRight size={16}/>
+          <MessageCircle size={16}/>Ask KS001 about this basket<ArrowRight size={16}/>
         </button>}
-        <p>Seller confirmation and a canonical Agreement are still required. This check does not accept an order.</p>
+        {!onDiscuss && <p>SecurePay's seller-confirmation handoff is not connected on this preview. Your review has not been sent.</p>}
         {cart.length === 1 && cart[0].priceMinor !== null &&
           <button type="button" className="spm-secondary" disabled={working}
             onClick={() => void reviewSingleOffer()}>
-            Review sourced offer (simulation)<ArrowRight size={16}/>
+            View single-offer review (simulation)<ArrowRight size={16}/>
           </button>}
-        {cart.length !== 1 && <p className="spm-lead">
-          Multiple sellers require separate confirmation. A multi-Store Agreement has not been issued from Mini.
-        </p>}
       </div>}
     </>}
     {error && <p className="spm-error" role="alert">{error}</p>}

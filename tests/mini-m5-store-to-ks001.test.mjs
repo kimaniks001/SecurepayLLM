@@ -126,7 +126,8 @@ test('M5: existing Mini Store remains single UI; explicit verified plan selectio
   const controller=read('src/features/agent/controller.ts');
   assert.match(store,/storeGateway\?:Pick<StoreGateway/);
   assert.match(store,/onDiscuss\?:/);
-  assert.match(store,/reviewed &&/);
+  assert.match(store,/miniBasketReadiness\(cart/);
+  assert.match(store,/readiness\.readyToReview/);
   assert.match(store,/onDiscuss\(cart.map/);
   assert.match(main,/MiniBuyStore language=\{language\}/);
   assert.match(main,/pair\.controller\.useOffer\(plan.source\)/);

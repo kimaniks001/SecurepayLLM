@@ -17,7 +17,7 @@ import {copyDemo} from './MiniBusinessDemoModel';
 import { getMiniFirstPartyOrigin } from './miniFirstPartyConfig';
 import { MiniServerCheckout } from './MiniServerCheckout';
 import { MiniRealStoreOffer } from './MiniRealStoreOffer';
-import { MiniBuyStore } from './MiniBuyStore';
+import { MiniBuyStore, type MiniStorePlanLine, type MiniBasketFulfilment } from './MiniBuyStore';
 import { MiniCollectConversation } from './MiniCollectConversation';
 import { miniMergeUserDescription, miniCaptureText, type MiniCaptureSource, type MiniCaptureKind } from './miniCapture';
 import './mini.css';
@@ -107,6 +107,7 @@ export function MiniExperience() {
   const [screen, setScreen] = useState<View>('home');
   const [buyPrefill, setBuyPrefill] = useState('');
   const [buyResetKey, setBuyResetKey] = useState(0);
+  const [buyingPlanForHelp,setBuyingPlanForHelp] = useState<{lines:MiniStorePlanLine[];fulfilment:MiniBasketFulfilment|null}|null>(null);
   const [collectResetKey, setCollectResetKey] = useState(0);
   const [collectPrefill, setCollectPrefill] = useState('');
   const [collectionReviewActive, setCollectionReviewActive] = useState(false);
@@ -172,6 +173,18 @@ export function MiniExperience() {
     setSources([]);
     setScreen('describe');
   };
+  const beginSell = () => {
+    // A supported backend opens the canonical, authority-checked Business Store
+    // rather than creating another independent Mini seller record.
+    if (getMiniFirstPartyOrigin()) {
+      setVerifiedStoreRequested(true);
+      setDiscussDraft(null);
+      setScreen('help');
+      return;
+    }
+    // Isolated owner preview: honest local proposal, never a published offer.
+    begin('sell');
+  };
   const update = (field: keyof MiniDraft, value: string) => {
     setDraft(current => ({ ...current, [field]: value }));
     setError('');
@@ -182,6 +195,7 @@ export function MiniExperience() {
     setOpening('');
     setBuyPrefill('');
     setBuyResetKey(n => n + 1);
+    setBuyingPlanForHelp(null);
     setCollectResetKey(n => n + 1);
     setCollectPrefill('');
     setCollectionReviewActive(false);
@@ -289,7 +303,7 @@ export function MiniExperience() {
         {screen === 'home' && <section className="spm-entrance">
           {businessDemo && <MiniBusinessCapacity part="identity" language={lang}
             capacity={previewCapacity} onChange={setPreviewCapacity}
-            onStartSelling={() => begin('sell')}
+            onStartSelling={beginSell}
             onAskKs001={() => { setDiscussDraft(null); setScreen('help'); }}
             demo={demoBusiness}
             onOpenStore={() => {setSettingsEntry('store');setScreen('business-settings');}}
@@ -309,7 +323,7 @@ export function MiniExperience() {
             <button type="button" className="spm-option" onClick={() => {setBuyPrefill('');setScreen('buy');}}>
               <span className="spm-option-icon"><ShoppingBag size={20}/></span>
               <span className="spm-option-text"><strong>{t.buy}</strong><small>{t.buyHint}</small></span><ArrowRight size={18}/></button>
-            <button type="button" className="spm-option" onClick={() => begin('sell')}>
+            <button type="button" className="spm-option" onClick={beginSell}>
               <span className="spm-option-icon"><ShoppingBag size={20}/></span>
               <span className="spm-option-text"><strong>{t.sell}</strong><small>{t.sellHint}</small></span><ArrowRight size={18}/></button>
             <button type="button" className="spm-option" onClick={() => begin('pay')}>
@@ -325,7 +339,7 @@ export function MiniExperience() {
           </div>
           {businessDemo && <MiniBusinessCapacity part="activity" language={lang}
             capacity={previewCapacity} onChange={setPreviewCapacity}
-            onStartSelling={() => begin('sell')}
+            onStartSelling={beginSell}
             onAskKs001={() => { setDiscussDraft(null); setScreen('help'); }}
             demo={demoBusiness}
             onOpenStore={() => {setSettingsEntry('store');setScreen('business-settings');}}
@@ -352,7 +366,7 @@ export function MiniExperience() {
               <span className="spm-option-icon"><ShoppingBag size={20}/></span>
               <strong className="spm-option-text">{t.buy}</strong><ArrowRight size={18}/></button>
             {([['sell', ShoppingBag, t.sell], ['pay', FileText, t.pay]] as const).map(([id, Icon, label]) =>
-              <button className="spm-option" key={id} type="button" onClick={() => begin(id)}>
+              <button className="spm-option" key={id} type="button" onClick={() => id==='sell' ? beginSell() : begin(id)}>
                 <span className="spm-option-icon"><Icon size={20}/></span><strong className="spm-option-text">{label}</strong><ArrowRight size={18}/></button>)}
             <button type="button" className="spm-option" onClick={beginCollection}>
               <span className="spm-option-icon"><HandCoins size={20}/></span>
@@ -361,7 +375,10 @@ export function MiniExperience() {
         </section>}
 
         <div hidden={screen !== 'buy'} aria-hidden={screen !== 'buy'}>
-          <MiniBuyStore key={buyResetKey} language={lang} initialQuery={buyPrefill} onBack={() => setScreen('home')}/>
+          <MiniBuyStore key={buyResetKey} language={lang} initialQuery={buyPrefill} onBack={() => setScreen('home')}
+            onDiscuss={getMiniFirstPartyOrigin() ? (lines,fulfilment)=>{
+              setBuyingPlanForHelp({lines,fulfilment});setDiscussDraft(null);setScreen('help');
+            } : undefined}/>
         </div>
         <div hidden={screen !== 'collect-interview'} aria-hidden={screen !== 'collect-interview'}>
           <MiniCollectConversation key={collectResetKey} language={lang} seed={collectPrefill}
@@ -470,7 +487,8 @@ export function MiniExperience() {
         {screen === 'help' && (getMiniFirstPartyOrigin()
           ? <MiniFirstPartyKs001 apiOrigin={getMiniFirstPartyOrigin()!} draft={discussDraft} language={lang}
               startInStore={verifiedStoreRequested}
-              onBack={() => {setVerifiedStoreRequested(false);setScreen(discussDraft ? 'review' : 'home');}}/>
+              initialBuyingPlan={buyingPlanForHelp}
+              onBack={() => {setVerifiedStoreRequested(false);setScreen(buyingPlanForHelp ? 'buy' : discussDraft ? 'review' : 'home');setBuyingPlanForHelp(null);}}/>
           : <MiniGuestChat draft={discussDraft} language={lang}
               onBack={() => setScreen(discussDraft ? 'review' : 'home')}/>)} 
         </>}

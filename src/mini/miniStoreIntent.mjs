@@ -8,7 +8,7 @@
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ks=/^KS\d{3,12}$/;
 const text=(v,max)=>typeof v==='string' ? v.trim().slice(0,max) : '';
-export function miniStoreIntent(lines){
+export function miniStoreIntent(lines, {fulfilmentPreference=null}={}){
   if(!Array.isArray(lines)||lines.length<1||lines.length>20) return null;
   const seen=new Set();
   const safe=[];
@@ -31,7 +31,10 @@ export function miniStoreIntent(lines){
     ' | '+s.sellerName+' ('+s.sellerKsNumber+') | Offer '+s.offerId+
     ' | displayed '+(s.priceMinor===null?'price to confirm':
       s.currency+' '+(s.priceMinor/100).toFixed(2)+' per unit')+'.');
-  const tail=' Please ask where, when, and how delivery and each seller approval should work. No payments or stock reservation.';
+  const preference=fulfilmentPreference==='collect'?' Buyer prefers collection.':
+    fulfilmentPreference==='ask_sellers'?' Buyer wants each store to quote delivery.':
+    fulfilmentPreference==='explore_combined'?' Buyer wants to explore combined delivery, subject to verified transport offers and independent acceptance.':'';
+  const tail=preference+' Please ask where, when, and how delivery and each seller approval should work. No payments or stock reservation.';
   const statement=header+rows.join(' ')+tail;
   if(statement.length>5000)return null; // refuse truncation hiding a seller.
   return {
