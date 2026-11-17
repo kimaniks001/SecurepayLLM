@@ -128,9 +128,11 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
     answers:basketAnswers,fulfilmentChoice,deliveryArea,sourceFresh:reviewed,
     providerReplies,
   });
+  const deliveryContracts=miniDeliveryContracts({choice:fulfilmentChoice,lines:cart,
+    destination:deliveryArea,window:deliveryWindow,deliveryQuoteSelected});
   const preparedTerms=miniSampleAgreementTerms(cart,
     miniBasketAnswersForOffer(cart,basketAnswers),preflight.providerRequests,providerReplies);
-  const sellerProposals=miniSellerScopedProposal(cart,preparedTerms);
+  const sellerProposals=miniSellerScopedProposal(cart,preparedTerms,deliveryContracts);
   const sampleSellers=sellerProposals.sellers.map(seller=>seller.sellerKsNumber);
   const allSampleAccepted=sampleRequests&&sampleSellers.length>0&&
     sampleSellers.every(id=>sampleResponses[id]==='accepted');
@@ -393,8 +395,7 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
   };
   const itemCount=cart.reduce((count,line)=>count+line.quantity,0);
   const cartQuantity=(offerId:string)=>cart.find(line=>line.offerId===offerId)?.quantity||0;
-  const deliveryContracts=miniDeliveryContracts({choice:fulfilmentChoice,lines:cart,
-    destination:deliveryArea,window:deliveryWindow,deliveryQuoteSelected});
+
   const deliveryContractState=miniDeliveryContractSummary(deliveryContracts);
   const deliveryNeedsQuote=readiness.goods&&fulfilmentChoice!=='collect';
   const deliveryComplete=!deliveryNeedsQuote||
