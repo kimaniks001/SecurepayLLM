@@ -4,7 +4,7 @@ import type { BusinessStoreOpportunityResponse, StoreOfferResponse, UpsertStoreO
 import type { StoreIdentity, StoreOffer } from '../../types';
 import type { OfferDraftFields } from '../../components/OfferBuilderView';
 import { emptyOfferDraft, mergeSearchResults, searchRequests, type StoreManageGateway, type StoreReadGateway } from './view';
-import {storeTextPublicationReview, storeTextPublicationFresh, storePublishedTextEditReview} from './storeTextPublicationPolicy.mjs';
+import {storeTextPublicationReview, storeTextPublicationFresh, storePublishedTextEditReview, storePublishedTextEditFresh} from './storeTextPublicationPolicy.mjs';
 
 export function errorText(error: unknown): string {
   if (error instanceof ApiError) {
@@ -189,7 +189,7 @@ export function createStoreController(gateway: Gateway, trustedMediaOrigin: stri
             : await gateway.myOffers();
           const candidates = latest.filter(o => o.id === existing.id);
           if (candidates.length !== 1 ||
-              !storeTextPublicationFresh(existing, candidates[0]).ok) {
+              !storePublishedTextEditFresh(existing, candidates[0]).ok) {
             update({ draftBusy: false, draftError:
               'This published offer changed. Review the latest listing before saving.' });
             return;
