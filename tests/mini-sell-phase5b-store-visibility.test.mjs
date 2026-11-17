@@ -68,7 +68,7 @@ test('visibility is hidden in owner demo and unrelated community/eTIMS preferenc
   assert.ok(shell.includes('visibilityEnabled={!demo&&signedIn}'));
   assert.ok(seller.includes('storeGateway={visibilityEnabled?storeGateway:undefined}'));
   assert.ok(settings.includes("representation==='personal'||representation==='verified'"));
-  assert.ok(settings.includes('Community-directory opt-in'));
+  assert.ok(settings.includes('Business directory and eTIMS setup requests'));
 });
 test('team read uses exact Business Organization and caller-scoped authority, never mutates roles',()=>{
   const team=fs.readFileSync(new URL('../src/mini/MiniSellerTeamAccess.tsx',import.meta.url),'utf8');
@@ -78,9 +78,12 @@ test('team read uses exact Business Organization and caller-scoped authority, ne
   assert.ok(team.includes('businessGateway.members(businessKsNumber)'));
   assert.ok(team.includes("allowed.has('ORGANIZATION_MANAGE_MEMBERS')"));
   assert.ok(team.includes("allowed.has('ORGANIZATION_ASSIGN_ROLES')"));
-  for(const forbidden of ['inviteMember(', 'removeMember(', 'initiateRoleAssignment(',
+  for(const forbidden of ['removeMember(', 'initiateRoleAssignment(',
     'approveProtectedAction(','executeRoleAssignment('])
     assert.equal(team.includes(forbidden),false,forbidden);
+  assert.ok(team.includes('businessGateway.inviteMember(businessKsNumber,target)'));
+  assert.ok(team.includes("summary.permissions.includes('ORGANIZATION_MANAGE_MEMBERS')"));
+  assert.ok(team.includes('Yes, send invitation'));
 });
 
 test('owner Business settings preview shows the feature without fake privacy mutations',()=>{

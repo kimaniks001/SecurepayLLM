@@ -6,8 +6,10 @@ import { quotedRecordProof } from '../api/securepay/store-quotations';
 import type { StoreOfferFulfilmentResponse } from '../api/securepay/store/dto';
 import type { BusinessGateway, BusinessRepresentationDto } from '../api/securepay/business';
 import type {SubscriptionGateway} from '../api/securepay/subscription';
+import type {MiniBusinessPreferencesGateway} from '../api/securepay/mini-business-preferences';
 import type {AuthorizationGateway} from '../api/securepay/authorization';
 import {MiniSellerAccountSettings} from './MiniSellerAccountSettings';
+import {MiniSellerInvitationAcceptance} from './MiniSellerInvitationAcceptance';
 import { createStoreController } from '../features/store/controller';
 import { availabilityOptionsFor } from '../features/store/view';
 import { miniSellerQuotationDraft } from './miniSellerQuotationDraft.mjs';
@@ -20,14 +22,15 @@ import { miniStoreOfferSnapshotFresh } from './miniStoreOfferFresh.mjs';
  * payment/Agreement version mutation. Business permission is checked by
  * the canonical BusinessGateway before loading and again before fulfilment.
  */
-export function MiniSellerStore({storeGateway,businessGateway,subscriptionGateway,authorizationGateway,visibilityEnabled=false,quotationGateway,liveQuotes,prepare,onBack,onInvitations,onSellerDiscuss,onPrepareOffer}:{
+export function MiniSellerStore({storeGateway,businessGateway,subscriptionGateway,preferencesGateway,authorizationGateway,visibilityEnabled=false,quotationGateway,liveQuotes,prepare,onBack,onInvitations,onSellerDiscuss,onPrepareOffer}:{
   storeGateway:StoreGateway;
   quotationGateway:StoreQuotationGateway;
   liveQuotes:boolean;
-  businessGateway:Pick<BusinessGateway,'mine'|'representation'|'get'|'members'>;
+  businessGateway:Pick<BusinessGateway,'mine'|'representation'|'get'|'members'|'inviteMember'|'acceptInvitation'>;
   authorizationGateway?:Pick<AuthorizationGateway,'authoritySummary'>;
   visibilityEnabled?:boolean;
-  subscriptionGateway?:Pick<SubscriptionGateway,'myStatus'>;
+  subscriptionGateway?:Pick<SubscriptionGateway,'myStatus'|'selectPlan'|'activationAgreement'|'establishActivationAgreement'|'confirmActivationAgreement'>;
+  preferencesGateway?:MiniBusinessPreferencesGateway;
   prepare:()=>Promise<unknown>;
   onBack:()=>void;
   onInvitations:()=>void;
@@ -326,6 +329,8 @@ export function MiniSellerStore({storeGateway,businessGateway,subscriptionGatewa
         {b.displayName||'Business Store'} · {b.businessKsNumber}
       </button>)}
     </div>
+    {visibilityEnabled&&<MiniSellerInvitationAcceptance
+      businessGateway={businessGateway} prepare={prepare}/>}
     {state.mine.status==='loading'&&<p role="status">Checking your Store offers…</p>}
     {state.mine.status==='error'&&<p role="alert">This Store could not be loaded or managed with your account.</p>}
     {notice&&<p role="status">{notice}</p>}
@@ -341,6 +346,7 @@ export function MiniSellerStore({storeGateway,businessGateway,subscriptionGatewa
         businessName={storeBusiness?.displayName??null}
         businessGateway={businessGateway}
         subscriptionGateway={subscriptionGateway}
+        preferencesGateway={preferencesGateway}
         authorizationGateway={authorizationGateway}
         storeGateway={visibilityEnabled?storeGateway:undefined}
         offers={visibilityEnabled?opened.raw:undefined}
