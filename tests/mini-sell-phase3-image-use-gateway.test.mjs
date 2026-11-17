@@ -44,3 +44,19 @@ test('independent image review is typed as owner-private remediation, never a se
   assert.ok(!dto.includes("'VERIFIED'"));
   assert.ok(!seller.includes('StoreImageIndependentReviewController'));
 });
+
+
+test('seller may explicitly link or revoke UNVERIFIED image rights evidence via private authenticated Store routes',()=>{
+  for(const purpose of ['SUPPLIER_PERMISSION','SELLER_AUTHORITY','OTHER_RIGHTS_EVIDENCE'])
+    assert.ok(dto.includes("'"+purpose+"'"),purpose);
+  assert.match(dto,/export type StoreImageEvidenceStatus = 'LINKED_UNVERIFIED' \| 'REVOKED'/);
+  for(const action of ['linkMyImageEvidence','myImageEvidence','revokeMyImageEvidence',
+    'linkBusinessImageEvidence','businessImageEvidence','revokeBusinessImageEvidence'])
+    assert.ok(api.includes(action+':'),action);
+  assert.match(api,/\/evidence\`/);
+  assert.match(api,/segment\(evidenceId\)/);
+  assert.match(api,/auth: 'required'/);
+  assert.ok(!seller.includes('linkMyImageEvidence('));
+  assert.ok(!seller.includes('linkBusinessImageEvidence('));
+  assert.ok(!dto.includes("'APPROVED'"));
+});
