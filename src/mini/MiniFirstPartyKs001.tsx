@@ -16,7 +16,7 @@ import { createMoneySnapshotGateway } from '../api/securepay/money-snapshot';
 import { createPaymentIntentGateway } from '../api/securepay/payment-intent';
 import { m5QuotationExperienceEnabled } from '../config/securepay';
 import { createNotificationsGateway } from '../api/securepay/notifications';
-import { MiniBuyStore, type MiniStorePlanLine } from './MiniBuyStore';
+import { MiniBuyStore, type MiniStorePlanLine, type MiniBasketFulfilment } from './MiniBuyStore';
 import { miniStoreIntent } from './miniStoreIntent.mjs';
 import type { MiniStoreIntent } from './miniStoreIntent.mjs';
 import type { MiniSellerQuotationDraft } from './miniSellerQuotationDraft.mjs';
@@ -48,7 +48,7 @@ import type { MiniDraft, MiniLanguage } from './miniModel';
  * Unlike the legacy guest installation contract, this route exists in the
  * currently inspected SecurePayAPI main source as /api/agent/conversations.
  */
-export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo = false, startInStore = false }: {
+export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo = false, startInStore = false, initialBuyingPlan = null }: {
   apiOrigin: string;
   draft: MiniDraft | null;
   language: MiniLanguage;
@@ -56,6 +56,8 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
   demo?: boolean;
   /** One-shot explicit handoff from Mini Business Settings, not an authority grant. */
   startInStore?: boolean;
+  /** Explicit buyer handoff; public offer IDs must be rechecked before use. */
+  initialBuyingPlan?: {lines:MiniStorePlanLine[];fulfilment:MiniBasketFulfilment|null}|null;
 }) {
   const sw = language === 'sw';
   const expiredKey = 'securepay.mini.firstparty.expired.v1:' + apiOrigin;
@@ -420,11 +422,21 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
       setStoreError('Could not discuss the Store plan with KS001. No order or Agreement was created.');
     }finally{setStoreBusy(false);}
   };
-  const discussStorePlan = (lines:MiniStorePlanLine[]) => {
-    const plan=miniStoreIntent(lines);
+  const discussStorePlan = (lines:MiniStorePlanLine[],fulfilment:MiniBasketFulfilment|null = null) => {
+    const plan=miniStoreIntent(lines,{fulfilmentPreference:fulfilment});
     if(!plan){setStoreError('Check the Store, quantity and offer references again. No Agreement was created.');return;}
     void forwardStorePlan(plan);
   };
+  const initialBuyingPlanHandled=useRef(false);
+  useEffect(()=>{
+    // Intentional action from the Store basket; reuse the SAME AgentController.
+    // Do not call this on mount unless a human explicitly asked for help.
+    if(!initialBuyingPlan||status!=='ready'||initialBuyingPlanHandled.current)return;
+    initialBuyingPlanHandled.current=true;
+    discussStorePlan(initialBuyingPlan.lines,initialBuyingPlan.fulfilment);
+    // One shot per mounted first-party session; retry is controller-owned.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[initialBuyingPlan,status]);
   // M5C: an owner-authorised seller's proposed terms use the SAME
   // AgentController/source selection and ongoing KS001 conversation. This is
   // NOT a seller-issued backend quote or canonical Agreement version yet.
