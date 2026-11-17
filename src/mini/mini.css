@@ -1325,3 +1325,64 @@ textarea.spm-field { resize:vertical; }
  .spm-fair-evidence-row {grid-template-columns:39px minmax(0,1fr);gap:8px;padding:9px 7px;}
  .spm-fair-inspection-panel {padding:13px 9px;}
 }
+
+/* Compact Fair Trade check: one glance in the basket, deep detail by choice. */
+.spm-fair-inspection.spm-fair-compact {margin:10px 0 13px;border-radius:14px;box-shadow:none;}
+.spm-fair-compact .spm-fair-inspection-toggle {
+ min-height:53px;padding:9px 11px;gap:9px;background:#eff4eb;}
+.spm-fair-compact .spm-fair-inspection-icon {
+ width:32px;height:32px;border-radius:10px;background:#e0ece0;}
+.spm-fair-compact .spm-fair-inspection-toggle-copy {gap:3px;}
+.spm-fair-compact .spm-fair-inspection-toggle-copy strong {font-size:12px;}
+.spm-fair-compact .spm-fair-inspection-toggle-copy small {font-size:10px;}
+.spm-fair-compact .spm-fair-inspection-panel {padding:4px 11px 9px;}
+.spm-fair-compact-row {display:grid;grid-template-columns:93px minmax(0,1fr);align-items:start;
+ gap:9px;padding:10px 0;border-bottom:1px solid #eef0e9;min-width:0;}
+.spm-fair-compact-row strong {font-size:11px;line-height:1.45;font-weight:620;
+ color:#365540;overflow-wrap:anywhere;}
+.spm-fair-compact-label {color:#7b8d7c;font-size:10px;font-weight:720;padding-top:1px;}
+.spm-fair-compact-attention strong {color:#80603c;}
+.spm-fair-compact-footer {display:flex;align-items:center;justify-content:space-between;
+ gap:6px;padding:8px 0 0;min-width:0;}
+.spm-fair-compact-footer>span {font-size:9px;line-height:1.3;color:#8a9688;
+ display:flex;align-items:center;gap:5px;min-width:0;}
+.spm-fair-compact-footer>span svg {flex:none;}
+.spm-fair-compact-footer>button {border:0;padding:6px 0 6px 5px;
+ background:transparent;color:#31644a;font-size:10px;font-weight:800;
+ display:flex;align-items:center;gap:3px;white-space:nowrap;flex:none;}
+.spm-fair-compact-deep {border-top:1px solid #e4e9df;margin-top:9px;padding-top:8px;}
+.spm-fair-compact-deep>h3 {font:500 16px/1.24 'Fraunces',Georgia,serif;
+ color:#32553e;margin:9px 0;}
+.spm-fair-compact-essentials {display:grid;gap:0;border:1px solid #e8ece4;border-radius:10px;}
+.spm-fair-compact-essentials>div {display:grid;grid-template-columns:44px minmax(0,1fr);
+ gap:8px;border-bottom:1px solid #edf1e9;padding:7px 8px;}
+.spm-fair-compact-essentials>div:last-child {border-bottom:0;}
+.spm-fair-compact-essentials b {font-size:10px;color:#327148;}
+.spm-fair-compact-essentials span {font-size:10px;color:#667a68;line-height:1.35;}
+.spm-fair-compact-source {display:flex;align-items:start;gap:8px;margin:10px 0;
+ padding:10px;border-radius:11px;background:#fbf6e9;border:1px solid #e9ddc8;}
+.spm-fair-compact-source>svg {flex:none;color:#92734c;margin-top:2px;}
+.spm-fair-compact-source>div {min-width:0;}
+.spm-fair-compact-source strong {font-size:10px;color:#756045;}
+.spm-fair-compact-source p {font-size:10px;color:#84765f;line-height:1.45;
+ margin:6px 0;overflow-wrap:anywhere;}
+.spm-fair-compact-source details {margin-top:7px;}
+.spm-fair-compact-source summary {font-size:9px;color:#897759;cursor:pointer;}
+.spm-fair-compact-lenses-btn {width:100%;display:flex;justify-content:space-between;
+ align-items:center;text-align:left;gap:9px;padding:11px 9px;border:1px solid #e3e9df;
+ border-radius:10px;background:#f7f9f4;color:#356249;font-size:11px;font-weight:750;
+ margin:9px 0;}
+.spm-fair-compact-lenses-list {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+ gap:5px;margin:0 0 8px;padding:0;list-style:none;}
+.spm-fair-compact-lenses-list li {display:flex;align-items:start;gap:5px;
+ background:#fafbf7;border:1px solid #edf0e9;border-radius:8px;padding:7px;
+ min-height:35px;min-width:0;}
+.spm-fair-compact-lenses-list li span {font-size:9px;color:#659070;flex:none;}
+.spm-fair-compact-lenses-list li strong {font-size:9px;color:#4d6854;
+ line-height:1.3;font-weight:600;overflow-wrap:anywhere;}
+.spm-fair-compact-disclaimer {font-size:9px;line-height:1.5;color:#7e887e;margin:9px 0;}
+.spm-fair-compact-sources {font-size:9px;color:#9aa299;}
+@media(max-width:345px){
+ .spm-fair-compact-row {grid-template-columns:82px minmax(0,1fr);gap:7px;}
+ .spm-fair-compact-lenses-list {grid-template-columns:1fr;}
+}
