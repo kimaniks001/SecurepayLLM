@@ -147,6 +147,11 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
   const [sellerOpen,setSellerOpen] = useState(false);
   const [sellerOfferContext,setSellerOfferContext]=useState<
     {type:'personal'}|{type:'business';businessKsNumber:string}|null>(null);
+  // An expired, replaced or signed-out session must never carry another
+  // person's seller offer or selected Business authority into sign-in.
+  useEffect(()=>{
+    if(!signedIn){setSellerOfferContext(null);}
+  },[signedIn]);
   const [ownedOpen,setOwnedOpen] = useState(false);
   const [ownedStatus,setOwnedStatus] = useState<'idle'|'loading'|'ready'|'error'>('idle');
   const [ownedList,setOwnedList] = useState<MiniSavedWorkItem[]>([]);
