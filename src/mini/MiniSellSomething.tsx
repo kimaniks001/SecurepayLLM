@@ -6,6 +6,8 @@ import {
 } from 'lucide-react';
 import { buildTimingProposal, type TimingDraft } from '../features/living-workspace/DateTimeTool';
 import type { MiniLanguage } from './miniModel';
+import type { StoreGateway } from '../api/securepay/store';
+import { miniSellerCreateCanonicalStoreDraft } from './miniSellerCanonicalStoreBridge.mjs';
 import {miniSellerPreparedOffer,miniSellerSafeDraft,miniSellerRestoreDraft} from './miniSellerPreparedOffer.mjs';
 import {miniSellerTrustExamination} from './miniSellerTrustExamination.mjs';
 import {miniSellerLocalExactImageDigest} from './miniSellerLocalExactImageDigest.mjs';
@@ -65,9 +67,11 @@ function writeDescription(input:{
  * Identity, Agreement, media-provenance, invitation, SecureLink or Money writes.
  * Local declaration is not verification; local output is not a canonical offer.
  */
-export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,onBrowseStores,actingAs,seed=''}:{
+export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,onBrowseStores,actingAs,seed='',storeGateway,sellerContext}:{
   language:MiniLanguage;onBack:()=>void;onOpenStore:()=>void;onOpenSettings:()=>void;
   onBrowseStores:()=>void;actingAs:string;seed?:string;
+  storeGateway?:StoreGateway;
+  sellerContext?:{type:'personal'}|{type:'business';businessKsNumber:string};
 }) {
   const sw=language==='sw';
   const [stage,setStage]=useState<'compose'|'review'|'result'>('compose');
@@ -111,6 +115,9 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
   const [stockStatement,setStockStatement]=useState('');
   const [error,setError]=useState('');
   const [result,setResult]=useState<Result>(null);
+  const [canonicalStoreStatus,setCanonicalStoreStatus]=useState('');
+  const [canonicalOfferId,setCanonicalOfferId]=useState<string|null>(null);
+  const [storeCreating,setStoreCreating]=useState(false);
   const [ksHelp,setKsHelp]=useState(false);
   const photoRef=useRef<HTMLInputElement>(null);
   const docRef=useRef<HTMLInputElement>(null);
@@ -248,6 +255,23 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
       }catch{setSavedDraftAvailable(false);}
     }
     setResult(kind);setStage('result');
+  };
+  const createRealStoreDraft=async()=>{
+    if(!storeGateway||!sellerContext||!prepared.ok||storeCreating||canonicalOfferId)return;
+    setStoreCreating(true);setCanonicalStoreStatus('');
+    try{
+      const receipt=await miniSellerCreateCanonicalStoreDraft({
+        prepared,gateway:storeGateway,context:sellerContext,confirmed:true
+      });
+      if(receipt.ok&&receipt.offerId){
+        setCanonicalOfferId(receipt.offerId);
+        setCanonicalStoreStatus('Saved to your Store as a private draft. Nothing is published or sent.');
+      }else{
+        setCanonicalStoreStatus(receipt.reason==='CHECK_MY_STORE_BEFORE_RETRY'
+          ? 'The result is uncertain. Check My Store before trying again.'
+          : 'The Store draft could not be saved. Nothing was published.');
+      }
+    } finally {setStoreCreating(false);}
   };
   const restoreSavedOffer=()=>{
     try{
@@ -760,6 +784,14 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
         {!!timing&&<div className="spm-sell-review-line"><CalendarDays size={15}/>{timing}</div>}
         {personPlan&&<div className="spm-sell-review-line"><UserRoundPlus size={15}/>{personPlan==='later'?'Other person to be agreed':'Buyer to be invited later'}</div>}
       </div>
+      {result==='store'&&storeGateway&&sellerContext&&prepared.ok&&<>
+        <p className="spm-sell-hint">Want to save this to your actual Store? It will stay private, with no photos or confirmed stock.</p>
+        <button type="button" className="spm-secondary spm-sell-wide"
+          disabled={storeCreating||!!canonicalOfferId} onClick={createRealStoreDraft}>
+          <Store size={16}/>{canonicalOfferId?'Private Store draft saved':storeCreating?'Saving…':'Save private Store draft'}
+        </button>
+        {canonicalStoreStatus&&<p className="spm-sell-hint" role="status">{canonicalStoreStatus}</p>}
+      </>}
       <button type="button" className="spm-primary" onClick={()=>{setStage('review');setResult(null);}}>Back to offer <ArrowRight size={17}/></button>
       <button type="button" className="spm-sell-sample" onClick={onBack}>Back to Mini</button>
     </>}
