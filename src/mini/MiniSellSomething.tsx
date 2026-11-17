@@ -982,6 +982,8 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
         {!!timing&&<div className="spm-sell-review-line"><CalendarDays size={15}/>{timing}</div>}
         {personPlan&&<div className="spm-sell-review-line"><UserRoundPlus size={15}/>{personPlan==='later'?'Other person to be agreed':'Buyer to be invited later'}</div>}
       </div>
+      {result==='share'&&sellerContext?.type==='business'&&!onPrepareInKs001&&
+        <p className="spm-sell-hint">To share as this Business, open KS001 to confirm who may represent it in the Agreement. This offer has not been sent.</p>}
       {result==='share'&&handoffGateway&&agreementGateway&&prepared.ok&&canOffer&&(onPrepareInKs001||linkedKs001Source)&&<>
         <div className="spm-sell-review-card">
           <strong>Prepare the Agreement</strong>
