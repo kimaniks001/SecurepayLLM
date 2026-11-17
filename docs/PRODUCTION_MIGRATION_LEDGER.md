@@ -1989,3 +1989,17 @@ The 16 October 2026 frontend simplification work is **draft/stacked**, not a cla
 | Phase 3 authenticated browser six-journey certification | HUMAN_DOCTRINE_BLOCKER | Preview proxy forwards to production SecurePay API; isolated staging and human-operated/authorized accounts needed before actual E2E evidence or screenshots can justify production readiness. |
 
 Details and regression log: `docs/PHASE3_SIMPLICITY_INTELLIGENT_TOOLS_LEDGER_20261016.md`.
+
+
+## 2026-11-17 — Mini Sell Something Phase 3 seller-side Trust examination
+
+| Experience | Classification | Evidence / constraint |
+| --- | --- | --- |
+| Seller-side quiet Fair Trade examination, contextual answer pills | FRONTEND_COMPOSITION_ONLY | `miniSellerTrustExamination.mjs` checks only seller-entered statements for missing source declaration, photo reuse permission, authority and availability. It does not grant legal, identity or Store clearance. Full detail is hidden in a review disclosure. |
+| Local photo preview and image-source statements | DEMO_ONLY_REMOVE_BEFORE_PRODUCTION | No server upload/image-use registration/Identimark. Private photos remain local; a filename or image badge is not a genuine media reference or proof of rights/stock. |
+| Exact SHA-256 and valid image signature at conversation-scoped KS001 ingestion | REAL_API_AVAILABLE_NOT_WIRED | Existing backend `AgentSourceIngestionService` validates and digests an authenticated conversation's photo source. Mini Sell owner demo is not connected to authenticated source ingestion or the Store offer/version owner. |
+| Proposed backend SellerImageIntegrityPolicy | BACKEND_PR_PENDING | Pure server policy on dedicated SecurePayAPI Phase 3 branch. A positive digest result explicitly has rightsVerified=false, stockVerified=false and registeredIdentimark=false. No endpoint or Store publication guard; API Java tests/certification pending. |
+| Actual per-image Identimark, image-use audit, duplicate detection, rights/approval and published Store checks | HUMAN_DOCTRINE_BLOCKER | Requires explicit actor/Business/Store rights, source+offer version binding, audited persistence, review/appeals, image-use revocation, privacy and separate legal eligibility rules. No honest public mark or ownership claim can be issued without those services. |
+| Agreement/Store/Money authority | UNCHANGED | Seller owner-preview share/store buttons are illustrative only. No canonical Store write, SecureLink, Agreement or financial command. |
+
+This Phase 3 UI/Policy slice is **not completed backend certification**, and no production rollout is authorized by passing frontend tests.
