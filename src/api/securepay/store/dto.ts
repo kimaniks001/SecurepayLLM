@@ -206,3 +206,29 @@ export interface BusinessStoreOpportunityResponse {
   poolable: boolean;
   matchedOffers: BusinessStoreOpportunityMatchedOffer[];
 }
+
+
+// ─── Phase 3 pending-only Store photo-source linkage (API draft PR #475) ──
+// These are PRIVATE, authenticated, backend-bound statuses. No rights-verified,
+// licensed, stock-confirmed, approved, published or Identimark status exists.
+export type StoreImageUseOrigin = 'SELLER_PHOTOGRAPH' | 'SUPPLIER_IMAGE' | 'OTHER_PERMISSIONED';
+export type StoreImageUseStatus =
+  | 'PENDING_REVIEW' | 'STALE_OFFER_REVIEW_REQUIRED'
+  | 'SOURCE_CHANGED_REVIEW_REQUIRED' | 'REVOKED';
+
+export interface RegisterStoreImageUseRequest {
+  /** Already saved source conversation OWNED by the authenticated human. */
+  conversationId: string;
+  sourceArtifactId: string;
+  /** Exact Store offer updatedAt returned by the backend, not a client timestamp. */
+  expectedOfferUpdatedAt: string;
+  origin: StoreImageUseOrigin;
+  permissionToUse: boolean;
+}
+export interface StoreImageUseResponse {
+  /** Private, pending image-use row ID. NOT a public mediaRef or Identimark. */
+  id: string;
+  status: StoreImageUseStatus;
+  declaredOrigin: StoreImageUseOrigin;
+  createdAt: string;
+}
