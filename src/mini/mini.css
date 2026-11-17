@@ -1655,3 +1655,29 @@ textarea.spm-field { resize:vertical; }
 .spm-sell-photo-right .spm-sell-answer-pill{font-size:10px;min-height:35px;padding:7px 10px;}
 .spm-sell-photo-right .spm-sell-pill-row{gap:5px;}
 @media(max-width:380px){.spm-sell-answer-pill{padding:8px 10px;}}
+
+
+/* Phase 2: one prepared seller offer, not a second Store editor. */
+.spm-sell-phase2-pricing{padding:2px 0 6px;}
+.spm-sell-phase2-pricing>.spm-sell-inline-question{margin-top:8px;}
+.spm-sell-resume{
+  display:flex;align-items:center;gap:10px;width:100%;text-align:left;margin:10px 0 12px;
+  border:1px solid #d4e3cf;border-radius:12px;background:#f2f8ee;color:#346645;
+  padding:10px 12px;min-height:55px;
+}
+.spm-sell-resume>span{flex:1;display:grid;gap:3px;}
+.spm-sell-resume strong{font-size:11px;}
+.spm-sell-resume small{font-size:10px;color:#7c907c;}
+.spm-sell-phase2-packet{border:1px solid #dce6d9;border-radius:13px;background:#fffefa;margin:12px 0;}
+.spm-sell-phase2-packet summary{
+  list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;
+  gap:12px;font-size:11px;font-weight:700;color:#345e43;padding:12px 13px;min-height:43px;
+}
+.spm-sell-phase2-packet summary::-webkit-details-marker{display:none;}
+.spm-sell-phase2-packet summary svg{flex:none;color:#7d927f;}
+.spm-sell-phase2-packet[open] summary svg{transform:rotate(90deg);}
+.spm-sell-phase2-packet-content{border-top:1px solid #edf0e9;padding:7px 13px;}
+.spm-sell-phase2-packet-content p{display:flex;justify-content:space-between;align-items:start;gap:8px;margin:8px 0;font-size:10px;line-height:1.5;}
+.spm-sell-phase2-packet-content strong{flex:0 0 90px;color:#648068;}
+.spm-sell-phase2-packet-content span{color:#45634e;overflow-wrap:anywhere;text-align:right;}
+.spm-sell-phase2-packet>small{display:block;border-top:1px solid #edf0e9;padding:9px 13px;color:#819081;font-size:10px;line-height:1.55;}
