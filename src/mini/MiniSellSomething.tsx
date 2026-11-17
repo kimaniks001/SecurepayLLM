@@ -8,10 +8,11 @@ import { buildTimingProposal, type TimingDraft } from '../features/living-worksp
 import type { MiniLanguage } from './miniModel';
 import {miniSellerPreparedOffer,miniSellerSafeDraft,miniSellerRestoreDraft} from './miniSellerPreparedOffer.mjs';
 import {miniSellerTrustExamination} from './miniSellerTrustExamination.mjs';
+import {miniSellerLocalExactImageDigest} from './miniSellerLocalExactImageDigest.mjs';
 
 type Shelf = 'describe'|'photos'|'documents'|'places'|'timing'|'people'|null;
 type PhotoSource = 'own'|'supplier'|'permission'|'unknown';
-type Picture = { name:string; preview:string; source:PhotoSource; supplierPermission?:boolean };
+type Picture = { name:string; preview:string; source:PhotoSource; supplierPermission?:boolean; localDigest?:string };
 type Support = { name:string; purpose:string };
 type Person = { name:string; role:string };
 type Result = 'share'|'store'|'save'|null;
@@ -189,17 +190,21 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
     !rightToOffer?'right to sell':null,
     !stockStatement.trim()?'availability':null
   ].filter((value):value is string=>value!==null);
-  const choosePhoto=(file?:File)=>{
+  const choosePhoto=async(file?:File)=>{
     if(!file)return;
     setError('');
     if(!['image/jpeg','image/png'].includes(file.type)||file.size>5*1024*1024||file.size===0) {
       setError('Choose a JPG or PNG photo up to 5 MB. Nothing was uploaded.');return;
     }
     if(pictures.length>=4){setError('You can add up to four photographs in this first preview.');return;}
+    const localDigest=await miniSellerLocalExactImageDigest(file);
+    if(localDigest&&pictures.some(p=>p.localDigest===localDigest)){
+      setError('This exact photo is already in your offer. You can keep the existing one.');return;
+    }
     const reader=new FileReader();
     reader.onload=()=>{
       if(typeof reader.result!=='string')return;
-      setPictures(current=>[...current,{name:file.name.slice(0,100),preview:reader.result as string,source:'unknown' as PhotoSource,supplierPermission:false}].slice(0,4));
+      setPictures(current=>[...current,{name:file.name.slice(0,100),preview:reader.result as string,source:'unknown' as PhotoSource,supplierPermission:false,localDigest:localDigest||undefined}].slice(0,4));
       setPhotoCount(n=>n+1);
     };
     reader.onerror=()=>setError('The photo could not be opened. Nothing was uploaded.');
@@ -373,7 +378,7 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
         </>}
         {shelf==='photos'&&<>
           <p className="spm-sell-hint">Show the actual product or use a supplier image with permission. An Identimark records SecurePay usage, not ownership.</p>
-          <input ref={photoRef} className="spm-file-hidden" type="file" accept="image/jpeg,image/png" onChange={e=>{choosePhoto(e.target.files?.[0]);e.target.value='';}}/>
+          <input ref={photoRef} className="spm-file-hidden" type="file" accept="image/jpeg,image/png" onChange={e=>{void choosePhoto(e.target.files?.[0]);e.target.value='';}}/>
           <button type="button" className="spm-secondary" onClick={()=>photoRef.current?.click()}><Camera size={16}/>Choose photo</button>
           {pictures.map((p,i)=><div className="spm-sell-photo-record" key={i}>
             <div className="spm-sell-photo-wrap"><img src={p.preview} alt={'Seller-selected '+p.name}/>
