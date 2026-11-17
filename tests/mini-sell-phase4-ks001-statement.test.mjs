@@ -61,3 +61,10 @@ test('local people, photos and documents are disclosed without copying private i
   for(const secret of ['Private Buyer','photo-of-client-location.jpg','private-tax-reference.pdf'])
     assert.equal(actual.statement.includes(secret),false);
 });
+
+test('unapproved seller description cannot quietly disappear from a real KS001 Agreement',()=>{
+  const result=miniSellerKs001Statement({prepared:{ok:true,offerTerms:{
+    ...prepared.offerTerms,description:'',descriptionRequiresReview:true
+  }}});
+  assert.deepEqual(result,{ok:false,reason:'DESCRIPTION_REVIEW_REQUIRED'});
+});
