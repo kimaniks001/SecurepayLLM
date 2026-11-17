@@ -118,7 +118,7 @@ export function MiniSellSomething({language,onBack,seed=''}:{
     const reader=new FileReader();
     reader.onload=()=>{
       if(typeof reader.result!=='string')return;
-      setPictures(current=>[...current,{name:file.name.slice(0,100),preview:reader.result as string,source:'unknown'}].slice(0,4));
+      setPictures(current=>[...current,{name:file.name.slice(0,100),preview:reader.result as string,source:'unknown' as PhotoSource}].slice(0,4));
       setPhotoCount(n=>n+1);
     };
     reader.onerror=()=>setError('The photo could not be opened. Nothing was uploaded.');
