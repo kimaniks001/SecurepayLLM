@@ -325,9 +325,9 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
             <div className="spm-sell-photo-right"><strong>{p.name}</strong>
               <strong className="spm-sell-inline-question">Where did this photo come from?</strong>
               <div className="spm-sell-pill-row">
-                <AnswerPill selected={p.source==='own'} onClick={()=>setPictures(prev=>prev.map((x,j)=>j===i?{...x,source:'own'}:x))}>I took it</AnswerPill>
-                <AnswerPill selected={p.source==='supplier'} onClick={()=>setPictures(prev=>prev.map((x,j)=>j===i?{...x,source:'supplier'}:x))}>Supplier's image</AnswerPill>
-                <AnswerPill selected={p.source==='permission'} onClick={()=>setPictures(prev=>prev.map((x,j)=>j===i?{...x,source:'permission'}:x))}>With permission</AnswerPill>
+                <AnswerPill selected={p.source==='own'} onClick={()=>setPictures(prev=>prev.map((x,j)=>j===i?{...x,source:'own' as PhotoSource}:x))}>I took it</AnswerPill>
+                <AnswerPill selected={p.source==='supplier'} onClick={()=>setPictures(prev=>prev.map((x,j)=>j===i?{...x,source:'supplier' as PhotoSource}:x))}>Supplier's image</AnswerPill>
+                <AnswerPill selected={p.source==='permission'} onClick={()=>setPictures(prev=>prev.map((x,j)=>j===i?{...x,source:'permission' as PhotoSource}:x))}>With permission</AnswerPill>
                 <AnswerPill selected={p.source==='unknown'} onClick={()=>setPhotoUncertain(true)}>Not sure</AnswerPill>
               </div>
               <button className="spm-sell-text-button" type="button" onClick={()=>setPictures(prev=>prev.filter((_,j)=>j!==i))}>Remove</button>
