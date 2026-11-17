@@ -1,12 +1,16 @@
 export type MiniSampleRail='CHOICE_KS_ACCOUNT'|'MPESA_STK'|'PESALINK';
-export type MiniSampleItem={sellerKsNumber:string;sellerName:string;title:string;quantity:number;amountMinor:number};
+export type MiniSampleItem={sellerKsNumber:string;sellerName:string;title:string;quantity:number;amountMinor:number;
+  offerId?:string;offerUpdatedAt?:string};
+export type MiniSampleTerm={sellerKsNumber:string;offerId:string;offerUpdatedAt:string;
+  label:string;value:string;origin:'BUYER_PROPOSED'|'PROVIDER_SAMPLE_REVIEWED'};
 export type MiniSampleProgress={title:string;status:'done'|'current'|'upcoming'};
 export type MiniSamplePurchase={id:string;title:string;amountMinor:number;rail:MiniSampleRail;
  agreementKind?:'PURCHASE'|'DELIVERY';parentId?:string;linkedDeliveryIds?:string[];
- linkedDeliveryAgreements?:MiniSamplePurchase[];
+ linkedDeliveryAgreements?:MiniSamplePurchase[];terms?:MiniSampleTerm[];
  deliveryTerms?:{destination:string;window:string;pickupStores:string[]};
  createdAt:string;fundedAt:string;delivery:string;items:MiniSampleItem[];progress:MiniSampleProgress[]};
-export type MiniSampleLine={sellerKsNumber:string;sellerName:string;title:string;quantity:number;priceMinor:number|null};
+export type MiniSampleLine={sellerKsNumber:string;sellerName:string;title:string;quantity:number;priceMinor:number|null;
+  offerId?:string;offerUpdatedAt?:string};
 export declare const SAMPLE_PURCHASE_KEY:string;
 export declare const SAMPLE_RAILS:MiniSampleRail[];
 export declare function sampleAgreementTitle(lines:MiniSampleLine[]):string;
@@ -17,7 +21,7 @@ export declare function makeSampleLivingPurchase(input:{
  providerAccepted:boolean;customerApproved:boolean;customerApprovalRequired:boolean;providerKsNumber:string;providerName:string;
  destination:string;window:string;pickupStores:string[];feeMinor:number;
  goods:Array<{quantity:number;title:string}>;
- }>;now?:Date;
+ }>;terms?:MiniSampleTerm[];now?:Date;
 }):MiniSamplePurchase|null;
 export declare function readMiniSamplePurchases(storage?:Pick<Storage,'getItem'>|null):MiniSamplePurchase[];
 export declare function recordMiniSamplePurchase(storage:Pick<Storage,'getItem'|'setItem'>|null|undefined,
