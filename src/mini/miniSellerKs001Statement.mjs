@@ -14,6 +14,8 @@ export function miniSellerKs001Statement({prepared,maxChars=1200}){
   const photoCount=Array.isArray(o.localPhotos)?o.localPhotos.length:0;
   if(!o.title?.trim()||!p||!f)
     return {ok:false,reason:'MISSING_SELLER_TERMS'};
+  if(o.descriptionRequiresReview)
+    return {ok:false,reason:'DESCRIPTION_REVIEW_REQUIRED'};
   const statement=[
     'I want to offer the following to a buyer for an Agreement. These are my unverified statements, not a completed sale.',
     'What: '+tidy(o.title)+'.',
