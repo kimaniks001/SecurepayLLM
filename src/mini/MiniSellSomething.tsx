@@ -10,6 +10,7 @@ import type { StoreGateway } from '../api/securepay/store';
 import type { AgreementGateway } from '../api/securepay/agreements';
 import type { MiniSellerHandoffGateway, MiniSellerReviewedHandoff } from './miniSellerAgreementHandoff.mjs';
 import { miniSellerCreateCanonicalStoreDraft } from './miniSellerCanonicalStoreBridge.mjs';
+import { miniSellerPublishTextOnly } from './miniSellerPublishTextOnly.mjs';
 import { miniSellerIssueAgreementDoorway } from './miniSellerSecureLinkDoorway.mjs';
 import { miniSellerBeginAgreementHandoff, miniSellerReviewAgreementHandoff,
   miniSellerCreateReviewedAgreement, miniSellerProposeAgreement } from './miniSellerAgreementHandoff.mjs';
@@ -127,6 +128,10 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
   const [canonicalStoreStatus,setCanonicalStoreStatus]=useState('');
   const [canonicalOfferId,setCanonicalOfferId]=useState<string|null>(null);
   const [storeCreating,setStoreCreating]=useState(false);
+  const [storePublishing,setStorePublishing]=useState(false);
+  const [storePublished,setStorePublished]=useState(false);
+  const [savedStoreRevision,setSavedStoreRevision]=useState<string|null>(null);
+  const [storeSnapshotSignature,setStoreSnapshotSignature]=useState<string|null>(null);
   const [shareCreating,setShareCreating]=useState(false);
   const [shareStatus,setShareStatus]=useState('');
   const [shareUrl,setShareUrl]=useState<string|null>(null);
@@ -290,6 +295,8 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
       });
       if(receipt.ok&&receipt.offerId){
         setCanonicalOfferId(receipt.offerId);
+        setSavedStoreRevision(receipt.offerUpdatedAt);
+        setStoreSnapshotSignature(offerSignature);
         setCanonicalStoreStatus('Saved to your Store as a private draft. Nothing is published or sent.');
       }else{
         setCanonicalStoreStatus(receipt.reason==='CHECK_MY_STORE_BEFORE_RETRY'
@@ -297,6 +304,30 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
           : 'The Store draft could not be saved. Nothing was published.');
       }
     } finally {setStoreCreating(false);}
+  };
+  const publishRealStoreText=async()=>{
+    if(!storeGateway||!sellerContext||!prepared.ok||!canonicalOfferId||
+       !savedStoreRevision||storePublishing||storePublished||
+       storeSnapshotSignature!==offerSignature)return;
+    setStorePublishing(true);setCanonicalStoreStatus('');
+    try{
+      const issued=await miniSellerPublishTextOnly({
+        prepared,
+        draft:{ok:true,offerId:canonicalOfferId,offerUpdatedAt:savedStoreRevision,published:false},
+        gateway:storeGateway,context:sellerContext,confirmed:true,
+        localOfferUnchanged:storeSnapshotSignature===offerSignature
+      });
+      if(issued.ok){
+        setStorePublished(true);
+        setCanonicalStoreStatus('Your text-only listing is visible in your Store. Buyers must still confirm availability before an Agreement.');
+      }else{
+        setCanonicalStoreStatus(issued.reason==='CURRENT_STORE_REVISION_CHANGED'
+          ? 'Your Store listing changed. Open My Store and review the current details before publishing.'
+          :issued.reason==='CHECK_MY_STORE_BEFORE_RETRY'
+          ? 'SecurePay could not confirm publication. Check My Store before trying again.'
+          :'This listing could not be published. It remains private until SecurePay confirms otherwise.');
+      }
+    }finally{setStorePublishing(false);}
   };
   const reviewSavedOfferInSecurePay=async()=>{
     if(!handoffGateway||!sellerSavedSource||!prepared.ok||!canOffer||
@@ -965,6 +996,17 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
           disabled={storeCreating||!!canonicalOfferId} onClick={createRealStoreDraft}>
           <Store size={16}/>{canonicalOfferId?'Private Store draft saved':storeCreating?'Saving…':'Save private Store draft'}
         </button>
+        {canonicalOfferId&&savedStoreRevision&&!storePublished&&<>
+          <p className="spm-sell-hint">Would you like to make the written listing visible now? No photos or claimed stock numbers will be published.</p>
+          <div className="spm-sell-pill-row">
+            <AnswerPill onClick={()=>setCanonicalStoreStatus('Your offer stays private in My Store.')}>Keep private</AnswerPill>
+            <AnswerPill onClick={()=>void publishRealStoreText()}
+              disabled={storePublishing||storeSnapshotSignature!==offerSignature}>
+              {storePublishing?'Publishing…':'Publish text only'}</AnswerPill>
+          </div>
+          {storeSnapshotSignature!==offerSignature&&
+            <p className="spm-sell-hint">You changed the offer after saving it. Review the new version in My Store first.</p>}
+        </>}
         {canonicalStoreStatus&&<p className="spm-sell-hint" role="status">{canonicalStoreStatus}</p>}
       </>}
       <button type="button" className="spm-primary" onClick={()=>{setStage('review');setResult(null);}}>Back to offer <ArrowRight size={17}/></button>
