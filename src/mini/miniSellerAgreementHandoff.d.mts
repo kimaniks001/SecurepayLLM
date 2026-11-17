@@ -51,8 +51,10 @@ export function miniSellerCreateReviewedAgreement(input:{
 export function miniSellerProposeAgreement(input:{
   agreements:MiniSellerAgreementGateway;
   agreementId:string;
+  expectedAgreementVersion:AgreementVersionSummaryResponse;
   confirmed:boolean;
 }):Promise<MiniSellerError|{
   ok:true;agreementId:string;status:'PROPOSED';
+  agreementVersion:AgreementVersionSummaryResponse;
   secureLinkIssued:false;buyerAccepted:false;moneyAuthorized:false;
 }>;
