@@ -9,7 +9,7 @@ export function miniChangedOffers(lines,responses){
   if(!Array.isArray(lines)||!Array.isArray(responses)||lines.length!==responses.length)return [];
   return lines.flatMap((line,i)=>{
     const raw=responses[i],detail=raw?.status==='fulfilled'?raw.value:null;
-    if(detail&&miniStoreOfferSnapshotFresh([line],[detail]))return [];
+    if(detail?.status==='ACTIVE'&&miniStoreOfferSnapshotFresh([line],[detail]))return [];
     const offer=detail?.canonicalKsNumber===line.sellerKsNumber&&
       detail?.offer?.id===line.offerId?detail.offer:null;
     const valid=!!(offer&&sellable.has(offer.availabilityState)&&
