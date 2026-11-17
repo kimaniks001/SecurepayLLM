@@ -1,4 +1,4 @@
-import {useState} from 'react';
+import {useState,type ReactNode} from 'react';
 import {
   ArrowLeft,ArrowRight,Check,MapPin,Minus,Plus,ShoppingBag,Store,ChevronRight
 } from 'lucide-react';
@@ -11,9 +11,9 @@ const price=(minor:number|null,currency:string)=>
 
 function nameOnly(name:string){return name.replace(/\s*·\s*Sample(?: Store)?$/i,'');}
 export function MiniShopDiscovery({results,onOpen,playground,onBack,
-  label,cartCount,onBasket}:{
+  label,cartCount,onBasket,searchControls}:{
   results:PublicSearchResultView[];onOpen:(ks:string)=>void;playground:boolean;
-  onBack:()=>void;label:string;cartCount:number;onBasket:()=>void;
+  onBack:()=>void;label:string;cartCount:number;onBasket:()=>void;searchControls?:ReactNode;
 }){
  const sellers=[...new Set(results.map(r=>r.canonicalKsNumber))];
  return <div className="spm-shop-discovery">
@@ -30,6 +30,7 @@ export function MiniShopDiscovery({results,onOpen,playground,onBack,
       <p>Browse goods and services from independent Stores. Choose what you want first.</p>
    </div>
    {playground&&<p className="spm-shop-demo-flag">Sample Stores and prices only · No real stock or payment</p>}
+   {searchControls}
    {!!label&&<h2 className="spm-shop-section-title">{label}</h2>}
    {sellers.length>0?<div className="spm-shop-store-list">
       {sellers.map(ks=>{
