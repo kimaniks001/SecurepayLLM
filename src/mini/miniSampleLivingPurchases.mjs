@@ -73,17 +73,19 @@ export function makeSampleLivingPurchase({lines,rail,delivery,deliveryFeeMinor=0
   offerId:l.offerId,offerUpdatedAt:l.offerUpdatedAt,
   quantity:l.quantity,amountMinor:l.priceMinor*l.quantity,
  }));
- if(deliveryProvider==='KS90004'&&deliveryFeeMinor>0)
-  items.push({sellerKsNumber:'KS90004',sellerName:'Kamakis Transport · Sample',
-    title:'One example delivery',quantity:1,amountMinor:deliveryFeeMinor});
+ if(deliveryProvider==='KS90004'&&deliveryFeeMinor>0){
+  const carrier=deliveryContracts.find(c=>c.providerKsNumber==='KS90004');
+  if(!carrier)return null;
+  items.push({sellerKsNumber:carrier.providerKsNumber,sellerName:carrier.providerName,
+    title:'One example delivery',quantity:1,amountMinor:carrier.feeMinor});
+ }
  if(deliveryProvider==='SELLERS'&&deliveryFeeMinor>0){
-  const sellers=[...new Set(lines.map(l=>l.sellerKsNumber))];
-  const perSeller=Math.floor(deliveryFeeMinor/sellers.length);
-  sellers.forEach((seller,i)=>items.push({
-   sellerKsNumber:seller,sellerName:lines.find(l=>l.sellerKsNumber===seller).sellerName,
-   title:'Separate example delivery by this Store',quantity:1,
-   amountMinor:i===sellers.length-1?
-     deliveryFeeMinor-perSeller*(sellers.length-1):perSeller,
+  if(!deliveryContracts.length)return null;
+  // Only the contracted delivery providers receive an allocation;
+  // purchasing a service from a different merchant does not make them a carrier.
+  deliveryContracts.forEach(c=>items.push({
+    sellerKsNumber:c.providerKsNumber,sellerName:c.providerName,
+    title:'Separate example delivery by this Store',quantity:1,amountMinor:c.feeMinor,
   }));
  }
  if(!Array.isArray(deliveryContracts)||deliveryContracts.length>20||
