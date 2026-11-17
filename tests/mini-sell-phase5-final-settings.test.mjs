@@ -68,3 +68,29 @@ test('no synthetic owner account may reach real directory eTIMS or membership ga
   assert.ok(shell.includes('subscriptionGateway={demo?undefined:subscriptions}'));
   assert.ok(settings.includes("representation==='verified'&&businessKsNumber&&preferencesGateway"));
 });
+
+test('membership activation requires canonical version review and independent confirmation',()=>{
+  const source=get('src/mini/MiniSellerActivationAgreement.tsx');
+  assert.ok(source.includes('subscriptionGateway.activationAgreement()'));
+  assert.ok(source.includes('subscriptionGateway.establishActivationAgreement()'));
+  assert.ok(source.includes('subscriptionGateway.confirmActivationAgreement()'));
+  assert.ok(source.includes('Yes, prepare draft'));
+  assert.ok(source.includes('I have read these terms'));
+  assert.ok(source.includes('Yes, confirm this Agreement'));
+  assert.ok(source.includes('fresh.contentHash!==reviewed.contentHash'));
+  assert.ok(source.includes('recorded.agreementVersionId!==reviewed.agreementVersionId'));
+  assert.ok(source.includes('No Money has been initiated'));
+  for(const prohibited of ['prepareCurrentBillingCycle(', 'initiateVerificationTransfer(',
+    'initiatePayment(', 'connectToMoney('])assert.equal(source.includes(prohibited),false);
+});
+test('invitees can accept only their own pending Business invitation, never assume a role',()=>{
+  const invite=get('src/mini/MiniSellerInvitationAcceptance.tsx');
+  const store=get('src/mini/MiniSellerStore.tsx');
+  assert.ok(invite.includes('Have a Business invitation?'));
+  assert.ok(invite.includes('Review invitation'));
+  assert.ok(invite.includes('Yes, accept invitation'));
+  assert.ok(invite.includes('businessGateway.acceptInvitation(target)'));
+  assert.ok(invite.includes('They cannot act for the Business')===false);
+  assert.ok(invite.includes('No Agreement or Money authority was granted'));
+  assert.ok(store.includes('visibilityEnabled&&<MiniSellerInvitationAcceptance'));
+});
