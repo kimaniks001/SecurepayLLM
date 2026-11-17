@@ -12,6 +12,9 @@ import { MiniShopDiscovery, MiniShopGallery } from './MiniStoreGallery';
 import { MiniOfferPhoto } from './MiniStoreVisuals';
 import { MiniSampleMoneyJourney } from './MiniSampleMoneyJourney';
 import type {MiniSamplePurchase} from './miniSampleLivingPurchases.mjs';
+import {miniBasketQuestions,miniBasketAnswersForOffer} from './miniBasketQuestions.mjs';
+import {miniDeliveryContracts,miniDeliveryContractSummary,SAMPLE_DELIVERY_WINDOWS} from './miniDeliveryContract.mjs';
+import {readSampleBasketDraft,saveSampleBasketDraft} from './miniSampleBasketDraft.mjs';
 
 /**
  * Public Store read-only transport reuses the existing, server-allowlisted
@@ -58,6 +61,8 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
 }) {
   const client=storeGateway??stores;
   const sw = language === 'sw';
+  const savedDraft=useRef(playground&&typeof window!=='undefined'?
+    readSampleBasketDraft(window.sessionStorage):null).current;
   const [view, setView] = useState<View>('search');
   const asSearchTerm = (phrase: string) => {
     const explicitShopping = suggestedStoreSearchTerm(phrase);
@@ -77,11 +82,16 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
   const [kind, setKind] = useState<'PRODUCT' | 'SERVICE'>('PRODUCT');
   const [results, setResults] = useState<PublicSearchResultView[]>([]);
   const [chosenStore, setChosenStore] = useState<PublicStoreView | null>(null);
-  const [cart, setCart] = useState<MiniStorePlanLine[]>([]);
+  const [cart, setCart] = useState<MiniStorePlanLine[]>(savedDraft?.lines??[]);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState('');
   const [reviewed, setReviewed] = useState(false);
-  const [fulfilmentChoice, setFulfilmentChoice] = useState<MiniBasketFulfilment | null>(null);
+  const [fulfilmentChoice, setFulfilmentChoice] = useState<MiniBasketFulfilment | null>(savedDraft?.fulfilmentChoice??null);
+  const [basketAnswers,setBasketAnswers]=useState<Record<string,string>>(savedDraft?.answers??{});
+  const [draftAnswer,setDraftAnswer]=useState('');
+  const [savedNotice,setSavedNotice]=useState(!!savedDraft);
+  const basketQuestions=miniBasketQuestions(cart,basketAnswers);
+  const nextBasketQuestion=basketQuestions.nextQuestion;
   const [proposalOpen, setProposalOpen] = useState(false);
   const readiness = miniBasketReadiness(cart,{sourcesFresh:reviewed,fulfilmentChoice});
   const [checking, setChecking] = useState(false);
@@ -89,13 +99,16 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
   const [sampleRequests,setSampleRequests] = useState(false);
   const [sampleResponses,setSampleResponses] = useState<Record<string,'accepted'|'declined'>>({});
   const [moneyOpen,setMoneyOpen] = useState(false);
-  const [deliveryArea,setDeliveryArea] = useState('');
-  const [deliveryQuoteSelected,setDeliveryQuoteSelected] = useState(false);
-  const [quoteAccepted,setQuoteAccepted] = useState<Record<string,number>>({});
+  const [deliveryArea,setDeliveryArea] = useState(savedDraft?.deliveryArea??'');
+  const [deliveryWindow,setDeliveryWindow]=useState<'next'|'arrange'|null>(null);
+  const [deliveryContractConfirmed,setDeliveryContractConfirmed]=useState(false);
+  const [deliveryQuoteSelected,setDeliveryQuoteSelected] = useState(savedDraft?.deliveryQuoteSelected??false);
+  const [quoteAccepted,setQuoteAccepted] = useState<Record<string,number>>(savedDraft?.quoteAccepted??{});
   const sampleSellers=[...new Set(cart.map(line=>line.sellerKsNumber))];
   const allSampleAccepted=sampleRequests&&sampleSellers.length>0&&
     sampleSellers.every(id=>sampleResponses[id]==='accepted');
   const resetSample=()=>{setSampleRequests(false);setSampleResponses({});setMoneyOpen(false);};
+  const invalidateDelivery=()=>{setDeliveryQuoteSelected(false);setDeliveryWindow(null);setDeliveryContractConfirmed(false);};
   const generation = useRef(0);
 
   useEffect(()=>{
@@ -170,18 +183,20 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
     });
     setReviewed(false);
     setProposalOpen(false);
+    setSavedNotice(false);
+    invalidateDelivery();
     resetSample();
     setFreshnessError('');
     setError('');
   };
   const changeQuantity=(line:MiniStorePlanLine,next:number)=>{
     setCart(old=>old.map(item=>item===line?{...item,quantity:Math.min(20,Math.max(1,next))}:item));
-    setReviewed(false);setProposalOpen(false);resetSample();
+    setReviewed(false);setProposalOpen(false);setSavedNotice(false);invalidateDelivery();resetSample();
     setFreshnessError('');
   };
   const removeLine=(line:MiniStorePlanLine)=>{
     setCart(old=>old.filter(item=>item!==line));
-    setReviewed(false);setProposalOpen(false);resetSample();
+    setReviewed(false);setProposalOpen(false);setSavedNotice(false);invalidateDelivery();resetSample();
     setFreshnessError('');
   };
 
@@ -267,14 +282,28 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
     } finally { setWorking(false); }
   };
 
+  const saveForLater=()=>{
+    if(!playground)return;
+    const saved=saveSampleBasketDraft(window.sessionStorage,{
+      lines:cart,fulfilmentChoice,answers:basketAnswers,deliveryArea,
+      deliveryQuoteSelected,quoteAccepted,
+    });
+    if(saved){setSavedNotice(true);setProposalOpen(false);}
+    else setError('Could not save this sample basket in this browser.');
+  };
   const itemCount=cart.reduce((count,line)=>count+line.quantity,0);
   const cartQuantity=(offerId:string)=>cart.find(line=>line.offerId===offerId)?.quantity||0;
-  const moneyBlocked=readiness.readyToPay===false;
+  const deliveryContracts=miniDeliveryContracts({choice:fulfilmentChoice,lines:cart,
+    destination:deliveryArea,window:deliveryWindow,deliveryQuoteSelected});
+  const deliveryContractState=miniDeliveryContractSummary(deliveryContracts);
   const deliveryNeedsQuote=readiness.goods&&fulfilmentChoice!=='collect';
-  const deliveryComplete=!deliveryNeedsQuote||(playground&&!!deliveryArea&&deliveryQuoteSelected);
-  const deliveryFeeMinor=deliveryQuoteSelected&&playground?
-    fulfilmentChoice==='explore_combined'?45000:
-    fulfilmentChoice==='ask_sellers'?25000*sampleSellers.length:0:0;
+  const deliveryComplete=!deliveryNeedsQuote||
+    (playground&&deliveryContractConfirmed&&deliveryContractState.ready);
+  const goodsSellers=[...new Set(cart.filter(line=>line.kind==='PRODUCT')
+    .map(line=>line.sellerKsNumber))];
+  const deliveryFeeMinor=playground&&deliveryQuoteSelected?
+    (fulfilmentChoice==='explore_combined'?45000:
+      fulfilmentChoice==='ask_sellers'?25000*goodsSellers.length:0):0;
   const unpriced=cart.filter(line=>line.priceMinor===null);
   const allPricesResolved=unpriced.every(line=>quoteAccepted[line.sellerKsNumber+':'+line.offerId]>0);
   const quotedMinor=cart.reduce((sum,line)=>sum+
@@ -283,12 +312,14 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
   const confirmedSellers=[...sampleSellers,
     ...(fulfilmentChoice==='explore_combined'&&deliveryQuoteSelected?['KS90004']:[])];
   const sampleMoneyReady=playground&&reviewed&&!checking&&!freshnessError&&
-    readiness.readyToReview&&sampleRequests&&allSampleAccepted&&
-    deliveryComplete&&allPricesResolved&&Number.isSafeInteger(sampleTotalMinor);
+    readiness.readyToReview&&basketQuestions.complete&&sampleRequests&&allSampleAccepted&&
+    deliveryComplete&&allPricesResolved&&
+    (!deliveryNeedsQuote||deliveryContractState.feeMinor===deliveryFeeMinor)&&
+    Number.isSafeInteger(sampleTotalMinor);
   // A displayed total is illustrative: it is not a seller quote or provider amount.
   const total=readiness.totalMinor!==null&&readiness.currency==='KES'
     ? money(readiness.totalMinor,'KES'):null;
-  const ready=readiness.readyToReview&&!checking&&!freshnessError&&
+  const ready=readiness.readyToReview&&basketQuestions.complete&&!checking&&!freshnessError&&
     (!playground||deliveryComplete)&&(!playground||allPricesResolved);
   const shopControls=<form className="spm-shop-search-form" onSubmit={e=>{e.preventDefault();void find();}}>
       <label className="spm-label" htmlFor="mini-store-query">What are you looking for?</label>
@@ -332,6 +363,8 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
       }))} amountMinor={sampleTotalMinor}
         delivery={fulfilmentChoice==='collect'?'I will collect':(deliveryArea||'Delivery to confirm')}
         deliveryFeeMinor={deliveryFeeMinor}
+        deliveryContracts={deliveryContracts.map(c=>({...c,customerApproved:deliveryContractConfirmed,providerAccepted:sampleRequests&&
+          (c.providerKsNumber==='KS90004'||sampleResponses[c.providerKsNumber]==='accepted')}))}
         deliveryProvider={fulfilmentChoice==='explore_combined'?'KS90004':
           fulfilmentChoice==='ask_sellers'?'SELLERS':null}
         onBack={()=>setMoneyOpen(false)}
@@ -351,6 +384,7 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
         <h1>Everything you picked.</h1>
         <p>{cart.length>0?'Take a look. We’ll help with only what’s needed to continue.':
           'Your basket is empty. Explore Stores and add something you like.'}</p>
+        {savedNotice&&<p className="spm-shop-ready-note" role="status"><CheckCircle2 size={15}/> Your saved basket is here.</p>}
       </div>
       {cart.length===0?<button type="button" className="spm-primary"
         onClick={()=>setView('search')}>Explore Stores <ArrowRight size={17}/></button>:<>
@@ -388,7 +422,29 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
             'Some offers require a seller quotation'}</small>
         </div>
         {!proposalOpen&&<div className="spm-shop-next" aria-live="polite">
-          {readiness.goods&&!fulfilmentChoice&&<>
+          {nextBasketQuestion&&<>
+            <small>ONE DETAIL TO CONFIRM</small>
+            <h2>{nextBasketQuestion.title}</h2>
+            <p className="spm-shop-question-hint">{nextBasketQuestion.hint}</p>
+            {nextBasketQuestion.type==='choice'?
+              <div className="spm-shop-next-choices">
+                {nextBasketQuestion.choices?.map(([value,label])=><button type="button" key={value}
+                  onClick={()=>{setBasketAnswers(old=>({...old,[nextBasketQuestion.id]:value}));
+                    setDraftAnswer('');setSavedNotice(false);setProposalOpen(false);resetSample();}}>
+                  {label}<ArrowRight size={16}/></button>)}
+              </div>:
+              <div className="spm-shop-question-input">
+                <input aria-label={nextBasketQuestion.title}
+                  maxLength={nextBasketQuestion.maxLength||240}
+                  placeholder={nextBasketQuestion.placeholder||'Your answer'}
+                  value={draftAnswer} onChange={e=>setDraftAnswer(e.target.value)}/>
+                <button className="spm-secondary" type="button" disabled={!draftAnswer.trim()}
+                  onClick={()=>{setBasketAnswers(old=>({...old,[nextBasketQuestion.id]:draftAnswer.trim()}));
+                    setDraftAnswer('');setSavedNotice(false);setProposalOpen(false);resetSample();}}>
+                  Continue <ArrowRight size={16}/></button>
+              </div>}
+          </>}
+          {!nextBasketQuestion&&readiness.goods&&!fulfilmentChoice&&<>
             <small>ONE QUICK QUESTION</small>
             <h2>How would you like to receive your items?</h2>
             <div className="spm-shop-next-choices">
@@ -398,17 +454,17 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
                 ['explore_combined','One delivery for everything'],
               ] as const).map(([value,label])=>
                 <button type="button" key={value} onClick={()=>{
-                    setFulfilmentChoice(value);setDeliveryArea('');setDeliveryQuoteSelected(false);
-                    setProposalOpen(false);resetSample();
+                    setFulfilmentChoice(value);setDeliveryArea('');invalidateDelivery();
+                    setProposalOpen(false);setSavedNotice(false);resetSample();
                   }}>{label}<ArrowRight size={16}/></button>)}
             </div>
           </>}
-          {(!readiness.goods||!!fulfilmentChoice)&&<>
+          {!nextBasketQuestion&&(!readiness.goods||!!fulfilmentChoice)&&<>
             {readiness.goods&&<div className="spm-shop-choice-line">
               <span>Receiving items: {fulfilmentChoice==='collect'?'I’ll collect':
                 fulfilmentChoice==='ask_sellers'?'Ask Stores about delivery':'Explore combined delivery'}</span>
               <button type="button" onClick={()=>{setFulfilmentChoice(null);setDeliveryArea('');
-                setDeliveryQuoteSelected(false);setProposalOpen(false);resetSample();}}>
+                invalidateDelivery();setProposalOpen(false);setSavedNotice(false);resetSample();}}>
                 Change</button>
             </div>}
             {playground&&deliveryNeedsQuote&&<>
@@ -417,8 +473,8 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
                 <div className="spm-shop-next-choices">
                   {['Varsityville, Ruiru','Kamakis, Ruiru'].map(area=>
                     <button type="button" key={area} className={deliveryArea===area?'selected':''}
-                      onClick={()=>{setDeliveryArea(area);setDeliveryQuoteSelected(false);
-                        setProposalOpen(false);resetSample();}}>
+                      onClick={()=>{setDeliveryArea(area);invalidateDelivery();
+                        setProposalOpen(false);setSavedNotice(false);resetSample();}}>
                       {area}{deliveryArea===area?<CheckCircle2 size={16}/>:<ArrowRight size={16}/>}
                     </button>)}
                 </div>
@@ -427,12 +483,46 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
                     <small>{fulfilmentChoice==='explore_combined'?
                       'One example trip to '+deliveryArea:
                       'Example delivery by each Store to '+deliveryArea}</small></span>
-                  <b>{money(fulfilmentChoice==='explore_combined'?45000:25000*sampleSellers.length,'KES')}</b>
+                  <b>{money(fulfilmentChoice==='explore_combined'?45000:25000*goodsSellers.length,'KES')}</b>
                   <button type="button" className="spm-secondary" disabled={deliveryQuoteSelected}
-                    onClick={()=>{setDeliveryQuoteSelected(true);resetSample();}}>
-                    {deliveryQuoteSelected?'Sample delivery selected':'Choose this sample delivery'}
+                    onClick={()=>{setDeliveryQuoteSelected(true);setDeliveryContractConfirmed(false);
+                      setSavedNotice(false);resetSample();}}>
+                    {deliveryQuoteSelected?'Quote selected':'See the quick delivery Agreement'}
                   </button>
-                  <small>Fictional quote for this rehearsal; no driver or seller has been booked.</small>
+                  <small>Fictional quote only. Delivery will have its own mini Agreement.</small>
+                </div>}
+                {deliveryQuoteSelected&&<div className="spm-shop-mini-contract">
+                  <div className="spm-shop-mini-contract-heading"><ShieldCheck size={18}/>
+                    <span><strong>Quick delivery Agreement</strong>
+                    <small>Separate from your purchase · Sample</small></span>
+                  </div>
+                  <p>Who: {fulfilmentChoice==='explore_combined'?'Kamakis Transport':
+                    'Each Store delivers its own goods'}</p>
+                  <p>What: {cart.filter(x=>x.kind==='PRODUCT').map(x=>x.quantity+' × '+x.title).join(', ')}</p>
+                  <p>From: {goodsSellers.map(seller=>cart.find(x=>x.sellerKsNumber===seller)?.sellerName).filter(Boolean).join(', ')}</p>
+                  <p>To: {deliveryArea}</p>
+                  <p>Fee: {money(fulfilmentChoice==='explore_combined'?45000:
+                    25000*new Set(cart.filter(x=>x.kind==='PRODUCT').map(x=>x.sellerKsNumber)).size,'KES')}</p>
+                  <strong>When should delivery be arranged?</strong>
+                  <div className="spm-shop-next-choices">
+                    {(Object.entries(SAMPLE_DELIVERY_WINDOWS) as Array<['next'|'arrange',string]>)
+                      .map(([value,label])=><button type="button" key={value}
+                        className={deliveryWindow===value?'selected':''}
+                        onClick={()=>{setDeliveryWindow(value);setDeliveryContractConfirmed(false);
+                          setSavedNotice(false);resetSample();}}>
+                        {label}{deliveryWindow===value?<CheckCircle2 size={16}/>:<ArrowRight size={16}/>}
+                      </button>)}
+                  </div>
+                  {deliveryWindow&&<button type="button" className="spm-secondary"
+                    disabled={deliveryContractConfirmed} onClick={()=>{
+                      setDeliveryContractConfirmed(true);setSavedNotice(false);resetSample();
+                    }}>{deliveryContractConfirmed?'Delivery mini Agreement ready for review':
+                      'Add this delivery Agreement'}</button>}
+                  {deliveryContractConfirmed&&<p className="spm-shop-ready-note">
+                    <CheckCircle2 size={15}/> {deliveryContracts.length} separate delivery mini
+                    Agreement{deliveryContracts.length===1?'':'s'} linked to this purchase.
+                    The provider must still confirm.</p>}
+                  <small>This is a proposed mini contract, not the carrier's acceptance.</small>
                 </div>}
               </div>
             </>}
@@ -480,6 +570,12 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
               <strong>{money(sampleTotalMinor,'KES')}</strong></div>
             {readiness.goods&&<small>{fulfilmentChoice==='collect'?'You will collect':
               'Delivery to '+deliveryArea}</small>}
+            {miniBasketAnswersForOffer(cart,basketAnswers).map((a,i)=>
+              <small key={a.sellerKsNumber+a.offerId+i}>{a.question} — {a.proposedAnswer}</small>)}
+            {deliveryContracts.map((c,i)=><div key={c.id}>
+              <span>{i===0?'Separate delivery mini Agreement':'Additional delivery mini Agreement'}</span>
+              <strong>{c.providerName.replace(/\s*·\s*Sample$/,'')} · {money(c.feeMinor,'KES')}</strong>
+            </div>)}
           </div>
           {!sampleRequests&&playground&&<button type="button" className="spm-shop-proceed"
             onClick={()=>{
@@ -489,7 +585,7 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
                 sampleSellers.map(id=>[id,'accepted' as const])));
               setSampleRequests(true);setMoneyOpen(false);
             }}>
-            <span>Send for review · sample</span><ArrowRight size={19}/>
+            <span>Send SecureLink · sample review</span><ArrowRight size={19}/>
           </button>}
           {!playground&&<button type="button" disabled className="spm-shop-proceed">
             <span>Send SecureLink for review</span><ArrowRight size={19}/>
@@ -521,13 +617,17 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
                 <span className="spm-shop-seller-state"><CheckCircle2 size={14}/> Example quotes accepted</span>
               </div>}
           </div>}
-          {sampleRequests&&playground&&<button type="button" className="spm-shop-money-next"
+          {playground&&<button type="button" className="spm-shop-money-next"
             disabled={!sampleMoneyReady} onClick={()=>setMoneyOpen(true)}>
-            <ShieldCheck size={17}/> Continue to Money <ArrowRight size={17}/>
+            <ShieldCheck size={17}/> Connect to Money <ArrowRight size={17}/>
           </button>}
+          {playground&&!sampleMoneyReady&&<p className="spm-shop-gentle-note">
+            Money becomes available only after the sample seller and delivery Agreements are confirmed.</p>}
           {!playground&&<button type="button" disabled className="spm-shop-money-next">
-            <ShieldCheck size={17}/> Continue to Money <ArrowRight size={17}/>
+            <ShieldCheck size={17}/> Connect to Money <ArrowRight size={17}/>
           </button>}
+          <button type="button" className="spm-shop-save" disabled={!playground}
+            onClick={saveForLater}>Save for later</button>
           {playground&&<p className="spm-shop-gentle-note">
             In this rehearsal, separate sample seller confirmations unlock the rail choices.
             No real SecureLink, Money instruction or binding acceptance exists.</p>}
