@@ -5,6 +5,8 @@ import type { SellerQuoteRecord, StoreQuotationGateway } from '../api/securepay/
 import { quotedRecordProof } from '../api/securepay/store-quotations';
 import type { StoreOfferFulfilmentResponse } from '../api/securepay/store/dto';
 import type { BusinessGateway, BusinessRepresentationDto } from '../api/securepay/business';
+import type {SubscriptionGateway} from '../api/securepay/subscription';
+import {MiniSellerAccountSettings} from './MiniSellerAccountSettings';
 import { createStoreController } from '../features/store/controller';
 import { availabilityOptionsFor } from '../features/store/view';
 import { miniSellerQuotationDraft } from './miniSellerQuotationDraft.mjs';
@@ -17,11 +19,12 @@ import { miniStoreOfferSnapshotFresh } from './miniStoreOfferFresh.mjs';
  * payment/Agreement version mutation. Business permission is checked by
  * the canonical BusinessGateway before loading and again before fulfilment.
  */
-export function MiniSellerStore({storeGateway,businessGateway,quotationGateway,liveQuotes,prepare,onBack,onInvitations,onSellerDiscuss,onPrepareOffer}:{
+export function MiniSellerStore({storeGateway,businessGateway,subscriptionGateway,quotationGateway,liveQuotes,prepare,onBack,onInvitations,onSellerDiscuss,onPrepareOffer}:{
   storeGateway:StoreGateway;
   quotationGateway:StoreQuotationGateway;
   liveQuotes:boolean;
   businessGateway:Pick<BusinessGateway,'mine'|'representation'>;
+  subscriptionGateway?:Pick<SubscriptionGateway,'myStatus'>;
   prepare:()=>Promise<unknown>;
   onBack:()=>void;
   onInvitations:()=>void;
@@ -35,6 +38,7 @@ export function MiniSellerStore({storeGateway,businessGateway,quotationGateway,l
   const [businesses,setBusinesses]=useState<BusinessRepresentationDto[]>([]);
   const [chooser,setChooser]=useState<'loading'|'ready'|'error'>('loading');
   const [selectedOffer,setSelectedOffer]=useState<string|null>(null);
+  const [settingsOpen,setSettingsOpen]=useState(false);
   const [fulfilment,setFulfilment]=useState<StoreOfferFulfilmentResponse|null>(null);
   const [deliveryBusy,setDeliveryBusy]=useState(false);
   const [deliveryError,setDeliveryError]=useState('');
@@ -81,6 +85,7 @@ export function MiniSellerStore({storeGateway,businessGateway,quotationGateway,l
   },[businessGateway]);
 
   const personal=async()=>{
+    setSettingsOpen(false);
     setSelectedOffer(null);setFulfilment(null);setNotice('');
     try{
       await prepare();await controller.enterManagement();
@@ -89,6 +94,7 @@ export function MiniSellerStore({storeGateway,businessGateway,quotationGateway,l
     }catch{setNotice('SecurePay could not verify your own Store. No offer was changed.');}
   };
   const business=async(b:BusinessRepresentationDto)=>{
+    setSettingsOpen(false);
     setSelectedOffer(null);setFulfilment(null);setNotice('');
     try{
       await prepare();
@@ -322,6 +328,21 @@ export function MiniSellerStore({storeGateway,businessGateway,quotationGateway,l
     {notice&&<p role="status">{notice}</p>}
     {opened&&<>
       <strong>{storeBusiness?storeBusiness.displayName:'My personal Store'}</strong>
+      <button type="button" className="spm-secondary" aria-expanded={settingsOpen}
+        onClick={()=>setSettingsOpen(v=>!v)}>
+        <ShieldCheck size={16}/>{settingsOpen?'Close Store settings':'Store settings & permissions'}
+      </button>
+      {settingsOpen&&<MiniSellerAccountSettings
+        key={storeBusiness?.ksNumber??'personal'}
+        businessKsNumber={storeBusiness?.ksNumber??null}
+        businessName={storeBusiness?.displayName??null}
+        businessGateway={businessGateway}
+        subscriptionGateway={subscriptionGateway}
+        prepare={prepare}
+        publicOffers={opened.raw.filter(o=>o.published).length}
+        privateOffers={opened.raw.filter(o=>!o.published).length}
+        unconfirmedOffers={opened.raw.filter(o=>o.availabilityState==='NEEDS_CONFIRMATION').length}
+      />}
       {onPrepareOffer&&<button type="button" className="spm-secondary spm-sell-wide"
         onClick={()=>onPrepareOffer(storeBusiness
           ?{type:'business',businessKsNumber:storeBusiness.ksNumber}

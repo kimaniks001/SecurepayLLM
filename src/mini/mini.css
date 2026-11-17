@@ -1740,3 +1740,15 @@ textarea.spm-field { resize:vertical; }
   .spm-sell-link-walkthrough{padding:12px}
   .spm-sell-walkthrough-steps{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
+
+
+/* Mini seller Phase 5: the same SecureLink as copy/share/QR. */
+.spm-sell-link-actions{display:grid;gap:10px;border:1px solid #b5d4be;border-radius:16px;padding:15px;background:#f5fbf7}
+.spm-sell-link-actions-head{display:flex;align-items:center;gap:8px;color:#21563b;font-size:.94rem}
+.spm-sell-link-title{font-weight:600;color:#2d5240;font-size:.84rem;margin:0}
+.spm-sell-link-address{font-family:ui-monospace,Menlo,monospace;overflow-wrap:anywhere;background:white;border:1px solid #d8e5dc;border-radius:9px;padding:10px;font-size:.78rem;color:#254e38;user-select:all}
+.spm-sell-link-actions .spm-sell-pill-row{display:flex;flex-wrap:wrap;gap:7px}
+.spm-sell-link-actions .spm-secondary{display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:999px;min-height:38px;padding:7px 12px;font-size:.81rem;flex:0 1 auto}
+.spm-sell-qr-display{display:grid;justify-items:center;gap:12px;padding:14px 8px;border-radius:12px;border:1px solid #dae8de;background:white}
+.spm-sell-qr-display svg{max-width:100%;height:auto}
+.spm-sell-qr-display p{max-width:275px;margin:0;text-align:center;font-size:.76rem;line-height:1.5;color:#506a57}
