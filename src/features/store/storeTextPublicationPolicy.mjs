@@ -38,3 +38,26 @@ export function storeTextPublicationFresh(original, current) {
     return {ok:false,reason:'STORE_REVISION_CHANGED'};
   return {ok:true,expectedUpdatedAt:current.updatedAt};
 }
+
+/**
+ * An already-public text-only listing can change title, description and
+ * price without being unpublished, but must preserve kind, stock and source
+ * policy. This is a front-end eligibility check, not server authorization.
+ */
+export function storePublishedTextEditReview(current,draft) {
+  if(!current||!draft||current.published!==true||draft.published!==true)
+    return {ok:false,reason:'PUBLISHED_LISTING_REQUIRED'};
+  if(!current.id || !current.updatedAt ||
+     current.kind!==draft.kind ||
+     current.quantityAvailable!==null || draft.quantityAvailable!==null ||
+     current.availabilityState!=='NEEDS_CONFIRMATION' ||
+     draft.availabilityState!=='NEEDS_CONFIRMATION' ||
+     !Array.isArray(current.mediaRefs) || current.mediaRefs.length!==0 ||
+     !Array.isArray(draft.mediaRefs) || draft.mediaRefs.length!==0 ||
+     (draft.priceMinor!==null && (!Number.isSafeInteger(draft.priceMinor)||draft.priceMinor<=0)) ||
+     !String(draft.title||'').trim() ||
+     String(draft.title||'').trim().length>140 ||
+     String(draft.description||'').length>2000)
+    return {ok:false,reason:'LEGACY_LISTING_REQUIRES_SEPARATE_EDIT'};
+  return {ok:true,offerId:current.id,expectedUpdatedAt:current.updatedAt};
+}
