@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {storeTextPublicationReview,storeTextPublicationFresh,storePublishedTextEditReview}
+import {storeTextPublicationReview,storeTextPublicationFresh,storePublishedTextEditReview,storePublishedTextEditFresh}
   from '../src/features/store/storeTextPublicationPolicy.mjs';
 
 const saved={id:'11111111-1111-4111-8111-111111111111',
@@ -106,8 +106,33 @@ test('Store controller routes safe public text revisions to CAS endpoints, not l
   const source=fs.readFileSync(new URL('../src/features/store/controller.ts',import.meta.url),'utf8');
   const gateway=fs.readFileSync(new URL('../src/api/securepay/store/index.ts',import.meta.url),'utf8');
   assert.ok(source.includes('storePublishedTextEditReview(existing, state.draft)'));
-  assert.ok(source.includes('storeTextPublicationFresh(existing, candidates[0])'));
+  assert.ok(source.includes('storePublishedTextEditFresh(existing, candidates[0])'));
   assert.ok(source.includes('updateMyPublishedTextOffer(existing.id, changed)'));
   assert.ok(source.includes('updateBusinessPublishedTextOffer(business.ksNumber, existing.id, changed)'));
   assert.ok(gateway.includes('/update-published-text'));
+});
+
+test('fresh published text is editable without misusing the private-draft check',()=>{
+  const live={...saved,published:true};
+  assert.deepEqual(storePublishedTextEditFresh(live,{...live}),{
+    ok:true,expectedUpdatedAt:live.updatedAt
+  });
+  assert.deepEqual(storeTextPublicationFresh(live,{...live}),{
+    ok:false,reason:'STORE_REVISION_CHANGED'
+  });
+});
+test('live published edit rejects remote price, content or revision changes',()=>{
+  const live={...saved,published:true};
+  for(const diff of [
+    {updatedAt:'2026-11-17T14:01:00Z'},
+    {description:'Changed on another phone'},
+    {priceMinor:300000},
+    {published:false},
+    {quantityAvailable:1},
+    {mediaRefs:['unverified-image']}
+  ]) {
+    assert.deepEqual(storePublishedTextEditFresh(live,{...live,...diff}),{
+      ok:false,reason:'PUBLISHED_STORE_REVISION_CHANGED'
+    });
+  }
 });
