@@ -11,6 +11,7 @@ const CONVERSATION='11111111-1111-4111-8111-111111111111';
 const ACTION='22222222-2222-4222-8222-222222222222';
 const HANDOFF='33333333-3333-4333-8333-333333333333';
 const AGREEMENT='44444444-4444-4444-8444-444444444444';
+const VERSION={versionId:'55555555-5555-4555-8555-555555555555',versionNumber:1,contentHash:'hash-v1',createdAt:'2026-11-17T13:00:00Z',amendmentReason:null,materialChange:false};
 const candidate={title:'20 bags dairy meal',purpose:'Sale',description:'50 kg bags',
   agreementType:'TRADE',currency:'KES',amountMinor:5000000,what:['Feed bags'],who:[],when:[]};
 const serverHandoff=(patch={})=>({
@@ -78,7 +79,7 @@ test('only explicitly confirmed unchanged authoritative review creates a draft',
       return serverHandoff({status:'PROGRESSED',progressedAgreementId:AGREEMENT});
     }};
   const agreements={detail:async()=>({
-    overview:{agreementId:AGREEMENT,status:'DRAFT'},currentVersion:{versionNumber:1}
+    overview:{agreementId:AGREEMENT,status:'DRAFT'},currentVersion:VERSION
   })};
   const reviewed=await miniSellerReviewAgreementHandoff({
     gateway:{...gateway,reviewHandoff:async()=>review},handoffId:HANDOFF});
@@ -107,13 +108,13 @@ test('stale review forbids continuation before its first write',async()=>{
 test('seller must separately propose confirmed draft; proposal never shares or pays',async()=>{
   let proposals=0;
   const agreements={
-    detail:async()=>({overview:{agreementId:AGREEMENT,status:'DRAFT'},currentVersion:{versionNumber:1}}),
+    detail:async()=>({overview:{agreementId:AGREEMENT,status:proposals?'PROPOSED':'DRAFT'},currentVersion:VERSION}),
     propose:async()=>{proposals++;return{id:AGREEMENT,status:'PROPOSED'}}
   };
-  const no=await miniSellerProposeAgreement({agreements,agreementId:AGREEMENT,confirmed:false});
+  const no=await miniSellerProposeAgreement({agreements,agreementId:AGREEMENT,expectedAgreementVersion:VERSION,confirmed:false});
   assert.equal(no.ok,false);
   assert.equal(proposals,0);
-  const yes=await miniSellerProposeAgreement({agreements,agreementId:AGREEMENT,confirmed:true});
+  const yes=await miniSellerProposeAgreement({agreements,agreementId:AGREEMENT,expectedAgreementVersion:VERSION,confirmed:true});
   assert.equal(yes.ok,true);
   assert.equal(yes.secureLinkIssued,false);
   assert.equal(yes.buyerAccepted,false);
@@ -128,4 +129,27 @@ test('uncertain progression never invents draft or sends invitation',async()=>{
       continueHandoff:async()=>{throw Error('timeout')}},
     agreements:{detail:async()=>{}},reviewed,sellerConfirmed:true});
   assert.deepEqual(result,{ok:false,reason:'CHECK_HANDOFF_BEFORE_RETRY',handoffId:HANDOFF});
+});
+
+test('review fails closed when server handoff version changes during review',async()=>{
+  let reads=0;
+  const actual=await miniSellerReviewAgreementHandoff({
+    gateway:{
+      readHandoff:async()=>serverHandoff({candidateDigest:++reads===1?'old-digest':'new-digest'}),
+      reviewHandoff:async()=>review
+    },
+    handoffId:HANDOFF
+  });
+  assert.deepEqual(actual,{ok:false,reason:'HANDOFF_CHANGED_DURING_REVIEW'});
+});
+test('changed Agreement version cannot be proposed or sent to SecureLink',async()=>{
+  let proposals=0;
+  const result=await miniSellerProposeAgreement({
+    agreements:{detail:async()=>({overview:{agreementId:AGREEMENT,status:'DRAFT'},
+      currentVersion:{...VERSION,contentHash:'different'}}),
+      propose:async()=>{proposals++;return{id:AGREEMENT,status:'PROPOSED'}}},
+    agreementId:AGREEMENT,expectedAgreementVersion:VERSION,confirmed:true
+  });
+  assert.deepEqual(result,{ok:false,reason:'REVIEW_AGREEMENT_BEFORE_PROPOSING'});
+  assert.equal(proposals,0);
 });
