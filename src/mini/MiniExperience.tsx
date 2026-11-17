@@ -415,6 +415,7 @@ export function MiniExperience() {
         {playground && <div hidden={!(screen === 'sell-preview')} aria-hidden={screen !== 'sell-preview'}>
           <MiniSellSomething
             language={lang} seed={opening.trim()} onBack={() => setScreen('home')}
+            previewSecureLinkJourney
             actingAs={previewCapacity==='business'?demoBusiness.name+' · sample Business':'Yourself · personal example'}
             onOpenStore={()=>{setSellerSettingsReturn(true);setSettingsEntry('store');setScreen('business-settings');}}
             onOpenSettings={()=>{setSellerSettingsReturn(true);setSettingsEntry(null);setScreen('business-settings');}}
