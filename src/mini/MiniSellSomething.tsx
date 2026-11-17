@@ -457,22 +457,101 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
       </div>
       <div className="spm-sell-check">
         <div className="spm-sell-check-head"><ShieldCheck size={18}/><strong>Quiet Fair Trade examination</strong></div>
-        <p>We ask what matters before you share. This preview does not make legal, stock or identity decisions.</p>
-        <label className="spm-sell-label"><span>My authority to sell</span>
-          <select value={rightType} className="spm-field" onChange={e=>{setRightType(e.target.value);setRightToOffer(false);}}>
-            <option>Owner</option><option>Authorised reseller</option><option>Agent with permission</option><option>Supplier under an agreement</option>
-          </select></label>
-        <label className="spm-sell-checkline"><input type="checkbox" checked={rightToOffer} onChange={e=>setRightToOffer(e.target.checked)}/>
-          <span>I declare I have the right to make this offer as {rightType.toLowerCase()}.</span></label>
-        <label className="spm-sell-label"><span>What can you say about availability?</span>
-          <select className="spm-field" value={stockStatement} onChange={e=>setStockStatement(e.target.value)}>
-            <option value="">Not yet checked</option><option>Seller says available — not verified</option>
-            <option>Made or sourced after buyer's order</option><option>Limited stock — buyer must confirm</option>
-            <option>Service availability to be agreed</option>
-          </select></label>
-        {evidenceNotices.length>0&&<div className="spm-sell-concerns">{evidenceNotices.map((x,i)=><p key={i}>{x}</p>)}</div>}
+        <p>One small question at a time. Tap an answer to continue; no forms to complete.</p>
+        {currentQuestion==='photo'&&<section className="spm-sell-question" aria-label="Photograph source clarification" data-sell-question="photo">
+          <span className="spm-sell-question-kicker">Just to clarify · {pendingPhotoIndex+1} of {pictures.length} photos</span>
+          <strong>Where did this photograph come from?</strong>
+          <p>{pictures[pendingPhotoIndex]?.name} · Your answer is a declaration, not proof of ownership.</p>
+          <div className="spm-sell-pill-row">
+            <AnswerPill onClick={()=>photoAnswered('own')}>I took it</AnswerPill>
+            <AnswerPill onClick={()=>photoAnswered('supplier')}>Supplier's image</AnswerPill>
+            <AnswerPill onClick={()=>photoAnswered('permission')}>I have permission</AnswerPill>
+            <AnswerPill onClick={()=>setPhotoUncertain(true)}>Not sure</AnswerPill>
+            <AnswerPill onClick={()=>setPictures(current=>current.filter((_,i)=>i!==pendingPhotoIndex))}>Remove photo</AnswerPill>
+          </div>
+          {photoUncertain&&<div className="spm-sell-clarification-help">
+            <p>If you're unsure, ask the owner for permission or leave the photo out. That way you can continue without making an unsupported claim.</p>
+            <button type="button" onClick={()=>openReviewTool('photos')}>Review photographs <ChevronRight size={15}/></button>
+          </div>}
+        </section>}
+        {currentQuestion==='authority'&&<section className="spm-sell-question" aria-label="Authority to sell clarification" data-sell-question="authority">
+          <span className="spm-sell-question-kicker">Next question</span>
+          <strong>What gives you the right to offer this?</strong>
+          <p>Tap only what is true for you. This records your declaration; SecurePay has not verified it.</p>
+          <div className="spm-sell-pill-row">
+            <AnswerPill onClick={()=>authorityAnswered('Owner')}>It's mine</AnswerPill>
+            <AnswerPill onClick={()=>authorityAnswered('Authorised reseller')}>I'm an authorised reseller</AnswerPill>
+            <AnswerPill onClick={()=>authorityAnswered('Agent with permission')}>I'm an authorised agent</AnswerPill>
+            <AnswerPill onClick={()=>authorityAnswered('Supplier under an agreement')}>Supplier agreement</AnswerPill>
+            <AnswerPill onClick={()=>setAuthorityUncertain(true)}>Not sure</AnswerPill>
+          </div>
+          {authorityUncertain&&<div className="spm-sell-clarification-help">
+            <p>Keep this as a draft while you confirm permission. You can attach a supporting document for later review; a file alone does not prove authority.</p>
+            <button type="button" onClick={()=>{setDocPurpose('Right to sell / authorisation');openReviewTool('documents');}}>Add a document <ChevronRight size={15}/></button>
+          </div>}
+        </section>}
+        {currentQuestion==='availability'&&<section className="spm-sell-question" aria-label="Availability clarification" data-sell-question="availability">
+          <span className="spm-sell-question-kicker">Next question</span>
+          <strong>When could the buyer get this?</strong>
+          <p>We won't say your stock has been verified. Select what you can genuinely offer.</p>
+          <div className="spm-sell-pill-row">
+            <AnswerPill onClick={()=>setStockStatement('Seller says available — not verified')}>Available now</AnswerPill>
+            <AnswerPill onClick={()=>setStockStatement('Limited stock — buyer must confirm')}>Limited stock</AnswerPill>
+            <AnswerPill onClick={()=>setStockStatement('Made or sourced after buyer’s order')}>Made to order</AnswerPill>
+            <AnswerPill onClick={()=>setStockStatement('Service availability to be agreed')}>By appointment</AnswerPill>
+            <AnswerPill onClick={()=>setStockStatement('Availability to be confirmed before agreement')}>Need to confirm</AnswerPill>
+          </div>
+        </section>}
+        {currentQuestion==='safety'&&<section className="spm-sell-question" aria-label="Offer requiring specialist review" data-sell-question="safety">
+          <strong>This offer needs further review.</strong>
+          <p>Mini cannot clear a potentially restricted or unlawful offer from these answers. You may correct inaccurate wording or save your draft.</p>
+          <div className="spm-sell-pill-row">
+            <AnswerPill onClick={()=>openReviewTool('describe')}>Review item details</AnswerPill>
+            <AnswerPill onClick={()=>finish('save')}>Save for later</AnswerPill>
+          </div>
+        </section>}
+        {currentQuestion==='regulated'&&<section className="spm-sell-question" aria-label="Regulated offer clarification" data-sell-question="regulated">
+          <strong>Does this item need special permission?</strong>
+          <p>Some items need licences or eligibility checks. Attaching a document will not clear the restriction automatically in this preview.</p>
+          <div className="spm-sell-pill-row">
+            <AnswerPill onClick={()=>{setDocPurpose('Certificate / licence');openReviewTool('documents');}}>Add licence or document</AnswerPill>
+            <AnswerPill onClick={()=>openReviewTool('describe')}>Check description</AnswerPill>
+            <AnswerPill onClick={()=>finish('save')}>Save for later</AnswerPill>
+          </div>
+        </section>}
+        {currentQuestion===null&&<section className="spm-sell-review-ready" role="status" data-sell-question="resolved">
+          <CheckCircle2 size={17}/><span><strong>That's enough to prepare the offer.</strong>
+          <small>Your answers are seller declarations, not verified clearance, availability or image ownership.</small></span>
+        </section>}
+        {remainingQuestions.length>0&&currentQuestion!=='safety'&&currentQuestion!=='regulated'&&
+          <p className="spm-sell-question-count">{remainingQuestions.length} detail{remainingQuestions.length===1?'':'s'} still to clarify. Each answer moves to the next.</p>}
+        {currentQuestion===null&&<div className="spm-sell-review-facts">
+          <span>Right to offer: {rightType} · seller-declared</span>
+          <span>Availability: {stockStatement}</span>
+          {pictures.map((picture,i)=><span key={i}>{picture.name}: {photoSourceName(picture.source)} · unverified</span>)}
+          <button type="button" onClick={()=>{setRightToOffer(false);setAuthorityUncertain(false);}}>Change right to sell</button>
+          <button type="button" onClick={()=>setStockStatement('')}>Change availability</button>
+          {pictures.length>0&&<button type="button" onClick={()=>openReviewTool('photos')}>Change photo details</button>}
+        </div>}
         <p className="spm-sell-disclosure">Image fingerprinting, legality, licensing, ownership, document validity and inventory checks require server services that are not connected in this preview.</p>
       </div>
+      {currentQuestion===null&&<div className="spm-sell-review-enrich" data-sell-additions>
+        <strong>Anything else that would help the buyer?</strong>
+        <p>Optional. Choose what matters, or continue straight to the offer.</p>
+        <div className="spm-sell-pill-row">
+          {!timing&&<AnswerPill onClick={()=>openReviewTool('timing')}><CalendarDays size={15}/>Choose a date</AnswerPill>}
+          {!people.length&&<AnswerPill onClick={()=>openReviewTool('people')}><UserRoundPlus size={15}/>Add a person</AnswerPill>}
+          {!place&&<AnswerPill onClick={()=>openReviewTool('places')}><MapPin size={15}/>Pickup or delivery</AnswerPill>}
+          <AnswerPill onClick={()=>setShowMorePills(open=>!open)}>{showMorePills?'Fewer options':'More options'} <ChevronRight size={14}/></AnswerPill>
+        </div>
+        {showMorePills&&<div className="spm-sell-pill-row" data-sell-more-options>
+          <AnswerPill onClick={()=>openReviewTool('photos')}><Camera size={15}/>Photos</AnswerPill>
+          <AnswerPill onClick={()=>openReviewTool('documents')}><FileText size={15}/>Supporting documents</AnswerPill>
+          <AnswerPill onClick={()=>openReviewTool('describe')}><BookOpenText size={15}/>Improve description</AnswerPill>
+          <AnswerPill onClick={()=>openReviewTool('timing')}>Repeat or after an event</AnswerPill>
+          <AnswerPill onClick={()=>openReviewTool('people')}>Other people or roles</AnswerPill>
+        </div>}
+      </div>}
       <div className="spm-sell-action-header"><strong>What would you like to do?</strong><small>Three independent choices</small></div>
       <div className="spm-sell-exits">
         <button type="button" onClick={()=>finish('share')} disabled={!canOffer}>
