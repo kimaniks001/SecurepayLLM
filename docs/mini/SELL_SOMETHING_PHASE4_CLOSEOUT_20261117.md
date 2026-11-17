@@ -41,3 +41,13 @@
 7. **Release:** PRs #329 and #476, and preceding Phase 3 PRs, remain draft/unmerged. No production rollout, consumer invitations or Money were executed.
 
 **Status: Phase 4 engineering slice implemented and ready for integration certification, NOT Phase 4 production acceptance.** Proceed to Phase 5 design/engineering only with the above release blockers preserved.
+
+## 17 November 2026 final hardening continuation
+
+- Mini's seller Agreement bridge now invokes `AgreementGateway.proposeReviewed`, the backend's new `POST /api/v1/agreements/{id}/propose-reviewed`. The required body sends the precise server-owned `versionId`, `versionNumber` and `contentHash`. The backend's AgreementProposalService also guards currentVersionId and optimistic row version inside the proposal transaction. The legacy `propose` endpoint remains for other consumers, not Mini seller.
+- In Business seller mode, `MiniFirstPartyKs001` withholds BOTH the authenticated handoff gateway and the Agreement gateway; a Business Store role never authorizes a personal creator Agreement by implication.
+- API PR #476 now includes a **default-OFF** `securepay.store.strict-versioned-publication` migration gate that can eventually prohibit legacy one-click publication via ordinary Store PUT/POST. It must be enabled only after all legacy Store clients are migrated and tested. `NEEDS_CONFIRMATION` Store drafts now carry null availability-confirmed timestamp.
+- Added server-focused tests (auth, wrong hash/version, optimistic conflict, strict migration), and frontend contract tests (version-fenced route, source gating). **Java/Gradle/PostgreSQL/TypeScript complete repository tests are not executed in this session.**
+- In the focused isolated JS V8 harness, 30 seller-bridge checks, 8 UI contract checks, and 3 reviewed-proposal/Business authority source checks passed. These do not certify the deployed API.
+
+**Hold:** Real Business Agreement formation still needs a separately approved Organization-scoped, legally authorized process. Keep drafts unmerged and strictly preserve buyer-initiated Money, plain SecureLink, and Phase 3 photo restrictions.
