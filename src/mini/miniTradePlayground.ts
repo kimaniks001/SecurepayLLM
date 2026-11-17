@@ -93,11 +93,17 @@ export function createMiniTradingSampleStore(demo:BusinessDemo):Pick<StoreGatewa
     search:async params=>{
       const query=(params.category||'').trim().toLowerCase();
       const kind=params.kind;
-      const results:PublicSearchResultView[]=catalog().flatMap(item=>
+      const records=catalog().flatMap((item,storeIndex)=>
         item.offers.filter(o=>o.kind===kind&&(!query||
           (o.title+' '+(o.description||'')+' '+item.displayName+' '+item.profile.tagline).toLowerCase().includes(query)))
-          .map(offer=>({canonicalKsNumber:item.canonicalKsNumber,displayName:item.displayName,
+          .map((offer,offerIndex)=>({storeIndex,offerIndex,
+            canonicalKsNumber:item.canonicalKsNumber,displayName:item.displayName,
             locationLabel:item.profile.locationLabel,offer:{...offer}})));
+      // Discover different shops first instead of filling the page with a single
+      // merchant's first ten offers. Explicit category searches stay relevant.
+      if(!query)records.sort((a,b)=>a.offerIndex-b.offerIndex||a.storeIndex-b.storeIndex);
+      const results:PublicSearchResultView[]=records.map(({canonicalKsNumber,displayName,locationLabel,offer})=>
+        ({canonicalKsNumber,displayName,locationLabel,offer}));
       return results.slice(0,Math.min(10,Math.max(1,params.limit||10)));
     },
     store:async ks=>{
