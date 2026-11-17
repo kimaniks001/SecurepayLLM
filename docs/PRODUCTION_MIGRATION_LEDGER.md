@@ -2012,3 +2012,12 @@ This Phase 3 UI/Policy slice is **not completed backend certification**, and no 
 - **BACKEND_PR_PENDING:** SecurePayAPI PR #475 proposes authenticated personal and represented Business Store pending-only image-use endpoints, a revision-bound registration table, revocation and event history. No backend deployment or certified tests have been observed.
 - **REAL_API_AVAILABLE_NOT_WIRED (pending backend branch only):** The typed `createStoreGateway` now contains `registerMyImageUse`, `myImageUses`, `revokeMyImageUse` and Business equivalents. These methods require authenticated HTTP and use exact Store IDs and server-returned offer `updatedAt`; they are not called from Mini's owner preview and cannot issue a public mark.
 - **HUMAN_DOCTRINE_BLOCKER:** Existing `StoreService` can still publish arbitrary client-supplied `mediaRefs` without consulting image-use registration. Any production UI that displays a verified image mark or trusts registered images as publishable would be misleading until that legacy publishing route is safely migrated, governing rules approved and server integration certified.
+
+
+### 2026-11-17 Phase 3 continuation — public Store image-bypass closure (SecurePayAPI draft PR #475)
+
+- **BACKEND_PR_PENDING, NOT DEPLOYED:** Personal/Business Store offer controllers and central `StoreService` on companion API branch now reject `published=true` plus nonblank, unverified `mediaRefs`. Private draft references and text-only Store listings remain available.
+- **LEGACY PUBLIC IMAGE SAFETY:** Public Store/search/shared-offer projections on the API branch redact all legacy unreviewed image refs, while retaining seller-private records. A DB trigger also prevents new/changed published refs without wiping legacy data. Before merging, audit impact on existing Store photographs, product cards and authorized owner workflows.
+- **NOT AN IDENTIMARK:** Pending source-to-offer registrations still have no copyright, licence, stock or server-approved media-use authority; no public image can be claimed verified. The approved-photo publication path is still missing.
+- **CERTIFICATION BLOCKER:** The API branch needs Java 21/Gradle, PostgreSQL/Flyway, concurrency, security, cross-client visual and 20-person acceptance gates. This Mini preview deliberately does not call the pending image endpoints, and its prior 197 focused frontend passes are not API evidence.
+- Runbook: `SecurePayAPI/docs/operations/MINI_SELL_PHASE3_PUBLIC_MEDIA_BYPASS_CLOSURE_20261117.md`.
