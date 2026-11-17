@@ -23,8 +23,6 @@ export function miniSellerCreateCanonicalStoreDraft(input:{
   context:MiniSellerStoreContext;
   confirmed:boolean;
 }):Promise<MiniSellerStoreResult>;
-export function miniSellerShareReadiness(input:{
-  prepared:MiniSellerCanonicalPrepared;
   realOffer?:MiniSellerStoreResult|null;
   issuer?:((...args:unknown[])=>unknown)|null;
 }):{ready:boolean;reason:string|null};
