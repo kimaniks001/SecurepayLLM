@@ -47,10 +47,10 @@ test('Real unresolved seller terms, unquoted prices, unavailable stock and deliv
 });
 test('Three independent actions appear immediately after an organised Agreement, in standard order',()=>{
  const buy=read('src/mini/MiniBuyStore.tsx');
- const pos=label=>buy.indexOf('>'+label+'</strong>',buy.indexOf('spm-shop-agreement-actions'));
- const send=pos('Send SecureLink');
+ const actions=buy.indexOf('className="spm-shop-agreement-actions"');
+ const send=buy.indexOf("'Send SecureLink'",actions);
  const money=buy.indexOf('Connect to Money</strong>',send);
- const save=pos('Save for later');
+ const save=buy.indexOf('>Save for later</strong>',money);
  assert.ok(send>0&&money>send&&save>money);
  assert.match(buy,/directSale.canOpenMoney\|\|sellerReviewed/);
  assert.match(buy,/\(directSale.canOpenMoney\|\|sellerReviewed\)/);
