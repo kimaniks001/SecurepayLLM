@@ -33,7 +33,7 @@ export function miniDeliveryContracts({choice,lines,destination,window,deliveryQ
     destination:String(destination).slice(0,160),
     window:SAMPLE_DELIVERY_WINDOWS[window],
     windowKey:window,feeMinor,currency:'KES',
-    customerApprovalRequired:true,providerAcceptanceRequired:true,
+    customerApprovalRequired:true,customerApproved:false,providerAcceptanceRequired:true,
     providerAccepted:false,
     parentPurchaseId:null,
   }));
