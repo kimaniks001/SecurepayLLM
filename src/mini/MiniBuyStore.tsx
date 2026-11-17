@@ -55,7 +55,8 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
   /** Existing public StoreGateway, optionally on the same isolated API as KS001. */
   storeGateway?:Pick<StoreGateway,'search'|'store'|'offer'>;
   /** Only after a fresh Store offer check, never on Add to cart alone. */
-  onDiscuss?:(lines:MiniStorePlanLine[], fulfilment:MiniBasketFulfilment | null)=>void;
+  onDiscuss?:(lines:MiniStorePlanLine[], fulfilment:MiniBasketFulfilment | null,
+    buyerAnswers:Array<{sellerKsNumber:string;offerId:string;question:string;proposedAnswer:string}>)=>void;
   /** Isolated preview host only; never live offers or financial authority. */
   playground?:boolean;
   onSampleFunded?:(purchase:MiniSamplePurchase)=>void;
@@ -261,7 +262,8 @@ export function MiniBuyStore({ language, onBack, initialQuery = '', storeGateway
         return;
       }
       setReviewed(true);
-      onDiscuss(cart.map(line=>({...line})),fulfilmentChoice);
+      onDiscuss(cart.map(line=>({...line})),fulfilmentChoice,
+        miniBasketAnswersForOffer(cart,basketAnswers));
     }catch{
       setReviewed(false);
       setError('The latest Store offer could not be verified. No buyer plan was sent to KS001.');
