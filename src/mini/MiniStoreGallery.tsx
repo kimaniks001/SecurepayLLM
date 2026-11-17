@@ -11,10 +11,10 @@ const price=(minor:number|null,currency:string)=>
 
 function nameOnly(name:string){return name.replace(/\s*·\s*Sample(?: Store)?$/i,'');}
 export function MiniShopDiscovery({results,onOpen,playground,onBack,
-  label,cartCount,onBasket,searchControls,loading=false,error='',onRetry}:{
+  label,cartCount,onBasket,searchControls,loading=false,error='',onRetry,busyText='Finding Stores…'}:{
   results:PublicSearchResultView[];onOpen:(ks:string)=>void;playground:boolean;
   onBack:()=>void;label:string;cartCount:number;onBasket:()=>void;searchControls?:ReactNode;
-  loading?:boolean;error?:string;onRetry?:()=>void;
+  loading?:boolean;error?:string;onRetry?:()=>void;busyText?:string;
 }){
  const sellers=[...new Set(results.map(r=>r.canonicalKsNumber))];
  return <div className="spm-shop-discovery">
@@ -32,7 +32,7 @@ export function MiniShopDiscovery({results,onOpen,playground,onBack,
    </div>
    {playground&&<p className="spm-shop-demo-flag">Sample Stores and prices only · No real stock or payment</p>}
    {searchControls}
-   {loading&&<p className="spm-shop-live-status" role="status">Finding the right Stores…</p>}
+   {loading&&<p className="spm-shop-live-status" role="status">{busyText}</p>}
    {error&&<div className="spm-shop-inline-error" role="alert">
       <span>{error}</span>
       {onRetry&&<button type="button" onClick={onRetry}>Try again</button>}
