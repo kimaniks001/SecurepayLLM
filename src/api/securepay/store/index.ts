@@ -4,7 +4,7 @@ import type {
   LinkStoreImageEvidenceRequest, StoreImageEvidenceView,
   StoreImageReviewQuestion, RespondStoreImageReviewRequest, StoreImageSellerReviewReply,
   StoreProfileResponse, StoreSearchParams, UpsertStoreOfferFulfilmentRequest, UpdateStoreProfileRequest, UpsertStoreOfferRequest,
-  PublishStoreTextOfferRequest, PublishedStoreTextOfferResponse, UpdatePublishedStoreTextOfferRequest,
+  PublishStoreTextOfferRequest, PublishedStoreTextOfferResponse, UpdatePublishedStoreTextOfferRequest, MakeStoreOfferPrivateRequest, PrivateStoreOfferResponse,
 } from './dto';
 
 /**
@@ -58,6 +58,10 @@ export function createStoreGateway(http: HttpClient) {
       http.request<PublishedStoreTextOfferResponse>(`${offer(offerId)}/publish-text`, { method: 'POST', body, auth: 'required' }),
     publishBusinessTextOffer: (businessKsNumber: string, offerId: string, body: PublishStoreTextOfferRequest) =>
       http.request<PublishedStoreTextOfferResponse>(`${businessOffer(businessKsNumber,offerId)}/publish-text`, { method: 'POST', body, auth: 'required' }),
+    makeMyOfferPrivate: (offerId:string, body:MakeStoreOfferPrivateRequest) =>
+      http.request<PrivateStoreOfferResponse>(`${offer(offerId)}/make-private`, {method:'POST',body,auth:'required'}),
+    makeBusinessOfferPrivate: (businessKsNumber:string,offerId:string,body:MakeStoreOfferPrivateRequest) =>
+      http.request<PrivateStoreOfferResponse>(`${businessOffer(businessKsNumber,offerId)}/make-private`, {method:'POST',body,auth:'required'}),
     updateMyPublishedTextOffer: (offerId: string, body: UpdatePublishedStoreTextOfferRequest) =>
       http.request<PublishedStoreTextOfferResponse>(`${offer(offerId)}/update-published-text`, { method: 'POST', body, auth: 'required' }),
     updateBusinessPublishedTextOffer: (businessKsNumber: string, offerId: string, body: UpdatePublishedStoreTextOfferRequest) =>
