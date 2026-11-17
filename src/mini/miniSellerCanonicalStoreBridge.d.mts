@@ -4,8 +4,8 @@ export interface MiniSellerCanonicalPrepared {
   storeCandidate?: {
     kind: 'PRODUCT'|'SERVICE'|'CAPACITY';
     title: string;
-    description: string|null;
-    priceMinor: number|null;
+    description?: string|null;
+    priceMinor?: number|null;
     quantityAvailable?: number|null;
     availabilityState?: string;
     published?: boolean;
@@ -23,6 +23,3 @@ export function miniSellerCreateCanonicalStoreDraft(input:{
   context:MiniSellerStoreContext;
   confirmed:boolean;
 }):Promise<MiniSellerStoreResult>;
-  realOffer?:MiniSellerStoreResult|null;
-  issuer?:((...args:unknown[])=>unknown)|null;
-}):{ready:boolean;reason:string|null};
