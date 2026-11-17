@@ -37,7 +37,8 @@ test('Basket checks offer freshness in the background; unnecessary check button 
 });
 test('Offer review, seller confirmation, regulated Money and living work remain separate stages',()=>{
   assert.match(basket,/NEXT · MAKE AN AGREEMENT/);
-  assert.match(basket,/Every Store confirms only what it has agreed to supply/);
+  assert.match(basket,/Your Agreement is organised\. Choose what you want to do next/);
+  assert.match(basket,/preflight\.pendingProviderRequests\.length===0/);
   assert.match(basket,/'Send SecureLink'/);
   assert.match(basket,/allSampleAccepted/);
   assert.match(basket,/MiniSampleMoneyJourney/);
