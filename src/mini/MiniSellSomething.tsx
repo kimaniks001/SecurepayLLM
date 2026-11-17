@@ -308,7 +308,7 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
       const receipt=await miniSellerCreateCanonicalStoreDraft({
         prepared,gateway:storeGateway,context:sellerContext,confirmed:true
       });
-      if(receipt.ok&&receipt.offerId){
+      if(receipt.ok){
         setCanonicalOfferId(receipt.offerId);
         setSavedStoreRevision(receipt.offerUpdatedAt);
         setStoreSnapshotSignature(offerSignature);
