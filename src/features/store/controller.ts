@@ -4,6 +4,7 @@ import type { BusinessStoreOpportunityResponse, StoreOfferResponse, UpsertStoreO
 import type { StoreIdentity, StoreOffer } from '../../types';
 import type { OfferDraftFields } from '../../components/OfferBuilderView';
 import { emptyOfferDraft, mergeSearchResults, searchRequests, type StoreManageGateway, type StoreReadGateway } from './view';
+import {storeTextPublicationReview, storeTextPublicationFresh} from './storeTextPublicationPolicy.mjs';
 
 export function errorText(error: unknown): string {
   if (error instanceof ApiError) {
@@ -201,25 +202,11 @@ export function createStoreController(gateway: Gateway, trustedMediaOrigin: stri
       const id = state.editingOfferId;
       if (state.draftBusy || !id || state.mine.status !== 'ready') return;
       const selected = state.mine.data.raw.find(o => o.id === id);
-      const draft = state.draft;
-      const unchanged = selected &&
-        selected.published === false &&
-        selected.kind === draft.kind &&
-        selected.title === draft.title.trim() &&
-        (selected.description ?? '') === draft.description.trim() &&
-        selected.priceMinor === draft.priceMinor &&
-        selected.quantityAvailable === draft.quantityAvailable &&
-        selected.availabilityState === draft.availabilityState &&
-        JSON.stringify(selected.mediaRefs) === JSON.stringify(draft.mediaRefs);
-      if (!unchanged || !selected.updatedAt) {
-        update({ draftError: 'This offer has changes. Save your private draft and review the latest version first.' });
-        return;
-      }
-      if (selected.availabilityState !== 'NEEDS_CONFIRMATION' ||
-          selected.quantityAvailable !== null ||
-          selected.mediaRefs.length !== 0 ||
-          (selected.priceMinor !== null && selected.priceMinor <= 0)) {
-        update({ draftError: 'This listing needs another check before publication. Remove unverified photographs and stock quantities, and mark availability as needing confirmation.' });
+      const review = storeTextPublicationReview(selected, state.draft);
+      if (!review.ok || !selected) {
+        update({ draftError: review.reason === 'TEXT_ONLY_UNVERIFIED_AVAILABILITY_REQUIRED'
+          ? 'Remove unverified photographs and stock quantities, and mark availability as needing confirmation before publication.'
+          : 'Save your private draft and review the current Store details before publishing.' });
         return;
       }
       const business = state.managedBusiness;
@@ -230,14 +217,7 @@ export function createStoreController(gateway: Gateway, trustedMediaOrigin: stri
         const matches = list.filter(o => o.id === id);
         if (matches.length !== 1) throw new Error('The latest Store offer is not available.');
         const fresh = matches[0];
-        if (fresh.updatedAt !== selected.updatedAt ||
-            fresh.published !== false || fresh.kind !== selected.kind ||
-            fresh.title !== selected.title ||
-            (fresh.description ?? '') !== (selected.description ?? '') ||
-            fresh.priceMinor !== selected.priceMinor ||
-            fresh.quantityAvailable !== null ||
-            fresh.availabilityState !== 'NEEDS_CONFIRMATION' ||
-            !Array.isArray(fresh.mediaRefs) || fresh.mediaRefs.length !== 0) {
+        if (!storeTextPublicationFresh(selected, fresh).ok) {
           update({ draftBusy: false, draftError: 'This Store offer changed. Review the latest draft before publishing.' });
           return;
         }
