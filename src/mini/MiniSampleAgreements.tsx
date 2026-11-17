@@ -13,7 +13,7 @@ export function MiniSampleAgreements({purchases,focusId,onBack,onShop}:{
    <div className="spm-shop-basket-top">
      <button type="button" className="spm-shop-back" onClick={selected?()=>setChosen(null):onBack}
        aria-label={selected?'Back to all Agreements':'Back to Mini'}><ArrowLeft size={19}/></button>
-     <span>{selected?'Living Agreement':'My Agreements'}</span>
+     <span>{selected?(selected.agreementKind==='DELIVERY'?'Delivery Agreement':'Living Agreement'):'My Agreements'}</span>
      <span className="spm-sample-list-flag">Sample</span>
    </div>
    {!selected?<>
@@ -27,8 +27,9 @@ export function MiniSampleAgreements({purchases,focusId,onBack,onShop}:{
          key={item.id} onClick={()=>setChosen(item.id)}>
          <span className="spm-sample-list-icon"><ClipboardList size={19}/></span>
          <span>
-           <strong>{item.title}</strong>
-           <small>{fmt(item.amountMinor)} · Sample funded</small>
+           <strong>{item.agreementKind==='DELIVERY'?'Delivery · ':''}{item.title}</strong>
+           <small>{fmt(item.amountMinor)} · {item.agreementKind==='DELIVERY'?
+             'Own mini Agreement · linked to purchase':'Sample funded'}</small>
            <small>Next: {item.progress.find(p=>p.status==='current')?.title||'Follow the agreed work'}</small>
          </span>
          <ArrowRight size={17}/>
@@ -40,7 +41,8 @@ export function MiniSampleAgreements({purchases,focusId,onBack,onShop}:{
    </>:<>
      <div className="spm-sample-agreement-detail">
        <div className="spm-shop-living-light"><CheckCircle2 size={24}/></div>
-       <small>LIVING AGREEMENT · DEMONSTRATION</small>
+       <small>{selected.agreementKind==='DELIVERY'?
+         'QUICK DELIVERY AGREEMENT · SAMPLE':'LIVING AGREEMENT · DEMONSTRATION'}</small>
        <h1>{selected.title}</h1>
        <span className="spm-sample-agreement-funding"><ShieldCheck size={16}/>
           Simulated funding confirmed</span>
@@ -48,12 +50,22 @@ export function MiniSampleAgreements({purchases,focusId,onBack,onShop}:{
          <span>Example funded amount</span><strong>{fmt(selected.amountMinor)}</strong>
        </div>
        <div className="spm-sample-agreement-facts">
+         {selected.parentId&&<div>Linked to purchase: {selected.parentId}</div>}
+         {selected.deliveryTerms&&<>
+           <div>Collect from: {selected.deliveryTerms.pickupStores.join(', ')}</div>
+           <div>Deliver to: {selected.deliveryTerms.destination}</div>
+           <div>When: {selected.deliveryTerms.window}</div>
+         </>}
          <div><Landmark size={15}/> Rail: {selected.rail==='MPESA_STK'?'M-PESA':
            selected.rail==='PESALINK'?'PesaLink':'Choice Bank'}</div>
          <div><Clock3 size={15}/> Payment event: {new Date(selected.fundedAt).toLocaleString('en-KE')}</div>
          <div>Receiving: {selected.delivery}</div>
          <small>Example reference: {selected.id}</small>
        </div>
+       {selected.linkedDeliveryIds?.length ? <p className="spm-shop-gentle-note">
+          This purchase includes {selected.linkedDeliveryIds.length} separate delivery
+          mini Agreement{selected.linkedDeliveryIds.length===1?'':'s'}.
+          Each provider is responsible only for its own delivery.</p>:null}
        <h2>Who is doing what</h2>
        {selected.items.map((item,i)=><div key={item.sellerKsNumber+':'+i} className="spm-sample-duty">
          <strong>{short(item.sellerName)}</strong>
