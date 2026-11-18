@@ -164,8 +164,17 @@ export function MiniSellerRelationships({memory,agreements,stores,onStart}:{memo
          fresh.termsHint!==item.termsHint||fresh.cadence!==item.cadence||
          fresh.stopRule!==item.stopRule||fresh.untilDate!==item.untilDate)
         throw Error('Template changed');
-      onStart(fresh.label,fresh.termsHint||'',miniSellerRepeatTiming(fresh));
-    }catch{setNotice('The saved template changed or could not be checked. Nothing was reused.');}
+      // The server, not the phone's clock, enforces the end-date and
+      // exact saved revision before any repeat wording can be reused.
+      const prepared=await memory.prepare(fresh.id,fresh.version);
+      if(prepared.id!==fresh.id||prepared.kind!=='TEMPLATE'||
+         prepared.version!==fresh.version||prepared.label!==fresh.label||
+         prepared.termsHint!==fresh.termsHint||
+         prepared.cadence!==fresh.cadence||prepared.stopRule!==fresh.stopRule||
+         prepared.untilDate!==fresh.untilDate)
+        throw Error('Repeat plan changed after server check');
+      onStart(prepared.label,prepared.termsHint||'',miniSellerRepeatTiming(prepared));
+    }catch{setNotice('The repeat plan changed, has ended, or could not be checked. Nothing was reused. Review saved terms before trying again.');}
     finally{setBusy(false);}
   };
   if(!memory)return <p className="spm-sell-hint">
