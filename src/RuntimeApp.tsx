@@ -331,7 +331,7 @@ export function isCandidateWorkspaceEntry(hash:string,hostname:string):boolean {
 }
 /** Deliberately isolated Mini Collect C1 preview. Never captures production or token-bearing routes. */
 export function isMiniCollectC1PreviewRoute(hash: string, hostname: string): boolean {
-  return /^#\\/?preview\\/mini\\/collect\\/?$/.test(hash) &&
+  return /^#\/?preview\/mini\/collect\/?$/.test(hash) &&
     (hostname.endsWith('.vercel.app') || hostname === 'localhost' || hostname === '127.0.0.1');
 }
 function useMiniCollectC1PreviewRoute(): boolean {
