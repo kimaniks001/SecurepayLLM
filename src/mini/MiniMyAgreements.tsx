@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, ClipboardList, Eye, EyeOff, LockKeyhole, RefreshCcw } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ClipboardList, Eye, EyeOff, LockKeyhole, RefreshCcw, Search } from 'lucide-react';
 import type { AgreementGateway } from '../api/securepay/agreements';
 import type { StoreQuotationGateway } from '../api/securepay/store-quotations';
 import type { NotificationsGateway } from '../api/securepay/notifications';
@@ -62,6 +62,7 @@ export function MiniMyAgreements({gateway,quotationGateway,notificationGateway,m
   const [details,setDetails]=useState<MiniAgreementDetail|null>(null);
   const [detailStatus,setDetailStatus]=useState<'idle'|'loading'|'ready'|'error'>('idle');
   const [paymentDetailsVisible,setPaymentDetailsVisible]=useState(false); // per-opening, never persisted
+  const [paymentSearch,setPaymentSearch]=useState('');
 
   const loadPage=async (nextPage:number,replace:boolean)=>{
     if(busy.current)return;
@@ -103,8 +104,14 @@ export function MiniMyAgreements({gateway,quotationGateway,notificationGateway,m
     // eslint-disable-next-line react-hooks/exhaustive-deps
   },[gateway]);
 
+  const paymentQuery=paymentSearch.trim().toLocaleLowerCase('en-KE');
+  const shownItems=paymentFocus&&paymentQuery
+    ? items.filter(item=>[item.title,item.reference||''].some(value=>value.toLocaleLowerCase('en-KE').includes(paymentQuery)))
+    : items;
+
   const openDetails=async(item:MiniAgreementItem)=>{
     if(busy.current)return;
+    if(paymentFocus)setPaymentDetailsVisible(true); // The user deliberately opened this one Agreement.
     setChosen(item);setDetails(null);setDetailStatus('loading');
     try{
       await prepare();
@@ -124,7 +131,7 @@ export function MiniMyAgreements({gateway,quotationGateway,notificationGateway,m
       <ArrowLeft size={16}/>{chosen?'My Agreements':paymentFocus?'Back to payments':'Back to KS001'}
     </button>
     <div className="spm-persona"><ClipboardList size={16}/>{paymentFocus?'Your payment agreements':'My Agreements'}</div>
-    {paymentFocus&&<button type="button" className="spm-payment-privacy-toggle"
+    {paymentFocus&&chosen&&<button type="button" className="spm-payment-privacy-toggle"
       aria-label={paymentDetailsVisible?'Hide private agreement details':'Show private agreement details'}
       onClick={()=>setPaymentDetailsVisible(x=>!x)}>
       {paymentDetailsVisible?<EyeOff size={16}/>:<Eye size={16}/>}
@@ -231,10 +238,14 @@ export function MiniMyAgreements({gateway,quotationGateway,notificationGateway,m
       </>}
       </>}
     </> : <>
-      {paymentFocus ? <p>Your agreements are private by default. Choose Show details when you want to check them.
-        These are Agreement records, not a verified bill total or payment receipt.</p>
+      {paymentFocus ? <p>Find an agreement by its name. Amounts and payment details are only shown after opening it.</p>
         : <p>See your existing Agreements and what SecurePay says needs your attention.
           Unfinished conversations remain under My saved work.</p>}
+      {paymentFocus&&<label className="spm-pay-search" htmlFor="spm-pay-agreement-search"><Search size={17}/>
+        <input type="search" id="spm-pay-agreement-search" value={paymentSearch}
+          onChange={e=>setPaymentSearch(e.target.value)} autoComplete="off"
+          placeholder="Find agreement by name or reference" aria-label="Find agreement by name or reference"/>
+      </label>}
       {!paymentFocus&&liveQuotes&&<MiniQuoteBuyer quotationGateway={quotationGateway}
         agreementGateway={gateway} notificationGateway={notificationGateway} prepare={prepare}
         onCreated={()=>void loadPage(0,true)}/>}
@@ -248,10 +259,11 @@ export function MiniMyAgreements({gateway,quotationGateway,notificationGateway,m
         </button></>}
       {status==='ready'&&items.length===0&&<p>No existing Agreements were returned for this account. No payment amount or due balance can be inferred.</p>}
       {status==='ready'&&items.length>0&&<>
-        {paymentFocus&&!paymentDetailsVisible?<>
+        {paymentFocus?<>
           <strong>Your agreements</strong>
-          {items.map(item=><MiniAgreementRow key={item.id} item={item}
+          {shownItems.map(item=><MiniAgreementRow key={item.id} item={item}
             paymentFocus={true} detailsVisible={false} onOpen={()=>void openDetails(item)}/>)}
+          {shownItems.length===0&&<p className="spm-mini-owned-note">No matching agreements in the ones loaded. Try another name or load more.</p>}
         </>:<>
           {items.some(a=>a.attentionRequired)&&<strong>Needs your attention</strong>}
           {items.filter(a=>a.attentionRequired).map(item=><MiniAgreementRow key={item.id}
@@ -275,7 +287,7 @@ export function MiniMyAgreements({gateway,quotationGateway,notificationGateway,m
 function MiniAgreementRow({item,onOpen,paymentFocus,detailsVisible}:{item:MiniAgreementItem;onOpen:()=>void;paymentFocus:boolean;detailsVisible:boolean}){
   return <div className="spm-mini-owned-item">
     <div>
-      {paymentFocus&&!detailsVisible?<><strong>Agreement</strong><small>Tap to inspect privately</small></>:<>
+      {paymentFocus&&!detailsVisible?<><strong>{item.title}</strong><small>{item.reference||'Tap to view details'}</small></>:<>
       <strong>{item.title}</strong>
       <small>{item.reference||'SecurePay Agreement'} · {item.statusText}</small>
       <small>{item.role} · {item.participantStatus}</small>
