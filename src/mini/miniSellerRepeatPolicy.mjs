@@ -14,7 +14,7 @@ export function miniSellerRepeatTemplate(input) {
   if(!cadence || !stopRule)return null;
   let untilDate=null;
   if(stopRule==='UNTIL_DATE'){
-    if(typeof input.untilDate!=='string'|| !/^\\d{4}-\\d{2}-\\d{2}$/.test(input.untilDate))return null;
+    if(typeof input.untilDate!=='string'|| !/^\d{4}-\d{2}-\d{2}$/.test(input.untilDate))return null;
     const parsed=new Date(input.untilDate+'T00:00:00Z');
     if(!Number.isFinite(parsed.getTime())||parsed.toISOString().slice(0,10)!==input.untilDate)return null;
     // Scheduling is not inferred: the backend checks its own current-date rule.
