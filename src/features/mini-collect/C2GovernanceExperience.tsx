@@ -1,15 +1,15 @@
 import { useState } from 'react';
 import { ArrowLeft, ArrowRight, CalendarDays, Check, ClipboardCheck, LockKeyhole, ShieldAlert, ShieldCheck } from 'lucide-react';
 import {
-  ACTOR_CAPACITIES, TARGET_MODES, STOP_RULES, SURPLUS_RULES, CHANGE_RULES,
+  ACTOR_CAPACITIES, CONTRIBUTOR_SCOPES, beneficiaryOptions, TARGET_MODES, STOP_RULES, SURPLUS_RULES, CHANGE_RULES,
   PAYOUT_RULES, SERVER_GATES, failureOptions, newGovernanceDraft,
   withGovernanceAnswer, isCalendarDate, assessGovernanceDraft,
   type CollectionKind, type GovernanceDraft, type AnswerOption,
 } from './governanceDraft.mjs';
 import securepayMark from '../../assets/brand/securepay/securepay-mark-green.png';
 
-type Stage = 'capacity' | 'target' | 'end' | 'failure' | 'control' | 'review';
-const STAGES: readonly Stage[] = ['capacity', 'target', 'end', 'failure', 'control', 'review'];
+type Stage = 'capacity' | 'people' | 'target' | 'end' | 'failure' | 'control' | 'review';
+const STAGES: readonly Stage[] = ['capacity', 'people', 'target', 'end', 'failure', 'control', 'review'];
 
 const TITLES: Record<CollectionKind, string> = {
   buy: 'Buying something together',
@@ -57,6 +57,7 @@ export function C2GovernanceExperience({ kind, onBack }: {kind: CollectionKind; 
   }
   const validCurrent = (() => {
     if (stage === 'capacity') return !!draft.capacity;
+    if (stage === 'people') return !!draft.contributorScope && beneficiaryOptions(kind).some(option => option.id === draft.beneficiaryRule);
     if (stage === 'target') return (draft.kind !== 'buy' || draft.targetMode === 'fixed') &&
       (draft.targetMode === 'open' || (draft.targetMode === 'fixed' && Number.isSafeInteger(draft.targetAmountKes ?? 0) && (draft.targetAmountKes ?? 0) > 0));
     if (stage === 'end') return isCalendarDate(draft.deadline) && (draft.deadline ?? '') > todayIso &&
@@ -94,6 +95,18 @@ export function C2GovernanceExperience({ kind, onBack }: {kind: CollectionKind; 
           <h1 id="c2-capacity" className="font-display text-[2rem] leading-tight">Whose collection will this be?</h1>
           <p className="mt-3 text-sm leading-6 text-[#627366]">The person organizing and the rightful recipient may be different. We'll verify authority before launching it.</p>
           <OptionPills ariaLabel="Who is collecting" options={ACTOR_CAPACITIES} value={draft.capacity} onChoose={choice => answer('capacity', choice as GovernanceDraft['capacity'])}/>
+        </section>}
+
+        {stage === 'people' && <section aria-labelledby="c2-people">
+          <h1 id="c2-people" className="font-display text-[2rem] leading-tight">Who's involved?</h1>
+          <p className="mt-3 text-sm leading-6 text-[#627366]">Knowing who may contribute and who will receive the money protects everyone involved.</p>
+          <h2 className="mt-6 text-sm font-semibold">Who may contribute?</h2>
+          <OptionPills ariaLabel="Contributor eligibility" options={CONTRIBUTOR_SCOPES} value={draft.contributorScope}
+            onChoose={value => answer('contributorScope', value as GovernanceDraft['contributorScope'])}/>
+          <h2 className="mt-6 text-sm font-semibold">Who should ultimately receive it?</h2>
+          <OptionPills ariaLabel="Payout beneficiary" options={beneficiaryOptions(kind)} value={draft.beneficiaryRule}
+            onChoose={value => answer('beneficiaryRule', value)}/>
+          <p className="mt-4 text-xs leading-5 text-[#6a796c]">These are intentions. The exact contributors, beneficiary KSNumber, receiving account and rights still need independent verification.</p>
         </section>}
 
         {stage === 'target' && <section aria-labelledby="c2-target">
@@ -159,6 +172,8 @@ export function C2GovernanceExperience({ kind, onBack }: {kind: CollectionKind; 
           <div className="mt-5 rounded-2xl border border-[#dfe5da] bg-white p-4 shadow-sm">
             <dl className="space-y-3 text-sm">
               <div className="flex justify-between gap-4"><dt className="text-[#617467]">Collecting for</dt><dd className="text-right font-semibold">{ACTOR_CAPACITIES.find(o => o.id === draft.capacity)?.label}</dd></div>
+              <div className="flex justify-between gap-4"><dt className="text-[#617467]">Contributors</dt><dd className="text-right font-semibold">{CONTRIBUTOR_SCOPES.find(o => o.id === draft.contributorScope)?.label}</dd></div>
+              <div className="flex justify-between gap-4"><dt className="text-[#617467]">Beneficiary</dt><dd className="text-right font-semibold">{beneficiaryOptions(kind).find(o => o.id === draft.beneficiaryRule)?.label}</dd></div>
               <div className="flex justify-between gap-4"><dt className="text-[#617467]">Target</dt><dd className="text-right font-semibold">{draft.targetMode === 'fixed' ? 'KSh ' + (draft.targetAmountKes ?? 0).toLocaleString('en-KE') : 'Open amount'}</dd></div>
               <div className="flex justify-between gap-4"><dt className="text-[#617467]">Closing date</dt><dd className="text-right font-semibold">{draft.deadline}</dd></div>
               <div className="flex justify-between gap-4"><dt className="text-[#617467]">Stop rule</dt><dd className="text-right font-semibold">{STOP_RULES.find(o => o.id === draft.stopRule)?.label}</dd></div>
