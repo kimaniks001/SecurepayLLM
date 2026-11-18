@@ -1,5 +1,5 @@
 import {useMemo,useState} from 'react';
-import {ArrowLeft,ArrowRight,CalendarDays,CheckCircle2,Clock3,FileText,HandCoins,Landmark,Plus,ShieldCheck,Smartphone,UsersRound,Wallet} from 'lucide-react';
+import {ArrowLeft,ArrowRight,CalendarDays,CheckCircle2,Clock3,Eye,EyeOff,FileText,HandCoins,Landmark,LockKeyhole,Plus,ShieldCheck,Smartphone,UsersRound,Wallet} from 'lucide-react';
 import type {MiniDraft,MiniLanguage} from './miniModel';
 import './miniPaySomeone.css';
 
@@ -37,6 +37,7 @@ export function MiniPaySomeone({language,preview,seed,onBack,onExisting,onPrepar
   const [purpose,setPurpose]=useState(seed.slice(0,400));
   const [rail,setRail]=useState('M-PESA');
   const [plan,setPlan]=useState('Set money aside');
+  const [privacyRevealed,setPrivacyRevealed]=useState(false); // in-memory only, reset when Mini reopens
   const focusedItem=EXAMPLES.find(i=>i.id===focused)||EXAMPLES[0];
   const picked=EXAMPLES.filter(i=>selected.includes(i.id));
   const total=useMemo(()=>picked.reduce((sum,i)=>sum+i.amount,0),[picked]);
@@ -52,22 +53,27 @@ export function MiniPaySomeone({language,preview,seed,onBack,onExisting,onPrepar
     counterparty:ks.trim().toUpperCase(),note:'Proposed payee KSNumber: '+ks.trim().toUpperCase()+'. Recipient must accept the stated purpose and amount before the payer can authorise Money.',
     quantity:'',unit:''});
   return <section className="spm-pay spm-content" aria-label="Pay someone or something">
-    <button type="button" className="spm-back" onClick={back}><ArrowLeft size={17}/>{sw?'Rudi':'Back'}</button>
+    <div className="spm-pay-private-heading"><button type="button" className="spm-back" onClick={back}><ArrowLeft size={17}/>{sw?'Rudi':'Back'}</button>
+      {preview&&['home','detail','group','checkout','records','prepare'].includes(screen)&&
+        <button type="button" className="spm-pay-privacy-control"
+          onClick={()=>setPrivacyRevealed(v=>!v)} aria-label={privacyRevealed?'Hide private payment details':'Show private payment details'}>
+          {privacyRevealed?<EyeOff size={16}/>:<Eye size={16}/>}{privacyRevealed?'Hide':'Show'}</button>}
+    </div>
     {screen==='home'&&<>
-      {header(sw?'Malipo yako':'Your payments',sw?'Lipa mtu au kitu kwa urahisi.':'Take care of what you owe, or pay someone new.')}
+      {header(sw?'Malipo yako':'Your payments',sw?'Lipa mtu au kitu kwa urahisi.':'Your payments, kept private until you choose to see them.')}
       {preview&&<div className="spm-pay-demo-note"><strong>Example payments only</strong><small>Fictional people and amounts. No requests or money are sent.</small></div>}
       {preview&&<>
-        <div className="spm-pay-summary"><span>Ready to pay</span><strong>{money(available.reduce((s,i)=>s+i.amount,0))}</strong><small>{available.length} payments · Other payments coming up</small></div>
-        <div className="spm-pay-tabs" role="group" aria-label="Filter payments">
+        <div className="spm-pay-summary"><span>{privacyRevealed?'Example payments':'Your agreements'}</span><strong>{privacyRevealed?money(available.reduce((s,i)=>s+i.amount,0)):'••••'}</strong><small>{privacyRevealed?`${available.length} example payments ready · Others coming up`:'Private view · Tap Show to see details'}</small></div>
+        {privacyRevealed&&<div className="spm-pay-tabs" role="group" aria-label="Filter payments">
           {(['all','due','upcoming'] as const).map(x=><button key={x} type="button"
             aria-pressed={filter===x} onClick={()=>setFilter(x)}>{x==='all'?'All':x==='due'?'Ready':'Coming up'}</button>)}
-        </div>
+        </div>}
         <div className="spm-pay-items">
           {list.map(i=><button type="button" className="spm-pay-item" key={i.id}
             onClick={()=>{setFocused(i.id);setScreen('detail')}}>
             <span className="spm-pay-avatar"><FileText size={18}/></span>
-            <span className="spm-pay-item-text"><strong>{i.title}</strong><small>{i.payee} · {i.due}</small><small>{i.status==='due'?'Ready to pay':i.status==='needs-check'?'Needs agreement to pay early':'Coming up'}</small></span>
-            <span className="spm-pay-item-value">{money(i.amount)}<ArrowRight size={15}/></span>
+            <span className="spm-pay-item-text"><strong>{privacyRevealed?i.title:'Agreement'}</strong><small>{privacyRevealed?`${i.payee} · ${i.due}`:'Tap to inspect privately'}</small>{privacyRevealed&&<small>{i.status==='due'?'Ready to review':i.status==='needs-check'?'Early payment needs agreement':'Coming up'}</small>}</span>
+            <span className="spm-pay-item-value">{privacyRevealed?money(i.amount):'••••'}<ArrowRight size={15}/></span>
           </button>)}
         </div>
         <button type="button" className="spm-secondary spm-pay-full" onClick={()=>{setSelected(available.map(i=>i.id));setScreen('group')}}>
@@ -122,6 +128,7 @@ export function MiniPaySomeone({language,preview,seed,onBack,onExisting,onPrepar
           <button type="button" className="spm-primary" onClick={()=>onPrepareNew(makeDraft())}>Continue to SecurePay <ArrowRight size={17}/></button></>}
     </>}
     {screen==='detail'&&preview&&<>
+      {!privacyRevealed?<div className="spm-pay-private-cover"><LockKeyhole size={20}/><strong>Private agreement</strong><p>Tap Show to see the amount and purpose.</p><button type="button" className="spm-secondary" onClick={()=>setPrivacyRevealed(true)}>Show details</button></div>:<>
       {header(focusedItem.title,focusedItem.payee)}
       <div className="spm-pay-review"><small>Agreed amount</small><b>{money(focusedItem.amount)}</b>
         <small>For</small><strong>{focusedItem.purpose}</strong>
@@ -131,19 +138,21 @@ export function MiniPaySomeone({language,preview,seed,onBack,onExisting,onPrepar
       focusedItem.status==='upcoming'?<button type="button" className="spm-primary" onClick={()=>{setSelected([focusedItem.id]);setScreen('group')}}>Pay ahead of time <ArrowRight size={17}/></button>:
       <p className="spm-pay-note">The supplier must first agree to early payment. This is not yet payable.</p>}
       <button type="button" className="spm-secondary spm-pay-full" onClick={()=>setScreen('prepare')}><CalendarDays size={17}/>Help me prepare</button>
+      </>}
     </>}
     {screen==='group'&&preview&&<>
       {header('Who would you like to pay?','Choose the people whose payments you want to settle.')}
       <div className="spm-pay-items">
       {EXAMPLES.filter(i=>i.status!=='needs-check').map(i=><label key={i.id} className="spm-pay-choose">
         <input type="checkbox" checked={selected.includes(i.id)} onChange={e=>setSelected(p=>e.target.checked?[...p,i.id]:p.filter(x=>x!==i.id))}/>
-        <span><strong>{i.payee}</strong><small>{i.purpose} · {i.due}</small></span><b>{money(i.amount)}</b>
+        <span><strong>{privacyRevealed?i.payee:'Person'}</strong><small>{privacyRevealed?`${i.purpose} · ${i.due}`:'Private payment'}</small></span><b>{privacyRevealed?money(i.amount):'••••'}</b>
       </label>)}
       </div>
-      <div className="spm-pay-total"><span>{picked.length} selected</span><strong>{money(total)}</strong></div>
+      <div className="spm-pay-total"><span>{privacyRevealed?`${picked.length} selected`:'Selected payments'}</span><strong>{privacyRevealed?money(total):'••••'}</strong></div>
       <p className="spm-pay-note">Each person keeps their own accepted agreement and payment record. One person's failure must never mark the others paid.</p>
-      <button type="button" className="spm-primary" disabled={!picked.length}
-        onClick={()=>setScreen('checkout')}>Review {picked.length} {picked.length===1?'payment':'payments'} <ArrowRight size={17}/></button>
+      {!privacyRevealed&&<p className="spm-pay-note">Show details before you review who receives each payment.</p>}
+      <button type="button" className="spm-primary" disabled={!picked.length||!privacyRevealed}
+        onClick={()=>setScreen('checkout')}>Review payments <ArrowRight size={17}/></button>
     </>}
     {screen==='checkout'&&preview&&<>
       {header('Review your payments','Nothing moves until you authorise it.')}
