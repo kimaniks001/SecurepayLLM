@@ -23,9 +23,9 @@ const header=(title:string,sub:string)=><div className="spm-pay-heading"><h1>{ti
  * Fictional walkthrough is only available on the explicitly guarded Mini
  * playground. Real work goes to the existing first-party Agreement gateway.
  */
-export function MiniPaySomeone({language,preview,seed,onBack,onExisting,onPrepareNew}:{
+export function MiniPaySomeone({language,preview,seed,onBack,onExisting,onPrepareNew,canOpenExisting}:{
   language:MiniLanguage;preview:boolean;seed:string;onBack:()=>void;
-  onExisting:()=>void;onPrepareNew:(draft:MiniDraft)=>void;
+  onExisting:()=>void;onPrepareNew:(draft:MiniDraft)=>void;canOpenExisting:boolean;
 }) {
   const sw=language==='sw';
   const [screen,setScreen]=useState<Screen>('home');
@@ -79,9 +79,9 @@ export function MiniPaySomeone({language,preview,seed,onBack,onExisting,onPrepar
         <Wallet size={24}/>
         <strong>See what you've agreed to pay</strong>
         <p>Your accepted agreements and their latest payment information are kept with your SecurePay account.</p>
-        <button type="button" className="spm-primary" onClick={onExisting}>
+        <button type="button" className="spm-primary" onClick={onExisting} disabled={!canOpenExisting}>
           Open my agreements <ArrowRight size={17}/></button>
-        <small>Only verified server records are shown. A payment is not marked due or paid without confirmation.</small>
+        <small>{canOpenExisting?'Only verified server records are shown. A payment is not marked due or paid without confirmation.':'Your live Agreement connection is unavailable here. No amounts or payment statuses are being guessed.'}</small>
       </div>}
       <button type="button" className="spm-primary spm-pay-full" onClick={()=>setScreen('new')}>
         <Plus size={18}/>Pay someone new <ArrowRight size={17}/>
@@ -153,10 +153,8 @@ export function MiniPaySomeone({language,preview,seed,onBack,onExisting,onPrepar
         <div className="spm-pay-total"><span>Total</span><strong>{money(total)}</strong></div>
       </div>
       <strong>How would you like to pay?</strong>
-      <div className="spm-pay-rails">{[['M-PESA',Smartphone],['PesaLink',HandCoins],['Choice Bank',Landmark]].map(([name,Icon])=>{
-        const Glyph=Icon as typeof Smartphone;return <button key={name as string} type="button" aria-pressed={rail===name}
-          onClick={()=>setRail(name as string)}><Glyph size={17}/>{name as string}{rail===name&&<CheckCircle2 size={16}/>}</button>;
-      })}</div>
+      <div className="spm-pay-rails">{[{name:'M-PESA',icon:Smartphone},{name:'PesaLink',icon:HandCoins},{name:'Choice Bank',icon:Landmark}].map(({name,icon:Glyph})=><button key={name} type="button" aria-pressed={rail===name}
+          onClick={()=>setRail(name)}><Glyph size={17}/>{name}{rail===name&&<CheckCircle2 size={16}/>}</button>)}</div>
       <p className="spm-pay-note"><ShieldCheck size={15}/>Real payment instructions remain disabled here. Providers may require separate approvals for several payments.</p>
       <button type="button" className="spm-primary" onClick={()=>setScreen('records')}>View sample payment records <ArrowRight size={17}/></button>
     </>}
