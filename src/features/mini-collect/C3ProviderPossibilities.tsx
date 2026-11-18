@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { C3ProviderComparison } from './C3ProviderComparison';
 import { ArrowLeft, Banknote, CalendarDays, CircleHelp, Landmark, LockKeyhole, RotateCcw, ShieldCheck, Users } from 'lucide-react';
 import { failureOptions, PAYOUT_RULES, type GovernanceDraft } from './governanceDraft.mjs';
 import securepayMark from '../../assets/brand/securepay/securepay-mark-green.png';
@@ -19,6 +21,7 @@ const PURPOSES: Record<GovernanceDraft['kind'], string> = {
 export function C3ProviderPossibilities({ draft, onBack }: {
   draft: GovernanceDraft; onBack: () => void;
 }) {
+  const [showComparison, setShowComparison] = useState(false);
   const failure = failureOptions(draft.kind).find(x => x.id === draft.failureRule);
   const payout = PAYOUT_RULES.find(x => x.id === draft.payoutRule);
   const target = draft.targetMode === 'fixed'
@@ -43,6 +46,8 @@ export function C3ProviderPossibilities({ draft, onBack }: {
       body: (payout?.label ?? 'The agreed payout authority') +
         '. A successful target is not permission for the bank to pay out automatically.' },
   ];
+
+  if (showComparison) return <C3ProviderComparison onBack={() => setShowComparison(false)} />;
 
   return <div className="min-h-screen bg-[#faf7f0] text-[#244936]" data-mini-collect-c3>
     <header className="border-b border-[#e4e7dc] bg-[#fffefa]/95 px-4 py-3">
@@ -78,8 +83,12 @@ export function C3ProviderPossibilities({ draft, onBack }: {
         <div className="flex items-center gap-2"><ShieldCheck size={19} aria-hidden="true"/><h2 className="text-sm font-semibold">No bank selected yet</h2></div>
         <p className="mt-2 text-sm leading-6 text-[#56705b]">Only institutions with confirmed collection, custody, refund and payout capabilities should be considered. This demonstration has no authenticated Agreement or certified provider to compare, so it cannot responsibly recommend one.</p>
       </div>
+      <button type="button" onClick={() => setShowComparison(true)}
+        className="mt-5 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-[#285d41] px-5 text-sm font-semibold text-white hover:bg-[#1e4b35] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#285d41]">
+        Compare verified financial providers
+      </button>
       <p className="mt-4 text-xs leading-5 text-[#6b786e]">Preview only. No collection, SecureLink, account, bank service, refund or Money instruction has been created.</p>
-      <button type="button" onClick={onBack} className="mt-5 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-[#285d41] px-5 text-sm font-semibold text-white hover:bg-[#1e4b35] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#285d41]">Return to my agreed rules</button>
+      <button type="button" onClick={onBack} className="mt-3 inline-flex min-h-12 w-full items-center justify-center rounded-xl border border-[#d4e0d2] bg-white px-5 text-sm font-semibold text-[#285d41] hover:bg-[#edf3e9]">Return to my agreed rules</button>
     </main>
     <footer className="mx-auto max-w-xl px-4 pb-6 text-center text-xs text-[#708074]">Agreement before Money · Your bank must support your rules</footer>
   </div>;
