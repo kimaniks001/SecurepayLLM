@@ -49,7 +49,7 @@ export function MiniPaySomeone({language,preview,seed,onBack,onExisting,onPrepar
     else setScreen('home');
   };
   const makeDraft=():MiniDraft=>({intent:'pay',description:purpose.trim(),amount:amount.trim(),
-    counterparty:ks.trim().toUpperCase(),note:'Recipient must accept the stated purpose and amount before the payer can authorise Money.',
+    counterparty:ks.trim().toUpperCase(),note:'Proposed payee KSNumber: '+ks.trim().toUpperCase()+'. Recipient must accept the stated purpose and amount before the payer can authorise Money.',
     quantity:'',unit:''});
   return <section className="spm-pay spm-content" aria-label="Pay someone or something">
     <button type="button" className="spm-back" onClick={back}><ArrowLeft size={17}/>{sw?'Rudi':'Back'}</button>
