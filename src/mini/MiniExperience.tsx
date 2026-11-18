@@ -13,7 +13,7 @@ import { MiniFirstPartyKs001 } from './MiniFirstPartyKs001';
 import { MiniProudlyKeMark } from './MiniProudlyKeMark';
 import { MiniBusinessCapacity, type MiniPreviewCapacity } from './MiniBusinessCapacity';
 import { MiniBusinessSettings } from './MiniBusinessSettings';
-import {copyDemo} from './MiniBusinessDemoModel';
+import {copyDemo,type BusinessDemo} from './MiniBusinessDemoModel';
 import { getMiniFirstPartyOrigin } from './miniFirstPartyConfig';
 import { isMiniExperiencePreviewHost } from './miniInteractiveDemo';
 import { createMiniTradingSampleStore } from './miniTradePlayground';
@@ -105,10 +105,20 @@ function readSavedMiniDraft(): MiniDraft | null {
   }
 }
 
+// A customer Mini session starts with NO invented Stores, Agreements or Money records.
+// Fixtures exist only in the separately enabled engineering playground build.
+const EMPTY_DEMO_BUSINESS:BusinessDemo = {
+  name:'',place:'',summary:'',guideWelcome:'',offers:[],enquiries:[],agreements:[],
+  team:[],invoices:[],networks:{mini:false,estate:false,shortstays:false},
+  directory:false,guideEnabled:false,etimsWanted:false,planWanted:false,
+  activity:[],sequence:0,
+};
+
 export function MiniExperience() {
   const [lang, setLang] = useState<MiniLanguage>('en');
   const [previewCapacity, setPreviewCapacity] = useState<MiniPreviewCapacity>('personal');
-  const [demoBusiness,setDemoBusiness] = useState(copyDemo);
+  const [demoBusiness,setDemoBusiness] = useState<BusinessDemo>(()=>
+    __SECUREPAY_MINI_OWNER_FIXTURES__ ? copyDemo() : EMPTY_DEMO_BUSINESS);
   const [settingsEntry,setSettingsEntry] = useState<'store'|null>(null);
   const [sellerSettingsReturn,setSellerSettingsReturn] = useState(false);
   const [payExistingRequested,setPayExistingRequested] = useState(false);
@@ -163,7 +173,9 @@ export function MiniExperience() {
   const [samplePurchases,setSamplePurchases]=useState<MiniSamplePurchase[]>(()=>
     playground&&typeof window!=='undefined'?readMiniSamplePurchases(window.sessionStorage):[]);
   const [sampleFocus,setSampleFocus]=useState<string|null>(null);
-  const sampleStoreGateway = useMemo(()=>createMiniTradingSampleStore(demoBusiness),[demoBusiness]);
+  const sampleStoreGateway = useMemo(()=>
+    __SECUREPAY_MINI_OWNER_FIXTURES__ ? createMiniTradingSampleStore(demoBusiness) : undefined,
+    [demoBusiness]);
   const storeOfferSession = urlParams?.get('storeOfferSession') ?? null;
   const checkoutSession = urlParams?.get('checkoutSession') ?? null;
 
