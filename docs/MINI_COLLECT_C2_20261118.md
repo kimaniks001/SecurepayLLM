@@ -119,3 +119,27 @@ It always returns `activationAllowed=false`, even on a technical match.
 provider shortlist/choice, actual collection-specific custody mandates,
 refund horizon, C6/C7 financial execution and C8 provider/security/database
 certification. No provider is certified by the preview.
+
+## C3C — genuine provider comparison, no fictional bank list
+
+The Mini C3 requirement step now opens `C3ProviderComparison.tsx`.
+It accepts **only** a future authenticated C3C server shortlist; it has no
+synthetic providers, mock bank branding, claimed LIVE features or invented prices.
+The current preview shows *No verified provider to recommend yet*, because
+the C3B independent document-vault/sandbox verifier remains uncertified and
+the preview has no real authenticated collection to compare.
+
+For future verified options, Mini displays KES contribution/refund/payout
+fixed and percentage-based tariffs, fee bearer, maximum amount/holding time,
+legal institution name, limits and the explicit warning that **the overall
+price depends on real usage**. A "Propose this provider for our Agreement"
+action appears only when an authenticated higher-level integration explicitly
+provides `onPropose`. The preview deliberately does not do so and makes no
+network call, Agreement, bank selection or Money action.
+
+Backend C3C is in SecurePayAPI's dependent review branch
+`feat/mini-collect-c3c-provider-discovery-selection-20261118` after
+C3B PR #496. A real organizer can read independently VERIFIED, version-bound
+candidate profiles, confirm an exact reviewed fee quote and record an
+immutable **PROPOSED**, idempotent choice. It is not signed participant
+consent or a live bank instruction. Future C3D/C6/C7/C8 gates remain.
