@@ -174,7 +174,8 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
   // An expired, replaced or signed-out session must never carry another
   // person's seller offer or selected Business authority into sign-in.
   useEffect(()=>{
-    if(!signedIn){setSellerOfferContext(null);setSaverPlugOpen(false);}
+    if(!signedIn){setSellerOfferContext(null);}
+    if(!signedIn){setSaverPlugOpen(false);}
   },[signedIn]);
   const [ownedOpen,setOwnedOpen] = useState(false);
   const [ownedStatus,setOwnedStatus] = useState<'idle'|'loading'|'ready'|'error'>('idle');
