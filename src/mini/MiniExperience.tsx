@@ -572,7 +572,7 @@ export function MiniExperience() {
               startInStore={verifiedStoreRequested}
               startInPayments={payExistingRequested}
               initialBuyingPlan={buyingPlanForHelp}
-              onBack={() => {setVerifiedStoreRequested(false);setPayExistingRequested(false);setScreen(payExistingRequested ? 'pay-home' : buyingPlanForHelp ? 'buy' : discussDraft ? 'pay-home' : 'home');setBuyingPlanForHelp(null);}}/>
+              onBack={() => {setVerifiedStoreRequested(false);setPayExistingRequested(false);setScreen(payExistingRequested ? 'pay-home' : buyingPlanForHelp ? 'buy' : discussDraft?.intent==='pay' ? 'pay-home' : discussDraft ? 'review' : 'home');setBuyingPlanForHelp(null);}}/>
           : <MiniGuestChat draft={discussDraft} language={lang}
               onBack={() => setScreen(discussDraft ? 'review' : 'home')}/>)} 
         </>}
