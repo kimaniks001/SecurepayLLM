@@ -115,7 +115,7 @@ export function MiniExperience() {
   const [verifiedStoreRequested,setVerifiedStoreRequested] = useState(false);
   const t = words[lang];
   const [screen, setScreen] = useState<View>(() => {
-    if (typeof window === 'undefined' || !isMiniExperiencePreviewHost(window.location.hostname)) return 'home';
+    if (!__SECUREPAY_MINI_OWNER_FIXTURES__ || typeof window === 'undefined' || !isMiniExperiencePreviewHost(window.location.hostname)) return 'home';
     const qs = new URLSearchParams(window.location.search);
     if (!(qs.get('miniTradeDemo')==='1')) return 'home';
     if (qs.get('communitySaverPreview')==='1') return 'community-saver-preview';
@@ -153,9 +153,11 @@ export function MiniExperience() {
   // Explicitly opt-in visual review only. Ordinary /mini.html remains unchanged.
   // This only activates on a known isolated owner preview host AND explicit opt-in.
   // No sample catalogue or fake payment path is enabled on securepay.ke.
-  const playground = urlParams?.get('miniTradeDemo') === '1' &&
+  const playground = __SECUREPAY_MINI_OWNER_FIXTURES__ && urlParams?.get('miniTradeDemo') === '1' &&
     typeof window !== 'undefined' && isMiniExperiencePreviewHost(window.location.hostname);
-  const businessDemo = playground || urlParams?.get('miniBusinessPreview') === '1';
+  const businessDemo = playground || (__SECUREPAY_MINI_OWNER_FIXTURES__ &&
+    typeof window !== 'undefined' && isMiniExperiencePreviewHost(window.location.hostname) &&
+    urlParams?.get('miniBusinessPreview') === '1');
   const fairTradeShowcase=playground&&urlParams?.get('fairTradePreview')==='1';
   const agreementActionsShowcase=playground&&urlParams?.get('agreementActionsPreview')==='1';
   const [samplePurchases,setSamplePurchases]=useState<MiniSamplePurchase[]>(()=>
