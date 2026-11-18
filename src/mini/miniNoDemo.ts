@@ -32,3 +32,8 @@ export const miniDemoSampleLabels={amina:'',njeri:''} as const;
 export function miniDemoReset():void{
   fixturesUnavailable();
 }
+
+export function miniDemoTokenMatches(_token:string|null,_actor:'amina'|'njeri'):boolean{
+  return false;
+}
+export const miniDemoDisclaimer = '';
