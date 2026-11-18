@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { newGovernanceDraft, withGovernanceAnswer, failureOptions } from '../src/features/mini-collect/governanceDraft.mjs';
-import { prepareCollectionGovernanceSubmission } from '../src/features/mini-collect/governanceSubmission.mjs';
+import { prepareCollectionGovernanceSubmission, prepareCollectionAgreementFormation } from '../src/features/mini-collect/governanceSubmission.mjs';
 
 const agreementId = '1b53156f-53ce-4c52-8750-aed96d88f3e5';
 const groupSecureLinkId = 'abc920df-86a1-4573-a124-0a72ed10f2f0';
@@ -64,6 +64,24 @@ test('C2 handoff rejects target mismatch, false precision and wrong display dead
 test('C2 handoff cannot make an unanswered draft appear approved', () => {
   assert.throws(() => submit(newGovernanceDraft('buy')), /Unanswered collection rules/);
   assert.throws(() => prepareCollectionGovernanceSubmission(draft(),context,''), /Stable request key/);
+});
+test('C2 initial Agreement formation includes exactly the same C2 terms as subsequent group draft', () => {
+  const c = { ...context, title: 'Solar light collection', purpose: 'Purchase 1 item' };
+  const formed = prepareCollectionAgreementFormation(draft(), c, 'formation-key-1');
+  const subsequent = prepareCollectionGovernanceSubmission(draft(), c, 'draft-key-1');
+  assert.equal(formed.agreementType, 'COLLECTION');
+  assert.equal(formed.saveAsDraft, true);
+  assert.equal(formed.currency, 'KES');
+  assert.equal(formed.proposedAmountMinor, 3_000_000);
+  assert.deepEqual(formed.collectionGovernanceTerms, subsequent.body.terms);
+  assert.ok(!('agreementId' in formed));
+  assert.ok(!('paymentReady' in formed));
+});
+test('C2 initial formation refuses missing purpose, unverifiable schedule or amount mismatch', () => {
+  const c = { ...context, title: 'A collection', purpose: 'An item' };
+  assert.throws(() => prepareCollectionAgreementFormation(draft(), { ...c, purpose: '' }, 'formation-key-2'), /clear title and purpose/);
+  assert.throws(() => prepareCollectionAgreementFormation(draft(), { ...c, targetAmountMinor: 2 }, 'formation-key-2'), /Target amount does not match/);
+  assert.throws(() => prepareCollectionAgreementFormation(draft(), { ...c, timeZone: null }, 'formation-key-2'), /time zone required/);
 });
 test('C2 adapter never sends, stores or activates a collection', () => {
   const src = readFileSync(new URL('../src/features/mini-collect/governanceSubmission.mjs', import.meta.url),'utf8');
