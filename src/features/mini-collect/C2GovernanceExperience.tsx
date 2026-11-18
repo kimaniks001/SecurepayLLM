@@ -7,6 +7,7 @@ import {
   type CollectionKind, type GovernanceDraft, type AnswerOption,
 } from './governanceDraft.mjs';
 import securepayMark from '../../assets/brand/securepay/securepay-mark-green.png';
+import { C3ProviderPossibilities } from './C3ProviderPossibilities';
 
 type Stage = 'capacity' | 'people' | 'target' | 'end' | 'failure' | 'control' | 'review';
 const STAGES: readonly Stage[] = ['capacity', 'people', 'target', 'end', 'failure', 'control', 'review'];
@@ -48,6 +49,7 @@ function OptionPills({ options, value, onChoose, ariaLabel }: {
 export function C2GovernanceExperience({ kind, onBack }: {kind: CollectionKind; onBack: () => void}) {
   const [draft, setDraft] = useState<GovernanceDraft>(() => newGovernanceDraft(kind));
   const [stage, setStage] = useState<Stage>('capacity');
+  const [providerExplorationOpen, setProviderExplorationOpen] = useState(false);
   const todayIso = localTodayISO();
   const assessment = assessGovernanceDraft(draft, todayIso);
   const stepIndex = STAGES.indexOf(stage);
@@ -69,6 +71,8 @@ export function C2GovernanceExperience({ kind, onBack }: {kind: CollectionKind; 
   })();
   const next = () => { if (validCurrent && stepIndex < STAGES.length - 1) setStage(STAGES[stepIndex + 1]); };
   const back = () => { if (stepIndex === 0) onBack(); else setStage(STAGES[stepIndex - 1]); };
+
+  if (providerExplorationOpen) return <C3ProviderPossibilities draft={draft} onBack={() => setProviderExplorationOpen(false)} />;
 
   return (
     <div className="min-h-screen bg-[#faf7f0] text-[#244936]" data-mini-collect-c2>
@@ -204,7 +208,11 @@ export function C2GovernanceExperience({ kind, onBack }: {kind: CollectionKind; 
             </ul>
           </div>
           <p className="mt-4 text-xs leading-5 text-[#66776a]">C2 preview only. No bank selected, no binding Agreement or SecureLink created, no collection started and no money moved.</p>
-          <button type="button" onClick={() => setStage('capacity')} className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#285d41] px-5 text-sm font-semibold text-white hover:bg-[#1e4b35] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#285d41]">
+          <button type="button" disabled={!assessment.draftComplete} onClick={() => setProviderExplorationOpen(true)}
+            className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#285d41] px-5 text-sm font-semibold text-white hover:bg-[#1e4b35] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#285d41] disabled:cursor-not-allowed disabled:bg-[#abb8ac]">
+            See what my bank must support <ArrowRight size={18} aria-hidden="true"/>
+          </button>
+          <button type="button" onClick={() => setStage('capacity')} className="mt-2 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#285d41] px-5 text-sm font-semibold text-white hover:bg-[#1e4b35] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#285d41]">
             Review or change my rules <ArrowLeft size={17} aria-hidden="true"/>
           </button>
           <button type="button" onClick={onBack} className="mt-2 min-h-11 w-full rounded-xl text-sm font-semibold text-[#38664a] hover:bg-[#edf1e9]">Return to my collection idea</button>
