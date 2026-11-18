@@ -22,6 +22,8 @@ import { createStoreGateway } from '../api/securepay/store';
 import { createStoreQuotationGateway } from '../api/securepay/store-quotations';
 import { createMeasuredServicesGateway } from '../api/securepay/measured-services';
 import { createMoneySnapshotGateway } from '../api/securepay/money-snapshot';
+import {createPersonalPaymentResponsibilitiesGateway} from '../api/securepay/personal-payments';
+import {MiniPersonalPaymentResponsibilities} from './MiniPersonalPaymentResponsibilities';
 import { createPaymentIntentGateway } from '../api/securepay/payment-intent';
 import { m5QuotationExperienceEnabled } from '../config/securepay';
 import { createNotificationsGateway } from '../api/securepay/notifications';
@@ -101,6 +103,12 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
   const quotations=useMemo(()=>createStoreQuotationGateway(http),[http]);
   const measured=useMemo(()=>createMeasuredServicesGateway(http),[http]);
   const canonicalMoney=useMemo(()=>createMoneySnapshotGateway(http),[http]);
+  const personalResponsibilities=useMemo(()=>createPersonalPaymentResponsibilitiesGateway(http),[http]);
+  // Deliberate deployment pairing: enabled only for a matched, trusted staging API.
+  // This GET is NOT a payment-authority endpoint and is NEVER enabled by URL query.
+  const payResponsibilityRead=!demo&&
+    import.meta.env.VITE_SECUREPAY_MINI_PAY_RESPONSIBILITIES_READ==='enabled';
+  const [personalReadFallback,setPersonalReadFallback]=useState(false);
   const paymentHistory=useMemo(()=>createPaymentIntentGateway(http),[http]);
   const notifications=useMemo(()=>createNotificationsGateway(http),[http]);
   const businesses=useMemo(()=>createBusinessGateway(http),[http]);
@@ -645,7 +653,12 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
     {status==='ready' && !identityOpen && peopleOpen==='creator' &&
       <MiniCreatorInvitations gateway={agreements}
         onBack={()=>setPeopleOpen(null)}/>}
+    {status==='ready' && !identityOpen && agreementsOpen && startInPayments && payResponsibilityRead && !personalReadFallback &&
+      <MiniPersonalPaymentResponsibilities gateway={personalResponsibilities}
+        prepare={()=>ensureFreshSession(session,auth)}
+        onBack={onBack} onViewAgreements={()=>setPersonalReadFallback(true)}/>}
     {status==='ready' && !identityOpen && agreementsOpen &&
+      !(startInPayments && payResponsibilityRead && !personalReadFallback) &&
       <MiniMyAgreements gateway={agreements} paymentFocus={startInPayments&&!demo}
         quotationGateway={quotations} notificationGateway={notifications}
         measuredGateway={measured} liveQuotes={liveQuotes}

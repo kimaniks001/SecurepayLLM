@@ -51,3 +51,19 @@
 .spm-pay-rails button[aria-pressed=true]{border:2px solid #3e7854;background:#f4f9f2}
 .spm-pay-rails button svg:last-child:not(:first-child){margin-left:auto}
 @media(max-width:350px){.spm-pay-item-value{font-size:10px}.spm-pay-heading h1{font-size:23px}.spm-pay-choose b{font-size:10px}}
+
+.spm-pay-private-heading{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.spm-pay-privacy-control{display:flex;align-items:center;gap:6px;min-height:39px;white-space:nowrap;background:#f6f8f4;color:#315b40;border:1px solid #dbe5da;padding:8px 12px;border-radius:999px;font-size:11px;font-weight:650}
+.spm-pay-private-cover{display:grid;justify-items:center;gap:10px;min-height:160px;padding:21px 16px;border:1px solid #dfe7dc;border-radius:15px;background:#f8faf4;text-align:center;color:#466b50}
+.spm-pay-private-cover strong{font-size:13px}
+.spm-pay-private-cover p{font-size:11px;line-height:1.55;color:#647765;margin:0}
+.spm-pay-private-cover .spm-secondary{justify-content:center}
+
+/* Easy to identify first, sensitive financial details only when opened. */
+.spm-pay-search{display:flex;align-items:center;gap:10px;min-height:46px;width:100%;border:1px solid #d9e3d8;border-radius:12px;background:#fffdfa;padding:0 13px;color:#6d8271}
+.spm-pay-search:focus-within{outline:2px solid #80a58a;outline-offset:1px}
+.spm-pay-search input{background:transparent;flex:1;min-width:0;height:44px;border:0;outline:0;font-size:13px;color:#274c35}
+.spm-pay-search input:focus-visible{outline:0}
+.spm-pay-search input::placeholder{color:#7f8f80}
+.spm-pay-items .spm-pay-item-value>svg:first-child{color:#8a9b8a}
+.spm-pay-privacy-control{font-size:11px}

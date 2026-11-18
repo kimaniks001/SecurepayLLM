@@ -7,4 +7,5 @@ interface ImportMetaEnv {
   readonly VITE_SECUREPAY_M6_MONEY_STATUS?: 'enabled' | 'disabled';
   readonly VITE_SECUREPAY_M6_FEE_QUOTES?: 'enabled' | 'disabled';
   readonly VITE_SECUREPAY_M6_PAYMENT_SUBMISSION?: 'enabled' | 'disabled';
+  readonly VITE_SECUREPAY_MINI_PAY_RESPONSIBILITIES_READ?: 'enabled' | 'disabled';
 }
