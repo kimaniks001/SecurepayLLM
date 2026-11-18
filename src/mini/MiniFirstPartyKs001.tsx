@@ -11,6 +11,7 @@ import { createBusinessGateway } from '../api/securepay/business';
 import { createAuthorizationGateway } from '../api/securepay/authorization';
 import { createSubscriptionGateway } from '../api/securepay/subscription';
 import {createMiniBusinessPreferencesGateway} from '../api/securepay/mini-business-preferences';
+import {createMiniTradeMemoryGateway} from '../api/securepay/mini-trade-memory';
 import { MiniSellerStore } from './MiniSellerStore';
 import { MiniSellSomething } from './MiniSellSomething';
 import { createStoreGateway } from '../api/securepay/store';
@@ -100,6 +101,11 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
   const authorizations=useMemo(()=>createAuthorizationGateway(http),[http]);
   const subscriptions=useMemo(()=>createSubscriptionGateway(http),[http]);
   const businessPreferences=useMemo(()=>createMiniBusinessPreferencesGateway(http),[http]);
+  const tradeMemory=useMemo(()=>createMiniTradeMemoryGateway(http),[http]);
+  // Phase 6 private persistence is available only on an explicitly prepared,
+  // isolated API with the matching Flyway migration. Never enabled by demo URL.
+  const liveTradeMemory=!demo &&
+    import.meta.env.VITE_SECUREPAY_MINI_PHASE6_PRIVATE_MEMORY==='enabled';
   // NO real seller/buyer quote requests just because someone opened Mini.
   // Enabled only in isolated stage when the matching M5 API branch is present.
   const liveQuotes=!demo &&
@@ -646,6 +652,8 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
         onOpenSettings={()=>setSellerOfferContext(null)}
         onBrowseStores={()=>{setSellerOfferContext(null);setSellerOpen(false);setStoreOpen(true);}}
         storeGateway={stores} sellerContext={sellerOfferContext}
+        memoryGateway={sellerOfferContext.type==='personal'&&liveTradeMemory?
+          tradeMemory:undefined}
         // A Business Store administrator is NOT automatically authorized to
         // bind that Business to a personal KS001 Agreement.
         agreementGateway={sellerOfferContext.type==='personal'?agreements:undefined}

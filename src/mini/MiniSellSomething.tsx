@@ -15,6 +15,10 @@ import { miniSellerPublishTextOnly } from './miniSellerPublishTextOnly.mjs';
 import { miniSellerKs001Statement } from './miniSellerKs001Statement.mjs';
 import { MiniSellSecureLinkWalkthrough } from './MiniSellSecureLinkWalkthrough';
 import { MiniSellerShareOptions } from './MiniSellerShareOptions';
+import { MiniSellerTradeAgain } from './MiniSellerTradeAgain';
+import { MiniSellerRelationships } from './MiniSellerRelationships';
+import { MiniSellerSaveTemplate } from './MiniSellerSaveTemplate';
+import type {MiniTradeMemoryGateway} from '../api/securepay/mini-trade-memory';
 import { miniSellerIssueAgreementDoorway } from './miniSellerSecureLinkDoorway.mjs';
 import { miniSellerBeginAgreementHandoff, miniSellerReviewAgreementHandoff,
   miniSellerCreateReviewedAgreement, miniSellerProposeAgreement } from './miniSellerAgreementHandoff.mjs';
@@ -77,13 +81,14 @@ function writeDescription(input:{
  * Identity, Agreement, media-provenance, invitation, SecureLink or Money writes.
  * Local declaration is not verification; local output is not a canonical offer.
  */
-export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,onBrowseStores,actingAs,seed='',storeGateway,sellerContext,agreementGateway,handoffGateway,sellerSavedSource,onPrepareInKs001,previewSecureLinkJourney=false}:{
+export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,onBrowseStores,actingAs,seed='',storeGateway,sellerContext,agreementGateway,handoffGateway,memoryGateway,sellerSavedSource,onPrepareInKs001,previewSecureLinkJourney=false}:{
   language:MiniLanguage;onBack:()=>void;onOpenStore:()=>void;onOpenSettings:()=>void;
   onBrowseStores:()=>void;actingAs:string;seed?:string;
   storeGateway?:StoreGateway;
   sellerContext?:{type:'personal'}|{type:'business';businessKsNumber:string};
-  agreementGateway?:Pick<AgreementGateway,'activeDoorway'|'issuePublicDoorway'|'detail'|'proposeReviewed'>;
+  agreementGateway?:Pick<AgreementGateway,'activeDoorway'|'issuePublicDoorway'|'detail'|'proposeReviewed'|'currentUserAgreements'>;
   handoffGateway?:MiniSellerHandoffGateway;
+  memoryGateway?:MiniTradeMemoryGateway;
   /** Trusted saved KS001 conversation context, never a local Mini draft ID. */
   sellerSavedSource?:{conversationId:string;reviewedTradeContextVersion:number};
   /** Deliberate user-authored turn in an actual authenticated KS001 conversation. */
@@ -163,6 +168,7 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
     id:string;status:'PROPOSED';version:AgreementVersionSummaryResponse
   }|null>(null);
   const [ksHelp,setKsHelp]=useState(false);
+  const [tradeAgainNotice,setTradeAgainNotice]=useState('');
   const photoRef=useRef<HTMLInputElement>(null);
   const docRef=useRef<HTMLInputElement>(null);
   const [photoCount,setPhotoCount]=useState(0);
@@ -501,6 +507,35 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
       setError('');setShelf(null);setToolsOpen(false);
     }catch{setSavedDraftAvailable(false);setError('This tab could not restore that offer.');}
   };
+  // Phase 6A: use only a newly verified title as a suggestion, never an old
+  // Agreement's promises, buyer, price, invitation, acceptance or payment.
+  // Reset every mutable draft and canonical-handoff state before starting.
+  const startFreshFromPreviousTrade=(priorTitle:string,terms='',timingProposal='')=>{
+    setTitle(priorTitle);setCategory('Goods');setPriceType('fixed');setPrice('');
+    setQuantity('');setUnit('each');setCondition('');setSpecifications('');
+    setPurpose('');setIncluded('');setLimitations('');setWarranty('');
+    setDescription(terms);setDescriptionReviewed(false);
+    setPictures([]);setDocuments([]);setDocPurpose('Product specification');
+    setPlaceType('Pickup');setPlace('');setPrivateMeeting('');
+    setTiming(timingProposal);setTimingDraft(freshTiming());
+    setPeople([]);setPersonName('');setPersonRole('Buyer');
+    setPersonPlan(null);setShowPersonEntry(false);setPeopleHint(false);
+    setRightToOffer(false);setRightType('Owner');setStockStatement('');
+    setAuthorityUncertain(false);setPhotoUncertain(false);
+    setResult(null);setStage('compose');setSellerArea('offer');
+    setToolsOpen(false);setShelf(null);setShowMorePills(false);
+    setReturningToReview(false);setKsHelp(false);setError('');
+    setCanonicalOfferId(null);setSavedStoreRevision(null);
+    setStoreSnapshotSignature(null);setStorePublished(false);
+    setCanonicalStoreStatus('');setStoreCreating(false);setStorePublishing(false);
+    setShareIssued(false);setShareUrl(null);setShareStatus('');
+    shareKey.current=null;handoffKey.current=null;
+    setTrustedSellerSource(null);setSourceSignature(null);setSourceSaving(false);
+    setServerReview(null);setReviewedOfferSignature(null);
+    setReviewAcknowledged(false);setRealDraftAgreement(null);
+    setProposedAgreement(null);setHandoffMessage('');setHandoffBusy(false);
+    setTradeAgainNotice('New offer prepared. Any reused wording or repeat dates are proposals only. Check your right to sell, price, availability and every term again.');
+  };
   const sample=()=>{
     setTitle('20 bags of dairy meal animal feed');setCategory('Agriculture');
     setPrice('2500');setPriceType('fixed');setQuantity('20');setUnit('bags');
@@ -534,7 +569,25 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
       <button type="button" className="spm-sell-phase1-link" onClick={onBrowseStores}>
         <ShoppingBag size={19}/><span><strong>Find a Store to trade with</strong><small>Review the current public offer before preparing terms.</small></span><ChevronRight size={17}/>
       </button>
-      <p className="spm-sell-hint">Trade-again shortcuts and saved contract templates will connect in Phase 6. No SecureLink, Agreement or payment is created here.</p>
+      {previewSecureLinkJourney&&<div className="spm-sell-clarification-help" data-mini-phase6-demo="quick">
+        <small>Phase 6 owner walkthrough · fictional example, not your account</small>
+        <strong>Try trading again</strong>
+        <p>Choose a familiar offer. Mini starts a new one and asks for today's terms.</p>
+        <div className="spm-sell-pill-row">
+          <AnswerPill onClick={()=>startFreshFromPreviousTrade('20 bags of dairy meal')}>
+            Repeat a goods offer
+          </AnswerPill>
+          <AnswerPill onClick={()=>startFreshFromPreviousTrade('Weekly compound maintenance',
+            'Mow lawns, tidy edges and take away the cut grass.',
+            'Proposed repeat arrangement: Weekly. Each occurrence requires a fresh agreement. No automatic renewal, performance, invoice or payment.')}>
+            Try a weekly service
+          </AnswerPill>
+        </div>
+        <p className="spm-sell-hint">Both are only new local examples. No old buyer,
+          amount, stock, accepted Agreement or SecureLink is reused.</p>
+      </div>}
+      <MiniSellerTradeAgain gateway={agreementGateway} onStart={startFreshFromPreviousTrade}/>
+      <p className="spm-sell-hint">A past trade is only a reference. A new Agreement needs its own independent review and the other person's confirmation. No SecureLink, Agreement or payment is created here.</p>
     </div>}
     {stage==='compose'&&sellerArea==='relationships'&&<div className="spm-sell-phase1-destination" data-seller-phase1="relationships">
       <div className="spm-sell-phase1-symbol"><Heart size={25}/></div>
@@ -547,11 +600,43 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
       <button type="button" className="spm-sell-phase1-link" onClick={()=>{setSellerArea('offer');setToolsOpen(true);setShelf('people');}}>
         <UsersRound size={19}/><span><strong>Prepare an offer for someone</strong><small>Use People & Invitations to name the other party.</small></span><ChevronRight size={17}/>
       </button>
-      <p className="spm-sell-hint">Private, account-linked favourites and Trade again belong to Phase 6. No contacts are copied from your device.</p>
+      {previewSecureLinkJourney&&<div className="spm-sell-clarification-help" data-mini-phase6-demo="favourites">
+        <small>Phase 6 owner walkthrough · sample names only</small>
+        <strong>What saved trading relationships could feel like</strong>
+        <div className="spm-sell-data-row">
+          <Heart size={16}/><span><strong>Earlier customer · sample</strong>
+            <small>Private favourite, not a contact invitation</small></span>
+          <button type="button" onClick={()=>startFreshFromPreviousTrade('Water tank repair')}>
+            Trade again <ArrowRight size={15}/>
+          </button>
+        </div>
+        <div className="spm-sell-data-row">
+          <ShoppingBag size={16}/><span><strong>Farm supply shop · sample</strong>
+            <small>Favourite Store, not live inventory</small></span>
+          <button type="button" onClick={onBrowseStores}>
+            Browse Stores <ArrowRight size={15}/>
+          </button>
+        </div>
+        <div className="spm-sell-data-row">
+          <Bookmark size={16}/><span><strong>Monthly garden work · sample</strong>
+            <small>Reusable wording and proposed monthly rhythm</small></span>
+          <button type="button" onClick={()=>startFreshFromPreviousTrade('Monthly garden maintenance',
+            'Cut, weed and tidy the garden; confirm scope and availability for each visit.',
+            'Proposed repeat arrangement: Monthly. Each occurrence requires a fresh agreement. No automatic renewal, performance, invoice or payment.')}>
+            Use terms <ArrowRight size={15}/>
+          </button>
+        </div>
+        <p className="spm-sell-hint">These are fictional examples only. Nothing is stored,
+          verified, shared with a community or scheduled.</p>
+      </div>}
+      <MiniSellerRelationships memory={memoryGateway} agreements={agreementGateway}
+        stores={storeGateway} onStart={startFreshFromPreviousTrade}/>
+      <p className="spm-sell-hint">Nothing is shared with a community or copied from your device contacts.</p>
     </div>}
     {stage==='compose'&&sellerArea==='offer'&&<>
       <div className="spm-sell-phase1-capacity"><span>Acting as <strong>{actingAs}</strong></span><small>Example only · authority not verified</small></div>
       <h1 className="spm-question">{sw?'Unauza nini?':'What are you selling?'}</h1>
+      {tradeAgainNotice&&<p className="spm-sell-hint" role="status">{tradeAgainNotice}</p>}
       <p className="spm-lead">Tell Mini a little. Add pictures or details only when they help you make a better offer.</p>
       {savedDraftAvailable&&<button type="button" className="spm-sell-resume" onClick={restoreSavedOffer}>
         <Bookmark size={16}/><span><strong>Continue a saved offer</strong><small>Written details only · in this browser tab</small></span><ChevronRight size={16}/>
@@ -971,6 +1056,9 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
         <button type="button" onClick={()=>finish('save')}>
           <span><Bookmark size={19}/></span><span><strong>Save for later</strong><small>Keep seller-written text in this tab; attachments, people and private meeting details won't be saved.</small></span><ChevronRight size={17}/></button>
       </div>
+      {canOffer&&prepared.ok&&<MiniSellerSaveTemplate
+        key={offerSignature} gateway={memoryGateway}
+        title={title} terms={descriptionReviewed?description:''}/>}
       {!canOffer&&<p className="spm-sell-hint">Sharing and store publishing remain unavailable until the concerns above are resolved. You can always save a draft.</p>}
       <button type="button" className="spm-quiet-button" onClick={()=>{setKsHelp(x=>!x);}}><MessageCircle size={16}/>How can KS001 help?</button>
       {ksHelp&&<p className="spm-sell-hint">KS001 can later help interpret documents, clarify seller rights and improve the offer. It has not examined or verified this sample yet.</p>}
