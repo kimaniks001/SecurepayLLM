@@ -21,6 +21,9 @@ export default defineConfig({
         if(!ownerFixtureBuild && /(?:^|[/\\])miniInteractiveDemo(?:\.ts)?$/.test(id)) {
           return fileURLToPath(new URL('./src/mini/miniNoDemo.ts', import.meta.url));
         }
+        if(!ownerFixtureBuild && /(?:^|[/\\])MiniOwnerMoneyTest(?:\.tsx)?$/.test(id)) {
+          return fileURLToPath(new URL('./src/mini/MiniOwnerMoneyDisabled.tsx', import.meta.url));
+        }
         return null;
       },
     },
