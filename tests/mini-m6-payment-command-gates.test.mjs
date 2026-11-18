@@ -23,7 +23,9 @@ test('financial commands have a THIRD independent release switch and preview-hos
     assert.match(env,new RegExp(key+'=disabled'));
     assert.ok(config.includes(key));
   }
-  assert.match(home,/paymentCommandsEnabled=\{livePaymentCommands\}/);
+  assert.match(home,/paymentCommandsEnabled=\{!paymentFocus&&livePaymentCommands\}/);
+  assert.match(home,/quoteReviewEnabled=\{!paymentFocus&&liveFeeQuotes\}/);
+  assert.match(first,/paymentFocus=\{startInPayments&&!demo\}/);
   assert.match(money,/paymentCommandsEnabled&&quote&&quote\.economicState==='READY'/);
   assert.match(money,/historyState==='ready'/);
 });
