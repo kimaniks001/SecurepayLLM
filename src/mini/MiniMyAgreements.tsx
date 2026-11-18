@@ -10,6 +10,8 @@ import type { MoneySnapshotGateway } from '../api/securepay/money-snapshot';
 import type { PaymentIntentGateway } from '../api/securepay/payment-intent';
 import { MiniMoneySnapshot } from './MiniMoneySnapshot';
 import { MiniCommunitySaverItemCheck } from './MiniCommunitySaverItemCheck';
+import { MiniCommunitySaverPreparation } from './MiniCommunitySaverPreparation';
+import type {CommunitySaverPreparationGateway} from '../api/securepay/community-saver-preparation';
 import type {CommunitySaverOwnItemGateway} from '../api/securepay/community-saver-own-item';
 import {miniAgreementHomePage,miniAgreementDetailView} from './miniAgreementHome.mjs';
 import type {MiniAgreementItem,MiniAgreementDetail} from './miniAgreementHome.mjs';
@@ -27,7 +29,7 @@ const dateLabel = (iso:string|null) => {
  * "who must act" inference. The server's nextActions and attentionRequired
  * remain the only authority on this user's next work.
  */
-export function MiniMyAgreements({gateway,quotationGateway,notificationGateway,measuredGateway,moneyGateway,paymentsGateway,liveQuotes,liveMoneyStatus,liveFeeQuotes,livePaymentCommands,communitySaverItems,communitySaverGateway,prepare,onBack,onReauthenticate}:{
+export function MiniMyAgreements({gateway,quotationGateway,notificationGateway,measuredGateway,moneyGateway,paymentsGateway,liveQuotes,liveMoneyStatus,liveFeeQuotes,livePaymentCommands,communitySaverItems,communitySaverGateway,communitySaverPreparation,communitySaverPreparationGateway,prepare,onBack,onReauthenticate}:{
   gateway:Pick<AgreementGateway,'currentUserAgreements'|'detail'|'propose'|'confirmVersion'|'version'>;
   quotationGateway:StoreQuotationGateway;
   measuredGateway:MeasuredServicesGateway;
@@ -40,6 +42,8 @@ export function MiniMyAgreements({gateway,quotationGateway,notificationGateway,m
   livePaymentCommands:boolean;
   communitySaverItems:boolean;
   communitySaverGateway?:CommunitySaverOwnItemGateway;
+  communitySaverPreparation:boolean;
+  communitySaverPreparationGateway?:CommunitySaverPreparationGateway;
   prepare:()=>Promise<unknown>;
   onBack:()=>void;
   onReauthenticate:()=>void;
@@ -175,6 +179,14 @@ export function MiniMyAgreements({gateway,quotationGateway,notificationGateway,m
             {details.terms.map(t=><div className="spm-mini-agreement-fact" key={t.id}>
               <strong>{t.title}</strong><small>SecurePay records: {t.status}</small>
               {t.description&&<p>{t.description}</p>}
+              {communitySaverPreparation&&communitySaverPreparationGateway&&
+                details.currentVersion&&t.obligationType==='MONETARY'&&
+                t.currency==='KES'&&t.amountMinor!==null&&
+                <MiniCommunitySaverPreparation
+                  key={chosen.id+':prep:'+details.currentVersion.id+':'+t.id}
+                  gateway={communitySaverPreparationGateway}
+                  agreementId={chosen.id} versionId={details.currentVersion.id}
+                  itemId={t.id} baselineMinor={t.amountMinor} prepare={prepare}/>}
               {communitySaverItems&&communitySaverGateway&&details.currentVersion&&
                 t.obligationType==='MONETARY'&&t.currency==='KES'&&
                 t.amountMinor!==null&&
