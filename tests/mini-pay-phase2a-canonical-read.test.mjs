@@ -44,7 +44,7 @@ test('the Agreement list never treats proposed contract money or deadlines as pa
  assert.equal(page.items[0].nextDeadline,'2026-12-01T10:00:00+03:00');
  assert.equal('proposedAmountMinor' in page.items[0],false);
  assert.equal('balance' in page.items[0],false);
- assert.ok(list.includes('not a verified bill total or payment receipt'));
+ assert.ok(list.includes('not an approval,') && list.includes('funding instruction or payment receipt.'));
  assert.ok(list.includes('not necessarily payment'));
 });
 test('a changed Agreement version fails closed instead of showing stale Money evidence',()=>{
