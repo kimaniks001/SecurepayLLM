@@ -9,6 +9,39 @@ export const ACTOR_CAPACITIES = Object.freeze([
   { id: 'organization', label: 'For an organization', hint: 'The organization must authorize you' },
   { id: 'representative', label: 'For someone else', hint: 'You must show permission to act for them' },
 ]);
+export const CONTRIBUTOR_SCOPES = Object.freeze([
+  { id: 'one', label: 'One person or customer', hint: 'An identifiable obligation or contribution' },
+  { id: 'invited', label: 'Specific invited people', hint: 'Only approved participants may contribute' },
+  { id: 'open', label: 'Anyone eligible to contribute', hint: 'A publicly shared invitation with clear conditions' },
+]);
+const BENEFICIARY_RULES = Object.freeze({
+  buy: [
+    { id: 'merchant', label: 'The verified store or seller', hint: 'Keep the exact item, seller and offer version' },
+  ],
+  paid: [
+    { id: 'collector', label: 'My verified receiving account', hint: 'Only if I am the lawful payee' },
+    { id: 'organization', label: 'An authorized business or school', hint: 'The business must verify receiving rights' },
+  ],
+  regular: [
+    { id: 'collector', label: 'The verified service provider', hint: 'Based on the recurring obligation' },
+    { id: 'organization', label: 'An authorized organization', hint: 'For dues, fees or subscriptions' },
+  ],
+  group: [
+    { id: 'rotation', label: 'A member in the agreed rotation', hint: 'The member and order must be accepted' },
+    { id: 'merchant', label: 'A verified provider for our project', hint: 'Payment follows the approved group purpose' },
+  ],
+  give: [
+    { id: 'organization', label: 'A verified church or organization', hint: 'Respect each contribution’s designated purpose' },
+    { id: 'named-person', label: 'A named person or cause', hint: 'Establish authority and conditional giving rights' },
+  ],
+  goal: [
+    { id: 'education', label: 'A verified school or education provider', hint: 'Tie disbursement to actual approved fees' },
+    { id: 'organization', label: 'A designated beneficiary or group', hint: 'Apply its accepted saving and payout rules' },
+  ],
+});
+export function beneficiaryOptions(kind) {
+  return Object.prototype.hasOwnProperty.call(BENEFICIARY_RULES, kind) ? BENEFICIARY_RULES[kind] : [];
+}
 export const TARGET_MODES = Object.freeze([
   { id: 'fixed', label: 'A specific amount', hint: 'We know the target' },
   { id: 'open', label: 'No fixed amount', hint: 'A timed collection or ongoing purpose' },
@@ -72,6 +105,8 @@ export function newGovernanceDraft(kind) {
   return Object.freeze({
     kind,
     capacity: null,
+    contributorScope: null,
+    beneficiaryRule: null,
     targetMode: null,
     targetAmountKes: null,
     stopRule: null,
@@ -106,6 +141,8 @@ export function assessGovernanceDraft(draft, todayIso) {
   const missing = [];
   if (!draft || !COLLECTION_KINDS.includes(draft.kind)) return Object.freeze({ draftComplete: false, missing: ['Select a valid collection purpose'], activationAllowed: false, authorityVerified: false });
   if (!ACTOR_CAPACITIES.some(x => x.id === draft.capacity)) missing.push('Choose who you are collecting for');
+  if (!CONTRIBUTOR_SCOPES.some(x => x.id === draft.contributorScope)) missing.push('Decide who can contribute');
+  if (!beneficiaryOptions(draft.kind).some(x => x.id === draft.beneficiaryRule)) missing.push('Choose the rightful payout beneficiary');
   if (!TARGET_MODES.some(x => x.id === draft.targetMode)) missing.push('Decide whether there is a target amount');
   if (draft.kind === 'buy' && draft.targetMode !== 'fixed') missing.push('A specific item purchase requires a fixed target');
   if (draft.targetMode === 'fixed') {
