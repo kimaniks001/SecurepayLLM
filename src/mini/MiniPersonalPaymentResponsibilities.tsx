@@ -83,7 +83,7 @@ export function MiniPersonalPaymentResponsibilities({gateway,prepare,onBack,onVi
 
   return <section className="spm-payer-responsibilities" aria-label="My private payment responsibilities">
     <div className="spm-payment-title-row">
-      <button type="button" className="spm-back" onClick={selected?()=>setSelected(null):onBack}>
+      <button type="button" className="spm-back" onClick={selected?()=>{setSelected(null);setReveal(false);}:onBack}>
         <ArrowLeft size={17}/>{selected?'Your agreements':'Back to payments'}
       </button>
       {privacy}
