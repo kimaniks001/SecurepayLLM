@@ -12,6 +12,7 @@ import { createAuthorizationGateway } from '../api/securepay/authorization';
 import { createSubscriptionGateway } from '../api/securepay/subscription';
 import {createMiniBusinessPreferencesGateway} from '../api/securepay/mini-business-preferences';
 import {createMiniTradeMemoryGateway} from '../api/securepay/mini-trade-memory';
+import {createCommunitySaverOwnItemGateway} from '../api/securepay/community-saver-own-item';
 import { MiniSellerStore } from './MiniSellerStore';
 import { MiniSellSomething } from './MiniSellSomething';
 import { createStoreGateway } from '../api/securepay/store';
@@ -102,6 +103,11 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
   const subscriptions=useMemo(()=>createSubscriptionGateway(http),[http]);
   const businessPreferences=useMemo(()=>createMiniBusinessPreferencesGateway(http),[http]);
   const tradeMemory=useMemo(()=>createMiniTradeMemoryGateway(http),[http]);
+  const communitySaverItemsGateway=useMemo(()=>createCommunitySaverOwnItemGateway(http),[http]);
+  // Phase 7B: read-only source inspection on paired private staging only.
+  // Browser query arguments cannot enable this and no cross-trader matching exists.
+  const liveCommunitySaverItems=!demo &&
+    import.meta.env.VITE_SECUREPAY_MINI_PHASE7_PRIVATE_ITEMS==='enabled';
   // Phase 6 private persistence is available only on an explicitly prepared,
   // isolated API with the matching Flyway migration. Never enabled by demo URL.
   const liveTradeMemory=!demo &&
@@ -613,6 +619,8 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
         moneyGateway={canonicalMoney} paymentsGateway={paymentHistory}
         liveMoneyStatus={liveMoneyStatus} liveFeeQuotes={liveFeeQuotes}
         livePaymentCommands={livePaymentCommands}
+        communitySaverItems={liveCommunitySaverItems}
+        communitySaverGateway={liveCommunitySaverItems?communitySaverItemsGateway:undefined}
         prepare={()=>ensureFreshSession(session,auth)}
         onBack={()=>setAgreementsOpen(false)}
         onReauthenticate={reauthenticateAgreements}
