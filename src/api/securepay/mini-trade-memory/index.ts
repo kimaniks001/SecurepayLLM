@@ -21,6 +21,10 @@ export function createMiniTradeMemoryGateway(http:HttpClient){
     mine:()=>http.request<MiniTradeMemoryEntry[]>(path,{auth:'required'}),
     save:(body:MiniTradeMemorySave)=>http.request<MiniTradeMemoryEntry>(path,{
       method:'POST',body,auth:'required'}),
+    prepare:(id:string,expectedVersion:number)=>http.request<MiniTradeMemoryEntry>(
+      path+'/'+segment(id)+'/prepare',{
+        method:'POST',body:{expectedVersion,sellerConfirms:true},auth:'required'
+      }),
     remove:(id:string,expectedVersion:number)=>http.request<void>(
       path+'/'+segment(id)+'/remove',{
         method:'POST',body:{expectedVersion,ownerConfirms:true},auth:'required'})
