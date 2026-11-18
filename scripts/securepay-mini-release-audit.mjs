@@ -38,6 +38,11 @@ const forbidden=[
   /synthetic-local-only/,
   /SYNTHETIC DEMO ONLY/,
   /Test Money · three routes/,
+  /Kamakis Traders/,
+  /Peter · Plumber/,
+  /Njeri Events · Sample Store/,
+  /Sample funded/,
+  /fictional payment confirmation is arriving automatically/i,
 ];
 for(const filename of filesAt(root).filter(p=>/\.js$/.test(p))){
   const source=readFileSync(filename,'utf8');
