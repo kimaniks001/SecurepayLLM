@@ -1,0 +1,32 @@
+/* Discreet: ordinary observers must not be able to classify personal finances by colour. */
+.spm-payer-responsibilities{display:grid;gap:12px;padding:4px 0 20px}
+.spm-payment-title-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.spm-payment-title-row .spm-back{min-width:0}
+.spm-payment-privacy-toggle{border:1px solid #dbe4dc;background:#f9faf7;color:#395644;border-radius:999px;padding:8px 10px;display:flex;gap:6px;align-items:center;font-size:11px;font-weight:650;min-height:40px}
+.spm-payer-responsibilities h2{font-family:Fraunces,Georgia,serif;font-size:24px;line-height:1.2;margin:1px 0 0;color:#294a35;letter-spacing:-.02em}
+.spm-payment-soft{font-size:11px;line-height:1.6;color:#687768;margin:0}
+.spm-payment-cover{border:1px solid #e0e6dc;background:#f5f7f1;border-radius:12px;padding:11px;display:flex;align-items:flex-start;gap:10px;font-size:11px;line-height:1.5;color:#526554}
+.spm-payment-cover svg{flex:none;color:#617766}
+.spm-payment-responsibility-list{display:grid;gap:7px}
+.spm-payment-responsibility-item,.spm-payment-covered-item{display:flex;align-items:center;gap:10px;min-height:65px;border:1px solid #dfe5dd;border-radius:13px;background:#fffdf9;padding:11px;text-align:left;color:#345240;width:100%}
+.spm-payment-row-symbol{background:#edf0eb;border-radius:9px;color:#65806c;width:34px;height:34px;display:grid;place-items:center;flex:none}
+.spm-payment-row-copy{display:grid;gap:4px;flex:1;min-width:0}
+.spm-payment-row-copy strong{font-size:12px;font-weight:700;line-height:1.3}
+.spm-payment-row-copy small{font-size:10px;color:#6c806f;line-height:1.4}
+.spm-payment-responsibility-item>svg:last-child{color:#76907a;flex:none}
+.spm-payment-detailed-signal{width:4px;height:29px;flex:none;border-radius:999px;background:#8a958b;opacity:.72}
+.spm-payment-detailed-signal[data-workflow="amber"]{background:#b38d53}
+.spm-payment-detailed-signal[data-workflow="blue"]{background:#6e8f9a}
+.spm-payment-covered-item{justify-content:center;gap:9px;min-height:74px;color:#496e55;font-size:12px;font-weight:650}
+.spm-payment-private-detail{display:grid;gap:12px;border:1px solid #e0e7dd;border-radius:14px;padding:14px;background:#fafbf6}
+.spm-payment-detail-name{font-weight:700;color:#2e503a;font-size:14px;display:grid;gap:5px}
+.spm-payment-detail-name small{font-weight:400;font-size:11px;color:#657868}
+.spm-payment-detail-amount{display:grid;gap:4px;padding:12px;background:#f0f4ed;border-radius:10px}
+.spm-payment-detail-amount>small{font-size:10px;color:#607363}
+.spm-payment-detail-amount strong{font-variant-numeric:tabular-nums;font-size:23px;color:#274733}
+.spm-payment-private-detail>p{font-size:12px;line-height:1.55;color:#506b55;margin:0}
+.spm-payment-state-detail{display:flex;align-items:center;gap:9px;padding:10px;border:1px solid #e0e5dd;border-radius:10px;background:#f4f6f2;font-size:12px;color:#59675d}
+.spm-payment-state-detail[data-workflow="blue"]{border-color:#cad8dc;background:#eff5f6;color:#466e79}
+.spm-payment-state-detail[data-workflow="amber"]{border-color:#e8d8b9;background:#fbf7ed;color:#866b40}
+.spm-payment-footer-note{display:flex;align-items:flex-start;gap:8px;border-top:1px solid #e7ebe3;padding-top:11px;font-size:10px;line-height:1.5;color:#748476}
+.spm-payment-footer-note svg{flex:none}
