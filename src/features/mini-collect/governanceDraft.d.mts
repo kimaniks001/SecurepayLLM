@@ -14,6 +14,8 @@ export interface GovernanceDraft {
   readonly targetAmountKes: number | null;
   readonly stopRule: StopRule | null;
   readonly surplusRule: SurplusRule | null;
+  readonly startRule: 'on-activation' | 'scheduled' | null;
+  readonly startDate: string | null;
   readonly deadline: string | null;
   readonly failureRule: string | null;
   readonly changeRule: ChangeRule | null;
@@ -31,6 +33,7 @@ export const ACTOR_CAPACITIES: readonly AnswerOption[];
 export const CONTRIBUTOR_SCOPES: readonly AnswerOption[];
 export function beneficiaryOptions(kind: CollectionKind): readonly AnswerOption[];
 export const TARGET_MODES: readonly AnswerOption[];
+export const START_RULES: readonly AnswerOption[];
 export const STOP_RULES: readonly AnswerOption[];
 export const SURPLUS_RULES: readonly AnswerOption[];
 export const CHANGE_RULES: readonly AnswerOption[];
