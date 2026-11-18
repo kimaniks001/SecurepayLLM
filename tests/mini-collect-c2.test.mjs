@@ -16,6 +16,7 @@ const complete = kind => {
     ['targetMode', 'fixed'],
     ['targetAmountKes', 30000],
     ['stopRule', 'target-or-date'],
+    ['startRule', 'on-activation'],
     ['deadline', '2026-12-05'],
     ['failureRule', failureOptions(kind)[0].id],
     ['changeRule', 'affected-consent'],
@@ -85,6 +86,17 @@ test('C2: changing target type resets amounts, stop rule and surplus decisions',
   assert.equal(fixed.stopRule, null);
   assert.equal(assessGovernanceDraft(fixed, today).draftComplete, false);
 });
+test('C2: start policy and scheduled collection window must be explicit', () => {
+  const b = complete('goal');
+  assert.equal(assessGovernanceDraft(withGovernanceAnswer(b, 'startRule', null), today).draftComplete, false);
+  let scheduled = withGovernanceAnswer(b, 'startRule', 'scheduled');
+  assert.equal(scheduled.startDate, null);
+  assert.equal(assessGovernanceDraft(scheduled, today).draftComplete, false);
+  scheduled = withGovernanceAnswer(scheduled, 'startDate', '2026-11-20');
+  assert.equal(assessGovernanceDraft(scheduled, today).draftComplete, true);
+  assert.equal(assessGovernanceDraft(withGovernanceAnswer(scheduled, 'startDate', '2026-12-06'), today).draftComplete, false);
+  assert.equal(assessGovernanceDraft(withGovernanceAnswer(scheduled, 'startDate', '2026-11-18'), today).draftComplete, false);
+});
 test('C2: fixed-target collection continuing to deadline requires explicit surplus rule', () => {
   let d = withGovernanceAnswer(complete('goal'), 'stopRule', 'date-only');
   assert.equal(assessGovernanceDraft(d, today).draftComplete, false);
@@ -127,6 +139,7 @@ test('C2: one mini journey with answer pills, date picker and fail-closed review
   assert.match(ui, /type="number"/);
   assert.match(ui, /Contributor eligibility/);
   assert.match(ui, /Payout beneficiary/);
+  assert.match(ui, /Collection start rule/);
   assert.match(ui, /No bank selected, no binding Agreement or SecureLink created/);
   assert.match(ui, /SERVER_GATES\.map/);
   assert.doesNotMatch(ui, /fetch\(|localStorage|sessionStorage|\.disburse\(|\.fund\(/);
