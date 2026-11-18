@@ -1,6 +1,7 @@
 import {useEffect,useRef,useState} from 'react';
 import {ArrowLeft,ArrowRight,Eye,EyeOff,FileText,LockKeyhole,RefreshCcw,Search,ShieldCheck} from 'lucide-react';
 import type {PersonalPaymentResponsibilitiesGateway,PersonalPaymentResponsibility} from '../api/securepay/personal-payments';
+import type {PersonalPaymentPosition} from '../api/securepay/personal-payment-positions';
 import './miniPersonalPaymentResponsibilities.css';
 
 const stateText=(s:PersonalPaymentResponsibility['agreementState'])=>{
@@ -26,7 +27,7 @@ export function MiniPersonalPaymentResponsibilities({gateway,prepare,onBack,onVi
   gateway:PersonalPaymentResponsibilitiesGateway;prepare:()=>Promise<unknown>;
   onBack:()=>void;onViewAgreements:()=>void;
 }){
-  const [rows,setRows]=useState<PersonalPaymentResponsibility[]>([]);
+  const [rows,setRows]=useState<PersonalPaymentPosition[]>([]);
   const [page,setPage]=useState(0);
   const [more,setMore]=useState(false);
   const [status,setStatus]=useState<'loading'|'ready'|'error'>('loading');
@@ -75,6 +76,8 @@ export function MiniPersonalPaymentResponsibilities({gateway,prepare,onBack,onVi
   },[gateway]);
 
   const chosen=rows.find(r=>r.obligationId===selected)||null;
+  const verifiedBalance=chosen?.paymentVerification?.outstandingMinor;
+  const hasVerifiedBalance=verifiedBalance!==null&&verifiedBalance!==undefined;
   const needle=search.trim().toLocaleLowerCase('en-KE');
   const filteredRows=rows.filter(r=>!needle||[r.agreementTitle,r.obligationTitle,r.purpose]
     .some(value=>value.toLocaleLowerCase('en-KE').includes(needle)));
@@ -106,14 +109,29 @@ export function MiniPersonalPaymentResponsibilities({gateway,prepare,onBack,onVi
         <div className="spm-payment-detail-amount">
           <small>{chosen.amountMeaning==='AGREED'?'Amount agreed':'Amount proposed'}</small>
           <strong>{money(chosen.statedAmountMinor,chosen.currency)}</strong>
-          <small>This is not a verified unpaid balance.</small>
+          <small>This is the accepted or proposed principal, not necessarily unpaid.</small>
+          {hasVerifiedBalance&&chosen.paymentVerification&&<>
+            <small>Remaining after verified settlement, refunds and reversals</small>
+            <strong>{money(verifiedBalance,chosen.currency)}</strong>
+          </>}
+          {!hasVerifiedBalance&&<small>Remaining balance is being checked — do not pay twice.</small>}
         </div>
         <p>{chosen.purpose}</p>
         <div className="spm-payment-state-detail" data-workflow={statusClass(chosen.agreementState)}>
           <FileText size={16}/>
           <span>{stateText(chosen.agreementState)}</span>
         </div>
-        <p className="spm-payment-soft">The payment amount, timing and provider result still need independent confirmation. No money can be moved from this screen.</p>
+        <p className="spm-payment-soft">{chosen.paymentVerification?.eligibilityState==='ALREADY_SETTLED'
+          ?'This responsibility is already settled. Do not pay it again.'
+          :chosen.paymentVerification?.eligibilityState==='DISPUTED_OR_BLOCKED'
+          ?'This payment needs review before anything further happens.'
+          :chosen.paymentVerification?.eligibilityState==='EVIDENCE_REQUIRED'
+          ?'The agreed work or delivery still needs confirmation.'
+          :chosen.paymentVerification?.eligibilityState==='WAIT_UNTIL_DUE'
+          ?'This payment is scheduled for later.'
+          :chosen.paymentVerification?.eligibilityState==='CONSENT_REQUIRED'
+          ?'The current terms need both parties\u2019 agreement.'
+          :'The date, payment history and authorisation are checked separately.'} No money can be moved from this screen.</p>
         <button type="button" className="spm-secondary" onClick={onViewAgreements}>Open full Agreement <ArrowRight size={15}/></button>
       </div>}
     </>}

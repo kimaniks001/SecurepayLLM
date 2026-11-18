@@ -22,7 +22,7 @@ import { createStoreGateway } from '../api/securepay/store';
 import { createStoreQuotationGateway } from '../api/securepay/store-quotations';
 import { createMeasuredServicesGateway } from '../api/securepay/measured-services';
 import { createMoneySnapshotGateway } from '../api/securepay/money-snapshot';
-import {createPersonalPaymentResponsibilitiesGateway} from '../api/securepay/personal-payments';
+import {createPersonalPaymentPositionsGateway} from '../api/securepay/personal-payment-positions';
 import {MiniPersonalPaymentResponsibilities} from './MiniPersonalPaymentResponsibilities';
 import { createPaymentIntentGateway } from '../api/securepay/payment-intent';
 import { m5QuotationExperienceEnabled } from '../config/securepay';
@@ -103,11 +103,12 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
   const quotations=useMemo(()=>createStoreQuotationGateway(http),[http]);
   const measured=useMemo(()=>createMeasuredServicesGateway(http),[http]);
   const canonicalMoney=useMemo(()=>createMoneySnapshotGateway(http),[http]);
-  const personalResponsibilities=useMemo(()=>createPersonalPaymentResponsibilitiesGateway(http),[http]);
+  const personalResponsibilities=useMemo(()=>createPersonalPaymentPositionsGateway(http),[http]);
   // Deliberate deployment pairing: enabled only for a matched, trusted staging API.
   // This GET is NOT a payment-authority endpoint and is NEVER enabled by URL query.
   const payResponsibilityRead=!demo&&
-    import.meta.env.VITE_SECUREPAY_MINI_PAY_RESPONSIBILITIES_READ==='enabled';
+    import.meta.env.VITE_SECUREPAY_MINI_PAY_RESPONSIBILITIES_READ==='enabled' &&
+    import.meta.env.VITE_SECUREPAY_MINI_PAY_POSITIONS_READ==='enabled';
   const [personalReadFallback,setPersonalReadFallback]=useState(false);
   const paymentHistory=useMemo(()=>createPaymentIntentGateway(http),[http]);
   const notifications=useMemo(()=>createNotificationsGateway(http),[http]);
