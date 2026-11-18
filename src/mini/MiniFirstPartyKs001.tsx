@@ -13,6 +13,7 @@ import { createSubscriptionGateway } from '../api/securepay/subscription';
 import {createMiniBusinessPreferencesGateway} from '../api/securepay/mini-business-preferences';
 import {createMiniTradeMemoryGateway} from '../api/securepay/mini-trade-memory';
 import {createCommunitySaverOwnItemGateway} from '../api/securepay/community-saver-own-item';
+import {createCommunitySaverPreparationGateway} from '../api/securepay/community-saver-preparation';
 import {createCommunitySaverPlugReadinessGateway} from '../api/securepay/community-saver-plug-readiness';
 import {MiniCommunitySaverPlugReadiness} from './MiniCommunitySaverPlugReadiness';
 import { MiniSellerStore } from './MiniSellerStore';
@@ -106,6 +107,11 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
   const businessPreferences=useMemo(()=>createMiniBusinessPreferencesGateway(http),[http]);
   const tradeMemory=useMemo(()=>createMiniTradeMemoryGateway(http),[http]);
   const communitySaverItemsGateway=useMemo(()=>createCommunitySaverOwnItemGateway(http),[http]);
+  const communitySaverPreparationGateway=useMemo(()=>createCommunitySaverPreparationGateway(http),[http]);
+  // This is a PRIVATE owner-item preparation view on matching isolated API.
+  // Money stays deferred; never enable via a browser URL or demo mode.
+  const liveCommunitySaverPreparation=!demo &&
+    import.meta.env.VITE_SECUREPAY_MINI_PHASE7_PREPARE_ONLY==='enabled';
   const communitySaverPlugGateway=useMemo(()=>createCommunitySaverPlugReadinessGateway(http),[http]);
   const liveCommunitySaverPlugReadiness=!demo &&
     import.meta.env.VITE_SECUREPAY_MINI_PHASE7_PLUG_READINESS==='enabled';
@@ -638,6 +644,8 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
         livePaymentCommands={livePaymentCommands}
         communitySaverItems={liveCommunitySaverItems}
         communitySaverGateway={liveCommunitySaverItems?communitySaverItemsGateway:undefined}
+        communitySaverPreparation={liveCommunitySaverPreparation}
+        communitySaverPreparationGateway={liveCommunitySaverPreparation?communitySaverPreparationGateway:undefined}
         prepare={()=>ensureFreshSession(session,auth)}
         onBack={()=>setAgreementsOpen(false)}
         onReauthenticate={reauthenticateAgreements}
