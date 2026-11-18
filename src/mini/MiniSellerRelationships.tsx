@@ -129,6 +129,31 @@ export function MiniSellerRelationships({memory,agreements,stores,onStart}:{memo
     }catch{setNotice('Cannot confirm removal. Refresh the list and check again.');}
     finally{setBusy(false);}
   };
+  const usePerson=async(item:MiniTradeMemoryEntry)=>{
+    if(!memory||!agreements||busy)return;
+    setBusy(true);setNotice('');
+    try{
+      const saved=await memory.mine();
+      const own=saved.find(x=>x.id===item.id&&x.kind==='PERSON');
+      if(!own||own.version!==item.version||own.label!==item.label||
+         own.referenceKey!==item.referenceKey)
+        throw Error('Saved person changed');
+      // The old Agreement still must be one of this caller's OWN completed
+      // history records. A private label is not invitation/identity authority.
+      const page=await agreements.currentUserAgreements(0,20);
+      if(!Array.isArray(page?.items))throw Error('History unavailable');
+      const reference=miniSellerRecentTradeReferences(page)
+        .find(x=>x.agreementId===own.referenceKey);
+      if(!reference)throw Error('Not in latest completed history');
+      const detail=await agreements.detail(reference.agreementId);
+      const title=miniSellerReadTradeAgainTitle(reference,detail);
+      if(!title||!detail.participants?.some(p=>p.displayName===own.label))
+        throw Error('Person or Agreement no longer verified');
+      onStart(title,'','');
+    }catch{
+      setNotice('Could not confirm this past trading relationship. No offer was prepared or invitation sent.');
+    }finally{setBusy(false);}
+  };
   const useTemplate=async(item:MiniTradeMemoryEntry)=>{
     if(!memory||busy)return;
     setBusy(true);setNotice('');
@@ -166,6 +191,8 @@ export function MiniSellerRelationships({memory,agreements,stores,onStart}:{memo
           (item.cadence==='ONE_TIME'?'Offer wording to reuse':
             'Repeat idea: '+item.cadence.toLowerCase()+' · no automatic renewal')
         }</small></span>
+        {item.kind==='PERSON'&&<button type="button" disabled={busy}
+          onClick={()=>void usePerson(item)}>Trade again <ArrowRight size={14}/></button>}
         {item.kind==='TEMPLATE'&&<button type="button" disabled={busy}
           onClick={()=>void useTemplate(item)}>Use <ArrowRight size={14}/></button>}
         {item.kind==='STORE'&&<button type="button" disabled={busy}
