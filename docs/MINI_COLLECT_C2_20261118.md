@@ -76,3 +76,23 @@ are enforced by the backend.
 The UI can feel friendly and intelligent. It must never imply a user picked a
 bank service, executed a refund, passed authorization or successfully created an
 Agreement merely because they answered a question. **Money follows the Agreement**.
+
+
+## C2 backend draft handoff adapter (18 November follow-up)
+
+`src/features/mini-collect/governanceSubmission.mjs` translates C2 answer-pill values into
+the backend's `CreateCollectionGovernanceDraftRequest` taxonomy, including exact KES minor units
+(whole KSh × 100), target/beneficiary/failure/payout classes, the original offer source/version
+and an absolute closing instant. It **refuses** to generate a submission without a canonical
+Agreement ID, Group SecureLink ID, explicit timezone, matching target, matching local closing
+date, and a stable caller-owned idempotency key. The backend re-verifies each value.
+
+`tests/mini-collect-c2-handoff.test.mjs` covers this mapping and refusal cases. Eight direct
+model/handoff checks were exercised in isolation and passed; the standalone Node test suite
+has not yet been executed in the repository environment.
+
+**This is a pure mapper, not a network feature.** No backend request is sent and no false
+Agreement ID or date is manufactured by the preview. The C2B backend draft endpoint exists
+on a separate, unmerged SecurePayAPI branch (PR #492), which itself depends on C2A PR #491.
+Neither branch may be treated as live Money. The human Mini preview remains a demonstrator
+until there is a real authenticated Agreement/context and independent authority checks.
