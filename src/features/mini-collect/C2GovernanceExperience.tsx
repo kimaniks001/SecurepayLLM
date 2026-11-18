@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft, ArrowRight, CalendarDays, Check, CheckCircle2, ClipboardCheck, LockKeyhole, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CalendarDays, Check, ClipboardCheck, LockKeyhole, ShieldAlert, ShieldCheck } from 'lucide-react';
 import {
   ACTOR_CAPACITIES, TARGET_MODES, STOP_RULES, SURPLUS_RULES, CHANGE_RULES,
   PAYOUT_RULES, SERVER_GATES, failureOptions, newGovernanceDraft,
@@ -52,13 +52,13 @@ export function C2GovernanceExperience({ kind, onBack }: {kind: CollectionKind; 
   const assessment = assessGovernanceDraft(draft, todayIso);
   const stepIndex = STAGES.indexOf(stage);
 
-  const answer = <K extends keyof Omit<GovernanceDraft, 'kind'>>(key: K, value: GovernanceDraft[K]) => {
+  function answer<K extends keyof Omit<GovernanceDraft, 'kind'>>(key: K, value: GovernanceDraft[K]) {
     setDraft(previous => withGovernanceAnswer(previous, key, value));
-  };
+  }
   const validCurrent = (() => {
     if (stage === 'capacity') return !!draft.capacity;
     if (stage === 'target') return (draft.kind !== 'buy' || draft.targetMode === 'fixed') &&
-      (draft.targetMode === 'open' || (draft.targetMode === 'fixed' && Number.isSafeInteger(draft.targetAmountKes) && (draft.targetAmountKes ?? 0) > 0));
+      (draft.targetMode === 'open' || (draft.targetMode === 'fixed' && Number.isSafeInteger(draft.targetAmountKes ?? 0) && (draft.targetAmountKes ?? 0) > 0));
     if (stage === 'end') return isCalendarDate(draft.deadline) && (draft.deadline ?? '') > todayIso &&
       (draft.targetMode === 'open' || (draft.stopRule != null && (draft.stopRule !== 'date-only' || !!draft.surplusRule)));
     if (stage === 'failure') return failureOptions(kind).some(option => option.id === draft.failureRule);
