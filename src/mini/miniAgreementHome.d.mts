@@ -18,7 +18,8 @@ export interface MiniAgreementDetail {
  currentVersion:{id:string;number:number}|null;
  participants:{id:string;name:string;role:string;status:string}[];
  milestones:{id:string;title:string;status:string;description:string|null;dueAt:string|null}[];
- terms:{id:string;title:string;description:string|null;status:string}[];
+ terms:{id:string;title:string;description:string|null;status:string;
+   obligationType:string|null;currency:string|null;amountMinor:number|null}[];
  moneyStatus:string|null;activityCount:number;
 }
 export declare function miniAgreementStatus(code:string):string;
