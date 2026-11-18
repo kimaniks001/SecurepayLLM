@@ -39,3 +39,18 @@
 - No changes to existing Phase 6 Mini design, Store operations or production domains
 
 The owner preview is only an accessible way to review the numerical model before implementing the source-of-truth and Plug workflow.
+
+
+## Phase 7B — canonical, private current Agreement-item inspection (engineering added)
+An explicitly stage-gated, real-account Mini path now offers **Check Community Saver eligibility** beneath individually priced KES monetary terms in My Agreements. The user must request the check; no automatic contacts or notifications. The UI remains absent unless `VITE_SECUREPAY_MINI_PHASE7_PRIVATE_ITEMS=enabled` **and** the session is real (not the fictional owner demo). Do not enable it on production or against an API without this exact controller.
+
+The request contains **only the Agreement ID, item/obligation ID and exact current Agreement version ID**. It does not submit an amount, a claimed saving, an inferred platform, a trader identity, a provider, a payment or a Plug. The signed-in backend:
+1. Checks existing participant/organization Agreement read and obligation-read permissions.
+2. Refuses stale Agreement versions and verifies that the obligation belongs to that exact Agreement version with a matching canonical content hash; only positively priced KES monetary items qualify for inspection.
+3. Reads live, version-bound participant confirmations and canonical per-obligation Money Snapshot positions.
+4. Reports `LEDGER_POSITION_REPORTED` distinctly from certified regulated custody; missing/insufficient Money is **not verified**.
+5. Always reports `platformState=UNVERIFIED`, `matchingState=BLOCKED` and no provider verification, offer, Plug assignment, Agreement change or authorized Money. **Real platform source validation is not available yet.**
+
+This step is implemented through `src/api/securepay/community-saver-own-item/index.ts`, `MiniCommunitySaverItemCheck.tsx`, the existing Mini first-party Agreement view, and the companion API PR #480. Exact-version and no-inherited-amount tests are in `tests/mini-community-saver-phase7b-own-item.test.mjs`, part of the Mini prebuild. The owner walkthrough remains fictional and separate, not a demonstration of deployed backend APIs.
+
+No cross-party data exchange, no real Savings notification, no provider or Plug assignment and no production deployment. Stage release requires full Java21/DB and authenticated backend integration certification.
