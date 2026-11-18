@@ -23,8 +23,7 @@ export function createMiniTradeMemoryGateway(http:HttpClient){
       method:'POST',body,auth:'required'}),
     remove:(id:string,expectedVersion:number)=>http.request<void>(
       path+'/'+segment(id)+'/remove',{
-        method:'POST',body:{expectedVersion,ownerConfirms:true},auth:'required',
-        responseKind:'void'})
+        method:'POST',body:{expectedVersion,ownerConfirms:true},auth:'required'})
   };
 }
 export type MiniTradeMemoryGateway=ReturnType<typeof createMiniTradeMemoryGateway>;
