@@ -4,6 +4,7 @@ import { Phase1LivingWorkspacePreview } from './features/living-workspace/Phase1
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { storeAgreementEntry, storeEntryView, storeKs001EntryMessage, hasWorkspaceMoneyReturn, clearWorkspaceMoneyReturn } from './features/experience/entryIntent';
 import { AgentExperience } from './features/agent/AgentExperience';
+import { C1CollectExperience } from './features/mini-collect/C1CollectExperience';
 import { ActivationExperience } from './features/activation/ActivationExperience';
 import { MoneyExperience } from './features/money/MoneyExperience';
 import { HostedMoneySessionExperience } from './features/money/HostedMoneySessionExperience';
@@ -328,7 +329,23 @@ function useMoneySessionRoute(): string | null {
 export function isCandidateWorkspaceEntry(hash:string,hostname:string):boolean {
   return hostname.endsWith('.vercel.app') && (hash==='' || hash==='#' || hash==='#/' || /^#\/?sign-(?:in|up)\/?$/.test(hash));
 }
+/** Deliberately isolated Mini Collect C1 preview. Never captures production or token-bearing routes. */
+export function isMiniCollectC1PreviewRoute(hash: string, hostname: string): boolean {
+  return /^#\\/?preview\\/mini\\/collect\\/?$/.test(hash) &&
+    (hostname.endsWith('.vercel.app') || hostname === 'localhost' || hostname === '127.0.0.1');
+}
+function useMiniCollectC1PreviewRoute(): boolean {
+  const match = () => typeof window !== 'undefined' && isMiniCollectC1PreviewRoute(window.location.hash, window.location.hostname);
+  const [visible, setVisible] = useState(match);
+  useEffect(() => {
+    const sync = () => setVisible(match());
+    window.addEventListener('hashchange', sync);
+    return () => window.removeEventListener('hashchange', sync);
+  }, []);
+  return visible;
+}
 export default function RuntimeApp() {
+  const miniCollectC1Preview = useMiniCollectC1PreviewRoute();
   const [phase1Preview, setPhase1Preview] = useState(() => typeof window !== 'undefined' &&
     (/^#\/?preview\/living-workspace(?:\/(?:work|vision|circle|community))?\/?$/.test(window.location.hash) ||
       isCandidateWorkspaceEntry(window.location.hash,window.location.hostname)));
@@ -361,6 +378,7 @@ export default function RuntimeApp() {
     const host=new URL(api.baseUrl).hostname.toLowerCase();
     return host.endsWith('.securepay.ke') && /(?:^|[.-])(?:staging|sandbox|qa|test)(?:[.-]|$)/.test(host);
   })();
+  if (miniCollectC1Preview) return <C1CollectExperience />;
   if (phase1Preview) return <Phase1LivingWorkspacePreview
     gateway={previewAgentGateway} workspaceGateways={previewWorkspaceGateways}
     identityStagingReady={identityStagingReady} session={session} />;
