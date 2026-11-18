@@ -21,6 +21,7 @@ test('6C private template includes only user-written words and repeat proposal, 
 test('6D repeat schedule requires an explicit supported cadence, stop rule and ISO date',()=>{
   assert.equal(miniSellerRepeatTemplate(draft({cadence:'DAILY'})),null);
   assert.equal(miniSellerRepeatTemplate(draft({stopRule:'NEVER'})),null);
+  assert.equal(miniSellerRepeatTemplate(draft({cadence:'ONE_TIME',stopRule:'UNTIL_DATE',untilDate:'2027-09-15'})),null);
   assert.equal(miniSellerRepeatTemplate(draft({stopRule:'UNTIL_DATE',untilDate:null})),null);
   assert.equal(miniSellerRepeatTemplate(draft({stopRule:'UNTIL_DATE',untilDate:'2026-02-30'})),null);
   assert.equal(miniSellerRepeatTemplate(draft({untilDate:'2027-09-15'})),null);
@@ -62,6 +63,9 @@ test('6E repeat offer is a clean new draft and cannot inherit Agreement, stock, 
   assert.ok(seller.includes('<MiniSellerRelationships'));
   assert.ok(seller.includes('<MiniSellerSaveTemplate'));
   assert.ok(memory.includes("fresh.version!==item.version"));
+  assert.ok(memory.includes('memory.prepare(fresh.id,fresh.version)'));
+  assert.ok(memory.includes('prepared.untilDate!==fresh.untilDate'));
+  assert.ok(read('src/api/securepay/mini-trade-memory/index.ts').includes("'/prepare'"));
   assert.ok(save.includes('Yes, save privately'));
   assert.ok(save.includes('Agree each time'));
   assert.ok(save.includes('Choose an end date'));
