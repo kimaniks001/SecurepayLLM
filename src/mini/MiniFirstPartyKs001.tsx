@@ -57,7 +57,7 @@ import type { MiniDraft, MiniLanguage } from './miniModel';
  * Unlike the legacy guest installation contract, this route exists in the
  * currently inspected SecurePayAPI main source as /api/agent/conversations.
  */
-export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo = false, startInStore = false, initialBuyingPlan = null }: {
+export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo = false, startInStore = false, startInPayments = false, initialBuyingPlan = null }: {
   apiOrigin: string;
   draft: MiniDraft | null;
   language: MiniLanguage;
@@ -65,6 +65,8 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
   demo?: boolean;
   /** One-shot explicit handoff from Mini Business Settings, not an authority grant. */
   startInStore?: boolean;
+  /** Open the existing owner-scoped Agreement list from Pay Someone. No new Money authority. */
+  startInPayments?: boolean;
   /** Explicit buyer handoff; public offer IDs must be rechecked before use. */
   initialBuyingPlan?: {lines:MiniStorePlanLine[];fulfilment:MiniBasketFulfilment|null;
     buyerAnswers?:Array<{sellerKsNumber:string;offerId:string;offerUpdatedAt:string;question:string;proposedAnswer:string}>}|null;
@@ -401,6 +403,14 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
     }
     setAgreementsOpen(true);
   };
+  const initialPaymentsHandled=useRef(false);
+  useEffect(()=>{
+    if(!startInPayments||status!=='ready'||initialPaymentsHandled.current)return;
+    initialPaymentsHandled.current=true;
+    openAgreements();
+    // Reuse existing auth and canonical Agreement reads; one user-requested handoff.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[startInPayments,status]);
   const reauthenticateAgreements = () => {
     session.clear();setAgreementsOpen(false);
     setPeopleOpen(null);setOwnedOpen(false);setOwnedList([]);
