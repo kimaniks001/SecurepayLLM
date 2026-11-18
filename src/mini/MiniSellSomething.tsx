@@ -569,6 +569,23 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
       <button type="button" className="spm-sell-phase1-link" onClick={onBrowseStores}>
         <ShoppingBag size={19}/><span><strong>Find a Store to trade with</strong><small>Review the current public offer before preparing terms.</small></span><ChevronRight size={17}/>
       </button>
+      {previewSecureLinkJourney&&<div className="spm-sell-clarification-help" data-mini-phase6-demo="quick">
+        <small>Phase 6 owner walkthrough · fictional example, not your account</small>
+        <strong>Try trading again</strong>
+        <p>Choose a familiar offer. Mini starts a new one and asks for today's terms.</p>
+        <div className="spm-sell-pill-row">
+          <AnswerPill onClick={()=>startFreshFromPreviousTrade('20 bags of dairy meal')}>
+            Repeat a goods offer
+          </AnswerPill>
+          <AnswerPill onClick={()=>startFreshFromPreviousTrade('Weekly compound maintenance',
+            'Mow lawns, tidy edges and take away the cut grass.',
+            'Proposed repeat arrangement: Weekly. Each occurrence requires a fresh agreement. No automatic renewal, performance, invoice or payment.')}>
+            Try a weekly service
+          </AnswerPill>
+        </div>
+        <p className="spm-sell-hint">Both are only new local examples. No old buyer,
+          amount, stock, accepted Agreement or SecureLink is reused.</p>
+      </div>}
       <MiniSellerTradeAgain gateway={agreementGateway} onStart={startFreshFromPreviousTrade}/>
       <p className="spm-sell-hint">A past trade is only a reference. A new Agreement needs its own independent review and the other person's confirmation. No SecureLink, Agreement or payment is created here.</p>
     </div>}
@@ -583,6 +600,35 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
       <button type="button" className="spm-sell-phase1-link" onClick={()=>{setSellerArea('offer');setToolsOpen(true);setShelf('people');}}>
         <UsersRound size={19}/><span><strong>Prepare an offer for someone</strong><small>Use People & Invitations to name the other party.</small></span><ChevronRight size={17}/>
       </button>
+      {previewSecureLinkJourney&&<div className="spm-sell-clarification-help" data-mini-phase6-demo="favourites">
+        <small>Phase 6 owner walkthrough · sample names only</small>
+        <strong>What saved trading relationships could feel like</strong>
+        <div className="spm-sell-data-row">
+          <Heart size={16}/><span><strong>Earlier customer · sample</strong>
+            <small>Private favourite, not a contact invitation</small></span>
+          <button type="button" onClick={()=>startFreshFromPreviousTrade('Water tank repair')}>
+            Trade again <ArrowRight size={15}/>
+          </button>
+        </div>
+        <div className="spm-sell-data-row">
+          <ShoppingBag size={16}/><span><strong>Farm supply shop · sample</strong>
+            <small>Favourite Store, not live inventory</small></span>
+          <button type="button" onClick={onBrowseStores}>
+            Browse Stores <ArrowRight size={15}/>
+          </button>
+        </div>
+        <div className="spm-sell-data-row">
+          <Bookmark size={16}/><span><strong>Monthly garden work · sample</strong>
+            <small>Reusable wording and proposed monthly rhythm</small></span>
+          <button type="button" onClick={()=>startFreshFromPreviousTrade('Monthly garden maintenance',
+            'Cut, weed and tidy the garden; confirm scope and availability for each visit.',
+            'Proposed repeat arrangement: Monthly. Each occurrence requires a fresh agreement. No automatic renewal, performance, invoice or payment.')}>
+            Use terms <ArrowRight size={15}/>
+          </button>
+        </div>
+        <p className="spm-sell-hint">These are fictional examples only. Nothing is stored,
+          verified, shared with a community or scheduled.</p>
+      </div>}
       <MiniSellerRelationships memory={memoryGateway} agreements={agreementGateway}
         stores={storeGateway} onStart={startFreshFromPreviousTrade}/>
       <p className="spm-sell-hint">Nothing is shared with a community or copied from your device contacts.</p>
