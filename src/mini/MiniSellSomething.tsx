@@ -570,7 +570,7 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
         <ShoppingBag size={19}/><span><strong>Find a Store to trade with</strong><small>Review the current public offer before preparing terms.</small></span><ChevronRight size={17}/>
       </button>
       <MiniSellerTradeAgain gateway={agreementGateway} onStart={startFreshFromPreviousTrade}/>
-      <p className="spm-sell-hint">A past trade is only a reference. A new Agreement needs its own independent review and the other person's confirmation.</p>
+      <p className="spm-sell-hint">A past trade is only a reference. A new Agreement needs its own independent review and the other person's confirmation. No SecureLink, Agreement or payment is created here.</p>
     </div>}
     {stage==='compose'&&sellerArea==='relationships'&&<div className="spm-sell-phase1-destination" data-seller-phase1="relationships">
       <div className="spm-sell-phase1-symbol"><Heart size={25}/></div>
