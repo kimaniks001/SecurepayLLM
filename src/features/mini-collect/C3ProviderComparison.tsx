@@ -1,3 +1,6 @@
+import { useState } from 'react';
+import type { GovernanceDraft } from './governanceDraft.mjs';
+import { C3DClosingPreview } from './C3DClosingPreview';
 import { ArrowLeft, Banknote, CircleHelp, FileCheck2, LockKeyhole, ShieldAlert } from 'lucide-react';
 import securepayMark from '../../assets/brand/securepay/securepay-mark-green.png';
 
@@ -37,14 +40,17 @@ const charge = (fixed: number, bps: number) =>
  * Receives ONLY server-authorized and C3A/C3B/C3C-matched shortlist responses.
  * This demo has no authenticated Agreement/provider feed: NEVER seed examples.
  */
-export function C3ProviderComparison({ onBack, options = [], onPropose }: {
+export function C3ProviderComparison({ onBack, options = [], onPropose, draft }: {
   onBack: () => void;
   options?: C3ProviderOption[];
   onPropose?: (providerKsNumber: string, quoteFingerprint: string) => void;
+  draft?: GovernanceDraft;
 }) {
+  const [exploringClose, setExploringClose] = useState(false);
   const approved = options.filter(p => p.proposalAllowed
     && !p.financialExecutionAllowed && p.fees?.currency === 'KES'
     && /^[a-f0-9]{64}$/.test(p.quoteFingerprint));
+  if (exploringClose && draft) return <C3DClosingPreview draft={draft} onBack={() => setExploringClose(false)} />;
   return <div className="min-h-screen bg-[#faf7f0] text-[#244936]" data-mini-collect-c3c>
     <header className="border-b border-[#e4e7dc] bg-[#fffefa]/95 px-4 py-3">
       <div className="mx-auto flex max-w-xl items-center gap-3">
@@ -91,6 +97,10 @@ export function C3ProviderComparison({ onBack, options = [], onPropose }: {
             Propose this provider for our Agreement</button> : null}
         </section>)}
       </div>}
+      {draft ? <button type="button" onClick={() => setExploringClose(true)}
+        className="mt-5 inline-flex min-h-12 w-full items-center justify-center rounded-xl border border-[#cfded0] bg-white px-4 text-sm font-semibold text-[#285d41] hover:bg-[#edf4e9]">
+        Explore what happens when this collection closes
+      </button> : null}
       <div className="mt-6 flex items-start gap-3 rounded-2xl border border-[#d5dfd4] bg-[#f0f5ec] p-4">
         <LockKeyhole size={19} className="mt-0.5 shrink-0" aria-hidden="true"/>
         <p className="text-sm leading-6 text-[#536a58]">Choosing a provider will only propose a financial partner. Your contributors must still accept any material terms, and certified Money safeguards must still pass.</p>
