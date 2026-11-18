@@ -143,3 +143,11 @@ C3B PR #496. A real organizer can read independently VERIFIED, version-bound
 candidate profiles, confirm an exact reviewed fee quote and record an
 immutable **PROPOSED**, idempotent choice. It is not signed participant
 consent or a live bank instruction. Future C3D/C6/C7/C8 gates remain.
+
+## C3D — closing, returns and escalation in a human journey
+
+The C3C comparison step now offers **Explore what happens when this collection closes**. `C3DClosingPreview.tsx` provides obvious answer pills for a decision window (1/3/7 days), refund-instruction deadline (day 8/10/14) and final resolution (day 15/21/30), relative to the C2 closing date. C2's existing missed-target fallback and payout authority appear as read-only human explanation, not new choices that override agreed rights. Users can review and adjust the illustrative plan.
+
+The screen is honest about the current boundary: the **preview does not create an Agreement, select a provider, claim that funds were returned, or enable Money**. In actual backend code on dependent SecurePayAPI C3D branch `feat/mini-collect-c3d-mandate-close-refund-20261118`, an authorized organizer may propose a finite closing plan only if a genuine C3C provider quote and verified C3B evidence remain valid through final resolution. Established participants may privately review full provider/fee disclosures and record `REVIEWED_NOT_ACCEPTED`. No one else's identity can be accepted on their behalf.
+
+The actual closing plan remains a proposal, because new provider, fee and refund terms must still be included in a separately accepted canonical Agreement version and backed by a **collection-specific signed, independently verified mandate** before accepting money. The backend also offers a protected, post-deadline **calendar milestone** status, with no invented payments or refund success. C6/C7/C8 and the real provider evidence source remain blocked.
