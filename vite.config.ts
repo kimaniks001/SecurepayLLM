@@ -12,20 +12,26 @@ const releaseBuild = process.env.SECUREPAY_MINI_RELEASE_BUILD !== '0';
 // cannot turn them on. Only an explicit isolated engineering build can do that.
 const ownerFixtureBuild = !releaseBuild && process.env.SECUREPAY_MINI_OWNER_FIXTURES === '1';
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    {
+      name:'securepay-mini-customer-no-fixtures',
+      enforce:'pre',
+      resolveId(id:string) {
+        if(!ownerFixtureBuild && /(?:^|[/\\])miniInteractiveDemo(?:\.ts)?$/.test(id)) {
+          return fileURLToPath(new URL('./src/mini/miniNoDemo.ts', import.meta.url));
+        }
+        return null;
+      },
+    },
+  ],
   define: {
     __SECUREPAY_MINI_OWNER_FIXTURES__: JSON.stringify(ownerFixtureBuild),
   },
   resolve: {
-    alias: [
-      { find: '@', replacement: fileURLToPath(new URL('./src', import.meta.url)) },
-      // Resolve both bare/relative and already-expanded import paths: a release
-      // must never carry scripted API responses or fake provider receipts.
-      ...(!ownerFixtureBuild ? [{
-        find: /miniInteractiveDemo(?:\.ts)?$/,
-        replacement: fileURLToPath(new URL('./src/mini/miniNoDemo.ts', import.meta.url)),
-      }] : []),
-    ],
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+    },
   },
   optimizeDeps: {
     exclude: ['lucide-react'],
