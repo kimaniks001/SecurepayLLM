@@ -47,7 +47,7 @@
     "test:mini-m5b": "node --test tests/mini-m5b-seller-review.test.mjs",
     "test:mini-m5c": "node --test tests/mini-m5c-seller-quotation.test.mjs",
     "test:mini-phase6": "node --test tests/mini-sell-phase6a-trade-again.test.mjs tests/mini-sell-phase6b-e-repeat-trading.test.mjs",
-    "build:mini-release": "SECUREPAY_MINI_RELEASE_BUILD=1 vite build && SECUREPAY_MINI_RELEASE_BUILD=1 node scripts/securepay-mini-release-audit.mjs",
+    "build:mini-release": "SECUREPAY_MINI_RELEASE_BUILD=1 vite build && SECUREPAY_MINI_RELEASE_BUILD=1 node scripts/securepay-mini-prune-customer-assets.mjs && SECUREPAY_MINI_RELEASE_BUILD=1 node scripts/securepay-mini-release-audit.mjs",
     "test:mini-pay": "node --test tests/mini-pay-human-first.test.mjs tests/mini-pay-phase2a-canonical-read.test.mjs tests/mini-pay-phase2b-private-responsibilities.test.mjs tests/mini-pay-phase2c-2f-safe-read.test.mjs",
     "test:mini-phase7": "node --test tests/mini-community-saver-phase7.test.mjs tests/mini-community-saver-phase7b-own-item.test.mjs tests/mini-community-saver-phase7c-plug-readiness.test.mjs tests/mini-community-saver-phase7d-consent.test.mjs tests/mini-community-saver-phase7e-money-demo.test.mjs tests/mini-community-saver-preparation-only.test.mjs"
   },
