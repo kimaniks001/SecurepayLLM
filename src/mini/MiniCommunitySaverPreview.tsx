@@ -27,6 +27,7 @@ export function MiniCommunitySaverPreview({onBack}:{onBack:()=>void}){
   const [selected,setSelected]=useState(0);
   const [details,setDetails]=useState(false);
   const [rules,setRules]=useState(false);
+  const [plugPreviewChoice,setPlugPreviewChoice]=useState<'idle'|'accept'|'decline'>('idle');
   const current=cases[selected];
   const quote=communitySaverPreScreen({
     platformCode:current.code,
@@ -52,7 +53,7 @@ export function MiniCommunitySaverPreview({onBack}:{onBack:()=>void}){
       {cases.map((sample,index)=><button type="button" key={sample.code}
         className={'spm-sell-answer-pill'+(selected===index?' selected':'')}
         aria-pressed={selected===index}
-        onClick={()=>{setSelected(index);setDetails(false);setRules(false)}}>
+        onClick={()=>{setSelected(index);setDetails(false);setRules(false);setPlugPreviewChoice('idle')}}>
         <sample.icon size={15}/>{sample.name}
       </button>)}
     </div>
@@ -97,6 +98,31 @@ export function MiniCommunitySaverPreview({onBack}:{onBack:()=>void}){
         </div>}
       </>:<p>This illustration does not meet the {communitySaverRules.minNetSavingPercent}% item-level net saving requirement. No opportunity is advertised.</p>}
     </div>
+    {quote.ok&&<div className="spm-saver-card" data-mini-saver-plug-preview>
+      <div className="spm-saver-card-heading"><span>What a Plug would see</span><strong>Demo only</strong></div>
+      <p className="spm-saver-description">Only a qualified {current.name} facilitator would receive an approved assignment. This screen cannot verify qualifications or reveal real trader details.</p>
+      <div className="spm-saver-number">
+        <span>Fixed reward to consider</span>
+        <strong>{shillings(quote.plugFeeMinor)}</strong>
+        <small>10% of the 25% item-level net savings benchmark. The Plug may accept or decline.</small>
+      </div>
+      <div className="spm-sell-pill-row">
+        <button type="button" className={'spm-sell-answer-pill'+(plugPreviewChoice==='accept'?' selected':'')}
+          aria-pressed={plugPreviewChoice==='accept'} onClick={()=>setPlugPreviewChoice('accept')}>
+          Simulate accept
+        </button>
+        <button type="button" className={'spm-sell-answer-pill'+(plugPreviewChoice==='decline'?' selected':'')}
+          aria-pressed={plugPreviewChoice==='decline'} onClick={()=>setPlugPreviewChoice('decline')}>
+          Simulate decline
+        </button>
+      </div>
+      {plugPreviewChoice!=='idle'&&<p className="spm-saver-description" role="status">
+        {plugPreviewChoice==='accept'
+          ?'In a real assignment, capacity, competence, permissions and the traders’ fresh consent still require verification.'
+          :'In a real assignment, SecurePay could find another qualified Plug without changing agreed trader prices.'}
+        {' '}This choice is local to this fictional walkthrough.
+      </p>}
+    </div>}
     <p className="spm-saver-footer"><ShieldCheck size={15}/> Screening is not verification. These prices are fictional. Real Community Saver remains off until item provenance, qualified Plugs, consent, rails and platform integrations are certified.</p>
   </section>;
 }
