@@ -96,3 +96,26 @@ Agreement ID or date is manufactured by the preview. The C2B backend draft endpo
 on a separate, unmerged SecurePayAPI branch (PR #492), which itself depends on C2A PR #491.
 Neither branch may be treated as live Money. The human Mini preview remains a demonstrator
 until there is a real authenticated Agreement/context and independent authority checks.
+
+## C3A — Human provider possibility review (18 November 2026)
+
+Mini now continues from a **fully answered C2 review** to a new screen,
+`C3ProviderPossibilities.tsx`, explaining which bank services the particular
+collection would require. It adapts to the chosen target, end date, fundraiser
+purpose, fallback/refund and approval rule. The C3 preview uses no bank names,
+ratings, support claims or fake provider data. It explicitly warns that no
+authenticated Agreement or financial provider has been checked in this demo,
+and performs **no** network request, bank selection, Money movement or transfer
+instruction. Back to C2 remains functional.
+
+Backend C3A provider fit on SecurePayAPI is a separate draft branch
+`feat/mini-collect-c3a-provider-capability-fit-20261118`, dependent on C2D
+PR #494. It reads only the current canonical C2 rules and operations-controlled
+LIVE institution/collection/settlement capability proofs, including custody,
+contributor attribution, period, failure, refund and group payout rights.
+It always returns `activationAllowed=false`, even on a technical match.
+
+**Remaining:** independently verified real provider profiles, authenticated
+provider shortlist/choice, actual collection-specific custody mandates,
+refund horizon, C6/C7 financial execution and C8 provider/security/database
+certification. No provider is certified by the preview.
