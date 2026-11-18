@@ -60,7 +60,7 @@ test('colours communicate only a specific workflow after reveal; never expose ec
   assert.match(list,/No money can be moved from this screen/);
   assert.match(list,/never represents your financial standing/);
   assert.match(list,/amountMeaning==='AGREED'\?'Amount agreed':'Amount proposed'/);
-  assert.match(list,/not a verified unpaid balance/);
+  assert.match(list,/not necessarily unpaid/);
 });
 
 test('no fake provider receipt or money execution in personal responsibility component',()=>{
