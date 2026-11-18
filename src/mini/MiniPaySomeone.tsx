@@ -47,7 +47,7 @@ export function MiniPaySomeone({language,preview,seed,onBack,onExisting,onPrepar
     if(screen==='home')onBack();
     else if(screen==='checkout')setScreen('group');
     else if(screen==='new-review')setScreen('new');
-    else setScreen('home');
+    else {setPrivacyRevealed(false);setFilter('all');setScreen('home');}
   };
   const makeDraft=():MiniDraft=>({intent:'pay',description:purpose.trim(),amount:amount.trim(),
     counterparty:ks.trim().toUpperCase(),note:'Proposed payee KSNumber: '+ks.trim().toUpperCase()+'. Recipient must accept the stated purpose and amount before the payer can authorise Money.',
