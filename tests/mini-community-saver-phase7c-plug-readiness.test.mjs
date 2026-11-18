@@ -39,6 +39,12 @@ test('7C phone experience refuses any server claim of a live assignment',()=>{
   assert.ok(ui.includes('SPECIALISM_NOT_CURRENT'));
   assert.ok(ui.includes('A general property or trading qualification cannot substitute'));
 });
+test('7C fictional cargo Plug cannot even simulate accepting Shortstays or Storage',()=>{
+  const preview=read('src/mini/MiniCommunitySaverPreview.tsx');
+  assert.ok(preview.includes('fictionalCargoPlugQualifies=selected===0'));
+  assert.ok(preview.includes('disabled={!fictionalCargoPlugQualifies}'));
+  assert.ok(preview.includes('NOT qualified for this platform'));
+});
 test('7C existing 25% and Plug fee calculation is not overridden by readiness',()=>{
   const core=read('src/mini/communitySaverPreScreen.mjs');
   assert.ok(core.includes('minNetSavingPercent:25'));
