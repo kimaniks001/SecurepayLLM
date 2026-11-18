@@ -40,10 +40,11 @@ function requiredDay(day, what) {
   return day;
 }
 
-export function prepareCollectionGovernanceSubmission(draft, context, idempotencyKey) {
-  if (!draft || !context || typeof context !== 'object') throw new Error('Canonical collection context required');
-  if (!UUID.test(context.agreementId || '') || !UUID.test(context.groupSecureLinkId || '')) throw new Error('Canonical identifiers required');
-  if (typeof idempotencyKey !== 'string' || !idempotencyKey.trim() || idempotencyKey.length > 128) throw new Error('Stable request key required');
+function requireStableKey(key) {
+  if (typeof key !== 'string' || !key.trim() || key.length > 128) throw new Error('Stable request key required');
+}
+export function prepareCollectionGovernanceTerms(draft, context) {
+  if (!draft || !context || typeof context !== 'object') throw new Error('Collection context required');
   if (!context.timeZone || typeof context.timeZone !== 'string') throw new Error('Collection time zone required');
   if (!isInstant(context.contributionDeadline)) throw new Error('Absolute contribution deadline required');
   if (requiredDay(context.closingLocalDate, 'local closing date') !== draft.deadline) throw new Error('Closing date mismatch');
@@ -88,6 +89,42 @@ export function prepareCollectionGovernanceSubmission(draft, context, idempotenc
     changeRule: requiredValue(CHANGE, draft.changeRule, 'change authority'),
     payoutRule: requiredValue(PAYOUT, draft.payoutRule, 'payout authority'),
   });
+  return terms;
+}
+
+/** Only for a newly forming canonical Agreement. No network or bank action. */
+export function prepareCollectionAgreementFormation(draft, context, idempotencyKey) {
+  requireStableKey(idempotencyKey);
+  const terms = prepareCollectionGovernanceTerms(draft, context);
+  if (typeof context.title !== 'string' || !context.title.trim()
+      || typeof context.purpose !== 'string' || !context.purpose.trim()) {
+    throw new Error('Collection must have its own clear title and purpose');
+  }
+  if (context.organizationId != null && !UUID.test(context.organizationId)) {
+    throw new Error('Only a verified organization identifier may be used');
+  }
+  return Object.freeze({
+    idempotencyKey,
+    agreementType: 'COLLECTION',
+    title: context.title.trim(),
+    purpose: context.purpose.trim(),
+    description: context.description || null,
+    organizationId: context.organizationId || null,
+    currency: 'KES',
+    proposedAmountMinor: terms.targetAmountMinor,
+    saveAsDraft: true,
+    initialParticipants: [],
+    collectionGovernanceTerms: terms,
+  });
+}
+
+/** Use only AFTER the backend has returned a real Agreement and Group ID. */
+export function prepareCollectionGovernanceSubmission(draft, context, idempotencyKey) {
+  if (!context || !UUID.test(context.agreementId || '') || !UUID.test(context.groupSecureLinkId || '')) {
+    throw new Error('Canonical identifiers required');
+  }
+  requireStableKey(idempotencyKey);
+  const terms = prepareCollectionGovernanceTerms(draft, context);
   return Object.freeze({
     agreementId: context.agreementId,
     body: Object.freeze({ idempotencyKey, terms }),
