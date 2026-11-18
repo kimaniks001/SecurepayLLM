@@ -50,7 +50,7 @@ export function MiniSellerSaveTemplate({gateway,title,terms}:{gateway?:MiniTrade
           <button type="button" key={value}
             className={'spm-sell-answer-pill'+(cadence===value?' selected':'')}
             aria-pressed={cadence===value} disabled={done}
-            onClick={()=>{setCadence(value);setMessage('')}}>
+            onClick={()=>{setCadence(value);if(value==='ONE_TIME'){setStopRule('EACH_CYCLE_CONFIRM');setUntilDate('')}setMessage('')}}>
             {value==='ONE_TIME'?'Maybe later':value==='WEEKLY'?'Every week':
               value==='MONTHLY'?'Every month':'When asked'}
           </button>)}
