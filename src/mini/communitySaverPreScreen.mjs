@@ -13,7 +13,7 @@ export const communitySaverRules=Object.freeze({
   plugPercentOfMinimumSaving:10,
   approvedPlatformCodes:Object.freeze(['SHORTSTAYS','MY_RIDE','STORAGE'])
 });
-const whole=n=>Number.isSafeInteger(n)&&n>=0&&n<=1_000_000_000_000_000;
+const whole=n=>Number.isSafeInteger(n)&&n>=0&&n<=1_000_000_000_000;
 const money=n=>whole(n)&&n>0;
 const fail=(code)=>({ok:false,reason:code,illustrationOnly:true,
   agreementChanged:false,invitationSent:false,moneyAuthorized:false});
