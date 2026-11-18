@@ -5,6 +5,7 @@ import {
   ShieldCheck, ShoppingBag, Sparkles, Users, WalletCards,
 } from 'lucide-react';
 import securepayMark from '../../assets/brand/securepay/securepay-mark-green.png';
+import { C2GovernanceExperience } from './C2GovernanceExperience';
 
 /**
  * C1 is an intentionally non-transactional, phone-first discovery experience.
@@ -115,6 +116,7 @@ export function C1CollectExperience() {
   const [stage, setStage] = useState<Stage>('purpose');
   const [kind, setKind] = useState<CollectionKind | null>(null);
   const [answer, setAnswer] = useState<string | null>(null);
+  const [governanceOpen, setGovernanceOpen] = useState(false);
   const selected = C1_COLLECTION_PATHS.find(path => path.id === kind);
   const selectedAnswer = selected?.options.find(option => option.label === answer);
 
@@ -128,7 +130,9 @@ export function C1CollectExperience() {
     else if (stage === 'detail') { setStage('purpose'); setAnswer(null); }
     else { setKind(null); setAnswer(null); setStage('purpose'); }
   };
-  const reset = () => { setKind(null); setAnswer(null); setStage('purpose'); };
+  const reset = () => { setKind(null); setAnswer(null); setGovernanceOpen(false); setStage('purpose'); };
+
+  if (governanceOpen && selected && selectedAnswer) return <C2GovernanceExperience kind={selected.id} onBack={() => setGovernanceOpen(false)} />;
 
   return (
     <div data-mini-collect-c1 className="min-h-screen bg-[#faf7f0] text-[#244936]">
@@ -237,7 +241,10 @@ export function C1CollectExperience() {
               </div>
             </div>
             <p className="mt-4 text-xs leading-5 text-[#667568]">C1 experience preview only. Nothing is saved, agreed, sent, invested or paid. SecureLinks, live totals and regulated Money actions come in later phases.</p>
-            <button type="button" onClick={reset} className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#285d41] px-5 text-sm font-semibold text-white hover:bg-[#1e4b35] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#285d41]">
+            <button type="button" onClick={() => setGovernanceOpen(true)} className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#285d41] px-5 text-sm font-semibold text-white hover:bg-[#1e4b35] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#285d41]">
+              Agree on the collection rules <ArrowRight size={18} aria-hidden="true"/>
+            </button>
+            <button type="button" onClick={reset} className="mt-2 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#285d41] px-5 text-sm font-semibold text-white hover:bg-[#1e4b35] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#285d41]">
               <RotateCcw size={17} aria-hidden="true" /> Explore another collection
             </button>
             <button type="button" onClick={goBack} className="mt-2 min-h-11 w-full rounded-xl text-sm font-semibold text-[#38664a] hover:bg-[#edf1e9]">Change my answer</button>
