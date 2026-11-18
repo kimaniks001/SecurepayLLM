@@ -92,7 +92,7 @@ export function MiniSellerRelationships({memory,agreements,stores,onStart}:{memo
         if(!stores)throw Error('Store unavailable');
         const source=await stores.store(pending.reference);
         if(source.status!=='ACTIVE'||source.canonicalKsNumber!==pending.reference||
-           source.displayName!==pending.label)throw Error('Store changed');
+           source.displayName.slice(0,160)!==pending.label)throw Error('Store changed');
       }else{
         if(!agreements)throw Error('Agreement unavailable');
         const source=await agreements.detail(pending.reference);
