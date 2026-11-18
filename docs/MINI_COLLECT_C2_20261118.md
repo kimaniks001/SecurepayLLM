@@ -7,15 +7,16 @@ The C1 path now has a button **Agree on the collection rules** leading into C2.
 C2 asks one small decision at a time, through accessible answer pills, numeric target and native date tool:
 
 1. **Capacity:** self, verified organization or someone represented (no authorization inferred).
-2. **Target:** fixed amount vs open collection; group purchase requires fixed amount.
-3. **End condition:** explicit future close date; a fixed target can close at target or deadline.
+2. **People and beneficiary:** individual, invited or open contributors; destination by collection purpose (e.g. verified merchant or rotation member). Neither eligibility nor destination is verified locally.
+3. **Target:** fixed amount vs open collection; group purchase requires fixed amount.
+4. **Collection window:** after Agreement activation or a scheduled date; explicit future close date; a fixed target can close at target or deadline. Exact close time/timezone remains a mandatory backend gate.
    Where it can continue past its target, a surplus rule is mandatory.
-4. **Fallback:** purpose-specific treatment when target is missed, a plan is cancelled,
+5. **Fallback:** purpose-specific treatment when target is missed, a plan is cancelled,
    a cycle is incomplete, a donation period closes or an education goal changes.
-5. **Authority:** fresh consent or an already-approved quorum for material changes;
+6. **Authority:** fresh consent or an already-approved quorum for material changes;
    verified beneficiary, two approvers or an existing mandate for payouts.
    Group purchase and group rotation cannot choose single-beneficiary approval.
-6. **Review:** readable decisions and independent unresolved gates:
+7. **Review:** readable decisions and independent unresolved gates:
    legal collector/recipient identity and representation; canonical Agreement version;
    affected party consent; financial provider custody/refund/disbursement capability;
    expiry, recovery, security and audit authority.
