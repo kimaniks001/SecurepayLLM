@@ -8,6 +8,8 @@ export type PayoutRule = 'verified-beneficiary' | 'two-approvers' | 'existing-ma
 export interface GovernanceDraft {
   readonly kind: CollectionKind;
   readonly capacity: Capacity | null;
+  readonly contributorScope: 'one' | 'invited' | 'open' | null;
+  readonly beneficiaryRule: string | null;
   readonly targetMode: TargetMode | null;
   readonly targetAmountKes: number | null;
   readonly stopRule: StopRule | null;
@@ -26,6 +28,8 @@ export interface GovernanceAssessment {
 }
 export const COLLECTION_KINDS: readonly CollectionKind[];
 export const ACTOR_CAPACITIES: readonly AnswerOption[];
+export const CONTRIBUTOR_SCOPES: readonly AnswerOption[];
+export function beneficiaryOptions(kind: CollectionKind): readonly AnswerOption[];
 export const TARGET_MODES: readonly AnswerOption[];
 export const STOP_RULES: readonly AnswerOption[];
 export const SURPLUS_RULES: readonly AnswerOption[];
