@@ -22,7 +22,7 @@ export default defineConfig({
       // Resolve both bare/relative and already-expanded import paths: a release
       // must never carry scripted API responses or fake provider receipts.
       ...(!ownerFixtureBuild ? [{
-        find: /miniInteractiveDemo(?:\\.ts)?$/,
+        find: /miniInteractiveDemo(?:\.ts)?$/,
         replacement: fileURLToPath(new URL('./src/mini/miniNoDemo.ts', import.meta.url)),
       }] : []),
     ],
