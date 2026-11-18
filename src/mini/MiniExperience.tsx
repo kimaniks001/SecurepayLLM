@@ -182,6 +182,18 @@ export function MiniExperience() {
   useEffect(() => {
     if (screen === 'describe') firstField.current?.focus({ preventScroll: true });
   }, [screen]);
+  // These three keys contain ONLY obsolete engineering fixtures. Never clear
+  // genuine signed-in Agreements, canonical session tokens or customer drafts.
+  useEffect(()=>{
+    if(__SECUREPAY_MINI_OWNER_FIXTURES__)return;
+    for(const key of [
+      'securepay.mini.synthetic-experience.v1',
+      'securepay.mini.sample-basket-draft.v1',
+      'securepay.mini.owner-only-living-purchases.v1',
+    ]){
+      try{sessionStorage.removeItem(key);}catch{/* Storage may be blocked. */}
+    }
+  },[]);
   useEffect(() => { document.documentElement.lang = lang === 'sw' ? 'sw' : 'en'; }, [lang]);
   // A new Mini task must start at its top, not retain the scroll position
   // from the longer review screen (also applies inside the owner iframe).
