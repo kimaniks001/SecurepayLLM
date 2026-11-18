@@ -35,7 +35,6 @@ export function MiniPaySomeone({language,preview,seed,onBack,onExisting,onPrepar
   const [ks,setKs]=useState('');
   const [amount,setAmount]=useState('');
   const [purpose,setPurpose]=useState(seed.slice(0,400));
-  const [partial,setPartial]=useState('');
   const [rail,setRail]=useState('M-PESA');
   const [plan,setPlan]=useState('Set money aside');
   const focusedItem=EXAMPLES.find(i=>i.id===focused)||EXAMPLES[0];
