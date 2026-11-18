@@ -56,7 +56,7 @@ test('money testing lives only in the existing Mini synthetic preview host and a
   assert.match(first,/new URLSearchParams\(window\.location\.search\)\.get\('moneyTest'\)==='1'/);
   assert.match(first,/const \[moneyOwnerOpen,setMoneyOwnerOpen\] = useState\(\(\)=>demo &&/);
   assert.match(first,/\{demo && <button type="button" className="spm-quiet-button"/);
-  assert.match(first,/Test Money · three routes \(simulation\)/);
+  assert.match(first,/Explore payment safety \(simulation\)/);
   assert.match(first,/demo && moneyOwnerOpen/);
   assert.match(first,/!moneyOwnerOpen && <>/);
 });
