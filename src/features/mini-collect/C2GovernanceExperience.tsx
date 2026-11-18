@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ArrowLeft, ArrowRight, CalendarDays, Check, ClipboardCheck, LockKeyhole, ShieldAlert, ShieldCheck } from 'lucide-react';
 import {
   ACTOR_CAPACITIES, CONTRIBUTOR_SCOPES, beneficiaryOptions, TARGET_MODES, STOP_RULES, SURPLUS_RULES, CHANGE_RULES,
-  PAYOUT_RULES, SERVER_GATES, failureOptions, newGovernanceDraft,
+  PAYOUT_RULES, SERVER_GATES, START_RULES, failureOptions, newGovernanceDraft,
   withGovernanceAnswer, isCalendarDate, assessGovernanceDraft,
   type CollectionKind, type GovernanceDraft, type AnswerOption,
 } from './governanceDraft.mjs';
@@ -60,7 +60,7 @@ export function C2GovernanceExperience({ kind, onBack }: {kind: CollectionKind; 
     if (stage === 'people') return !!draft.contributorScope && beneficiaryOptions(kind).some(option => option.id === draft.beneficiaryRule);
     if (stage === 'target') return (draft.kind !== 'buy' || draft.targetMode === 'fixed') &&
       (draft.targetMode === 'open' || (draft.targetMode === 'fixed' && Number.isSafeInteger(draft.targetAmountKes ?? 0) && (draft.targetAmountKes ?? 0) > 0));
-    if (stage === 'end') return isCalendarDate(draft.deadline) && (draft.deadline ?? '') > todayIso &&
+    if (stage === 'end') return !!draft.startRule && (draft.startRule !== 'scheduled' || (isCalendarDate(draft.startDate) && (draft.startDate ?? '') > todayIso && (draft.startDate ?? '') <= (draft.deadline ?? ''))) && isCalendarDate(draft.deadline) && (draft.deadline ?? '') > todayIso &&
       (draft.targetMode === 'open' || (draft.stopRule != null && (draft.stopRule !== 'date-only' || !!draft.surplusRule)));
     if (stage === 'failure') return failureOptions(kind).some(option => option.id === draft.failureRule);
     if (stage === 'control') return !!draft.changeRule && !!draft.payoutRule &&
@@ -124,8 +124,17 @@ export function C2GovernanceExperience({ kind, onBack }: {kind: CollectionKind; 
         </section>}
 
         {stage === 'end' && <section aria-labelledby="c2-end">
-          <h1 id="c2-end" className="font-display text-[2rem] leading-tight">When should it stop?</h1>
+          <h1 id="c2-end" className="font-display text-[2rem] leading-tight">When should it start and stop?</h1>
           <p className="mt-3 text-sm leading-6 text-[#627366]">Every collection needs a clear closing point, including each recurring period.</p>
+          <h2 className="mt-6 text-sm font-semibold">When may contributions begin?</h2>
+          <OptionPills ariaLabel="Collection start rule" options={START_RULES} value={draft.startRule}
+            onChoose={value => answer('startRule', value as GovernanceDraft['startRule'])}/>
+          {draft.startRule === 'scheduled' && <label className="mt-4 block text-sm font-semibold">Planned start date
+            <input data-collect-start type="date" min={todayIso} max={draft.deadline ?? undefined} value={draft.startDate ?? ''}
+              onChange={event => answer('startDate', event.target.value || null)}
+              className="mt-2 min-h-12 w-full rounded-xl border border-[#c7d8c9] bg-white px-4 text-base focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#285d41]"/>
+          </label>}
+          <h2 className="mt-6 text-sm font-semibold">When does this collection close?</h2>
           <label className="mt-5 block text-sm font-semibold"><span className="inline-flex items-center gap-2"><CalendarDays size={18} aria-hidden="true"/> Collection closing date</span>
             <input data-collect-deadline type="date" min={todayIso} value={draft.deadline ?? ''}
               onChange={event => answer('deadline', event.target.value || null)}
@@ -175,6 +184,7 @@ export function C2GovernanceExperience({ kind, onBack }: {kind: CollectionKind; 
               <div className="flex justify-between gap-4"><dt className="text-[#617467]">Contributors</dt><dd className="text-right font-semibold">{CONTRIBUTOR_SCOPES.find(o => o.id === draft.contributorScope)?.label}</dd></div>
               <div className="flex justify-between gap-4"><dt className="text-[#617467]">Beneficiary</dt><dd className="text-right font-semibold">{beneficiaryOptions(kind).find(o => o.id === draft.beneficiaryRule)?.label}</dd></div>
               <div className="flex justify-between gap-4"><dt className="text-[#617467]">Target</dt><dd className="text-right font-semibold">{draft.targetMode === 'fixed' ? 'KSh ' + (draft.targetAmountKes ?? 0).toLocaleString('en-KE') : 'Open amount'}</dd></div>
+              <div className="flex justify-between gap-4"><dt className="text-[#617467]">Start</dt><dd className="text-right font-semibold">{draft.startRule === 'scheduled' ? draft.startDate : 'After required approvals'}</dd></div>
               <div className="flex justify-between gap-4"><dt className="text-[#617467]">Closing date</dt><dd className="text-right font-semibold">{draft.deadline}</dd></div>
               <div className="flex justify-between gap-4"><dt className="text-[#617467]">Stop rule</dt><dd className="text-right font-semibold">{STOP_RULES.find(o => o.id === draft.stopRule)?.label}</dd></div>
               {draft.surplusRule && <div className="flex justify-between gap-4"><dt className="text-[#617467]">Extra money</dt><dd className="text-right font-semibold">{SURPLUS_RULES.find(o => o.id === draft.surplusRule)?.label}</dd></div>}
