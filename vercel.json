@@ -148,5 +148,5 @@
       ]
     }
   ],
-  "buildCommand": "node scripts/securepay-mini-preview-checks.mjs && npm run build"
+  "buildCommand": "node scripts/securepay-mini-preview-checks.mjs && npm run build:mini-release"
 }
