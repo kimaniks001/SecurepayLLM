@@ -37,5 +37,5 @@ test('the comparison preserves KES minor units, real provider quotation and prop
 
 test('comparison does not call provider selection without explicit future integration callback', () => {
   assert.match(comparison, /onPropose\?:/);
-  assert.match(comparison, /if.*return <div/); // component remains static if no authenticated source
+  assert.match(comparison, /\{onPropose \? <button/); // no selection action without a callback
 });
