@@ -1,6 +1,7 @@
 import {useState} from 'react';
 import {ArrowLeft,ArrowRight,CheckCircle2,ChevronDown,ShieldCheck,Sparkles,Truck,Warehouse,House} from 'lucide-react';
 import {communitySaverPreScreen,communitySaverRules} from './communitySaverPreScreen.mjs';
+import {MiniCommunitySaverConsentPreview} from './MiniCommunitySaverConsentPreview';
 
 /** An isolated, fictional OWNER REVIEW of the Phase 7 mathematics.
  * Not a live notification, capacity check, Plug job or Agreement adjustment.
@@ -133,6 +134,7 @@ export function MiniCommunitySaverPreview({onBack}:{onBack:()=>void}){
         {' '}This choice is local to this fictional walkthrough.
       </p>}
     </div>}
+    {selected===0&&<MiniCommunitySaverConsentPreview/>}
     <p className="spm-saver-footer"><ShieldCheck size={15}/> Screening is not verification. These prices are fictional. Real Community Saver remains off until item provenance, qualified Plugs, consent, rails and platform integrations are certified.</p>
   </section>;
 }
