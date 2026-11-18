@@ -35,7 +35,7 @@ test('Trade again is deliberately a fresh seller offer, not copied commercial co
   assert.ok(parent.includes('setPrice(\'\')'));
   assert.ok(parent.includes('setPictures([])'));
   assert.ok(parent.includes('setPeople([])'));
-  assert.ok(parent.includes('setTiming(\'\')'));
+  assert.ok(parent.includes('setTiming(timingProposal)'));
   assert.ok(parent.includes('<MiniSellerTradeAgain'));
   for(const forbidden of ['createAgreement(', 'connectToMoney(', 'issueInvitation(', 'selectPlan(', 'initiatePayment('])
     assert.equal(component.includes(forbidden),false);
