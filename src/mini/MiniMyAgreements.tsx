@@ -9,6 +9,8 @@ import type { MeasuredServicesGateway } from '../api/securepay/measured-services
 import type { MoneySnapshotGateway } from '../api/securepay/money-snapshot';
 import type { PaymentIntentGateway } from '../api/securepay/payment-intent';
 import { MiniMoneySnapshot } from './MiniMoneySnapshot';
+import { MiniCommunitySaverItemCheck } from './MiniCommunitySaverItemCheck';
+import type {CommunitySaverOwnItemGateway} from '../api/securepay/community-saver-own-item';
 import {miniAgreementHomePage,miniAgreementDetailView} from './miniAgreementHome.mjs';
 import type {MiniAgreementItem,MiniAgreementDetail} from './miniAgreementHome.mjs';
 
@@ -25,7 +27,7 @@ const dateLabel = (iso:string|null) => {
  * "who must act" inference. The server's nextActions and attentionRequired
  * remain the only authority on this user's next work.
  */
-export function MiniMyAgreements({gateway,quotationGateway,notificationGateway,measuredGateway,moneyGateway,paymentsGateway,liveQuotes,liveMoneyStatus,liveFeeQuotes,livePaymentCommands,prepare,onBack,onReauthenticate}:{
+export function MiniMyAgreements({gateway,quotationGateway,notificationGateway,measuredGateway,moneyGateway,paymentsGateway,liveQuotes,liveMoneyStatus,liveFeeQuotes,livePaymentCommands,communitySaverItems,communitySaverGateway,prepare,onBack,onReauthenticate}:{
   gateway:Pick<AgreementGateway,'currentUserAgreements'|'detail'|'propose'|'confirmVersion'|'version'>;
   quotationGateway:StoreQuotationGateway;
   measuredGateway:MeasuredServicesGateway;
@@ -36,6 +38,8 @@ export function MiniMyAgreements({gateway,quotationGateway,notificationGateway,m
   liveMoneyStatus:boolean;
   liveFeeQuotes:boolean;
   livePaymentCommands:boolean;
+  communitySaverItems:boolean;
+  communitySaverGateway?:CommunitySaverOwnItemGateway;
   prepare:()=>Promise<unknown>;
   onBack:()=>void;
   onReauthenticate:()=>void;
@@ -171,6 +175,14 @@ export function MiniMyAgreements({gateway,quotationGateway,notificationGateway,m
             {details.terms.map(t=><div className="spm-mini-agreement-fact" key={t.id}>
               <strong>{t.title}</strong><small>SecurePay records: {t.status}</small>
               {t.description&&<p>{t.description}</p>}
+              {communitySaverItems&&communitySaverGateway&&details.currentVersion&&
+                t.obligationType==='MONETARY'&&t.currency==='KES'&&
+                t.amountMinor!==null&&
+                <MiniCommunitySaverItemCheck key={chosen.id+':'+details.currentVersion.id+':'+t.id}
+                  gateway={communitySaverGateway}
+                  agreementId={chosen.id} versionId={details.currentVersion.id}
+                  itemId={t.id} itemTitle={t.title} baselineMinor={t.amountMinor}
+                  prepare={prepare}/>}
             </div>)}
           </div>
         </details>}
