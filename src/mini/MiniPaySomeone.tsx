@@ -155,6 +155,7 @@ export function MiniPaySomeone({language,preview,seed,onBack,onExisting,onPrepar
         onClick={()=>setScreen('checkout')}>Review payments <ArrowRight size={17}/></button>
     </>}
     {screen==='checkout'&&preview&&<>
+      {!privacyRevealed?<div className="spm-pay-private-cover"><LockKeyhole size={19}/><strong>Payment details hidden</strong><p>Tap Show to review people and amounts.</p></div>:<>
       {header('Review your payments','Nothing moves until you authorise it.')}
       <div className="spm-pay-review">
         {picked.map(i=><div className="spm-pay-checkrow" key={i.id}><span>{i.payee}<small>{i.purpose}</small></span><strong>{money(i.amount)}</strong></div>)}
@@ -165,21 +166,26 @@ export function MiniPaySomeone({language,preview,seed,onBack,onExisting,onPrepar
           onClick={()=>setRail(name)}><Glyph size={17}/>{name}{rail===name&&<CheckCircle2 size={16}/>}</button>)}</div>
       <p className="spm-pay-note"><ShieldCheck size={15}/>Real payment instructions remain disabled here. Providers may require separate approvals for several payments.</p>
       <button type="button" className="spm-primary" onClick={()=>setScreen('records')}>View sample payment records <ArrowRight size={17}/></button>
+      </>}
     </>}
     {screen==='records'&&preview&&<>
+      {!privacyRevealed?<div className="spm-pay-private-cover"><LockKeyhole size={19}/><strong>Private payment records</strong><p>Tap Show to inspect individually.</p></div>:<>
       {header('Your payment records','How individual receipts will appear after provider confirmation.')}
       <div className="spm-pay-review">{picked.map(i=><div key={i.id} className="spm-pay-checkrow">
         <span><strong>{i.payee}</strong><small>{i.purpose} · Not sent</small></span><strong>{money(i.amount)}</strong></div>)}</div>
       <p className="spm-pay-demo-note">Example only: no money moved and none of these people was marked paid.</p>
       <button type="button" className="spm-secondary" onClick={()=>setScreen('home')}>Back to your payments</button>
+      </>}
     </>}
     {screen==='prepare'&&preview&&<>
+      {!privacyRevealed?<div className="spm-pay-private-cover"><LockKeyhole size={19}/><strong>Private payment planning</strong><p>Tap Show to view this expense.</p></div>:<>
       {header('Get ready for this payment','You can plan ahead without paying the other person today.')}
       <div className="spm-pay-review"><small>Coming up</small><b>{money(focusedItem.amount)}</b><small>When</small><strong>{focusedItem.due}</strong></div>
       <div className="spm-pay-rails">{['Set money aside','Pay gradually','Ask about financing','Arrange regular payments'].map(s=>
         <button type="button" key={s} aria-pressed={plan===s} onClick={()=>setPlan(s)}>{s}{plan===s&&<CheckCircle2 size={16}/>}</button>)}</div>
       <p className="spm-pay-note">In the real app, an eligible regulated provider would explain the terms and request your approval. Nothing is invested or borrowed here.</p>
       <button type="button" className="spm-secondary" onClick={()=>setScreen('home')}>Back to your payments</button>
+      </>}
     </>}
   </section>;
 }
