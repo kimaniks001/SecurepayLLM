@@ -30,18 +30,25 @@ test('new API is opt-in only for correctly paired authenticated staging backend'
   assert.match(types,/VITE_SECUREPAY_MINI_PAY_RESPONSIBILITIES_READ/);
 });
 
-test('shoulder-surfing protection masks main list names, status colours and values until deliberate reveal',()=>{
-  assert.match(pay,/useState\(false\); \/\/ in-memory only/);
-  assert.match(pay,/privacyRevealed\?i\.title:'Agreement'/);
-  assert.match(pay,/privacyRevealed\?money\(i\.amount\):'••••'/);
-  assert.match(pay,/privacyRevealed&&<div className="spm-pay-tabs"/);
-  assert.match(pay,/!privacyRevealed\?<div className="spm-pay-private-cover"/);
+test('payment lists are recognisable and searchable while amounts and sensitive statuses remain concealed',()=>{
+  assert.match(pay,/const \[search,setSearch\]=useState\(''\)/);
+  assert.match(pay,/Find a person, shop or item/);
+  assert.match(pay,/\[i.title,i.payee,i.purpose,i.due\]/);
+  assert.match(pay,/<strong>\{i.title\}<\/strong>/);
+  assert.match(pay,/privacyRevealed\?money\(i.amount\):<LockKeyhole/);
+  assert.ok(!pay.includes('spm-pay-summary'), 'Remove oversized blank total card');
+
+  assert.match(agreements,/const \[paymentSearch,setPaymentSearch\]=useState\(''\)/);
+  assert.match(agreements,/shownItems=paymentFocus&&paymentQuery/);
+  assert.match(agreements,/Find agreement by name or reference/);
+  assert.match(agreements,/paymentFocus&&!detailsVisible\?<><strong>\{item.title\}/);
+  assert.match(agreements,/setPaymentDetailsVisible\(true\)/);
   assert.match(agreements,/const \[paymentDetailsVisible,setPaymentDetailsVisible\]=useState\(false\)/);
-  assert.match(agreements,/paymentFocus&&!paymentDetailsVisible/);
-  assert.match(agreements,/paymentFocus&&!detailsVisible\?<><strong>Agreement/);
+
+  assert.match(list,/const \[search,setSearch\]=useState\(''\)/);
+  assert.match(list,/const filteredRows=rows.filter/);
+  assert.match(list,/<strong>\{item.obligationTitle\}<\/strong>/);
   assert.match(list,/const \[reveal,setReveal\]=useState\(false\)/);
-  assert.match(list,/reveal\?item\.obligationTitle:`Agreement/);
-  assert.match(list,/reveal\?stateText\(item\.agreementState\):'Private details available'/);
   assert.match(list,/reveal&&<span className="spm-payment-detailed-signal"/);
 });
 
