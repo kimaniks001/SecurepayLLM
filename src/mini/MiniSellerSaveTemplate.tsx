@@ -13,7 +13,7 @@ export function MiniSellerSaveTemplate({gateway,title,terms}:{gateway?:MiniTrade
   const [busy,setBusy]=useState(false);
   const [done,setDone]=useState(false);
   const [message,setMessage]=useState('');
-  const [key,setKey]=useState(()=>crypto.randomUUID());
+  const [key]=useState(()=>crypto.randomUUID());
   const save=async()=>{
     if(!gateway||busy||done)return;
     const body=miniSellerRepeatTemplate({title:title.slice(0,160),termsHint:terms,
