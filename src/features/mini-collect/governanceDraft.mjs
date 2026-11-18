@@ -46,6 +46,10 @@ export const TARGET_MODES = Object.freeze([
   { id: 'fixed', label: 'A specific amount', hint: 'We know the target' },
   { id: 'open', label: 'No fixed amount', hint: 'A timed collection or ongoing purpose' },
 ]);
+export const START_RULES = Object.freeze([
+  { id: 'on-activation', label: 'When the Agreement is approved', hint: 'Never before required consent and provider checks' },
+  { id: 'scheduled', label: 'On a chosen date', hint: 'Only after approvals are complete' },
+]);
 export const STOP_RULES = Object.freeze([
   { id: 'target-or-date', label: 'At the target or deadline', hint: 'Whichever comes first' },
   { id: 'date-only', label: 'At the deadline', hint: 'Any excess needs an agreed rule' },
@@ -111,6 +115,8 @@ export function newGovernanceDraft(kind) {
     targetAmountKes: null,
     stopRule: null,
     surplusRule: null,
+    startRule: null,
+    startDate: null,
     deadline: null,
     failureRule: null,
     changeRule: null,
@@ -126,6 +132,7 @@ export function withGovernanceAnswer(draft, key, value) {
     next.surplusRule = null;
   }
   if (key === 'stopRule') next.surplusRule = null;
+  if (key === 'startRule') next.startDate = null;
   return Object.freeze(next);
 }
 export function isCalendarDate(value) {
@@ -152,6 +159,10 @@ export function assessGovernanceDraft(draft, todayIso) {
   } else if (draft.targetMode === 'open' && draft.stopRule !== 'date-only') {
     missing.push('An open collection must stop at its stated deadline');
   }
+  if (!START_RULES.some(x => x.id === draft.startRule)) missing.push('Choose when contributions may start');
+  if (draft.startRule === 'scheduled' && (!isCalendarDate(draft.startDate) || !isCalendarDate(todayIso) || draft.startDate <= todayIso || (isCalendarDate(draft.deadline) && draft.startDate > draft.deadline))) {
+    missing.push('Choose a valid start date before or on the closing date');
+  }
   if (!isCalendarDate(draft.deadline) || !isCalendarDate(todayIso) || draft.deadline <= todayIso) missing.push('Choose a future closing date');
   if (!failureOptions(draft.kind).some(x => x.id === draft.failureRule)) missing.push('Choose what happens if the collection does not go as planned');
   if (!CHANGE_RULES.some(x => x.id === draft.changeRule)) missing.push('Choose who may approve material changes');
@@ -170,6 +181,7 @@ export const SERVER_GATES = Object.freeze([
   'Bind exact purpose, source and latest Agreement version',
   'Obtain and record every required participant acceptance or existing valid mandate',
   'Verify lawful provider, custody account, collection window, payout and refund capabilities',
+  'Confirm exact closing time and timezone, with no indefinite fund hold',
   'Establish immutable authorization, expiry, reversal and audit instructions',
 ]);
 
