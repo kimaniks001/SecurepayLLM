@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   newGovernanceDraft, withGovernanceAnswer, assessGovernanceDraft,
-  isCalendarDate, failureOptions, canExecuteCollection, SERVER_GATES,
+  isCalendarDate, failureOptions, beneficiaryOptions, canExecuteCollection, SERVER_GATES,
 } from '../src/features/mini-collect/governanceDraft.mjs';
 const src = name => readFileSync(new URL('../' + name, import.meta.url), 'utf8');
 const today = '2026-11-18';
@@ -11,6 +11,8 @@ const complete = kind => {
   let d = newGovernanceDraft(kind);
   for (const [key, value] of [
     ['capacity', 'organization'],
+    ['contributorScope', 'invited'],
+    ['beneficiaryRule', beneficiaryOptions(kind)[0].id],
     ['targetMode', 'fixed'],
     ['targetAmountKes', 30000],
     ['stopRule', 'target-or-date'],
@@ -28,6 +30,8 @@ test('C2: no governance rule is silently selected at entry', () => {
     assert.equal(d.kind, kind);
     assert.equal(d.capacity, null);
     assert.equal(d.targetMode, null);
+    assert.equal(d.contributorScope, null);
+    assert.equal(d.beneficiaryRule, null);
     assert.equal(d.failureRule, null);
     assert.equal(assessGovernanceDraft(d, today).draftComplete, false);
     assert.equal(assessGovernanceDraft(d, today).activationAllowed, false);
@@ -45,6 +49,18 @@ test('C2: positive fixed target, future date, governance and fallback are mandat
   assert.equal(assessGovernanceDraft(withGovernanceAnswer(d, 'deadline', '2026-11-18'), today).draftComplete, false);
   assert.equal(assessGovernanceDraft(withGovernanceAnswer(d, 'deadline', '2026-11-17'), today).draftComplete, false);
   assert.equal(assessGovernanceDraft(withGovernanceAnswer(d, 'failureRule', null), today).draftComplete, false);
+});
+test('C2: contributor eligibility and purpose-specific rightful beneficiary are mandatory', () => {
+  for (const kind of ['buy','paid','regular','group','give','goal']) {
+    const d = complete(kind);
+    assert.equal(assessGovernanceDraft(d, today).draftComplete, true);
+    assert.equal(assessGovernanceDraft(withGovernanceAnswer(d, 'contributorScope', null), today).draftComplete, false);
+    assert.equal(assessGovernanceDraft(withGovernanceAnswer(d, 'beneficiaryRule', null), today).draftComplete, false);
+  }
+  assert.equal(beneficiaryOptions('buy').length, 1);
+  assert.equal(beneficiaryOptions('buy')[0].id, 'merchant');
+  assert.equal(assessGovernanceDraft(withGovernanceAnswer(complete('buy'), 'beneficiaryRule', 'collector'), today).draftComplete, false);
+  assert.equal(beneficiaryOptions('group')[0].id, 'rotation');
 });
 test('C2: exact date syntax and real calendar days are required', () => {
   assert.equal(isCalendarDate('2026-12-05'), true);
@@ -109,6 +125,8 @@ test('C2: one mini journey with answer pills, date picker and fail-closed review
   assert.match(ui, /role="group" aria-label=\{ariaLabel\}/);
   assert.match(ui, /type="date"/);
   assert.match(ui, /type="number"/);
+  assert.match(ui, /Contributor eligibility/);
+  assert.match(ui, /Payout beneficiary/);
   assert.match(ui, /No bank selected, no binding Agreement or SecureLink created/);
   assert.match(ui, /SERVER_GATES\.map/);
   assert.doesNotMatch(ui, /fetch\(|localStorage|sessionStorage|\.disburse\(|\.fund\(/);
