@@ -1,5 +1,5 @@
 import {useMemo,useState} from 'react';
-import {ArrowLeft,ArrowRight,CalendarDays,CheckCircle2,Clock3,Eye,EyeOff,FileText,HandCoins,Landmark,LockKeyhole,Plus,ShieldCheck,Smartphone,UsersRound,Wallet} from 'lucide-react';
+import {ArrowLeft,ArrowRight,CalendarDays,CheckCircle2,Clock3,Eye,EyeOff,FileText,HandCoins,Landmark,LockKeyhole,Plus,Search,ShieldCheck,Smartphone,UsersRound,Wallet} from 'lucide-react';
 import type {MiniDraft,MiniLanguage} from './miniModel';
 import './miniPaySomeone.css';
 
@@ -30,6 +30,7 @@ export function MiniPaySomeone({language,preview,seed,onBack,onExisting,onPrepar
   const sw=language==='sw';
   const [screen,setScreen]=useState<Screen>('home');
   const [filter,setFilter]=useState<'all'|'due'|'upcoming'>('all');
+  const [search,setSearch]=useState('');
   const [selected,setSelected]=useState<string[]>([]);
   const [focused,setFocused]=useState('lpg');
   const [ks,setKs]=useState('');
@@ -42,7 +43,9 @@ export function MiniPaySomeone({language,preview,seed,onBack,onExisting,onPrepar
   const picked=EXAMPLES.filter(i=>selected.includes(i.id));
   const total=useMemo(()=>picked.reduce((sum,i)=>sum+i.amount,0),[picked]);
   const available=EXAMPLES.filter(i=>i.status==='due');
-  const list=EXAMPLES.filter(i=>filter==='all'||(filter==='due'?i.status==='due':i.status!=='due'));
+  const query=search.trim().toLocaleLowerCase('en-KE');
+  const list=EXAMPLES.filter(i=>(filter==='all'||(filter==='due'?i.status==='due':i.status!=='due'))&&
+    (!query||[i.title,i.payee,i.purpose,i.due].some(v=>v.toLocaleLowerCase('en-KE').includes(query))));
   const back=()=>{
     if(screen==='home')onBack();
     else if(screen==='checkout')setScreen('group');
@@ -56,27 +59,32 @@ export function MiniPaySomeone({language,preview,seed,onBack,onExisting,onPrepar
     <div className="spm-pay-private-heading"><button type="button" className="spm-back" onClick={back}><ArrowLeft size={17}/>{sw?'Rudi':'Back'}</button>
       {preview&&['home','detail','group','checkout','records','prepare'].includes(screen)&&
         <button type="button" className="spm-pay-privacy-control"
-          onClick={()=>setPrivacyRevealed(v=>!v)} aria-label={privacyRevealed?'Hide private payment details':'Show private payment details'}>
-          {privacyRevealed?<EyeOff size={16}/>:<Eye size={16}/>}{privacyRevealed?'Hide':'Show'}</button>}
+          onClick={()=>setPrivacyRevealed(v=>!v)} aria-label={privacyRevealed?'Hide payment amounts':'Show payment amounts'}>
+          {privacyRevealed?<EyeOff size={16}/>:<Eye size={16}/>}{privacyRevealed?'Hide amounts':'Show amounts'}</button>}
     </div>
     {screen==='home'&&<>
-      {header(sw?'Malipo yako':'Your payments',sw?'Lipa mtu au kitu kwa urahisi.':'Your payments, kept private until you choose to see them.')}
+      {header(sw?'Malipo yako':'Your payments',sw?'Lipa mtu au kitu kwa urahisi.':'Find someone or something you agreed to pay.')}
       {preview&&<div className="spm-pay-demo-note"><strong>Example payments only</strong><small>Fictional people and amounts. No requests or money are sent.</small></div>}
       {preview&&<>
-        <div className="spm-pay-summary"><span>{privacyRevealed?'Example payments':'Your agreements'}</span><strong>{privacyRevealed?money(available.reduce((s,i)=>s+i.amount,0)):'••••'}</strong><small>{privacyRevealed?`${available.length} example payments ready · Others coming up`:'Private view · Tap Show to see details'}</small></div>
-        {privacyRevealed&&<div className="spm-pay-tabs" role="group" aria-label="Filter payments">
+        <label className="spm-pay-search" htmlFor="spm-pay-find"><Search size={17}/>
+          <input id="spm-pay-find" type="search" value={search} onChange={e=>setSearch(e.target.value)}
+            autoComplete="off" placeholder="Find a person, shop or item" aria-label="Find a payment by person, shop or item"/>
+        </label>
+        <div className="spm-pay-tabs" role="group" aria-label="Filter payments">
           {(['all','due','upcoming'] as const).map(x=><button key={x} type="button"
-            aria-pressed={filter===x} onClick={()=>setFilter(x)}>{x==='all'?'All':x==='due'?'Ready':'Coming up'}</button>)}
-        </div>}
+            aria-pressed={filter===x} onClick={()=>setFilter(x)}>{x==='all'?'All':x==='due'?'To review':'Later'}</button>)}
+        </div>
         <div className="spm-pay-items">
           {list.map(i=><button type="button" className="spm-pay-item" key={i.id}
-            onClick={()=>{setFocused(i.id);setScreen('detail')}}>
+            onClick={()=>{setFocused(i.id);setPrivacyRevealed(true);setScreen('detail')}}>
             <span className="spm-pay-avatar"><FileText size={18}/></span>
-            <span className="spm-pay-item-text"><strong>{privacyRevealed?i.title:'Agreement'}</strong><small>{privacyRevealed?`${i.payee} · ${i.due}`:'Tap to inspect privately'}</small>{privacyRevealed&&<small>{i.status==='due'?'Ready to review':i.status==='needs-check'?'Early payment needs agreement':'Coming up'}</small>}</span>
-            <span className="spm-pay-item-value">{privacyRevealed?money(i.amount):'••••'}<ArrowRight size={15}/></span>
+            <span className="spm-pay-item-text"><strong>{i.title}</strong>
+              <small>{i.payee}</small>{privacyRevealed&&<small>{i.due} · {i.status==='due'?'To review':i.status==='needs-check'?'Check terms':'Later'}</small>}</span>
+            <span className="spm-pay-item-value">{privacyRevealed?money(i.amount):<LockKeyhole size={15} aria-label="Amount hidden"/>}<ArrowRight size={15}/></span>
           </button>)}
         </div>
-        <button type="button" className="spm-secondary spm-pay-full" onClick={()=>{setSelected(available.map(i=>i.id));setScreen('group')}}>
+        {list.length===0&&<p className="spm-pay-note">No matching payments. Try a name, shop or item.</p>}
+        <button type="button" className="spm-secondary spm-pay-full" onClick={()=>{setSelected(available.map(i=>i.id));setPrivacyRevealed(true);setScreen('group')}}>
           <UsersRound size={17}/>Pay several people <ArrowRight size={17}/>
         </button>
       </>}
