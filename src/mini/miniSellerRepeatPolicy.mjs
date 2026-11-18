@@ -11,7 +11,7 @@ export function miniSellerRepeatTemplate(input) {
     return null;
   const cadence=CADENCES.has(input.cadence)?input.cadence:null;
   const stopRule=STOPS.has(input.stopRule)?input.stopRule:null;
-  if(!cadence || !stopRule)return null;
+  if(!cadence || !stopRule || (cadence==='ONE_TIME' && stopRule!=='EACH_CYCLE_CONFIRM'))return null;
   let untilDate=null;
   if(stopRule==='UNTIL_DATE'){
     if(typeof input.untilDate!=='string'|| !/^\d{4}-\d{2}-\d{2}$/.test(input.untilDate))return null;
