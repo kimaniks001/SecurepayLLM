@@ -38,7 +38,7 @@ test('group review preserves each individually accepted example; no automatic tr
   assert.ok(pay.includes('i.status!==\'needs-check\''));
   assert.ok(pay.includes("setScreen('checkout')"));
   assert.ok(pay.includes('Each person keeps their own accepted agreement'));
-  assert.ok(pay.includes('one person'));
+  assert.ok(pay.includes("One person's failure"));
   assert.ok(pay.includes('no money moved'));
   for(const forbidden of ['initiatePayment(', 'createPaymentIntent(', 'settlePayment(', 'window.location.href='])
     assert.equal(pay.includes(forbidden),false);
