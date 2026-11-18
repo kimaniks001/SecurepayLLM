@@ -8,8 +8,33 @@ import { fileURLToPath, URL } from 'node:url';
 // SECUREPAY_MINI_RELEASE_BUILD=0 to include test/demo entry points.
 // This build switch is NOT a payment authorisation or backend Money switch.
 const releaseBuild = process.env.SECUREPAY_MINI_RELEASE_BUILD !== '0';
+// Demo fixtures are NOT part of the default customer build. URL query parameters
+// cannot turn them on. Only an explicit isolated engineering build can do that.
+const ownerFixtureBuild = !releaseBuild && process.env.SECUREPAY_MINI_OWNER_FIXTURES === '1';
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    {
+      name:'securepay-mini-customer-no-fixtures',
+      enforce:'pre',
+      resolveId(id:string) {
+        if(!ownerFixtureBuild && /(?:^|[/\\])miniInteractiveDemo(?:\.ts)?$/.test(id)) {
+          return fileURLToPath(new URL('./src/mini/miniNoDemo.ts', import.meta.url));
+        }
+        if(!ownerFixtureBuild && /(?:^|[/\\])MiniOwnerMoneyTest(?:\.tsx)?$/.test(id)) {
+          return fileURLToPath(new URL('./src/mini/MiniOwnerMoneyDisabled.tsx', import.meta.url));
+        }
+        if(!ownerFixtureBuild &&
+          /(?:^|[/\\])(?:MiniSampleMoneyJourney|MiniSampleAgreements|MiniBusinessSettings|MiniBusinessCapacity|MiniTradeSampleHelp|MiniCommunitySaverPreview)(?:\.tsx)?$/.test(id)) {
+          return fileURLToPath(new URL('./src/mini/miniNoSampleScreens.tsx', import.meta.url));
+        }
+        return null;
+      },
+    },
+  ],
+  define: {
+    __SECUREPAY_MINI_OWNER_FIXTURES__: JSON.stringify(ownerFixtureBuild),
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
@@ -23,8 +48,10 @@ export default defineConfig({
       input: {
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
         mini: fileURLToPath(new URL('./mini.html', import.meta.url)),
-        businessSettings: fileURLToPath(new URL('./business-settings.html', import.meta.url)),
+        // Business Settings Preview is fictional, not the actual verified merchant settings.
+        // Keep this HTML entry only in an explicit isolated engineering build.
         ...(releaseBuild ? {} : {
+        businessSettings: fileURLToPath(new URL('./business-settings.html', import.meta.url)),
         miniHostPreview: fileURLToPath(new URL('./mini-host-preview.html', import.meta.url)),
         demoStore: fileURLToPath(new URL('./checkout-demo-store.html', import.meta.url)),
         demoShortStays: fileURLToPath(new URL('./checkout-demo-shortstays.html', import.meta.url)),

@@ -15,6 +15,9 @@ if(!existsSync(join(root,'mini.html'))){
   throw Error('The customer Mini entry did not build');
 }
 for(const entry of [
+  'business-settings.html',
+  'checkout-demo-host.js','checkout-demo-server-host.js',
+  'checkout-gate2-host.js','checkout-gate3-host.js','checkout-gate4-host.js',
   'mini-host-preview.html','checkout-demo-store.html',
   'checkout-demo-shortstays.html','checkout-gate2-store.html',
   'checkout-gate2-shortstays.html','checkout-gate3-store.html',
@@ -38,6 +41,11 @@ const forbidden=[
   /synthetic-local-only/,
   /SYNTHETIC DEMO ONLY/,
   /Test Money · three routes/,
+  /Kamakis Traders/,
+  /Peter · Plumber/,
+  /Njeri Events · Sample Store/,
+  /Sample funded/,
+  /fictional payment confirmation is arriving automatically/i,
 ];
 for(const filename of filesAt(root).filter(p=>/\.js$/.test(p))){
   const source=readFileSync(filename,'utf8');

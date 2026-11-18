@@ -4,13 +4,13 @@ import type {MiniDraft,MiniLanguage} from './miniModel';
 import './miniPaySomeone.css';
 
 type PaymentExample={id:string;title:string;payee:string;amount:number;purpose:string;due:string;status:'due'|'upcoming'|'needs-check';detail:string};
-const EXAMPLES:PaymentExample[]=[
+const EXAMPLES:PaymentExample[]=__SECUREPAY_MINI_OWNER_FIXTURES__ ? [
   {id:'school',title:'School fees',payee:'School account',amount:20000,purpose:'Term fees',due:'25 Nov 2026',status:'due',detail:'Accepted school payment request'},
   {id:'lpg',title:'Your cooking gas',payee:'LPG shop',amount:3000,purpose:'Monthly LPG with home delivery',due:'1 Dec 2026',status:'upcoming',detail:'Last delivery confirmed · Next month can be paid early'},
   {id:'import',title:'Imported materials',payee:'Your supplier',amount:300000,purpose:'Goods arriving in six months',due:'18 May 2027',status:'needs-check',detail:'Early payment requires the supplier to agree first'},
   {id:'plumber',title:'Kitchen sink repair',payee:'Peter · Plumber',amount:3500,purpose:'Repair of leaking kitchen sink',due:'Today',status:'due',detail:'Work acknowledged by both parties'},
   {id:'electrician',title:'Electrical repairs',payee:'John · Electrician',amount:4500,purpose:'Electrical repair work',due:'Today',status:'due',detail:'Work acknowledged by both parties'},
-];
+] : [];
 type Screen='home'|'new'|'new-review'|'detail'|'group'|'checkout'|'records'|'prepare';
 const money=(n:number)=>'KSh '+n.toLocaleString('en-KE',{maximumFractionDigits:2});
 const validKs=(s:string)=>/^KS[A-Z0-9-]{3,24}$/i.test(s.trim());

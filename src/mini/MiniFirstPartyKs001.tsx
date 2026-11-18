@@ -4,7 +4,7 @@ import { createHttpClient } from '../api/securepay/http';
 import { createAgentGateway } from '../api/securepay/agent';
 import { createConversationAccessStore } from '../api/securepay/agent/continuity';
 import { createMiniDemoHttpClient, miniDemoSeedAccess, miniDemoTokens,
-  isMiniExperiencePreviewHost } from './miniInteractiveDemo';
+  isMiniExperiencePreviewHost,miniDemoTokenMatches,miniDemoDisclaimer } from './miniInteractiveDemo';
 import { createAuthGateway } from '../api/securepay/auth';
 import { createAgreementGateway } from '../api/securepay/agreements';
 import { createBusinessGateway } from '../api/securepay/business';
@@ -612,10 +612,10 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
         identities, stock, Agreements and Money are not real. No requests reach SecurePayAPI.</p>
       <div className="spm-mini-demo-switch" aria-label="Choose a sample account">
         <button type="button" className="spm-secondary"
-          aria-pressed={sessionState.status==='signed-in'&&sessionState.tokens.accessToken==='mini-demo-amina'}
+          aria-pressed={sessionState.status==='signed-in'&&miniDemoTokenMatches(sessionState.tokens.accessToken,'amina')}
           onClick={()=>changeDemoPersona('amina')}>Amina · Buyer</button>
         <button type="button" className="spm-secondary"
-          aria-pressed={sessionState.status==='signed-in'&&sessionState.tokens.accessToken==='mini-demo-njeri'}
+          aria-pressed={sessionState.status==='signed-in'&&miniDemoTokenMatches(sessionState.tokens.accessToken,'njeri')}
           onClick={()=>changeDemoPersona('njeri')}>Njeri · Seller</button>
       </div>
     </div>}
@@ -683,7 +683,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
       <MiniOwnerMoneyTest
         key={sessionState.status==='signed-in'?sessionState.tokens.accessToken:'none'}
         buyer={sessionState.status==='signed-in'&&
-          sessionState.tokens.accessToken==='mini-demo-amina'}
+          miniDemoTokenMatches(sessionState.tokens.accessToken,'amina')}
         sourceMatches={miniDemoMoneyFixtureState().sourceMatches}
         sellerJoined={miniDemoMoneyFixtureState().sellerJoined}
         sellerConfirmed={miniDemoMoneyFixtureState().sellerConfirmed}
@@ -839,7 +839,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
                 setOwnedOpen(false);setPeopleOpen(null);setAgreementsOpen(false);
                 setSellerOpen(false);setMoneyOwnerOpen(true);
               }} disabled={saveBusy}>
-              <ShieldCheck size={15}/>Test Money · three routes (simulation)
+              <ShieldCheck size={15}/>Explore payment safety (simulation)
             </button>}
             <button type="button" className="spm-quiet-button"
               onClick={()=>openPeople('inbox')} disabled={saveBusy}>
@@ -883,7 +883,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
       </section>}
     </>}
     <p className="spm-disclaimer">{demo
-      ? 'SYNTHETIC DEMO ONLY — no real KS001 intelligence, identities, Store stock, Agreement acceptance or Money.'
+      ? miniDemoDisclaimer
       : 'Each party must confirm their Agreement. Money only follows authorised terms.'}</p>
   </section>;
 }

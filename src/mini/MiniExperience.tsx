@@ -13,7 +13,7 @@ import { MiniFirstPartyKs001 } from './MiniFirstPartyKs001';
 import { MiniProudlyKeMark } from './MiniProudlyKeMark';
 import { MiniBusinessCapacity, type MiniPreviewCapacity } from './MiniBusinessCapacity';
 import { MiniBusinessSettings } from './MiniBusinessSettings';
-import {copyDemo} from './MiniBusinessDemoModel';
+import {copyDemo,type BusinessDemo} from './MiniBusinessDemoModel';
 import { getMiniFirstPartyOrigin } from './miniFirstPartyConfig';
 import { isMiniExperiencePreviewHost } from './miniInteractiveDemo';
 import { createMiniTradingSampleStore } from './miniTradePlayground';
@@ -105,17 +105,27 @@ function readSavedMiniDraft(): MiniDraft | null {
   }
 }
 
+// A customer Mini session starts with NO invented Stores, Agreements or Money records.
+// Fixtures exist only in the separately enabled engineering playground build.
+const EMPTY_DEMO_BUSINESS:BusinessDemo = {
+  name:'',place:'',summary:'',guideWelcome:'',offers:[],enquiries:[],agreements:[],
+  team:[],invoices:[],networks:{mini:false,estate:false,shortstays:false},
+  directory:false,guideEnabled:false,etimsWanted:false,planWanted:false,
+  activity:[],sequence:0,
+};
+
 export function MiniExperience() {
   const [lang, setLang] = useState<MiniLanguage>('en');
   const [previewCapacity, setPreviewCapacity] = useState<MiniPreviewCapacity>('personal');
-  const [demoBusiness,setDemoBusiness] = useState(copyDemo);
+  const [demoBusiness,setDemoBusiness] = useState<BusinessDemo>(()=>
+    __SECUREPAY_MINI_OWNER_FIXTURES__ ? copyDemo() : EMPTY_DEMO_BUSINESS);
   const [settingsEntry,setSettingsEntry] = useState<'store'|null>(null);
   const [sellerSettingsReturn,setSellerSettingsReturn] = useState(false);
   const [payExistingRequested,setPayExistingRequested] = useState(false);
   const [verifiedStoreRequested,setVerifiedStoreRequested] = useState(false);
   const t = words[lang];
   const [screen, setScreen] = useState<View>(() => {
-    if (typeof window === 'undefined' || !isMiniExperiencePreviewHost(window.location.hostname)) return 'home';
+    if (!__SECUREPAY_MINI_OWNER_FIXTURES__ || typeof window === 'undefined' || !isMiniExperiencePreviewHost(window.location.hostname)) return 'home';
     const qs = new URLSearchParams(window.location.search);
     if (!(qs.get('miniTradeDemo')==='1')) return 'home';
     if (qs.get('communitySaverPreview')==='1') return 'community-saver-preview';
@@ -153,21 +163,37 @@ export function MiniExperience() {
   // Explicitly opt-in visual review only. Ordinary /mini.html remains unchanged.
   // This only activates on a known isolated owner preview host AND explicit opt-in.
   // No sample catalogue or fake payment path is enabled on securepay.ke.
-  const playground = urlParams?.get('miniTradeDemo') === '1' &&
+  const playground = __SECUREPAY_MINI_OWNER_FIXTURES__ && urlParams?.get('miniTradeDemo') === '1' &&
     typeof window !== 'undefined' && isMiniExperiencePreviewHost(window.location.hostname);
-  const businessDemo = playground || urlParams?.get('miniBusinessPreview') === '1';
+  const businessDemo = playground || (__SECUREPAY_MINI_OWNER_FIXTURES__ &&
+    typeof window !== 'undefined' && isMiniExperiencePreviewHost(window.location.hostname) &&
+    urlParams?.get('miniBusinessPreview') === '1');
   const fairTradeShowcase=playground&&urlParams?.get('fairTradePreview')==='1';
   const agreementActionsShowcase=playground&&urlParams?.get('agreementActionsPreview')==='1';
   const [samplePurchases,setSamplePurchases]=useState<MiniSamplePurchase[]>(()=>
     playground&&typeof window!=='undefined'?readMiniSamplePurchases(window.sessionStorage):[]);
   const [sampleFocus,setSampleFocus]=useState<string|null>(null);
-  const sampleStoreGateway = useMemo(()=>createMiniTradingSampleStore(demoBusiness),[demoBusiness]);
+  const sampleStoreGateway = useMemo(()=>
+    __SECUREPAY_MINI_OWNER_FIXTURES__ ? createMiniTradingSampleStore(demoBusiness) : undefined,
+    [demoBusiness]);
   const storeOfferSession = urlParams?.get('storeOfferSession') ?? null;
   const checkoutSession = urlParams?.get('checkoutSession') ?? null;
 
   useEffect(() => {
     if (screen === 'describe') firstField.current?.focus({ preventScroll: true });
   }, [screen]);
+  // These three keys contain ONLY obsolete engineering fixtures. Never clear
+  // genuine signed-in Agreements, canonical session tokens or customer drafts.
+  useEffect(()=>{
+    if(__SECUREPAY_MINI_OWNER_FIXTURES__)return;
+    for(const key of [
+      'securepay.mini.synthetic-experience.v1',
+      'securepay.mini.sample-basket-draft.v1',
+      'securepay.mini.owner-only-living-purchases.v1',
+    ]){
+      try{sessionStorage.removeItem(key);}catch{/* Storage may be blocked. */}
+    }
+  },[]);
   useEffect(() => { document.documentElement.lang = lang === 'sw' ? 'sw' : 'en'; }, [lang]);
   // A new Mini task must start at its top, not retain the scroll position
   // from the longer review screen (also applies inside the owner iframe).

@@ -659,3 +659,10 @@ export function miniDemoReset(){
   state=initialState();
   try{sessionStorage.removeItem(PREVIEW_STORAGE);}catch{/* server/unit runner */}
 }
+
+/** Labels and synthetic token comparisons remain inside the engineering-only module. */
+export function miniDemoTokenMatches(token:string|null,actor:'amina'|'njeri'){
+  return token==='mini-demo-'+actor;
+}
+export const miniDemoDisclaimer =
+  'SYNTHETIC DEMO ONLY — no real KS001 intelligence, identities, Store stock, Agreement acceptance or Money.';

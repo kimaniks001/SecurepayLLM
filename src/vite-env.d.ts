@@ -10,3 +10,6 @@ interface ImportMetaEnv {
   readonly VITE_SECUREPAY_MINI_PAY_RESPONSIBILITIES_READ?: 'enabled' | 'disabled';
   readonly VITE_SECUREPAY_MINI_PAY_POSITIONS_READ?: 'enabled' | 'disabled';
 }
+
+/** Compile-time gate, false in all ordinary preview/customer builds. */
+declare const __SECUREPAY_MINI_OWNER_FIXTURES__: boolean;
