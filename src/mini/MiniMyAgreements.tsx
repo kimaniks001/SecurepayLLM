@@ -120,7 +120,7 @@ export function MiniMyAgreements({gateway,quotationGateway,notificationGateway,m
   return <section className="spm-mini-owned-list spm-mini-my-agreements"
     aria-label="My SecurePay Agreements">
     <button type="button" className="spm-back" onClick={chosen?()=>{setChosen(null);
-      setDetails(null);setDetailStatus('idle');}:onBack}>
+      setDetails(null);setDetailStatus('idle');setPaymentDetailsVisible(false);}:onBack}>
       <ArrowLeft size={16}/>{chosen?'My Agreements':paymentFocus?'Back to payments':'Back to KS001'}
     </button>
     <div className="spm-persona"><ClipboardList size={16}/>{paymentFocus?'Your payment agreements':'My Agreements'}</div>
