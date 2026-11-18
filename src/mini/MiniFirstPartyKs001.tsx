@@ -13,6 +13,8 @@ import { createSubscriptionGateway } from '../api/securepay/subscription';
 import {createMiniBusinessPreferencesGateway} from '../api/securepay/mini-business-preferences';
 import {createMiniTradeMemoryGateway} from '../api/securepay/mini-trade-memory';
 import {createCommunitySaverOwnItemGateway} from '../api/securepay/community-saver-own-item';
+import {createCommunitySaverPlugReadinessGateway} from '../api/securepay/community-saver-plug-readiness';
+import {MiniCommunitySaverPlugReadiness} from './MiniCommunitySaverPlugReadiness';
 import { MiniSellerStore } from './MiniSellerStore';
 import { MiniSellSomething } from './MiniSellSomething';
 import { createStoreGateway } from '../api/securepay/store';
@@ -104,6 +106,9 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
   const businessPreferences=useMemo(()=>createMiniBusinessPreferencesGateway(http),[http]);
   const tradeMemory=useMemo(()=>createMiniTradeMemoryGateway(http),[http]);
   const communitySaverItemsGateway=useMemo(()=>createCommunitySaverOwnItemGateway(http),[http]);
+  const communitySaverPlugGateway=useMemo(()=>createCommunitySaverPlugReadinessGateway(http),[http]);
+  const liveCommunitySaverPlugReadiness=!demo &&
+    import.meta.env.VITE_SECUREPAY_MINI_PHASE7_PLUG_READINESS==='enabled';
   // Phase 7B: read-only source inspection on paired private staging only.
   // Browser query arguments cannot enable this and no cross-trader matching exists.
   const liveCommunitySaverItems=!demo &&
@@ -158,6 +163,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
   const [identityGoal,setIdentityGoal] = useState<'saved'|'inbox'|'creator'|'agreements'|'seller'>('saved');
   const [peopleOpen,setPeopleOpen] = useState<'inbox'|'creator'|null>(null);
   const [agreementsOpen,setAgreementsOpen] = useState(false);
+  const [saverPlugOpen,setSaverPlugOpen] = useState(false);
   // Explicit preview-host synthetic flow only. Real API Mini never reads this.
   const [moneyOwnerOpen,setMoneyOwnerOpen] = useState(()=>demo &&
     typeof window!=='undefined' &&
@@ -169,6 +175,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
   // person's seller offer or selected Business authority into sign-in.
   useEffect(()=>{
     if(!signedIn){setSellerOfferContext(null);}
+    if(!signedIn){setSaverPlugOpen(false);}
   },[signedIn]);
   const [ownedOpen,setOwnedOpen] = useState(false);
   const [ownedStatus,setOwnedStatus] = useState<'idle'|'loading'|'ready'|'error'>('idle');
@@ -345,12 +352,14 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
     } finally {setSaveBusy(false);}
   };
   const openOwned = () => {
+    setSaverPlugOpen(false);
     if (!signedIn) {setIdentityGoal('saved');setIdentityOpen(true);return;}
     const next=!ownedOpen;
     setOwnedOpen(next);
     if (next) void loadOwned();
   };
   const openSeller = () => {
+    setSaverPlugOpen(false);
     setPeopleOpen(null);setAgreementsOpen(false);
     setOwnedOpen(false);setOwnedList([]);setOwnedStatus('idle');
     setStoreOpen(false);
@@ -371,7 +380,14 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startInStore, status]);
 
+  const openCommunitySaverPlug=()=>{
+    if(!liveCommunitySaverPlugReadiness||!signedIn)return;
+    setOwnedOpen(false);setOwnedList([]);setOwnedStatus('idle');
+    setAgreementsOpen(false);setPeopleOpen(null);setSellerOpen(false);setStoreOpen(false);
+    setSaverPlugOpen(true);
+  };
   const openAgreements = () => {
+    setSaverPlugOpen(false);
     setOwnedOpen(false);setOwnedList([]);setOwnedStatus('idle');
     setPeopleOpen(null);setSellerOpen(false);
     if(!signedIn){
@@ -387,6 +403,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
     setEpoch(n=>n+1);
   };
   const openPeople = (kind:'inbox'|'creator') => {
+    setSaverPlugOpen(false);
     setOwnedOpen(false);setOwnedList([]);setOwnedStatus('idle');
     setAgreementsOpen(false);setSellerOpen(false);
     if(!signedIn){
@@ -542,7 +559,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
     session.clear();
     setSellerOfferContext(null);
     pair.gateway.forgetResumableConversation();
-    setOwnedList([]);setOwnedOpen(false);setPeopleOpen(null);setAgreementsOpen(false);setSellerOpen(false);setIdentityOpen(false);
+    setOwnedList([]);setOwnedOpen(false);setPeopleOpen(null);setAgreementsOpen(false);setSellerOpen(false);setIdentityOpen(false);setSaverPlugOpen(false);
     setMoneyOwnerOpen(false);setStoreOpen(false);setHeldStorePlan(null);setStoreError('');
     setOwnedStatus('idle');setOwnedError('');setSavedNotice('');
     setFailedResumeId(null);setReview(null);setMessage('');
@@ -555,7 +572,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
     setSellerOfferContext(null);
     try {sessionStorage.removeItem(expiredKey);} catch { /* blocked storage */ }
     setMessage('');setResetAsked(false);setReview(null);setReviewError('');
-    setOwnedOpen(false);setPeopleOpen(null);setAgreementsOpen(false);setSellerOpen(false);setOwnedError('');setSavedNotice('');
+    setOwnedOpen(false);setPeopleOpen(null);setAgreementsOpen(false);setSellerOpen(false);setSaverPlugOpen(false);setOwnedError('');setSavedNotice('');
     setMoneyOwnerOpen(false);setStoreOpen(false);setHeldStorePlan(null);setStoreError('');
     setFailedResumeId(null);
     setEpoch(n=>n+1);
@@ -625,6 +642,11 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
         onBack={()=>setAgreementsOpen(false)}
         onReauthenticate={reauthenticateAgreements}
       />}
+    {status==='ready' && !identityOpen && signedIn && liveCommunitySaverPlugReadiness && saverPlugOpen &&
+      <MiniCommunitySaverPlugReadiness
+        gateway={communitySaverPlugGateway}
+        prepare={()=>ensureFreshSession(session,auth)}
+        onBack={()=>setSaverPlugOpen(false)}/>}
     {status==='ready' && !identityOpen && demo && moneyOwnerOpen && (
       <MiniOwnerMoneyTest
         key={sessionState.status==='signed-in'?sessionState.tokens.accessToken:'none'}
@@ -773,6 +795,11 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
               onClick={openOwned} disabled={saveBusy}>My saved work</button>
             <button type="button" className="spm-quiet-button" onClick={openAgreements}
               disabled={saveBusy}><ClipboardList size={15}/>My Agreements</button>
+            {signedIn && liveCommunitySaverPlugReadiness &&
+              <button type="button" className="spm-quiet-button"
+                onClick={openCommunitySaverPlug} disabled={saveBusy}>
+                <ShieldCheck size={15}/>My Community Saver skills
+              </button>}
             <button type="button" className="spm-quiet-button" onClick={openSeller}
               disabled={saveBusy}><Store size={15}/>My Store</button>
             {demo && <button type="button" className="spm-quiet-button"

@@ -29,6 +29,9 @@ export function MiniCommunitySaverPreview({onBack}:{onBack:()=>void}){
   const [rules,setRules]=useState(false);
   const [plugPreviewChoice,setPlugPreviewChoice]=useState<'idle'|'accept'|'decline'>('idle');
   const current=cases[selected];
+  // Fictional illustration of ONE cargo-specialist Plug. Qualification is
+  // activity-specific, never inherited across approved facilitation platforms.
+  const fictionalCargoPlugQualifies=selected===0;
   const quote=communitySaverPreScreen({
     platformCode:current.code,
     items:current.items.map(x=>({
@@ -101,6 +104,12 @@ export function MiniCommunitySaverPreview({onBack}:{onBack:()=>void}){
     {quote.ok&&<div className="spm-saver-card" data-mini-saver-plug-preview>
       <div className="spm-saver-card-heading"><span>What a Plug would see</span><strong>Demo only</strong></div>
       <p className="spm-saver-description">Only a qualified {current.name} facilitator would receive an approved assignment. This screen cannot verify qualifications or reveal real trader details.</p>
+      <p className="spm-saver-description">
+        Example Plug: cargo compatibility assessor ·
+        {fictionalCargoPlugQualifies
+          ?' appropriately specialised for this My Ride illustration.'
+          :' NOT qualified for this platform. Shortstays and Storage require separately assessed expertise.'}
+      </p>
       <div className="spm-saver-number">
         <span>Fixed reward to consider</span>
         <strong>{shillings(quote.plugFeeMinor)}</strong>
@@ -108,7 +117,8 @@ export function MiniCommunitySaverPreview({onBack}:{onBack:()=>void}){
       </div>
       <div className="spm-sell-pill-row">
         <button type="button" className={'spm-sell-answer-pill'+(plugPreviewChoice==='accept'?' selected':'')}
-          aria-pressed={plugPreviewChoice==='accept'} onClick={()=>setPlugPreviewChoice('accept')}>
+          aria-pressed={plugPreviewChoice==='accept'} disabled={!fictionalCargoPlugQualifies}
+          onClick={()=>setPlugPreviewChoice('accept')}>
           Simulate accept
         </button>
         <button type="button" className={'spm-sell-answer-pill'+(plugPreviewChoice==='decline'?' selected':'')}
