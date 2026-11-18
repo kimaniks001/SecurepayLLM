@@ -15,6 +15,7 @@ import { miniSellerPublishTextOnly } from './miniSellerPublishTextOnly.mjs';
 import { miniSellerKs001Statement } from './miniSellerKs001Statement.mjs';
 import { MiniSellSecureLinkWalkthrough } from './MiniSellSecureLinkWalkthrough';
 import { MiniSellerShareOptions } from './MiniSellerShareOptions';
+import { MiniSellerTradeAgain } from './MiniSellerTradeAgain';
 import { miniSellerIssueAgreementDoorway } from './miniSellerSecureLinkDoorway.mjs';
 import { miniSellerBeginAgreementHandoff, miniSellerReviewAgreementHandoff,
   miniSellerCreateReviewedAgreement, miniSellerProposeAgreement } from './miniSellerAgreementHandoff.mjs';
@@ -82,7 +83,7 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
   onBrowseStores:()=>void;actingAs:string;seed?:string;
   storeGateway?:StoreGateway;
   sellerContext?:{type:'personal'}|{type:'business';businessKsNumber:string};
-  agreementGateway?:Pick<AgreementGateway,'activeDoorway'|'issuePublicDoorway'|'detail'|'proposeReviewed'>;
+  agreementGateway?:Pick<AgreementGateway,'activeDoorway'|'issuePublicDoorway'|'detail'|'proposeReviewed'|'currentUserAgreements'>;
   handoffGateway?:MiniSellerHandoffGateway;
   /** Trusted saved KS001 conversation context, never a local Mini draft ID. */
   sellerSavedSource?:{conversationId:string;reviewedTradeContextVersion:number};
@@ -163,6 +164,7 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
     id:string;status:'PROPOSED';version:AgreementVersionSummaryResponse
   }|null>(null);
   const [ksHelp,setKsHelp]=useState(false);
+  const [tradeAgainNotice,setTradeAgainNotice]=useState('');
   const photoRef=useRef<HTMLInputElement>(null);
   const docRef=useRef<HTMLInputElement>(null);
   const [photoCount,setPhotoCount]=useState(0);
@@ -501,6 +503,35 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
       setError('');setShelf(null);setToolsOpen(false);
     }catch{setSavedDraftAvailable(false);setError('This tab could not restore that offer.');}
   };
+  // Phase 6A: use only a newly verified title as a suggestion, never an old
+  // Agreement's promises, buyer, price, invitation, acceptance or payment.
+  // Reset every mutable draft and canonical-handoff state before starting.
+  const startFreshFromPreviousTrade=(priorTitle:string)=>{
+    setTitle(priorTitle);setCategory('Goods');setPriceType('fixed');setPrice('');
+    setQuantity('');setUnit('each');setCondition('');setSpecifications('');
+    setPurpose('');setIncluded('');setLimitations('');setWarranty('');
+    setDescription('');setDescriptionReviewed(false);
+    setPictures([]);setDocuments([]);setDocPurpose('Product specification');
+    setPlaceType('Pickup');setPlace('');setPrivateMeeting('');
+    setTiming('');setTimingDraft(freshTiming());
+    setPeople([]);setPersonName('');setPersonRole('Buyer');
+    setPersonPlan(null);setShowPersonEntry(false);setPeopleHint(false);
+    setRightToOffer(false);setRightType('Owner');setStockStatement('');
+    setAuthorityUncertain(false);setPhotoUncertain(false);
+    setResult(null);setStage('compose');setSellerArea('offer');
+    setToolsOpen(false);setShelf(null);setShowMorePills(false);
+    setReturningToReview(false);setKsHelp(false);setError('');
+    setCanonicalOfferId(null);setSavedStoreRevision(null);
+    setStoreSnapshotSignature(null);setStorePublished(false);
+    setCanonicalStoreStatus('');setStoreCreating(false);setStorePublishing(false);
+    setShareIssued(false);setShareUrl(null);setShareStatus('');
+    shareKey.current=null;handoffKey.current=null;
+    setTrustedSellerSource(null);setSourceSignature(null);setSourceSaving(false);
+    setServerReview(null);setReviewedOfferSignature(null);
+    setReviewAcknowledged(false);setRealDraftAgreement(null);
+    setProposedAgreement(null);setHandoffMessage('');setHandoffBusy(false);
+    setTradeAgainNotice('A new offer has begun from the earlier title only. Check your right to sell, current price, availability and terms afresh.');
+  };
   const sample=()=>{
     setTitle('20 bags of dairy meal animal feed');setCategory('Agriculture');
     setPrice('2500');setPriceType('fixed');setQuantity('20');setUnit('bags');
@@ -534,7 +565,8 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
       <button type="button" className="spm-sell-phase1-link" onClick={onBrowseStores}>
         <ShoppingBag size={19}/><span><strong>Find a Store to trade with</strong><small>Review the current public offer before preparing terms.</small></span><ChevronRight size={17}/>
       </button>
-      <p className="spm-sell-hint">Trade-again shortcuts and saved contract templates will connect in Phase 6. No SecureLink, Agreement or payment is created here.</p>
+      <MiniSellerTradeAgain gateway={agreementGateway} onStart={startFreshFromPreviousTrade}/>
+      <p className="spm-sell-hint">A past trade is only a reference. A new Agreement needs its own independent review and the other person's confirmation.</p>
     </div>}
     {stage==='compose'&&sellerArea==='relationships'&&<div className="spm-sell-phase1-destination" data-seller-phase1="relationships">
       <div className="spm-sell-phase1-symbol"><Heart size={25}/></div>
@@ -547,11 +579,12 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
       <button type="button" className="spm-sell-phase1-link" onClick={()=>{setSellerArea('offer');setToolsOpen(true);setShelf('people');}}>
         <UsersRound size={19}/><span><strong>Prepare an offer for someone</strong><small>Use People & Invitations to name the other party.</small></span><ChevronRight size={17}/>
       </button>
-      <p className="spm-sell-hint">Private, account-linked favourites and Trade again belong to Phase 6. No contacts are copied from your device.</p>
+      <p className="spm-sell-hint">Verified, account-linked favourites come in a later Phase 6 slice. No contacts are copied from your device.</p>
     </div>}
     {stage==='compose'&&sellerArea==='offer'&&<>
       <div className="spm-sell-phase1-capacity"><span>Acting as <strong>{actingAs}</strong></span><small>Example only · authority not verified</small></div>
       <h1 className="spm-question">{sw?'Unauza nini?':'What are you selling?'}</h1>
+      {tradeAgainNotice&&<p className="spm-sell-hint" role="status">{tradeAgainNotice}</p>}
       <p className="spm-lead">Tell Mini a little. Add pictures or details only when they help you make a better offer.</p>
       {savedDraftAvailable&&<button type="button" className="spm-sell-resume" onClick={restoreSavedOffer}>
         <Bookmark size={16}/><span><strong>Continue a saved offer</strong><small>Written details only · in this browser tab</small></span><ChevronRight size={16}/>
