@@ -1,0 +1,53 @@
+/* Mini payment journey: one compact phone surface, no green warehouse. */
+.spm-pay{display:grid;gap:13px;padding-bottom:20px}
+.spm-pay-heading{display:grid;gap:5px}
+.spm-pay-heading h1{font-family:'Fraunces',Georgia,serif;font-size:25px;line-height:1.17;letter-spacing:-.025em;margin:0;color:#213e30}
+.spm-pay-heading p{margin:0;font-size:12px;line-height:1.55;color:#67786c}
+.spm-pay-demo-note{display:grid;gap:4px;border:1px solid #ead7a8;background:#fff9e8;border-radius:12px;padding:10px 12px;color:#765a27;font-size:12px}
+.spm-pay-demo-note small{color:#836d45;font-size:11px;line-height:1.5}
+.spm-pay-summary{padding:17px;border-radius:16px;background:#285c42;color:#fff;display:grid;gap:5px}
+.spm-pay-summary span,.spm-pay-summary small{font-size:11px;color:#d5e8db}
+.spm-pay-summary strong{font-size:26px;font-weight:750;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.spm-pay-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;padding:4px;background:#f0f2ec;border-radius:11px}
+.spm-pay-tabs button{border:0;border-radius:8px;background:transparent;padding:10px 4px;font-size:11px;font-weight:650;color:#506655;min-height:38px}
+.spm-pay-tabs button[aria-pressed=true]{background:#fffdfa;color:#255439;box-shadow:0 1px 5px #253e301a}
+.spm-pay-items{display:grid;gap:7px}
+.spm-pay-item{width:100%;border:1px solid #e4e7dc;border-radius:12px;background:#fffdf8;padding:11px 9px;display:flex;align-items:center;gap:9px;text-align:left;color:#304c39;min-height:68px}
+.spm-pay-item:focus-visible,.spm-pay-choose:focus-within{outline:3px solid #cf9a54;outline-offset:2px}
+.spm-pay-avatar{height:35px;width:35px;flex:none;display:grid;place-items:center;background:#edf2ec;border-radius:10px;color:#426d4d}
+.spm-pay-item-text{display:grid;gap:3px;min-width:0;flex:1}
+.spm-pay-item-text strong,.spm-pay-choose strong{font-size:12px;line-height:1.3}
+.spm-pay-item-text small,.spm-pay-choose small{font-size:10px;line-height:1.45;color:#718073}
+.spm-pay-item-value{display:grid;justify-items:end;gap:7px;font-size:11px;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
+.spm-pay-full{width:100%;justify-content:center}
+.spm-pay .spm-label{margin-top:5px;margin-bottom:-4px}
+.spm-pay .spm-field{width:100%;border:1px solid #d6dfd5;background:#fffdfa;color:#24442f;padding:12px;font-size:13px;border-radius:11px;min-height:44px}
+.spm-pay-pills{display:flex;flex-wrap:wrap;gap:6px}
+.spm-pay-pills button{border:1px solid #d5dfd2;background:#f6f8f3;border-radius:999px;color:#345c3e;padding:8px 11px;min-height:38px;font-size:11px;font-weight:650}
+.spm-pay-note{font-size:11px;line-height:1.65;color:#657666;display:flex;gap:7px;align-items:flex-start;margin:0}
+.spm-pay-note svg{flex:none;margin-top:2px}
+.spm-pay-live{display:grid;gap:11px;padding:16px;border:1px solid #e0e8de;background:#f5f8f2;border-radius:15px}
+.spm-pay-live svg{color:#406947}
+.spm-pay-live strong{font-size:14px;color:#29503a}
+.spm-pay-live p{font-size:12px;line-height:1.6;color:#536b57;margin:0}
+.spm-pay-live small{font-size:11px;line-height:1.5;color:#687b69}
+.spm-pay-review{border:1px solid #e2e8de;border-radius:15px;background:#f9faf6;padding:14px;display:grid;gap:7px}
+.spm-pay-review>small{font-size:10px;color:#687969}
+.spm-pay-review>b{font-size:25px;color:#24462f;letter-spacing:-.04em}
+.spm-pay-review>strong{font-size:13px;color:#24462f;overflow-wrap:anywhere}
+.spm-pay-choose{border:1px solid #e1e7dc;background:#fffdf9;border-radius:11px;padding:11px;display:flex;align-items:center;gap:10px;min-height:61px}
+.spm-pay-choose input{accent-color:#315b40;width:18px;height:18px;flex:none}
+.spm-pay-choose span{min-width:0;flex:1;display:grid;gap:4px}
+.spm-pay-choose b{font-size:11px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.spm-pay-total{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12px;padding:10px 0}
+.spm-pay-total strong{font-size:21px;color:#204b34;font-variant-numeric:tabular-nums}
+.spm-pay-checkrow{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid #e5e9e0;font-size:12px}
+.spm-pay-checkrow:last-child{border-bottom:0}
+.spm-pay-checkrow span{display:grid;gap:4px}
+.spm-pay-checkrow small{font-size:10px;color:#718073}
+.spm-pay-checkrow strong{font-variant-numeric:tabular-nums;white-space:nowrap}
+.spm-pay-rails{display:grid;gap:8px}
+.spm-pay-rails button{background:#fffdf8;border:1px solid #dfe5da;border-radius:11px;padding:12px;display:flex;align-items:center;gap:9px;text-align:left;color:#28523c;font-size:12px;font-weight:650;min-height:45px}
+.spm-pay-rails button[aria-pressed=true]{border:2px solid #3e7854;background:#f4f9f2}
+.spm-pay-rails button svg:last-child:not(:first-child){margin-left:auto}
+@media(max-width:350px){.spm-pay-item-value{font-size:10px}.spm-pay-heading h1{font-size:23px}.spm-pay-choose b{font-size:10px}}
