@@ -77,7 +77,7 @@ export function MiniSellerSaveTemplate({gateway,title,terms}:{gateway?:MiniTrade
       </>}
       <p className="spm-sell-hint">This is only a reusable proposal. Every new trade
         requires fresh terms and each participant's own confirmation. Repeating
-        never gives SecurePay permission to debit or pay automatically.</p>
+        never gives SecurePay permission to debit or pay automatically. No automatic renewal occurs.</p>
       {!done&&<div className="spm-sell-pill-row">
         <button type="button" className="spm-sell-answer-pill"
           onClick={()=>void save()} disabled={busy}>
