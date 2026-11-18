@@ -13,9 +13,9 @@ test('C3 human preview opens only after completed C2 governance questions', () =
 });
 test('C3 explains the approved period, contributor attribution, failed target and payout mandate', () => {
   for (const phrase of ['draft.deadline', 'draft.targetAmountKes', 'failureOptions', 'PAYOUT_RULES',
-    'verifiedContributor', 'original contributor', 'payout', 'Bank', 'proof']) {
-    const all = c3.replace('Match each confirmed contribution to the right person', 'verifiedContributor attribution');
-    assert.ok(all.toLowerCase().includes(phrase.toLowerCase()), phrase);
+    'Match each confirmed contribution', 'correct amount to each entitled contributor',
+    'payout', 'bank', 'evidence']) {
+    assert.ok(c3.toLowerCase().includes(phrase.toLowerCase()), phrase);
   }
 });
 test('C3 preview never invents a provider or starts Money', () => {
