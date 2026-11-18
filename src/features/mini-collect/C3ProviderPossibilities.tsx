@@ -47,7 +47,7 @@ export function C3ProviderPossibilities({ draft, onBack }: {
         '. A successful target is not permission for the bank to pay out automatically.' },
   ];
 
-  if (showComparison) return <C3ProviderComparison onBack={() => setShowComparison(false)} />;
+  if (showComparison) return <C3ProviderComparison draft={draft} onBack={() => setShowComparison(false)} />;
 
   return <div className="min-h-screen bg-[#faf7f0] text-[#244936]" data-mini-collect-c3>
     <header className="border-b border-[#e4e7dc] bg-[#fffefa]/95 px-4 py-3">
