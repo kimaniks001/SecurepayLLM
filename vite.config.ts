@@ -44,8 +44,10 @@ export default defineConfig({
       input: {
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
         mini: fileURLToPath(new URL('./mini.html', import.meta.url)),
-        businessSettings: fileURLToPath(new URL('./business-settings.html', import.meta.url)),
+        // Business Settings Preview is fictional, not the actual verified merchant settings.
+        // Keep this HTML entry only in an explicit isolated engineering build.
         ...(releaseBuild ? {} : {
+        businessSettings: fileURLToPath(new URL('./business-settings.html', import.meta.url)),
         miniHostPreview: fileURLToPath(new URL('./mini-host-preview.html', import.meta.url)),
         demoStore: fileURLToPath(new URL('./checkout-demo-store.html', import.meta.url)),
         demoShortStays: fileURLToPath(new URL('./checkout-demo-shortstays.html', import.meta.url)),
