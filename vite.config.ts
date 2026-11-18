@@ -8,8 +8,14 @@ import { fileURLToPath, URL } from 'node:url';
 // SECUREPAY_MINI_RELEASE_BUILD=0 to include test/demo entry points.
 // This build switch is NOT a payment authorisation or backend Money switch.
 const releaseBuild = process.env.SECUREPAY_MINI_RELEASE_BUILD !== '0';
+// Demo fixtures are NOT part of the default customer build. URL query parameters
+// cannot turn them on. Only an explicit isolated engineering build can do that.
+const ownerFixtureBuild = !releaseBuild && process.env.SECUREPAY_MINI_OWNER_FIXTURES === '1';
 export default defineConfig({
   plugins: [react()],
+  define: {
+    __SECUREPAY_MINI_OWNER_FIXTURES__: JSON.stringify(ownerFixtureBuild),
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
