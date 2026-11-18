@@ -646,7 +646,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
       <MiniCreatorInvitations gateway={agreements}
         onBack={()=>setPeopleOpen(null)}/>}
     {status==='ready' && !identityOpen && agreementsOpen &&
-      <MiniMyAgreements gateway={agreements}
+      <MiniMyAgreements gateway={agreements} paymentFocus={startInPayments&&!demo}
         quotationGateway={quotations} notificationGateway={notifications}
         measuredGateway={measured} liveQuotes={liveQuotes}
         moneyGateway={canonicalMoney} paymentsGateway={paymentHistory}
@@ -657,7 +657,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
         communitySaverPreparation={liveCommunitySaverPreparation}
         communitySaverPreparationGateway={liveCommunitySaverPreparation?communitySaverPreparationGateway:undefined}
         prepare={()=>ensureFreshSession(session,auth)}
-        onBack={()=>setAgreementsOpen(false)}
+        onBack={startInPayments?onBack:()=>setAgreementsOpen(false)}
         onReauthenticate={reauthenticateAgreements}
       />}
     {status==='ready' && !identityOpen && signedIn && liveCommunitySaverPlugReadiness && saverPlugOpen &&
