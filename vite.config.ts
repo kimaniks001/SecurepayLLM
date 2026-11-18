@@ -19,6 +19,11 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
+      // Release Mini never bundles the deterministic synthetic API, fake identities
+      // or fake Money callbacks. Engineering-only fixture builds keep the original.
+      ...(!ownerFixtureBuild ? {
+        './miniInteractiveDemo': fileURLToPath(new URL('./src/mini/miniNoDemo.ts', import.meta.url)),
+      } : {}),
     },
   },
   optimizeDeps: {
