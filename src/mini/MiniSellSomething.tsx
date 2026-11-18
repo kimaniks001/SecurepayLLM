@@ -16,6 +16,9 @@ import { miniSellerKs001Statement } from './miniSellerKs001Statement.mjs';
 import { MiniSellSecureLinkWalkthrough } from './MiniSellSecureLinkWalkthrough';
 import { MiniSellerShareOptions } from './MiniSellerShareOptions';
 import { MiniSellerTradeAgain } from './MiniSellerTradeAgain';
+import { MiniSellerRelationships } from './MiniSellerRelationships';
+import { MiniSellerSaveTemplate } from './MiniSellerSaveTemplate';
+import type {MiniTradeMemoryGateway} from '../api/securepay/mini-trade-memory';
 import { miniSellerIssueAgreementDoorway } from './miniSellerSecureLinkDoorway.mjs';
 import { miniSellerBeginAgreementHandoff, miniSellerReviewAgreementHandoff,
   miniSellerCreateReviewedAgreement, miniSellerProposeAgreement } from './miniSellerAgreementHandoff.mjs';
@@ -78,13 +81,14 @@ function writeDescription(input:{
  * Identity, Agreement, media-provenance, invitation, SecureLink or Money writes.
  * Local declaration is not verification; local output is not a canonical offer.
  */
-export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,onBrowseStores,actingAs,seed='',storeGateway,sellerContext,agreementGateway,handoffGateway,sellerSavedSource,onPrepareInKs001,previewSecureLinkJourney=false}:{
+export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,onBrowseStores,actingAs,seed='',storeGateway,sellerContext,agreementGateway,handoffGateway,memoryGateway,sellerSavedSource,onPrepareInKs001,previewSecureLinkJourney=false}:{
   language:MiniLanguage;onBack:()=>void;onOpenStore:()=>void;onOpenSettings:()=>void;
   onBrowseStores:()=>void;actingAs:string;seed?:string;
   storeGateway?:StoreGateway;
   sellerContext?:{type:'personal'}|{type:'business';businessKsNumber:string};
   agreementGateway?:Pick<AgreementGateway,'activeDoorway'|'issuePublicDoorway'|'detail'|'proposeReviewed'|'currentUserAgreements'>;
   handoffGateway?:MiniSellerHandoffGateway;
+  memoryGateway?:MiniTradeMemoryGateway;
   /** Trusted saved KS001 conversation context, never a local Mini draft ID. */
   sellerSavedSource?:{conversationId:string;reviewedTradeContextVersion:number};
   /** Deliberate user-authored turn in an actual authenticated KS001 conversation. */
@@ -506,14 +510,14 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
   // Phase 6A: use only a newly verified title as a suggestion, never an old
   // Agreement's promises, buyer, price, invitation, acceptance or payment.
   // Reset every mutable draft and canonical-handoff state before starting.
-  const startFreshFromPreviousTrade=(priorTitle:string)=>{
+  const startFreshFromPreviousTrade=(priorTitle:string,terms='',timingProposal='')=>{
     setTitle(priorTitle);setCategory('Goods');setPriceType('fixed');setPrice('');
     setQuantity('');setUnit('each');setCondition('');setSpecifications('');
     setPurpose('');setIncluded('');setLimitations('');setWarranty('');
-    setDescription('');setDescriptionReviewed(false);
+    setDescription(terms);setDescriptionReviewed(false);
     setPictures([]);setDocuments([]);setDocPurpose('Product specification');
     setPlaceType('Pickup');setPlace('');setPrivateMeeting('');
-    setTiming('');setTimingDraft(freshTiming());
+    setTiming(timingProposal);setTimingDraft(freshTiming());
     setPeople([]);setPersonName('');setPersonRole('Buyer');
     setPersonPlan(null);setShowPersonEntry(false);setPeopleHint(false);
     setRightToOffer(false);setRightType('Owner');setStockStatement('');
@@ -530,7 +534,7 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
     setServerReview(null);setReviewedOfferSignature(null);
     setReviewAcknowledged(false);setRealDraftAgreement(null);
     setProposedAgreement(null);setHandoffMessage('');setHandoffBusy(false);
-    setTradeAgainNotice('A new offer has begun from the earlier title only. Check your right to sell, current price, availability and terms afresh.');
+    setTradeAgainNotice('New offer prepared. Any reused wording or repeat dates are proposals only. Check your right to sell, price, availability and every term again.');
   };
   const sample=()=>{
     setTitle('20 bags of dairy meal animal feed');setCategory('Agriculture');
@@ -579,7 +583,9 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
       <button type="button" className="spm-sell-phase1-link" onClick={()=>{setSellerArea('offer');setToolsOpen(true);setShelf('people');}}>
         <UsersRound size={19}/><span><strong>Prepare an offer for someone</strong><small>Use People & Invitations to name the other party.</small></span><ChevronRight size={17}/>
       </button>
-      <p className="spm-sell-hint">Verified, account-linked favourites come in a later Phase 6 slice. No contacts are copied from your device.</p>
+      <MiniSellerRelationships memory={memoryGateway} agreements={agreementGateway}
+        stores={storeGateway} onStart={startFreshFromPreviousTrade}/>
+      <p className="spm-sell-hint">Nothing is shared with a community or copied from your device contacts.</p>
     </div>}
     {stage==='compose'&&sellerArea==='offer'&&<>
       <div className="spm-sell-phase1-capacity"><span>Acting as <strong>{actingAs}</strong></span><small>Example only · authority not verified</small></div>
@@ -1004,6 +1010,9 @@ export function MiniSellSomething({language,onBack,onOpenStore,onOpenSettings,on
         <button type="button" onClick={()=>finish('save')}>
           <span><Bookmark size={19}/></span><span><strong>Save for later</strong><small>Keep seller-written text in this tab; attachments, people and private meeting details won't be saved.</small></span><ChevronRight size={17}/></button>
       </div>
+      {canOffer&&prepared.ok&&<MiniSellerSaveTemplate
+        key={offerSignature} gateway={memoryGateway}
+        title={title} terms={descriptionReviewed?description:''}/>}
       {!canOffer&&<p className="spm-sell-hint">Sharing and store publishing remain unavailable until the concerns above are resolved. You can always save a draft.</p>}
       <button type="button" className="spm-quiet-button" onClick={()=>{setKsHelp(x=>!x);}}><MessageCircle size={16}/>How can KS001 help?</button>
       {ksHelp&&<p className="spm-sell-hint">KS001 can later help interpret documents, clarify seller rights and improve the offer. It has not examined or verified this sample yet.</p>}
