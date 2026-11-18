@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 
 const read=path=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
 const positions=read('src/api/securepay/personal-payment-positions/index.ts');
+const capacity=read('src/api/securepay/payment-preparation/index.ts');
 const first=read('src/mini/MiniFirstPartyKs001.tsx');
 const view=read('src/mini/MiniPersonalPaymentResponsibilities.tsx');
 const mini=read('src/mini/MiniPaySomeone.tsx');
@@ -65,4 +66,15 @@ test('Phase 6 Money remains separate; approval cannot be inferred from eligibili
   assert.ok(!positions.includes('method: \'PUT\''));
   assert.match(positions,/payableNow:false/);
   assert.match(positions,/canAuthorizeMoney!==false/);
+});
+
+test('2E delegated caretaker gateway cannot take actor, owner or financial authority from a URL',()=>{
+  assert.match(capacity,/auth:'required'/);
+  assert.match(capacity,/verifyPreparationAuthority\(raw,agreementId,obligationId\)/);
+  assert.match(capacity,/raw\.canAuthorizeMoney!==false/);
+  assert.match(capacity,/raw\.canPrepare===true/);
+  assert.match(capacity,/raw\.capacity==='UNAUTHORIZED'/);
+  assert.match(capacity,/encodeURIComponent\(agreementId\)/);
+  assert.match(capacity,/encodeURIComponent\(obligationId\)/);
+  assert.ok(!capacity.includes('method: \'POST\''));
 });
