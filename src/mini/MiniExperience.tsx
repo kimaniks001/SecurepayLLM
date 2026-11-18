@@ -393,7 +393,7 @@ export function MiniExperience() {
         </section>}
 
         {screen==='pay-home' && <MiniPaySomeone language={lang} preview={playground}
-          seed={opening.trim()} onBack={()=>setScreen('home')}
+          seed={opening.trim()} canOpenExisting={!!getMiniFirstPartyOrigin()} onBack={()=>setScreen('home')}
           onExisting={()=>{setPayExistingRequested(true);setDiscussDraft(null);setScreen('help');}}
           onPrepareNew={prepared=>{
             setPayExistingRequested(false);
