@@ -24,6 +24,10 @@ export default defineConfig({
         if(!ownerFixtureBuild && /(?:^|[/\\])MiniOwnerMoneyTest(?:\.tsx)?$/.test(id)) {
           return fileURLToPath(new URL('./src/mini/MiniOwnerMoneyDisabled.tsx', import.meta.url));
         }
+        if(!ownerFixtureBuild &&
+          /(?:^|[/\\])(?:MiniSampleMoneyJourney|MiniSampleAgreements|MiniBusinessSettings|MiniBusinessCapacity|MiniTradeSampleHelp|MiniCommunitySaverPreview)(?:\.tsx)?$/.test(id)) {
+          return fileURLToPath(new URL('./src/mini/miniNoSampleScreens.tsx', import.meta.url));
+        }
         return null;
       },
     },
