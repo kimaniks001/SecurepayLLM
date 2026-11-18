@@ -1,4 +1,4 @@
-import {useEffect,useState} from 'react';
+import {useState} from 'react';
 import {Bookmark,Heart,ShoppingBag,RefreshCcw,ArrowRight,X} from 'lucide-react';
 import type {AgreementGateway} from '../api/securepay/agreements';
 import type {StoreGateway} from '../api/securepay/store';
@@ -41,7 +41,6 @@ export function MiniSellerRelationships({memory,agreements,stores,onStart}:{memo
     }finally{setBusy(false);}
   };
   // No account data is retained in a browser's localStorage or sessionStorage.
-  useEffect(()=>()=>{setItems([]);},[]);
   const past=async()=>{
     if(!agreements||busy)return;
     setBusy(true);setNotice('');setPriorVisible(true);
@@ -97,8 +96,8 @@ export function MiniSellerRelationships({memory,agreements,stores,onStart}:{memo
       }else{
         if(!agreements)throw Error('Agreement unavailable');
         const source=await agreements.detail(pending.reference);
-        if(source.overview?.status!=='COMPLETED' ||
-           !source.currentVersion?.versionId ||
+        const reference=prior.find(x=>x.agreementId===pending.reference);
+        if(!reference||!miniSellerReadTradeAgainTitle(reference,source) ||
            !source.participants?.some(p=>p.displayName===pending.label))
           throw Error('Person no longer confirmed');
       }
