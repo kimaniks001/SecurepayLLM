@@ -104,7 +104,11 @@ export function miniAgreementDetailView(dto,expectedId,expectedVersionId=null){
     if(!t||!nonBlank(t.obligationId)||!nonBlank(t.title)||
       !nonBlank(t.status))return null;
     terms.push({id:t.obligationId,title:t.title,
-      description:text(t.description,null),status:t.status});
+      description:text(t.description,null),status:t.status,
+      // Never derive item prices from the Agreement grand total.
+      obligationType:text(t.obligationType,null),
+      currency:text(t.currency,null),
+      amountMinor:Number.isSafeInteger(t.amountMinor)&&t.amountMinor>0?t.amountMinor:null});
   }
   return {
     id:expectedId,title:text(dto.overview.title,'Agreement'),
