@@ -25,18 +25,19 @@ import { MiniRealStoreOffer } from './MiniRealStoreOffer';
 import { MiniBuyStore, type MiniStorePlanLine, type MiniBasketFulfilment } from './MiniBuyStore';
 import { MiniCollectConversation } from './MiniCollectConversation';
 import { MiniSellSomething } from './MiniSellSomething';
+import { MiniPaySomeone } from './MiniPaySomeone';
 import { MiniCommunitySaverPreview } from './MiniCommunitySaverPreview';
 import { miniMergeUserDescription, miniCaptureText, type MiniCaptureSource, type MiniCaptureKind } from './miniCapture';
 import './mini.css';
 
-type View = MiniScreen | 'choose' | 'buy' | 'sell-preview' | 'community-saver-preview' | 'collect-interview' | 'business-settings' | 'sample-agreements';
+type View = MiniScreen | 'pay-home' | 'choose' | 'buy' | 'sell-preview' | 'community-saver-preview' | 'collect-interview' | 'business-settings' | 'sample-agreements';
 const STORE_KEY = 'securepay-mini-phase1-local-draft-v1';
 const words = {
   en: {
     hello: 'Hello. What can I help you do?', intro: 'Tell me in your own words, or choose what you need.',
     start: 'Write a little about it (optional)', startHint: 'For example: I want to sell something to a customer',
     next: 'Continue', choose: 'What would you like to do with this?', buy: 'Buy something', buyHint: 'Find goods, visit a Store and agree', sell: 'Sell something',
-    sellHint: 'At a counter or from your shop', pay: 'Pay someone', payHint: 'For goods or an obligation',
+    sellHint: 'At a counter or from your shop', pay: 'Pay someone or something', payHint: 'What you owe, or someone new',
     collect: 'Collect money', collectHint: 'For a purpose or contribution',
     ask: 'Ask KS001', askHint: 'Get help with something else',
     begin: 'What are we working on?', sellTitle: 'Tell me what you are selling.',
@@ -68,7 +69,7 @@ const words = {
     start: 'Eleza kidogo (si lazima)', startHint: 'Kwa mfano: Nataka kuuza kitu kwa mteja',
     next: 'Endelea', choose: 'Unataka kufanya nini?', sell: 'Uza kitu', sellHint: 'Dukani au kwa mteja',
     buy: 'Nunua kitu', buyHint: 'Tafuta bidhaa, tembelea duka na kubaliana',
-    pay: 'Lipa mtu', payHint: 'Bidhaa au malipo mengine', collect: 'Kusanya pesa', collectHint: 'Mchango au malipo',
+    pay: 'Lipa mtu au kitu', payHint: 'Unachodaiwa au malipo mapya', collect: 'Kusanya pesa', collectHint: 'Mchango au malipo',
     ask: 'Uliza KS001', askHint: 'Msaada mwingine', begin: 'Tunafanya nini?',
     sellTitle: 'Unauza nini?', payTitle: 'Unalipia nini?', collectTitle: 'Mchango huu ni wa nini?',
     describe: 'Eleza', descriptionHint: 'Maelezo mafupi yanatosha',
@@ -110,6 +111,7 @@ export function MiniExperience() {
   const [demoBusiness,setDemoBusiness] = useState(copyDemo);
   const [settingsEntry,setSettingsEntry] = useState<'store'|null>(null);
   const [sellerSettingsReturn,setSellerSettingsReturn] = useState(false);
+  const [payExistingRequested,setPayExistingRequested] = useState(false);
   const [verifiedStoreRequested,setVerifiedStoreRequested] = useState(false);
   const t = words[lang];
   const [screen, setScreen] = useState<View>(() => {
@@ -367,7 +369,7 @@ export function MiniExperience() {
             <button type="button" className="spm-option" onClick={beginSell}>
               <span className="spm-option-icon"><ShoppingBag size={20}/></span>
               <span className="spm-option-text"><strong>{t.sell}</strong><small>{t.sellHint}</small></span><ArrowRight size={18}/></button>
-            <button type="button" className="spm-option" onClick={() => begin('pay')}>
+            <button type="button" className="spm-option" onClick={() => {setPayExistingRequested(false);setScreen('pay-home');}}>
               <span className="spm-option-icon"><FileText size={20}/></span>
               <span className="spm-option-text"><strong>{t.pay}</strong><small>{t.payHint}</small></span><ArrowRight size={18}/></button>
             <button type="button" className="spm-option" onClick={beginCollection}>
@@ -390,6 +392,18 @@ export function MiniExperience() {
             onOpenSettings={() => {setSettingsEntry(null);setScreen('business-settings');}} />}
         </section>}
 
+        {screen==='pay-home' && <MiniPaySomeone language={lang} preview={playground}
+          seed={opening.trim()} canOpenExisting={!!getMiniFirstPartyOrigin()} onBack={()=>setScreen('home')}
+          onExisting={()=>{setPayExistingRequested(true);setDiscussDraft(null);setScreen('help');}}
+          onPrepareNew={prepared=>{
+            setPayExistingRequested(false);
+            if(getMiniFirstPartyOrigin()){
+              setDiscussDraft(prepared);setScreen('help');
+            }else{
+              setDraft(prepared);setError('');setScreen('review');
+            }
+          }}/>} 
+
         {businessDemo && screen === 'business-settings' && (previewCapacity === 'business' || sellerSettingsReturn) &&
           <MiniBusinessSettings language={lang} onBack={() => setScreen(sellerSettingsReturn?'sell-preview':'home')}
             demo={demoBusiness} setDemo={setDemoBusiness} initialArea={settingsEntry ?? undefined}
@@ -410,7 +424,7 @@ export function MiniExperience() {
               <span className="spm-option-icon"><ShoppingBag size={20}/></span>
               <strong className="spm-option-text">{t.buy}</strong><ArrowRight size={18}/></button>
             {([['sell', ShoppingBag, t.sell], ['pay', FileText, t.pay]] as const).map(([id, Icon, label]) =>
-              <button className="spm-option" key={id} type="button" onClick={() => id==='sell' ? beginSell() : begin(id)}>
+              <button className="spm-option" key={id} type="button" onClick={() => id==='sell' ? beginSell() : (setPayExistingRequested(false),setScreen('pay-home'))}>
                 <span className="spm-option-icon"><Icon size={20}/></span><strong className="spm-option-text">{label}</strong><ArrowRight size={18}/></button>)}
             <button type="button" className="spm-option" onClick={beginCollection}>
               <span className="spm-option-icon"><HandCoins size={20}/></span>
@@ -556,8 +570,9 @@ export function MiniExperience() {
           : getMiniFirstPartyOrigin()
           ? <MiniFirstPartyKs001 apiOrigin={getMiniFirstPartyOrigin()!} draft={discussDraft} language={lang}
               startInStore={verifiedStoreRequested}
+              startInPayments={payExistingRequested}
               initialBuyingPlan={buyingPlanForHelp}
-              onBack={() => {setVerifiedStoreRequested(false);setScreen(buyingPlanForHelp ? 'buy' : discussDraft ? 'review' : 'home');setBuyingPlanForHelp(null);}}/>
+              onBack={() => {setVerifiedStoreRequested(false);setPayExistingRequested(false);setScreen(payExistingRequested ? 'pay-home' : buyingPlanForHelp ? 'buy' : discussDraft?.intent==='pay' ? 'pay-home' : discussDraft ? 'review' : 'home');setBuyingPlanForHelp(null);}}/>
           : <MiniGuestChat draft={discussDraft} language={lang}
               onBack={() => setScreen(discussDraft ? 'review' : 'home')}/>)} 
         </>}

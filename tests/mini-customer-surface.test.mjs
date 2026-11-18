@@ -15,7 +15,8 @@ test('Mini default entry is an ordinary customer experience, not an M1–M5 demo
   assert.match(mini,/<h1 className="spm-hero">\{t\.hello\}<\/h1>/);
   assert.match(mini,/<MiniBuyStore\b/);
   assert.match(mini,/begin\('sell'\)/);
-  assert.match(mini,/begin\('pay'\)/);
+  assert.ok(mini.includes('<MiniPaySomeone'));
+  assert.ok(mini.includes("setScreen('pay-home')"));
   assert.match(mini,/onClick=\{beginCollection\}/);
   assert.match(mini,/<MiniProudlyKeMark/);
 });
