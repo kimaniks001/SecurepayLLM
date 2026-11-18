@@ -29,7 +29,7 @@ const dateLabel = (iso:string|null) => {
  * "who must act" inference. The server's nextActions and attentionRequired
  * remain the only authority on this user's next work.
  */
-export function MiniMyAgreements({gateway,quotationGateway,notificationGateway,measuredGateway,moneyGateway,paymentsGateway,liveQuotes,liveMoneyStatus,liveFeeQuotes,livePaymentCommands,communitySaverItems,communitySaverGateway,communitySaverPreparation,communitySaverPreparationGateway,prepare,onBack,onReauthenticate}:{
+export function MiniMyAgreements({gateway,quotationGateway,notificationGateway,measuredGateway,moneyGateway,paymentsGateway,liveQuotes,liveMoneyStatus,liveFeeQuotes,livePaymentCommands,communitySaverItems,communitySaverGateway,communitySaverPreparation,communitySaverPreparationGateway,prepare,onBack,onReauthenticate,paymentFocus=false}:{
   gateway:Pick<AgreementGateway,'currentUserAgreements'|'detail'|'propose'|'confirmVersion'|'version'>;
   quotationGateway:StoreQuotationGateway;
   measuredGateway:MeasuredServicesGateway;
@@ -45,6 +45,8 @@ export function MiniMyAgreements({gateway,quotationGateway,notificationGateway,m
   communitySaverPreparation:boolean;
   communitySaverPreparationGateway?:CommunitySaverPreparationGateway;
   prepare:()=>Promise<unknown>;
+  /** P2A: a read-only entry from Pay Someone. Never authorises fee quotes or rails. */
+  paymentFocus?:boolean;
   onBack:()=>void;
   onReauthenticate:()=>void;
 }) {
@@ -118,9 +120,9 @@ export function MiniMyAgreements({gateway,quotationGateway,notificationGateway,m
     aria-label="My SecurePay Agreements">
     <button type="button" className="spm-back" onClick={chosen?()=>{setChosen(null);
       setDetails(null);setDetailStatus('idle');}:onBack}>
-      <ArrowLeft size={16}/>{chosen?'My Agreements':'Back to KS001'}
+      <ArrowLeft size={16}/>{chosen?'My Agreements':paymentFocus?'Back to payments':'Back to KS001'}
     </button>
-    <div className="spm-persona"><ClipboardList size={16}/>My Agreements</div>
+    <div className="spm-persona"><ClipboardList size={16}/>{paymentFocus?'Your payment agreements':'My Agreements'}</div>
     {chosen ? <>
       <div className="spm-mini-agreement-intro">
         <strong>{chosen.title}</strong>
@@ -198,19 +200,19 @@ export function MiniMyAgreements({gateway,quotationGateway,notificationGateway,m
             </div>)}
           </div>
         </details>}
-        {liveQuotes&&details.currentVersion&&
+        {!paymentFocus&&liveQuotes&&details.currentVersion&&
           <MiniMeasuredServicePreview key={chosen.id+details.currentVersion.id}
             agreementId={chosen.id} versionId={details.currentVersion.id}
             agreementGateway={gateway} measuredGateway={measuredGateway}
             prepare={prepare}/>}
-        {liveMoneyStatus&&details.currentVersion&&
+        {(liveMoneyStatus||paymentFocus)&&details.currentVersion&&
           <MiniMoneySnapshot key={chosen.id+details.currentVersion.id}
             agreementId={chosen.id} versionId={details.currentVersion.id}
             money={moneyGateway} payments={paymentsGateway}
-            quoteReviewEnabled={liveFeeQuotes}
-            paymentCommandsEnabled={livePaymentCommands}
+            quoteReviewEnabled={!paymentFocus&&liveFeeQuotes}
+            paymentCommandsEnabled={!paymentFocus&&livePaymentCommands}
             prepare={prepare}/>}
-        {!liveMoneyStatus&&details.moneyStatus&&<p className="spm-mini-owned-note">
+        {!liveMoneyStatus&&!paymentFocus&&details.moneyStatus&&<p className="spm-mini-owned-note">
           SecurePay Money record: {details.moneyStatus}.
           This screen does not verify a provider payment or release funds.
         </p>}
@@ -220,9 +222,12 @@ export function MiniMyAgreements({gateway,quotationGateway,notificationGateway,m
         </p>
       </>}
     </> : <>
-      <p>See your existing Agreements and what SecurePay says needs your attention.
-        Unfinished conversations remain under My saved work.</p>
-      {liveQuotes&&<MiniQuoteBuyer quotationGateway={quotationGateway}
+      {paymentFocus ? <p>These are your actual SecurePay Agreements, not a bill total.
+        Open one to check its current terms, server-provided next actions and recorded Money evidence.
+        A deadline is not necessarily a payment due date, and an Agreement amount is not an unpaid balance.</p>
+        : <p>See your existing Agreements and what SecurePay says needs your attention.
+          Unfinished conversations remain under My saved work.</p>}
+      {!paymentFocus&&liveQuotes&&<MiniQuoteBuyer quotationGateway={quotationGateway}
         agreementGateway={gateway} notificationGateway={notificationGateway} prepare={prepare}
         onCreated={()=>void loadPage(0,true)}/>}
       {status==='loading'&&<p role="status">Checking your Agreements…</p>}
@@ -233,14 +238,14 @@ export function MiniMyAgreements({gateway,quotationGateway,notificationGateway,m
         <button type="button" className="spm-quiet-button" onClick={onReauthenticate}>
           Sign in again with your KS Number
         </button></>}
-      {status==='ready'&&items.length===0&&<p>No existing Agreements were returned for this account.</p>}
+      {status==='ready'&&items.length===0&&<p>No existing Agreements were returned for this account. No payment amount or due balance can be inferred.</p>}
       {status==='ready'&&items.length>0&&<>
         {items.some(a=>a.attentionRequired)&&<strong>Needs your attention</strong>}
         {items.filter(a=>a.attentionRequired).map(item=><MiniAgreementRow key={item.id}
-          item={item} onOpen={()=>void openDetails(item)}/>)}
+          item={item} paymentFocus={paymentFocus} onOpen={()=>void openDetails(item)}/>)}
         {items.some(a=>!a.attentionRequired)&&<strong>Other Agreements</strong>}
         {items.filter(a=>!a.attentionRequired).map(item=><MiniAgreementRow key={item.id}
-          item={item} onOpen={()=>void openDetails(item)}/>)}
+          item={item} paymentFocus={paymentFocus} onOpen={()=>void openDetails(item)}/>)}
       </>}
       {moreError&&<p role="alert">{moreError}</p>}
       {status==='ready'&&hasMore&&<button type="button" className="spm-secondary"
@@ -253,13 +258,14 @@ export function MiniMyAgreements({gateway,quotationGateway,notificationGateway,m
     </>}
   </section>;
 }
-function MiniAgreementRow({item,onOpen}:{item:MiniAgreementItem;onOpen:()=>void}){
+function MiniAgreementRow({item,onOpen,paymentFocus}:{item:MiniAgreementItem;onOpen:()=>void;paymentFocus:boolean}){
   return <div className="spm-mini-owned-item">
     <div>
       <strong>{item.title}</strong>
       <small>{item.reference||'SecurePay Agreement'} · {item.statusText}</small>
       <small>{item.role} · {item.participantStatus}</small>
       {item.actions.length>0&&<small>{item.actions[0].reason}</small>}
+      {paymentFocus&&item.nextDeadline&&<small>Next Agreement deadline (not necessarily payment): {dateLabel(item.nextDeadline)||'Check date'}</small>}
       {item.lastUpdated&&<small>Updated {dateLabel(item.lastUpdated)||'date needs checking'}</small>}
     </div>
     <button type="button" className="spm-secondary" onClick={onOpen}>
