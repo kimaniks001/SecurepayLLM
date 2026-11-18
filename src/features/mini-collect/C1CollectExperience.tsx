@@ -126,7 +126,7 @@ export function C1CollectExperience() {
   const goBack = () => {
     if (stage === 'review') setStage('detail');
     else if (stage === 'detail') { setStage('purpose'); setAnswer(null); }
-    else window.location.hash = '#/';
+    else { setKind(null); setAnswer(null); setStage('purpose'); }
   };
   const reset = () => { setKind(null); setAnswer(null); setStage('purpose'); };
 
