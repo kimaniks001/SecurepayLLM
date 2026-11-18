@@ -5,15 +5,15 @@ Date: 18 November 2026 · Draft frontend, no Money writes
 **A Living Agreement can speak through colour to its owner. It must not broadcast that owner's economic standing to someone looking over their shoulder.**
 
 The Mini payment overview is now discreet by default:
-- Total and individual amounts are masked, alongside names, purposes, deadlines and urgency labels.
+- Agreement titles and short, recognisable counterparty labels remain visible so people can actually find their work; amounts, detailed terms and sensitive urgency labels remain concealed in the list.
 - All overview rows use the same calm background rather than red/green wealth or debt coding.
-- **Show details** is a deliberate tap, available to the owner. The reveal is **in memory only**, never persisted, and is reset when navigating back out of a detail or reopening Mini.
+- Search by person, shop, item, agreement title or reference. Selecting a specific agreement deliberately opens its detailed view; financial figures in the overview are hidden until **Show amounts**. The reveal is **in memory only**, never persisted, and resets on return.
 - Agreement detail, group review and sample payment planning do not show sensitive amounts when the privacy cover is active.
-- The existing first-party authenticated `MiniMyAgreements` also hides the title, people, next action and Money panel until explicit reveal when entered from **Pay Someone or Something**.
+- The existing first-party authenticated `MiniMyAgreements` shows each real agreement's title and a search box, while hiding sensitive payment status and Money evidence until its owner opens that agreement. Lists are neutral without financial red/green colouring.
 - For the new gated payer responsibilities view, task-specific subtle accents (blue, grey and amber) appear only **after** reveal and always accompany text. They mean *check*, *wait* or *review*, **never** financial standing.
 - No status is published to a public SecureLink, QR image or social post as a financial reputation signal.
 
-Privacy covers reduce casual shoulder-surfing; they are not a security substitute for phone locks, session authentication, authorization, anti-screenshot policies where applicable or data-access controls. A nearby observer can still see deliberately revealed content.
+Recognisable titles may themselves describe private activity; this design protects financial standing rather than promising an entirely invisible screen. A separate optional full-screen privacy mode can be evaluated later, without making the normal list useless. Privacy covers reduce casual shoulder-surfing; they are not a security substitute for phone locks, session authentication, authorization, anti-screenshot policies where applicable or data-access controls. A nearby observer can still see deliberately revealed content.
 
 ## Backend integration
 `src/api/securepay/personal-payments/index.ts` validates the paired SecurePayAPI `GET /api/v1/me/payments/responsibilities` read response. It requires current-version IDs, safe amounts, accepted state vocabulary, `payableNow=false` and `outstandingAmountMinor=null`, rejecting invalid JSON and mismatched pages.
