@@ -1,5 +1,5 @@
 import {useEffect,useRef,useState} from 'react';
-import {ArrowLeft,ArrowRight,Eye,EyeOff,FileText,LockKeyhole,RefreshCcw,ShieldCheck} from 'lucide-react';
+import {ArrowLeft,ArrowRight,Eye,EyeOff,FileText,LockKeyhole,RefreshCcw,Search,ShieldCheck} from 'lucide-react';
 import type {PersonalPaymentResponsibilitiesGateway,PersonalPaymentResponsibility} from '../api/securepay/personal-payments';
 import './miniPersonalPaymentResponsibilities.css';
 
@@ -32,6 +32,7 @@ export function MiniPersonalPaymentResponsibilities({gateway,prepare,onBack,onVi
   const [status,setStatus]=useState<'loading'|'ready'|'error'>('loading');
   const [error,setError]=useState('');
   const [reveal,setReveal]=useState(false);
+  const [search,setSearch]=useState('');
   const [selected,setSelected]=useState<string|null>(null);
   const alive=useRef(true);
   const busy=useRef(false);
@@ -74,11 +75,14 @@ export function MiniPersonalPaymentResponsibilities({gateway,prepare,onBack,onVi
   },[gateway]);
 
   const chosen=rows.find(r=>r.obligationId===selected)||null;
+  const needle=search.trim().toLocaleLowerCase('en-KE');
+  const filteredRows=rows.filter(r=>!needle||[r.agreementTitle,r.obligationTitle,r.purpose]
+    .some(value=>value.toLocaleLowerCase('en-KE').includes(needle)));
   const privacy=<button type="button" className="spm-payment-privacy-toggle"
     onClick={()=>setReveal(x=>!x)}
-    aria-label={reveal?'Hide private agreement details':'Show private agreement details'}>
+    aria-label={reveal?'Hide amounts and payment details':'Show amounts and payment details'}>
     {reveal?<EyeOff size={17}/>:<Eye size={17}/>}
-    {reveal?'Hide details':'Show details'}
+    {reveal?'Hide amounts':'Show amounts'}
   </button>;
 
   return <section className="spm-payer-responsibilities" aria-label="My private payment responsibilities">
@@ -89,10 +93,7 @@ export function MiniPersonalPaymentResponsibilities({gateway,prepare,onBack,onVi
       {privacy}
     </div>
     <h2>{selected?'Your agreement':'Your payment agreements'}</h2>
-    <p className="spm-payment-soft">These are responsibilities connected to your own accepted or proposed agreements, not a balance of everything you owe.</p>
-    {!reveal&&<div className="spm-payment-cover"><LockKeyhole size={17}/>
-      <span>Private view is on. Other people cannot read your amounts or agreement status from this screen.</span>
-    </div>}
+    <p className="spm-payment-soft">Find an agreement. Amounts and payment details stay hidden until you open it.</p>
     {status==='loading'&&<p role="status">Checking your agreements…</p>}
     {error&&<p role="alert">{error}</p>}
     {status==='error'&&<button type="button" className="spm-secondary" onClick={()=>void load(0,true)}>
@@ -117,15 +118,21 @@ export function MiniPersonalPaymentResponsibilities({gateway,prepare,onBack,onVi
       </div>}
     </>}
     {status==='ready'&&!selected&&<>
-      {rows.length===0&&<p className="spm-payment-soft">No matching personal payment responsibilities were returned on this page. That does not prove that nothing is owed.</p>}
+      <label htmlFor="spm-personal-pay-search" className="spm-pay-search"><Search size={17}/>
+        <input type="search" id="spm-personal-pay-search" value={search}
+          onChange={e=>setSearch(e.target.value)} autoComplete="off"
+          placeholder="Find by shop, person or item" aria-label="Find an agreement"/>
+      </label>
+      {rows.length===0&&<p className="spm-payment-soft">No personal payment responsibilities were returned on this page. That does not prove nothing is owed.</p>}
+      {rows.length>0&&filteredRows.length===0&&<p className="spm-payment-soft">No matches in the agreements loaded. Try another term or load more.</p>}
       <div className="spm-payment-responsibility-list">
-        {rows.map((item,i)=><button key={item.agreementId+':'+item.obligationId}
+        {filteredRows.map(item=><button key={item.agreementId+':'+item.obligationId}
           type="button" className="spm-payment-responsibility-item"
-          onClick={()=>setSelected(item.obligationId)}>
+          onClick={()=>{setSelected(item.obligationId);setReveal(true);}}>
           <span className="spm-payment-row-symbol"><FileText size={17}/></span>
           <span className="spm-payment-row-copy">
-            <strong>{reveal?item.obligationTitle:`Agreement ${i+1}`}</strong>
-            <small>{reveal?stateText(item.agreementState):'Private details available'}</small>
+            <strong>{item.obligationTitle}</strong>
+            <small>{reveal?stateText(item.agreementState):item.agreementTitle}</small>
           </span>
           {reveal&&<span className="spm-payment-detailed-signal" data-workflow={statusClass(item.agreementState)} aria-hidden="true"/>}
           <ArrowRight size={17}/>
