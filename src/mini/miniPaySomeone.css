@@ -58,3 +58,12 @@
 .spm-pay-private-cover strong{font-size:13px}
 .spm-pay-private-cover p{font-size:11px;line-height:1.55;color:#647765;margin:0}
 .spm-pay-private-cover .spm-secondary{justify-content:center}
+
+/* Easy to identify first, sensitive financial details only when opened. */
+.spm-pay-search{display:flex;align-items:center;gap:10px;min-height:46px;width:100%;border:1px solid #d9e3d8;border-radius:12px;background:#fffdfa;padding:0 13px;color:#6d8271}
+.spm-pay-search:focus-within{outline:2px solid #80a58a;outline-offset:1px}
+.spm-pay-search input{background:transparent;flex:1;min-width:0;height:44px;border:0;outline:0;font-size:13px;color:#274c35}
+.spm-pay-search input:focus-visible{outline:0}
+.spm-pay-search input::placeholder{color:#7f8f80}
+.spm-pay-items .spm-pay-item-value>svg:first-child{color:#8a9b8a}
+.spm-pay-privacy-control{font-size:11px}
