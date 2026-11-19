@@ -8,6 +8,7 @@ import {
 } from './governanceDraft.mjs';
 import securepayMark from '../../assets/brand/securepay/securepay-mark-green.png';
 import { C3ProviderPossibilities } from './C3ProviderPossibilities';
+import { COLLECTION_TYPE_PROFILES, CADENCE_OPTIONS, type CollectionTypeSelection } from './collectionTypes.mjs';
 
 type Stage = 'capacity' | 'people' | 'target' | 'end' | 'failure' | 'control' | 'review';
 const STAGES: readonly Stage[] = ['capacity', 'people', 'target', 'end', 'failure', 'control', 'review'];
@@ -46,15 +47,17 @@ function OptionPills({ options, value, onChoose, ariaLabel }: {
   </div>;
 }
 
-export function C2GovernanceExperience({ kind, onBack }: {kind: CollectionKind; onBack: () => void}) {
-  const [draft, setDraft] = useState<GovernanceDraft>(() => newGovernanceDraft(kind));
+export function C2GovernanceExperience({ kind, onBack, collectionTypeSelection }: {
+  kind: CollectionKind; onBack: () => void; collectionTypeSelection?: CollectionTypeSelection | null;
+}) {
+  const [draft, setDraft] = useState<GovernanceDraft>(() => newGovernanceDraft(kind, collectionTypeSelection));
   const [stage, setStage] = useState<Stage>('capacity');
   const [providerExplorationOpen, setProviderExplorationOpen] = useState(false);
   const todayIso = localTodayISO();
   const assessment = assessGovernanceDraft(draft, todayIso);
   const stepIndex = STAGES.indexOf(stage);
 
-  function answer<K extends keyof Omit<GovernanceDraft, 'kind'>>(key: K, value: GovernanceDraft[K]) {
+  function answer<K extends keyof Omit<GovernanceDraft, 'kind' | 'collectionTypeId' | 'collectionCadence'>>(key: K, value: GovernanceDraft[K]) {
     setDraft(previous => withGovernanceAnswer(previous, key, value));
   }
   const validCurrent = (() => {
@@ -184,6 +187,8 @@ export function C2GovernanceExperience({ kind, onBack }: {kind: CollectionKind; 
           <p className="mt-2 text-sm leading-6 text-[#617567]">You've organized the decisions. Nothing is accepted or activated until every required person and financial service is verified.</p>
           <div className="mt-5 rounded-2xl border border-[#dfe5da] bg-white p-4 shadow-sm">
             <dl className="space-y-3 text-sm">
+              {draft.collectionTypeId && <div className="flex justify-between gap-4"><dt className="text-[#617467]">Collection type</dt><dd className="text-right font-semibold">{COLLECTION_TYPE_PROFILES.find(x => x.id === draft.collectionTypeId)?.title}</dd></div>}
+              {draft.collectionCadence && <div className="flex justify-between gap-4"><dt className="text-[#617467]">Frequency</dt><dd className="text-right font-semibold">{CADENCE_OPTIONS.find(x => x.id === draft.collectionCadence)?.title}</dd></div>}
               <div className="flex justify-between gap-4"><dt className="text-[#617467]">Collecting for</dt><dd className="text-right font-semibold">{ACTOR_CAPACITIES.find(o => o.id === draft.capacity)?.label}</dd></div>
               <div className="flex justify-between gap-4"><dt className="text-[#617467]">Contributors</dt><dd className="text-right font-semibold">{CONTRIBUTOR_SCOPES.find(o => o.id === draft.contributorScope)?.label}</dd></div>
               <div className="flex justify-between gap-4"><dt className="text-[#617467]">Beneficiary</dt><dd className="text-right font-semibold">{beneficiaryOptions(kind).find(o => o.id === draft.beneficiaryRule)?.label}</dd></div>
@@ -207,6 +212,7 @@ export function C2GovernanceExperience({ kind, onBack }: {kind: CollectionKind; 
               {SERVER_GATES.map(item => <li key={item} className="flex items-start gap-2 text-xs leading-5 text-[#506c56]"><ShieldCheck size={16} aria-hidden="true" className="mt-0.5 shrink-0"/>{item}</li>)}
             </ul>
           </div>
+          {draft.collectionCadence && draft.collectionCadence !== 'one-time' && <p className="mt-4 text-xs leading-5 text-[#66776a]">Each collection cycle will require separately identified dates, contributor records and validated financial authorization. Choosing a frequency does not authorize automatic debits.</p>}
           <p className="mt-4 text-xs leading-5 text-[#66776a]">C2 preview only. No bank selected, no binding Agreement or SecureLink created, no collection started and no money moved.</p>
           <button type="button" disabled={!assessment.draftComplete} onClick={() => setProviderExplorationOpen(true)}
             className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#285d41] px-5 text-sm font-semibold text-white hover:bg-[#1e4b35] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#285d41] disabled:cursor-not-allowed disabled:bg-[#abb8ac]">
