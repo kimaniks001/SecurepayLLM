@@ -12,13 +12,18 @@ import {
  * All choices are local review content. Only accepted canonical terms and
  * independently verified financial-provider authority can permit Money.
  */
-export function C5CollectionTypes({ kind, onBack, onContinue }: {
+export function C5CollectionTypes({ kind, onBack, onContinue, initialSelection }: {
   kind: CollectionKind;
   onBack: () => void;
   onContinue: (selection: CollectionTypeSelection) => void;
+  initialSelection?: CollectionTypeSelection | null;
 }) {
-  const [selection, setSelection] = useState<CollectionTypeSelection>(() => newCollectionTypeSelection(kind));
-  const [stage, setStage] = useState<'type' | 'cadence' | 'review'>('type');
+  const [selection, setSelection] = useState<CollectionTypeSelection>(() =>
+    initialSelection && initialSelection.kind === kind && assessCollectionTypeSelection(initialSelection).draftComplete
+      ? initialSelection : newCollectionTypeSelection(kind));
+  const [stage, setStage] = useState<'type' | 'cadence' | 'review'>(() =>
+    initialSelection && initialSelection.kind === kind && assessCollectionTypeSelection(initialSelection).draftComplete
+      ? 'review' : 'type');
   const profile = collectionTypesFor(kind).find(x => x.id === selection.typeId);
   const cadence = CADENCE_OPTIONS.find(x => x.id === selection.cadence);
   const assessment = assessCollectionTypeSelection(selection);
