@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ArrowLeft, ArrowRight, CheckCircle2, CircleHelp, Clock3, ReceiptText, ShieldCheck } from 'lucide-react';
 import { C7MyMoneyLifecycle } from './C7MyMoneyLifecycle';
 import type { MoneyPage } from './c7MoneyLifecycle.mjs';
+import type { ProviderReadiness } from './c7ProviderReadiness.mjs';
 import securepayMark from '../../assets/brand/securepay/securepay-mark-green.png';
 
 export type MyContribution = {
@@ -56,16 +57,18 @@ const descriptions: Record<MyContribution['state'], string> = {
  * GET .../mine/return-status from the same server-derived logged-in identity.
  * The standalone preview has NO fabricated contributions or refunds.
  */
-export function C4MyContributionStatus({ onBack, records, returnStatus, planningContext, moneyPage }: {
+export function C4MyContributionStatus({ onBack, records, returnStatus, planningContext, moneyPage, providerReadiness }: {
   onBack: () => void;
   records?: MyContributionRecords;
   returnStatus?: MyReturnStatus;
   planningContext?: { typeTitle: string; cadenceTitle: string };
   moneyPage?: MoneyPage | null;
+  providerReadiness?: ProviderReadiness | null;
 }) {
   const [viewingLifecycle,setViewingLifecycle] = useState(false);
   if (viewingLifecycle) return <C7MyMoneyLifecycle
-    onBack={() => setViewingLifecycle(false)} page={moneyPage}/>;
+    onBack={() => setViewingLifecycle(false)} page={moneyPage}
+    providerReadiness={providerReadiness}/>;
   return <div className="min-h-screen bg-[#faf7f0] text-[#244936]" data-mini-collect-c4>
     <header className="border-b border-[#e4e9de] bg-[#fffefa] px-4 py-3">
       <div className="mx-auto flex max-w-xl items-center gap-3">

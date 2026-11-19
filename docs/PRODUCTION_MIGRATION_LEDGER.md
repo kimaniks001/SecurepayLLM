@@ -2038,3 +2038,17 @@ Companion docs/MINI_COLLECT_C6_FAIR_TRADE_EXAMINATION_20261119.md. Neither produ
 | Real provider reconciliation, original-source refunds, in-app notice delivery | HUMAN_DOCTRINE_BLOCKER | All financial custody, payment execution, signed bank callbacks and notification-delivery evidence require separately certified provider and acceptance gates. |
 
 Companion docs/MINI_COLLECT_C7_20261119.md. Do not merge, call production ready or connect Money while external issuer/provider evidence and C8 certification remain incomplete.
+
+
+
+## Mini Collect C7C–E — provider, original-source refund reconciliation, inbox (19 Nov 2026)
+
+| Surface | Migration state | Scope and financial boundary |
+| --- | --- | --- |
+| Mini expandable provider/Agreement/Money/return protections | FRONTEND_COMPOSITION_ONLY | Two visible human protections; more only when opened. No bank names, synthetic balances or proof that a push notification was delivered. |
+| Provider readiness from actual C3D financial institution | BACKEND_PR_PENDING | Signed mandate, audited collection-specific custody, fee/holding/refund/callback scope and original source checked through privileged port; current adapter DENIES. |
+| Payer consent and actual Bank/Rail dispatch | HUMAN_DOCTRINE_BLOCKER | Only independently signed exact-item/stage consent may authorize future PaymentIntent/RailAdapter dispatch. Existing C5B review is not a debit authority; no provider or bank connected. |
+| Original-source refund and regulated ledger evidence | BACKEND_PR_PENDING | Privileged signed callback + exact original payment + refund ledger journal must all match before an immutable self refund receipt; current provider proof DENIES. Partial returns remain blocked. |
+| Personal status notice through existing SecurePay inbox | BACKEND_PR_PENDING | Producer accepts only independently verified C4 funding or C7D provider/ledger refund. In-app creation is not device delivery; automatic funding-worker hook and real sandbox still outstanding. |
+
+See docs/MINI_COLLECT_C7C_PROVIDER_AND_NOTICES_20261119.md and backend ops report. Release remains NO_GO: Java21/Flyway, real provider, actual payments/refunds, security/recovery and C8 customer acceptance missing.
