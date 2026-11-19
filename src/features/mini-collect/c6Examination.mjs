@@ -3,6 +3,8 @@
  * Answer pills do not verify bills, legal rights, recipient accounts,
  * school terms, provider mandates, refund entitlement or Money.
  */
+import { isCalendarDate } from './governanceDraft.mjs';
+
 const pick = (id,label) => Object.freeze({id,label});
 const SOURCE = Object.freeze({
   id:'source', title:'Is the original source available?',
@@ -129,8 +131,7 @@ export function assessCollectionExamination(draft,period,answers={},dateProposal
   const questions=questionsForCollection(draft,period);
   const unanswered=questions.filter(q=>!q.options.some(x=>x.id===answers[q.id])).map(q=>q.id);
   const hasDateRequest=questions.some(q=>q.calendar && answers[q.id]==='propose-date');
-  const proposedDateValid=!hasDateRequest || /^\d{4}-\d{2}-\d{2}$/.test(dateProposal||'')
-    && !Number.isNaN(Date.parse(dateProposal+'T00:00:00.000Z'));
+  const proposedDateValid=!hasDateRequest || isCalendarDate(dateProposal);
   return Object.freeze({
     questions,
     unanswered:Object.freeze(unanswered),
