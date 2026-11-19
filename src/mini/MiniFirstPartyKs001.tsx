@@ -7,6 +7,8 @@ import { createMiniDemoHttpClient, miniDemoSeedAccess, miniDemoTokens,
   isMiniExperiencePreviewHost } from './miniInteractiveDemo';
 import { createAuthGateway } from '../api/securepay/auth';
 import { createAgreementGateway } from '../api/securepay/agreements';
+import { createAgreementReviewGateway } from '../api/securepay/agreement-review';
+import { createHumanPartySubmissionGateway, createHumanFairBriefGateway } from '../api/securepay/human-party-submissions';
 import { createBusinessGateway } from '../api/securepay/business';
 import { createAuthorizationGateway } from '../api/securepay/authorization';
 import { createSubscriptionGateway } from '../api/securepay/subscription';
@@ -97,6 +99,9 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
     : createHttpClient(apiOrigin,session.getAccessToken),[apiOrigin,demo,session]);
   const auth = useMemo(() => createAuthGateway(http),[http]);
   const agreements=useMemo(()=>createAgreementGateway(http),[http]);
+  const participantReviews=useMemo(()=>createAgreementReviewGateway(http),[http]);
+  const humanPartySubmissions=useMemo(()=>createHumanPartySubmissionGateway(http),[http]);
+  const humanFairBrief=useMemo(()=>createHumanFairBriefGateway(http),[http]);
   const stores=useMemo(()=>createStoreGateway(http),[http]);
   const quotations=useMemo(()=>createStoreQuotationGateway(http),[http]);
   const measured=useMemo(()=>createMeasuredServicesGateway(http),[http]);
@@ -647,6 +652,10 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
         onBack={()=>setPeopleOpen(null)}/>}
     {status==='ready' && !identityOpen && agreementsOpen &&
       <MiniMyAgreements gateway={agreements}
+        reviewGateway={!demo && isMiniExperiencePreviewHost(window.location.hostname) ? participantReviews : undefined}
+        humanPartyGateway={!demo && isMiniExperiencePreviewHost(window.location.hostname) ? humanPartySubmissions : undefined}
+        humanFairBriefGateway={!demo && isMiniExperiencePreviewHost(window.location.hostname) ? humanFairBrief : undefined}
+        humanPreviewEnabled={!demo && isMiniExperiencePreviewHost(window.location.hostname)}
         quotationGateway={quotations} notificationGateway={notifications}
         measuredGateway={measured} liveQuotes={liveQuotes}
         moneyGateway={canonicalMoney} paymentsGateway={paymentHistory}

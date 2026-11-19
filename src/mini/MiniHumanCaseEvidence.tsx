@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ChevronDown, FileCheck2, MessageCircle, ShieldCheck } from 'lucide-react';
-import type { HumanReviewCaseSnapshot, HumanReviewScope, HumanPartySubmissionGateway } from '../api/securepay/human-party-submissions';
+import type { HumanReviewCaseSnapshot, HumanReviewScope, HumanPartySubmissionGateway, HumanFairBrief, HumanFairBriefGateway } from '../api/securepay/human-party-submissions';
 
 /**
  * Same native Mini typography and spm-* actions as Buy/Sell/Pay/Collect.
@@ -48,16 +48,20 @@ export function MiniHumanCaseEvidence({ snapshot, sample = false }: {
  * first-party Mini host passes a current canonical case scope and a
  * session-authenticated gateway. It never accepts a case id from URL.
  */
-export function MiniHumanCaseRead({ scope, gateway }: {
+export function MiniHumanCaseRead({ scope, gateway, fairBriefGateway }: {
   scope: HumanReviewScope;
   gateway: Pick<HumanPartySubmissionGateway, 'read'>;
+  fairBriefGateway: Pick<HumanFairBriefGateway, 'read'>;
 }) {
   const [snapshot, setSnapshot] = useState<HumanReviewCaseSnapshot | null>(null);
+  const [brief, setBrief] = useState<HumanFairBrief | null>(null);
+  const [briefLoading, setBriefLoading] = useState(false);
+  const [briefError, setBriefError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const review = async () => {
     if (loading) return;
-    setLoading(true); setError(null); setSnapshot(null);
+    setLoading(true); setError(null); setSnapshot(null); setBrief(null); setBriefError(null);
     try {
       const value = await gateway.read(scope);
       if (scope.agreementId !== value.agreementId ||
@@ -69,12 +73,47 @@ export function MiniHumanCaseRead({ scope, gateway }: {
       setError('Could not verify this review. Reopen your current Agreement and choose the review again.');
     } finally { setLoading(false); }
   };
+  const getFairBrief = async () => {
+    if (briefLoading || !snapshot) return;
+    setBriefLoading(true); setBrief(null); setBriefError(null);
+    try {
+      const value = await fairBriefGateway.read(scope);
+      if (value.agreementId !== snapshot.agreementId ||
+          value.acceptedVersionId !== snapshot.acceptedVersionId ||
+          value.reviewCaseId !== snapshot.reviewCaseId)
+        throw new Error('The Agreement or review changed');
+      setBrief(value);
+    } catch {
+      setBriefError('The questions could not be verified from current records. No conclusion was made.');
+    } finally { setBriefLoading(false); }
+  };
+
   return <section className="spm-human-case">
     <button type="button" className="spm-secondary spm-human-case-trigger" disabled={loading} onClick={() => void review()}>
       <FileCheck2 size={17}/>{loading ? 'Checking the review…' : 'Read submitted positions'}
     </button>
     {error && <p role="alert" className="spm-error">{error}</p>}
-    {snapshot && <MiniHumanCaseEvidence key={snapshot.reviewCaseId} snapshot={snapshot}/>}
+    {snapshot && <>
+      <MiniHumanCaseEvidence key={snapshot.reviewCaseId} snapshot={snapshot}/>
+      <button type="button" className="spm-secondary spm-human-case-trigger"
+        disabled={briefLoading} onClick={() => void getFairBrief()}>
+        <MessageCircle size={16}/>{briefLoading ? 'Preparing fair questions…' : 'What should we check together?'}
+      </button>
+    </>}
+    {briefError && <p role="alert" className="spm-error">{briefError}</p>}
+    {brief && <section className="spm-human-case-body" aria-label="Source-grounded fair questions">
+      <div className="spm-human-case-label">Questions to explore · No KS001 finding yet</div>
+      <p className="spm-human-case-caution">
+        Statements are not verified. Other affected people may still need to be heard.
+      </p>
+      {brief.nextQuestions.map(q => <p className="spm-human-case-statement" key={q.kind}>
+        <span className="spm-human-source">{q.requiresExplicitPartyAction ? 'Your choice' : 'For information'}</span>
+        <span>{q.label}</span>
+      </p>)}
+      <p className="spm-human-case-caution">
+        No findings, automatic AI disclosure, Agreement amendments or Money instructions.
+      </p>
+    </section>}
   </section>;
 }
 
