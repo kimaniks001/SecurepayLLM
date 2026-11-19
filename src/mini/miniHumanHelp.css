@@ -17,3 +17,18 @@
 .spm-human-truth svg{flex:none;color:#51775a}
 .spm-human-truth p{font-size:11px;line-height:1.5;margin:0}
 @media (prefers-reduced-motion:reduce){.spm-human-pill{transition:none}}
+
+/* Two-sided H3 material remains a small optional onion layer, not a report page. */
+.spm-human-case{margin-top:13px}
+.spm-human-case-trigger{width:100%;justify-content:center;gap:8px}
+.spm-human-case-trigger svg:last-child{margin-left:auto}
+.spm-human-case-body{margin-top:8px;padding:12px;background:#fffdf8;border:1px solid #e0e6dc;border-radius:13px;display:grid;gap:9px}
+.spm-human-case-label{font-size:11px;color:#805d2e;background:#fff8e5;border:1px solid #f0e1bc;border-radius:8px;padding:7px 9px}
+.spm-human-case-line{display:flex;justify-content:space-between;gap:8px;padding-bottom:7px;border-bottom:1px solid #eee9dc;color:#637365;font-size:11px}
+.spm-human-case-line strong{color:#28543a;font-weight:650}
+.spm-human-case-line span{text-align:right}
+.spm-human-case-statement{padding:9px 10px;background:#f7f9f3;border:1px solid #e6ebe1;border-radius:10px}
+.spm-human-source{color:#536e5a;font-weight:700;font-size:10px;letter-spacing:.02em}
+.spm-human-case-statement p{color:#284634;font-size:12px;line-height:1.5;margin:5px 0 0;overflow-wrap:anywhere;white-space:pre-wrap}
+.spm-human-case-support,.spm-human-case-caution{display:flex;align-items:flex-start;gap:7px;font-size:11px;line-height:1.5;color:#5b705d;margin:0}
+.spm-human-case-support svg,.spm-human-case-caution svg{color:#4c7455;flex:none}
