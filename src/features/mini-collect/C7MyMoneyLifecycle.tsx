@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { ArrowLeft, CircleHelp, Clock3, FileCheck2, LockKeyhole, ReceiptText, ShieldCheck } from 'lucide-react';
 import securepayMark from '../../assets/brand/securepay/securepay-mark-green.png';
 import {
@@ -26,6 +27,7 @@ export function C7MyMoneyLifecycle({onBack,page,providerReadiness}:{
 }) {
   const snapshot=summarizeC7Money(page);
   const readiness=describeC7Readiness(providerReadiness);
+  const [allProtections,setAllProtections]=useState(false);
   return <div data-mini-collect-c7 className="min-h-screen bg-[#faf7f0] text-[#244936]">
     <header className="border-b border-[#e4e9df] bg-[#fffefa] px-4 py-3">
       <div className="mx-auto flex max-w-xl items-center gap-3">
@@ -93,12 +95,16 @@ export function C7MyMoneyLifecycle({onBack,page,providerReadiness}:{
         </div>
         <p className="mt-2 text-sm leading-6 text-[#617365]">{readiness.message}</p>
         <ul className="mt-3 space-y-2">
-          {C7_PROTECTIONS.map(item=><li key={item.id}
+          {C7_PROTECTIONS.slice(0,allProtections?undefined:2).map(item=><li key={item.id}
             className="rounded-xl bg-[#f6f8f2] p-3">
             <p className="text-sm font-semibold">{item.title}</p>
             <p className="mt-1 text-xs leading-5 text-[#68786b]">{item.reason}</p>
           </li>)}
         </ul>
+        <button type="button" onClick={()=>setAllProtections(current=>!current)}
+          className="mt-3 min-h-11 rounded-xl px-2 text-sm font-semibold text-[#356c4a] hover:bg-[#f0f5ed]">
+          {allProtections?'Show less':'See all protections'}
+        </button>
         <p className="mt-3 text-xs leading-5 text-[#778477]">Current provider and notice status is not proof of an authorized payment. Real verified updates belong in your private SecurePay inbox, not in a fabricated payment receipt.</p>
       </section>
       <section className="mt-5 rounded-2xl border border-[#dce8d8] bg-[#f0f6ee] p-4">
