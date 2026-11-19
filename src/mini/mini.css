@@ -1,4 +1,12 @@
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap');
+/* The native Mini shell has its own styles, but the C1-C8 Collect Money journey
+   is authored with Tailwind utilities. The standalone mini.html entry MUST compile
+   those utilities too, otherwise every choice collapses into an unstyled button.
+   Keep these BEFORE the native .spm-* selectors so the existing Mini design wins. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 :root { font-family:'Inter',system-ui,-apple-system,BlinkMacSystemFont,sans-serif; color:#1d372a; background:#f4f0e7; font-synthesis:none; -webkit-font-smoothing:antialiased; }
 * { box-sizing:border-box; }
 html, body, #mini-root { min-height:100%; margin:0; }
@@ -1784,9 +1792,31 @@ textarea.spm-field { resize:vertical; }
 @media(max-width:390px){.spm-saver-card{padding:13px}.spm-saver-row{font-size:11px}.spm-saver-number strong{font-size:25px}}
 
 
-/* Full Mini integration review: the imported Collect C1–C8 owns its stages,
-   while the parent Mini shell owns the product identity and return path. */
+/* Native Mini owns the product header; nested C1–C7 collect screens must
+   not render a second standalone app header or force full-viewport height. */
 .spm-full-collect > .spm-back { margin:12px 14px 0; }
-.spm-full-collect [data-mini-collect-c1] { min-height:0; background:transparent; }
-.spm-full-collect [data-mini-collect-c1] > header { display:none; }
-.spm-full-collect [data-mini-collect-c1] > main { padding:12px 14px 28px; }
+.spm-full-collect :is(
+  [data-mini-collect-c1], [data-mini-collect-c2], [data-mini-collect-c3],
+  [data-mini-collect-c3c], [data-mini-collect-c3d], [data-mini-collect-c4],
+  [data-mini-collect-c5a], [data-mini-collect-c5b], [data-mini-collect-c6],
+  [data-mini-collect-c7]
+) { min-height:0; background:transparent; }
+.spm-full-collect :is(
+  [data-mini-collect-c1], [data-mini-collect-c2], [data-mini-collect-c3],
+  [data-mini-collect-c3c], [data-mini-collect-c3d], [data-mini-collect-c4],
+  [data-mini-collect-c5a], [data-mini-collect-c5b], [data-mini-collect-c6],
+  [data-mini-collect-c7]
+) > header { display:none; }
+.spm-full-collect :is(
+  [data-mini-collect-c1], [data-mini-collect-c2], [data-mini-collect-c3],
+  [data-mini-collect-c3c], [data-mini-collect-c3d], [data-mini-collect-c4],
+  [data-mini-collect-c5a], [data-mini-collect-c5b], [data-mini-collect-c6],
+  [data-mini-collect-c7]
+) > main { padding:12px 14px 28px; }
+.spm-full-collect .font-display { font-family:'Fraunces',Georgia,serif; }
+.spm-full-collect :is(button,input,select,textarea) { font-family:inherit; }
+.spm-full-collect :is(button,a):focus-visible {
+  outline:2px solid #285d41;
+  outline-offset:3px;
+}
+
