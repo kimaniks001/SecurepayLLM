@@ -117,8 +117,12 @@ export function C6CollectionExamination({draft,period,onBack,onContinue}:{
           </button>
         </div>
         <p className="mt-4 text-xs leading-5 text-[#6b796c]">Planning preview only. No genuine invoice, source, legal debt, payee, provider, Agreement acceptance, recurring debit or Money is verified here.</p>
-        <button type="button" onClick={onContinue}
+        {review.disputed && <button type="button" onClick={onBack}
           className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#285d41] px-4 text-sm font-semibold text-white">
+          Return to the original source <ArrowRight size={18} aria-hidden="true"/>
+        </button>}
+        <button type="button" onClick={onContinue} disabled={review.disputed}
+          className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#285d41] px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">
           Check which providers can help <ArrowRight size={18} aria-hidden="true"/>
         </button>
         <button type="button" onClick={()=>{setSummary(false);setStep(0);}}
