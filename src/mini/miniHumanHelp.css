@@ -32,3 +32,9 @@
 .spm-human-case-statement p{color:#284634;font-size:12px;line-height:1.5;margin:5px 0 0;overflow-wrap:anywhere;white-space:pre-wrap}
 .spm-human-case-support,.spm-human-case-caution{display:flex;align-items:flex-start;gap:7px;font-size:11px;line-height:1.5;color:#5b705d;margin:0}
 .spm-human-case-support svg,.spm-human-case-caution svg{color:#4c7455;flex:none}
+
+/* H3 first-party consent remains a native Mini "onion" layer, not a new product. */
+.spm-human-consent-choice{display:flex;align-items:flex-start;gap:10px;padding:12px;border:1px solid #d6e5d6;background:#f8faf6;border-radius:12px;color:#2b5340;font-size:12px;line-height:1.55;cursor:pointer}
+.spm-human-consent-choice input{appearance:auto;accent-color:#3f7750;flex:none;width:18px;height:18px;margin:1px 0 0}
+.spm-human-consent-choice strong{font-weight:700}
+.spm-human-case-body [data-mini-h3-consent]{margin-top:12px}
