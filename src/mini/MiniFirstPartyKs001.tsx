@@ -37,6 +37,8 @@ import { MiniParticipantInvitations } from './MiniParticipantInvitations';
 import { MiniCreatorInvitations } from './MiniCreatorInvitations';
 import { MiniMyAgreements } from './MiniMyAgreements';
 import { MiniHumanDiscovery } from './MiniHumanDiscovery';
+import { MiniHumanEngagements } from './MiniHumanEngagements';
+import { createHumanEngagementGateway, type H4dSelectedHelper } from '../api/securepay/human-engagement';
 import { createHumanDiscoveryGateway, type HumanHelpIntent } from '../api/securepay/human-discovery';
 import { MiniOwnerMoneyTest } from './MiniOwnerMoneyTest';
 import { miniDemoMoneyFixtureState } from './miniInteractiveDemo';
@@ -112,6 +114,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
   const humanConsent=useMemo(()=>createHumanConsentGateway(http),[http]);
   const humanExam=useMemo(()=>createHumanExamReadinessGateway(http),[http]);
   const humanDiscovery=useMemo(()=>createHumanDiscoveryGateway(http),[http]);
+  const humanEngagement=useMemo(()=>createHumanEngagementGateway(http),[http]);
   const stores=useMemo(()=>createStoreGateway(http),[http]);
   const quotations=useMemo(()=>createStoreQuotationGateway(http),[http]);
   const measured=useMemo(()=>createMeasuredServicesGateway(http),[http]);
@@ -187,6 +190,8 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
   const [peopleOpen,setPeopleOpen] = useState<'inbox'|'creator'|null>(null);
   const [agreementsOpen,setAgreementsOpen] = useState(false);
   const [humanDiscoveryOpen,setHumanDiscoveryOpen] = useState(Boolean(startInHumanDiscovery));
+  const [humanEngagementOpen,setHumanEngagementOpen] = useState(false);
+  const [selectedHumanHelper,setSelectedHumanHelper] = useState<H4dSelectedHelper|null>(null);
   const [saverPlugOpen,setSaverPlugOpen] = useState(false);
   // Explicit preview-host synthetic flow only. Real API Mini never reads this.
   const [moneyOwnerOpen,setMoneyOwnerOpen] = useState(()=>demo &&
@@ -609,6 +614,29 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
     setFailedResumeId(null);
     setEpoch(n=>n+1);
   };
+  // H4D reuses the existing first-party identity, not a new login.
+  // No third-party IDs, old Workspace fallback or synthetic providers.
+  if(humanEngagementOpen && !demo) {
+    const enabled=typeof window!=='undefined' &&
+      isMiniExperiencePreviewHost(window.location.hostname) &&
+      import.meta.env.VITE_SECUREPAY_MINI_H4D_ENGAGEMENT==='enabled';
+    return <section className="spm-guest spm-content" data-mini-h4d-first-party>
+      {identityOpen
+        ?<MiniIdentityStep auth={auth} session={session}
+            onDone={()=>setIdentityOpen(false)} onCancel={()=>setIdentityOpen(false)}/>
+        :<MiniHumanEngagements key={selectedHumanHelper?.helperIdentityId||'my-inbox'}
+            selected={selectedHumanHelper}
+            context={humanDiscoveryContext}
+            enabled={enabled} signedIn={signedIn}
+            gateway={humanEngagement}
+            prepare={()=>ensureFreshSession(session,auth)}
+            onSignIn={()=>setIdentityOpen(true)}
+            onBack={()=>{
+              setHumanEngagementOpen(false);setSelectedHumanHelper(null);
+              if(!humanDiscoveryOpen && !startInHumanDiscovery)setIdentityOpen(false);
+            }}/>}
+    </section>;
+  }
   // H4C is a separate, voluntary Mini step using the SAME memory-only login.
   // Never couple a helper lookup to conversation restoration, AI execution, or Money.
   if(humanDiscoveryOpen && startInHumanDiscovery && !demo) {
@@ -626,6 +654,8 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
             prepare={()=>ensureFreshSession(session,auth)}
             onSignIn={()=>setIdentityOpen(true)}
             onAskKs001={()=>setHumanDiscoveryOpen(false)}
+            onSelectHelper={person=>{setSelectedHumanHelper(person);setHumanEngagementOpen(true);}}
+            onMyRequests={()=>{setSelectedHumanHelper(null);setHumanEngagementOpen(true);}}
             onBack={onBack}/>}
     </section>;
   }
@@ -855,6 +885,11 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
               onClick={openOwned} disabled={saveBusy}>My saved work</button>
             <button type="button" className="spm-quiet-button" onClick={openAgreements}
               disabled={saveBusy}><ClipboardList size={15}/>My Agreements</button>
+            {!demo && isMiniExperiencePreviewHost(window.location.hostname) &&
+              <button type="button" className="spm-quiet-button"
+                onClick={()=>{
+                  setSelectedHumanHelper(null);setHumanEngagementOpen(true);
+                }}><Users size={15}/>My human requests</button>}
             {signedIn && liveCommunitySaverPlugReadiness &&
               <button type="button" className="spm-quiet-button"
                 onClick={openCommunitySaverPlug} disabled={saveBusy}>
