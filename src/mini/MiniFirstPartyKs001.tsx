@@ -36,6 +36,8 @@ import type { MiniSellerQuotationDraft } from './miniSellerQuotationDraft.mjs';
 import { MiniParticipantInvitations } from './MiniParticipantInvitations';
 import { MiniCreatorInvitations } from './MiniCreatorInvitations';
 import { MiniMyAgreements } from './MiniMyAgreements';
+import { MiniHumanDiscovery } from './MiniHumanDiscovery';
+import { createHumanDiscoveryGateway, type HumanHelpIntent } from '../api/securepay/human-discovery';
 import { MiniOwnerMoneyTest } from './MiniOwnerMoneyTest';
 import { miniDemoMoneyFixtureState } from './miniInteractiveDemo';
 import { createSessionStore, ensureFreshSession } from '../api/securepay/session';
@@ -61,7 +63,7 @@ import type { MiniDraft, MiniLanguage } from './miniModel';
  * Unlike the legacy guest installation contract, this route exists in the
  * currently inspected SecurePayAPI main source as /api/agent/conversations.
  */
-export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo = false, startInStore = false, startInPayments = false, initialBuyingPlan = null }: {
+export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo = false, startInStore = false, startInPayments = false, startInHumanDiscovery = null, humanDiscoveryContext = null, initialBuyingPlan = null }: {
   apiOrigin: string;
   draft: MiniDraft | null;
   language: MiniLanguage;
@@ -71,6 +73,9 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
   startInStore?: boolean;
   /** Open the existing owner-scoped Agreement list from Pay Someone. No new Money authority. */
   startInPayments?: boolean;
+  /** H4C: explicit optional user-requested handoff, not a worker appointment. */
+  startInHumanDiscovery?: HumanHelpIntent|null;
+  humanDiscoveryContext?: string|null;
   /** Explicit buyer handoff; public offer IDs must be rechecked before use. */
   initialBuyingPlan?: {lines:MiniStorePlanLine[];fulfilment:MiniBasketFulfilment|null;
     buyerAnswers?:Array<{sellerKsNumber:string;offerId:string;offerUpdatedAt:string;question:string;proposedAnswer:string}>}|null;
@@ -106,6 +111,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
   const humanFairBrief=useMemo(()=>createHumanFairBriefGateway(http),[http]);
   const humanConsent=useMemo(()=>createHumanConsentGateway(http),[http]);
   const humanExam=useMemo(()=>createHumanExamReadinessGateway(http),[http]);
+  const humanDiscovery=useMemo(()=>createHumanDiscoveryGateway(http),[http]);
   const stores=useMemo(()=>createStoreGateway(http),[http]);
   const quotations=useMemo(()=>createStoreQuotationGateway(http),[http]);
   const measured=useMemo(()=>createMeasuredServicesGateway(http),[http]);
@@ -180,6 +186,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
   const [identityGoal,setIdentityGoal] = useState<'saved'|'inbox'|'creator'|'agreements'|'seller'>('saved');
   const [peopleOpen,setPeopleOpen] = useState<'inbox'|'creator'|null>(null);
   const [agreementsOpen,setAgreementsOpen] = useState(false);
+  const [humanDiscoveryOpen,setHumanDiscoveryOpen] = useState(Boolean(startInHumanDiscovery));
   const [saverPlugOpen,setSaverPlugOpen] = useState(false);
   // Explicit preview-host synthetic flow only. Real API Mini never reads this.
   const [moneyOwnerOpen,setMoneyOwnerOpen] = useState(()=>demo &&
@@ -602,6 +609,26 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
     setFailedResumeId(null);
     setEpoch(n=>n+1);
   };
+  // H4C is a separate, voluntary Mini step using the SAME memory-only login.
+  // Never couple a helper lookup to conversation restoration, AI execution, or Money.
+  if(humanDiscoveryOpen && startInHumanDiscovery && !demo) {
+    const enabled=typeof window!=='undefined' &&
+      isMiniExperiencePreviewHost(window.location.hostname) &&
+      import.meta.env.VITE_SECUREPAY_MINI_H4C_DISCOVERY==='enabled';
+    return <section className="spm-guest spm-content" data-mini-h4c-first-party>
+      {identityOpen
+        ? <MiniIdentityStep auth={auth} session={session}
+            onDone={()=>setIdentityOpen(false)}
+            onCancel={()=>setIdentityOpen(false)}/>
+        : <MiniHumanDiscovery initialIntent={startInHumanDiscovery}
+            context={humanDiscoveryContext} enabled={enabled}
+            signedIn={signedIn} gateway={humanDiscovery}
+            prepare={()=>ensureFreshSession(session,auth)}
+            onSignIn={()=>setIdentityOpen(true)}
+            onAskKs001={()=>setHumanDiscoveryOpen(false)}
+            onBack={onBack}/>}
+    </section>;
+  }
   return <section className="spm-guest spm-content" data-mini-first-party-ks001="staging">
     <button type="button" className="spm-back" onClick={onBack}><ArrowLeft size={18}/>{sw?'Rudi':'Back'}</button>
     <div className="spm-persona"><MessageCircle size={16}/><span>KS001</span>

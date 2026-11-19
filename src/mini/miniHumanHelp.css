@@ -38,3 +38,12 @@
 .spm-human-consent-choice input{appearance:auto;accent-color:#3f7750;flex:none;width:18px;height:18px;margin:1px 0 0}
 .spm-human-consent-choice strong{font-weight:700}
 .spm-human-case-body [data-mini-h3-consent]{margin-top:12px}
+
+/* H4C uses the same native Mini surface; these are small service-result details only. */
+.spm-human-discovery{display:grid;gap:10px}
+.spm-human-service-option{padding:12px;border:1px solid #e0e6dc;background:#fff;border-radius:12px;display:grid;gap:6px}
+.spm-human-service-option strong{font-size:14px;line-height:1.4;color:#234d35}
+.spm-human-service-option span:not(.spm-human-source){font-size:12px;color:#345a43;font-weight:650}
+.spm-human-service-option p{font-size:11px;line-height:1.5;color:#627966;margin:0}
+.spm-human-discovery .spm-human-pill small{font-size:11px;line-height:1.4;margin-top:3px;color:#647c6a}
+.spm-human-discovery .spm-human-pills{margin-bottom:7px}

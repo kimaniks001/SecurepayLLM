@@ -27,6 +27,7 @@ import { MiniCollectConversation } from './MiniCollectConversation';
 import { MiniSellSomething } from './MiniSellSomething';
 import { MiniPaySomeone } from './MiniPaySomeone';
 import { MiniHumanHelp, type MiniHelpJourney } from './MiniHumanHelp';
+import type { HumanHelpIntent } from '../api/securepay/human-discovery';
 import { MiniCommunitySaverPreview } from './MiniCommunitySaverPreview';
 import { miniMergeUserDescription, miniCaptureText, type MiniCaptureSource, type MiniCaptureKind } from './miniCapture';
 import './mini.css';
@@ -117,9 +118,11 @@ export function MiniExperience() {
   const t = words[lang];
   const [screen, setScreen] = useState<View>(() => {
     if (typeof window === 'undefined' || !isMiniExperiencePreviewHost(window.location.hostname)) return 'home';
-    // Only the ACTUAL mini.html entry can open the H3 native preview.
+    // Preserve the established H3 Mini route; H4C is an additional native preview.
     if (window.location.hash === '#/preview/mini/h3' ||
-        window.location.hash === '#/preview/mini/h3/') return 'human-help';
+        window.location.hash === '#/preview/mini/h3/' ||
+        window.location.hash === '#/preview/mini/h4c' ||
+        window.location.hash === '#/preview/mini/h4c/') return 'human-help';
     const qs = new URLSearchParams(window.location.search);
     if (!(qs.get('miniTradeDemo')==='1')) return 'home';
     if (qs.get('communitySaverPreview')==='1') return 'community-saver-preview';
@@ -130,6 +133,7 @@ export function MiniExperience() {
   const [helpReturnScreen, setHelpReturnScreen] = useState<View>('home');
   const [payVisited, setPayVisited] = useState(false);
   const [helpOrigin, setHelpOrigin] = useState<MiniHelpJourney>('general');
+  const [humanDiscovery,setHumanDiscovery]=useState<{intent:HumanHelpIntent;context:string}|null>(null);
   const [buyPrefill, setBuyPrefill] = useState('');
   const [buyResetKey, setBuyResetKey] = useState(0);
   const [buyingPlanForHelp,setBuyingPlanForHelp] = useState<{
@@ -164,6 +168,8 @@ export function MiniExperience() {
   // signed-in source record integrations pass certification. Preview only.
   const humanPreviewEnabled = typeof window !== 'undefined' &&
     isMiniExperiencePreviewHost(window.location.hostname);
+  const humanH4cPreview = humanPreviewEnabled &&
+    ['#/preview/mini/h4c','#/preview/mini/h4c/'].includes(window.location.hash);
   const playground = urlParams?.get('miniTradeDemo') === '1' &&
     typeof window !== 'undefined' && isMiniExperiencePreviewHost(window.location.hostname);
   const businessDemo = playground || urlParams?.get('miniBusinessPreview') === '1';
@@ -601,9 +607,14 @@ export function MiniExperience() {
         </section>}
 
         {humanPreviewEnabled && screen === 'human-help' && <MiniHumanHelp key={helpReturnScreen} language={lang}
-          fromJourney={helpOrigin}
+          fromJourney={helpOrigin} directHumanHelp={humanH4cPreview}
           onBack={() => setScreen(helpReturnScreen)}
-          onAskKs001={() => { setDiscussDraft(null); setScreen('help'); }}/>}
+          onAskKs001={() => { setHumanDiscovery(null);setDiscussDraft(null); setScreen('help'); }}
+          onFindHuman={!playground && !!getMiniFirstPartyOrigin()
+            ?(intent,context)=>{
+                setHumanDiscovery({intent,context});
+                setDiscussDraft(null);setScreen('help');
+              }:undefined}/>}
         {screen === 'help' && (playground
           ? <MiniTradeSampleHelp language={lang} basket={buyingPlanForHelp}
               onBack={() => {setScreen(buyingPlanForHelp?'buy':discussDraft?'review':'home');setBuyingPlanForHelp(null);}}/>
@@ -611,8 +622,16 @@ export function MiniExperience() {
           ? <MiniFirstPartyKs001 apiOrigin={getMiniFirstPartyOrigin()!} draft={discussDraft} language={lang}
               startInStore={verifiedStoreRequested}
               startInPayments={payExistingRequested}
+              startInHumanDiscovery={humanDiscovery?.intent ?? null}
+              humanDiscoveryContext={humanDiscovery?.context ?? null}
               initialBuyingPlan={buyingPlanForHelp}
-              onBack={() => {setVerifiedStoreRequested(false);setPayExistingRequested(false);setScreen(payExistingRequested ? 'pay-home' : buyingPlanForHelp ? 'buy' : discussDraft?.intent==='pay' ? 'pay-home' : discussDraft ? 'review' : 'home');setBuyingPlanForHelp(null);}}/>
+              onBack={() => {
+                if(humanDiscovery){setHumanDiscovery(null);setScreen('human-help');return;}
+                setVerifiedStoreRequested(false);setPayExistingRequested(false);
+                setScreen(payExistingRequested ? 'pay-home' : buyingPlanForHelp ? 'buy' :
+                  discussDraft?.intent==='pay' ? 'pay-home' : discussDraft ? 'review' : 'home');
+                setBuyingPlanForHelp(null);
+              }}/>
           : <MiniGuestChat draft={discussDraft} language={lang}
               onBack={() => setScreen(discussDraft ? 'review' : 'home')}/>)} 
         </>}
