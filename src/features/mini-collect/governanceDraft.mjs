@@ -1,3 +1,5 @@
+import { assessCollectionTypeSelection } from './collectionTypes.mjs';
+
 /**
  * Mini Collect C2 — strictly local, non-authoritative policy preparation.
  * The backend and regulated provider must independently verify identity,
@@ -104,10 +106,16 @@ const FAILURE_OPTIONS = Object.freeze({
 export function failureOptions(kind) {
   return Object.prototype.hasOwnProperty.call(FAILURE_OPTIONS, kind) ? FAILURE_OPTIONS[kind] : [];
 }
-export function newGovernanceDraft(kind) {
+export function newGovernanceDraft(kind, collectionTypeSelection = null) {
   if (!COLLECTION_KINDS.includes(kind)) throw new Error('Unknown collection purpose');
+  if (collectionTypeSelection && (collectionTypeSelection.kind !== kind
+      || !assessCollectionTypeSelection(collectionTypeSelection).draftComplete)) {
+    throw new Error('Collection type and schedule must match the purpose');
+  }
   return Object.freeze({
     kind,
+    collectionTypeId: collectionTypeSelection?.typeId ?? null,
+    collectionCadence: collectionTypeSelection?.cadence ?? null,
     capacity: null,
     contributorScope: null,
     beneficiaryRule: null,
@@ -124,7 +132,7 @@ export function newGovernanceDraft(kind) {
   });
 }
 export function withGovernanceAnswer(draft, key, value) {
-  if (!Object.prototype.hasOwnProperty.call(draft, key) || key === 'kind') throw new Error('Invalid governance answer');
+  if (!Object.prototype.hasOwnProperty.call(draft, key) || ['kind', 'collectionTypeId', 'collectionCadence'].includes(key)) throw new Error('Invalid governance answer');
   const next = { ...draft, [key]: value };
   if (key === 'targetMode') {
     next.targetAmountKes = null;
@@ -147,6 +155,14 @@ export function isCalendarDate(value) {
 export function assessGovernanceDraft(draft, todayIso) {
   const missing = [];
   if (!draft || !COLLECTION_KINDS.includes(draft.kind)) return Object.freeze({ draftComplete: false, missing: ['Select a valid collection purpose'], activationAllowed: false, authorityVerified: false });
+  // C5 details remain review-only and MUST NOT manufacture recurring financial
+  // authority; old C2 drafts remain valid with no C5 type selected.
+  if (draft.collectionTypeId != null || draft.collectionCadence != null) {
+    const typed = assessCollectionTypeSelection({
+      kind: draft.kind, typeId: draft.collectionTypeId, cadence: draft.collectionCadence,
+    });
+    if (!typed.draftComplete) missing.push('Collection type or frequency does not match its purpose');
+  }
   if (!ACTOR_CAPACITIES.some(x => x.id === draft.capacity)) missing.push('Choose who you are collecting for');
   if (!CONTRIBUTOR_SCOPES.some(x => x.id === draft.contributorScope)) missing.push('Decide who can contribute');
   if (!beneficiaryOptions(draft.kind).some(x => x.id === draft.beneficiaryRule)) missing.push('Choose the rightful payout beneficiary');
