@@ -9,6 +9,8 @@ import {
 import securepayMark from '../../assets/brand/securepay/securepay-mark-green.png';
 import { C3ProviderPossibilities } from './C3ProviderPossibilities';
 import { C5BCollectionPeriods } from './C5BCollectionPeriods';
+import { C6CollectionExamination } from './C6CollectionExamination';
+import type { CyclePeriodSelection } from './c5bPreparation.mjs';
 import { COLLECTION_TYPE_PROFILES, CADENCE_OPTIONS, type CollectionTypeSelection } from './collectionTypes.mjs';
 
 type Stage = 'capacity' | 'people' | 'target' | 'end' | 'failure' | 'control' | 'review';
@@ -55,12 +57,15 @@ export function C2GovernanceExperience({ kind, onBack, collectionTypeSelection }
   const [stage, setStage] = useState<Stage>('capacity');
   const [providerExplorationOpen, setProviderExplorationOpen] = useState(false);
   const [periodReviewOpen, setPeriodReviewOpen] = useState(false);
+  const [examinationOpen, setExaminationOpen] = useState(false);
+  const [periodSelection, setPeriodSelection] = useState<CyclePeriodSelection | null>(null);
   const todayIso = localTodayISO();
   const assessment = assessGovernanceDraft(draft, todayIso);
   const stepIndex = STAGES.indexOf(stage);
 
   function answer<K extends keyof Omit<GovernanceDraft, 'kind' | 'collectionTypeId' | 'collectionCadence'>>(key: K, value: GovernanceDraft[K]) {
     setDraft(previous => withGovernanceAnswer(previous, key, value));
+    setPeriodSelection(null);
   }
   const validCurrent = (() => {
     if (stage === 'capacity') return !!draft.capacity;
@@ -77,10 +82,23 @@ export function C2GovernanceExperience({ kind, onBack, collectionTypeSelection }
   const next = () => { if (validCurrent && stepIndex < STAGES.length - 1) setStage(STAGES[stepIndex + 1]); };
   const back = () => { if (stepIndex === 0) onBack(); else setStage(STAGES[stepIndex - 1]); };
 
-  if (providerExplorationOpen) return <C3ProviderPossibilities draft={draft} onBack={() => setProviderExplorationOpen(false)} />;
+  if (providerExplorationOpen) return <C3ProviderPossibilities draft={draft}
+    onBack={() => {
+      setProviderExplorationOpen(false);
+      if (periodSelection && draft.collectionTypeId) setExaminationOpen(true);
+    }} />;
+  if (examinationOpen && periodSelection) return <C6CollectionExamination
+    draft={draft} period={periodSelection}
+    onBack={() => { setExaminationOpen(false); setPeriodReviewOpen(true); }}
+    onContinue={() => { setExaminationOpen(false); setProviderExplorationOpen(true); }} />;
   if (periodReviewOpen) return <C5BCollectionPeriods draft={draft}
+    initialSelection={periodSelection}
     onBack={() => setPeriodReviewOpen(false)}
-    onContinue={() => { setPeriodReviewOpen(false); setProviderExplorationOpen(true); }} />;
+    onContinue={selection => {
+      setPeriodSelection(selection);
+      setPeriodReviewOpen(false);
+      setExaminationOpen(true);
+    }} />;
 
   return (
     <div className="min-h-screen bg-[#faf7f0] text-[#244936]" data-mini-collect-c2>
