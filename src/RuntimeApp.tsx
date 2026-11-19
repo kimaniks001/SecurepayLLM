@@ -478,7 +478,7 @@ export default function RuntimeApp() {
   // H2 review goes into the signed-in Mini Agreement shelf, not the
   // opt-in Living Workspace prototype or a fixture chat.
   const miniAgreementsRoute = typeof window !== 'undefined'
-    && new RegExp('^#/mini/agreements/?
+    && (window.location.hash === '#/mini/agreements' || window.location.hash === '#/mini/agreements/');
   if (miniAgreementsRoute) storeEntryView('agreements');
   else if (directSurfaceRoute) storeEntryView(directSurfaceRoute);
   return api && agentGateway && agreementGateway && moneyGateway && agreementReviewGateway && storeGateway && fulfilmentNeedsGateway && circleGateway && communityGateway && discoveryGateway && masterGateway && marketNetworkGateway && referralGateway && projectGateway && visionBoardGateway && visionDreamGateway && settingsGateway && businessGateway && authorizationGateway && developerGateway && notificationsGateway && subscriptionGateway
