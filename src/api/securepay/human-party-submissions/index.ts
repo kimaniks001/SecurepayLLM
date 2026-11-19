@@ -34,6 +34,9 @@ export interface HumanReviewCaseSnapshot extends HumanReviewScope {
   yourSideSubmitted: boolean;
   anotherPartySubmitted: boolean;
   bothPartiesSubmissionsPresent: boolean;
+  activeOriginalPartyCount: number;
+  originalPartySubmissionCount: number;
+  allOriginalPartiesSubmitted: boolean;
   statementsVerified: false;
   evidenceExamined: false;
   bindingDecisionMade: false;
@@ -79,6 +82,9 @@ export interface HumanFairBrief extends HumanReviewScope {
     requiresExplicitPartyAction: true;
   }>;
   bothPartySubmissionsPresent: boolean;
+  activeOriginalPartyCount: number;
+  originalPartySubmissionCount: number;
+  allOriginalPartiesSubmitted: boolean;
   affectedPartiesAllHeard: false;
   evidenceVerified: false;
   ks001HasMadeFinding: false;

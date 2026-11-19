@@ -27,6 +27,16 @@ export function MiniHumanCaseEvidence({ snapshot, sample = false }: {
         <strong>Other side</strong>
         <span>{snapshot.anotherPartySubmitted ? 'Statement received' : 'Their account has not been recorded'}</span>
       </div>
+      {Number.isInteger(snapshot.activeOriginalPartyCount) &&
+        Number.isInteger(snapshot.originalPartySubmissionCount) &&
+        snapshot.activeOriginalPartyCount > 0 &&
+        snapshot.originalPartySubmissionCount >= 0 &&
+        snapshot.originalPartySubmissionCount <= snapshot.activeOriginalPartyCount && (
+          <p className="spm-human-case-caution" role="status">
+            {snapshot.originalPartySubmissionCount} of {snapshot.activeOriginalPartyCount} active Agreement parties submitted an account.
+            {!snapshot.allOriginalPartiesSubmitted && ' Others still need an opportunity to respond.'}
+          </p>
+        )}
       {snapshot.partyStatements.map(s => <div className="spm-human-case-statement" key={s.sourceResponseId}>
         <span className="spm-human-source">{s.attribution === 'YOU' ? 'You submitted' : 'Other party submitted'} · Not verified</span>
         <p>{s.submittedNarrative || 'No account was supplied in this response.'}</p>
@@ -39,6 +49,11 @@ export function MiniHumanCaseEvidence({ snapshot, sample = false }: {
         <MessageCircle size={15}/> These are attributable submissions, not findings. Each affected party must have a fair chance to respond before any proposal.
       </p>
       <p className="spm-human-case-caution">Nothing here changes the Agreement or authorizes Money.</p>
+      <p className="spm-human-case-caution">
+        Private statements are not shared with an AI examination just by opening Help.
+        A future joint examination needs separately recorded and withdrawable permission
+        for the exact information from each active party.
+      </p>
     </div>}
   </section>;
 }
@@ -103,6 +118,13 @@ export function MiniHumanCaseRead({ scope, gateway, fairBriefGateway }: {
     {briefError && <p role="alert" className="spm-error">{briefError}</p>}
     {brief && <section className="spm-human-case-body" aria-label="Source-grounded fair questions">
       <div className="spm-human-case-label">Questions to explore · No KS001 finding yet</div>
+      {Number.isInteger(brief.activeOriginalPartyCount) &&
+        Number.isInteger(brief.originalPartySubmissionCount) &&
+        brief.activeOriginalPartyCount > 0 &&
+        <p className="spm-human-case-caution" role="status">
+          {brief.originalPartySubmissionCount} of {brief.activeOriginalPartyCount} original parties have submitted a statement.
+          {!brief.allOriginalPartiesSubmitted && ' The remaining parties should be heard.'}
+        </p>}
       <p className="spm-human-case-caution">
         Statements are not verified. Other affected people may still need to be heard.
       </p>
@@ -122,6 +144,8 @@ export const sampleHumanReview: HumanReviewCaseSnapshot = {
   reviewCaseId: 'sample-review', reviewCaseState: 'AWAITING_RESPONSE',
   yourSideSubmitted: true, anotherPartySubmitted: true,
   bothPartiesSubmissionsPresent: true,
+  activeOriginalPartyCount: 3, originalPartySubmissionCount: 2,
+  allOriginalPartiesSubmitted: false,
   statementsVerified: false, evidenceExamined: false,
   bindingDecisionMade: false, agreementAmended: false, moneyInstructionAuthorized: false,
   partyStatements: [
