@@ -5,6 +5,8 @@ import { TrustProjectSection } from '../../components/TrustProjectSection';
 import type { TrustProjectMembershipFact } from '../../components/trustProject';
 import { AgreementHub } from '../../components/AgreementHub';
 import { AgreementDetail } from '../../components/AgreementDetail';
+import { AgreementConversationPanel } from '../human-layer/AgreementConversationPanel';
+import type { AgreementMessagesGateway } from '../../api/securepay/agreement-messages';
 import { LivingAgreementOverview } from './LivingAgreementOverview';
 import { MoneyDoorway } from '../money/MoneyDoorway';
 import { openMoneyFor } from '../money/handoff';
@@ -82,10 +84,12 @@ function LoadingNotice({ text }: { text: string }) {
  * as Agreement truth: it first loads the authoritative Hub and only opens the id when that Hub contains
  * it. Once consumed, normal Home/Hub/Detail navigation is no longer influenced by the hint.
  */
-export function WorkspaceExperience({ onOpenSupport, gateway, fulfilmentNeedsGateway, paymentReleaseGateway, agentGateway, agentController, initialAgreementId, initialView = 'hub', onOpenStore, onOpenStoreOffer, onOpenReferral, onOpenHumanHelp, onOpenProjects, onOpenVisionBoard, onOpenCommunity, onOpenAccount, onOpenNotifications, onJoinTrustProject, trustProjectMembership = null, onAskKs001, onLeave }: {
+export function WorkspaceExperience({ onOpenSupport, gateway, messagesGateway, fulfilmentNeedsGateway, paymentReleaseGateway, agentGateway, agentController, initialAgreementId, initialView = 'hub', onOpenStore, onOpenStoreOffer, onOpenReferral, onOpenHumanHelp, onOpenProjects, onOpenVisionBoard, onOpenCommunity, onOpenAccount, onOpenNotifications, onJoinTrustProject, trustProjectMembership = null, onAskKs001, onLeave }: {
   /** Help & Support, scoped by the minimum this screen already showed. Optional, mirroring onOpenStore. */
   onOpenSupport?: (context: SupportContext) => void;
   gateway: Gateway;
+  /** H2: canonical B4 participant-only Agreement message API; optional for existing callers. */
+  messagesGateway?: Pick<AgreementMessagesGateway, 'thread' | 'send'>;
   fulfilmentNeedsGateway?: Pick<FulfilmentNeedsGateway, 'fromAgreementObligation' | 'routes'>;
   /** Phase 4: read-only release authority. No create/reserve/execute command is exposed here. */
   paymentReleaseGateway?: Pick<PaymentReleaseGateway, 'releaseAuthority'>;
@@ -389,6 +393,7 @@ export function WorkspaceExperience({ onOpenSupport, gateway, fulfilmentNeedsGat
         <AgreementDetail
           detail={boltDetail}
           printRecord={dto}
+          conversationPanel={messagesGateway ? <AgreementConversationPanel key={boltDetail.id} agreementId={boltDetail.id} gateway={messagesGateway} /> : undefined}
           onBack={() => controller.backToHub()}
           onAskAgent={text => void askAgentAboutAgreement(boltDetail.id, text)}
           isThinking={askBusy}
