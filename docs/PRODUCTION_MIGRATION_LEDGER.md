@@ -1989,3 +1989,15 @@ The 16 October 2026 frontend simplification work is **draft/stacked**, not a cla
 | Phase 3 authenticated browser six-journey certification | HUMAN_DOCTRINE_BLOCKER | Preview proxy forwards to production SecurePay API; isolated staging and human-operated/authorized accounts needed before actual E2E evidence or screenshots can justify production readiness. |
 
 Details and regression log: `docs/PHASE3_SIMPLICITY_INTELLIGENT_TOOLS_LEDGER_20261016.md`.
+
+
+## Mini Collect C5A — type-specific preparation (19 November 2026)
+
+| Surface | Migration state | Blocker / authority boundary |
+| --- | --- | --- |
+| Mini C5A types, frequency pills and type-specific requirements | FRONTEND_COMPOSITION_ONLY | Mobile review choice only; cannot create an Agreement, accepted debt, recurring authorization or bank instruction. Source: src/features/mini-collect/collectionTypes.mjs and C5CollectionTypes.tsx. |
+| C5 type/cadence -> C2/C3/C4 review continuity | FRONTEND_COMPOSITION_ONLY | Metadata is carried through the existing preview, but is neither a canonical accepted Agreement term nor authenticated source/payment truth. |
+| Canonical C5B typed Agreement + per-cycle records | BACKEND_PR_PENDING | Server-only type policy is drafted in SecurePayAPI C5A, but no persisted Agreement/cycle binding, overlap lock, per-person obligation, lawful beneficiary or valid acceptance exists. |
+| Recurring collection, notices and actual Money | HUMAN_DOCTRINE_BLOCKER | Requires authorized original obligation, exact period, recipient consent and privacy, independently certified provider mandate, per-period regulated payment and original-source reconciliation. Never infer live transactions from the C5A preview. |
+
+Follow-up: docs/MINI_COLLECT_C5A_20261119.md. UI C5A draft PR #346 depends on C1 #344 and C2–C4 #345. **No production feature activation.**
