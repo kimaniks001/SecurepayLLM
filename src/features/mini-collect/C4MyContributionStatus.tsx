@@ -53,10 +53,11 @@ const descriptions: Record<MyContribution['state'], string> = {
  * GET .../mine/return-status from the same server-derived logged-in identity.
  * The standalone preview has NO fabricated contributions or refunds.
  */
-export function C4MyContributionStatus({ onBack, records, returnStatus }: {
+export function C4MyContributionStatus({ onBack, records, returnStatus, planningContext }: {
   onBack: () => void;
   records?: MyContributionRecords;
   returnStatus?: MyReturnStatus;
+  planningContext?: { typeTitle: string; cadenceTitle: string };
 }) {
   return <div className="min-h-screen bg-[#faf7f0] text-[#244936]" data-mini-collect-c4>
     <header className="border-b border-[#e4e9de] bg-[#fffefa] px-4 py-3">
@@ -75,6 +76,7 @@ export function C4MyContributionStatus({ onBack, records, returnStatus }: {
       <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#e9f2e7]"><ReceiptText size={24} aria-hidden="true"/></div>
       <h1 className="font-display text-[2rem] leading-tight">Where does my contribution stand?</h1>
       <p className="mt-3 text-sm leading-6 text-[#647567]">Your money should not disappear into someone else's collection total. This view belongs to the contributor, not the public.</p>
+      {planningContext && <p className="mt-4 rounded-xl border border-[#dfe7d9] bg-[#fffefa] p-3 text-sm leading-6 text-[#657465]">Planning example: <strong>{planningContext.typeTitle}</strong> · {planningContext.cadenceTitle}. This is your draft choice, not an accepted Agreement or evidence that money was received.</p>}
       {!records ? <section className="mt-6 rounded-3xl border border-[#d9e3d6] bg-white p-5">
         <CircleHelp size={25} className="text-[#52775a]" aria-hidden="true"/>
         <h2 className="mt-3 text-lg font-semibold">No personal contribution is connected here</h2>
