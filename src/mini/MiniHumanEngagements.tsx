@@ -125,7 +125,7 @@ export function MiniHumanEngagements({
   const card=(entry:HumanEngagement)=><div key={entry.engagementId}
       className="spm-human-service-option" data-mini-h4d-private-request>
     <span className="spm-human-source">{entry.viewerRole==='HELPER'?'Request for my service':'My request'}
-      {' · '}{entry.status.replaceAll('_',' ').toLowerCase()}</span>
+      {' · '}{entry.status.replace(/_/g,' ').toLowerCase()}</span>
     <strong>{entry.serviceLabel}</strong>
     <p>{entry.scopeStatement}</p>
     <span>Complete when: {entry.completionCondition}</span>
@@ -210,7 +210,7 @@ export function MiniHumanEngagements({
     {response&&!showInbox&&<div className="spm-human-result" role="status">
       <strong>{response.status==='REQUESTED'?'Request created for helper review':
         response.status==='READY_FOR_AGREEMENT'?'Ready for a separate Agreement':
-        'Request status: '+response.status.replaceAll('_',' ').toLowerCase()}</strong>
+        'Request status: '+response.status.replace(/_/g,' ').toLowerCase()}</strong>
       <p>Nothing has been paid, accepted as a canonical Agreement or issued as a SecureLink.</p>
       <button type="button" className="spm-secondary"
         onClick={()=>{setResponse(null);void load();}}>
