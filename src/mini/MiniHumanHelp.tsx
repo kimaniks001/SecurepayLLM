@@ -5,6 +5,7 @@ import type { HumanHelpIntent } from '../api/securepay/human-discovery';
 import { MiniHumanCaseEvidence, sampleHumanReview } from './MiniHumanCaseEvidence';
 import { MiniHumanConsentExample } from './MiniHumanConsentExample';
 import { MiniHumanDiscovery } from './MiniHumanDiscovery';
+import { MiniHumanEngagements } from './MiniHumanEngagements';
 import './miniHumanHelp.css';
 
 /**
@@ -42,11 +43,13 @@ const answers: Record<Need, readonly string[]> = {
   specialist: ['Construction', 'Hospitality', 'Legal or regulated expertise', 'Something else'],
 };
 
-export function MiniHumanHelp({ language, fromJourney = 'general', directHumanHelp = false, onBack, onAskKs001, onFindHuman }: {
+export function MiniHumanHelp({ language, fromJourney = 'general', directHumanHelp = false, directH4dPreview = false, onBack, onAskKs001, onFindHuman }: {
   language: MiniLanguage;
   fromJourney?: MiniHelpJourney;
   /** H4C preview begins with human intent, not a repeated H3 trade selection. */
   directHumanHelp?: boolean;
+  /** Visual-only H4D Mini route: no fictional helper or live request. */
+  directH4dPreview?: boolean;
   onBack: () => void;
   onAskKs001: () => void;
   /** Actual H4C needs first-party sign-in and an isolated Core backend. */
@@ -72,6 +75,14 @@ export function MiniHumanHelp({ language, fromJourney = 'general', directHumanHe
   const prompt = needs.find(n => n.value === need)?.title ?? 'What would help?';
   const helpIntent:HumanHelpIntent = need==='local'?'LOCAL_KNOWLEDGE'
     :need==='check'?'FIELD_CHECK':need==='specialist'?'SPECIALIST':'CONVERSATION';
+
+  if(directH4dPreview)
+    return <MiniHumanEngagements enabled={false} signedIn={false}
+      gateway={{
+        create:async()=>{throw new Error('No H4D Core connection in visual preview');},
+        mine:async()=>{throw new Error('No H4D Core connection in visual preview');},
+        decide:async()=>{throw new Error('No H4D Core connection in visual preview');}
+      }} prepare={async()=>undefined} onSignIn={()=>undefined} onBack={onBack}/>;
 
   // The H4C route can display the REAL native discovery component with NO
   // backend activation, helpers or contact; it never invents sample providers.

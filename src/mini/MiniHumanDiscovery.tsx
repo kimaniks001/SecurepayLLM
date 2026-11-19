@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, Check, HeartHandshake, LockKeyhole, MessageCircle, ShieldCheck, Users } from 'lucide-react';
-import type { HumanDiscovery, HumanDiscoveryGateway, HumanHelpIntent } from '../api/securepay/human-discovery';
+import type { HumanDiscovery, HumanDiscoveryGateway, HumanHelpIntent, HumanHelperOption } from '../api/securepay/human-discovery';
 
 const choices:ReadonlyArray<{intent:HumanHelpIntent;label:string;hint:string}>=[
   {intent:'CONVERSATION',label:'Talk to someone',hint:'Reassurance or help talking through a decision'},
@@ -19,7 +19,7 @@ function displayRate(currency:string,minor:string,basis:string) {
 
 /** Native Mini H4C: real authenticated lookup only, no simulation or hiring. */
 export function MiniHumanDiscovery({initialIntent,context,enabled,signedIn,gateway,prepare,
-  onSignIn,onAskKs001,onBack}:{
+  onSignIn,onAskKs001,onBack,onSelectHelper,onMyRequests}:{
   initialIntent:HumanHelpIntent;
   context?:string|null;
   enabled:boolean;
@@ -29,6 +29,9 @@ export function MiniHumanDiscovery({initialIntent,context,enabled,signedIn,gatew
   onSignIn:()=>void;
   onAskKs001:()=>void;
   onBack:()=>void;
+  /** H4D: shown only after real H4C providers are returned by Core. */
+  onSelectHelper?:(person:HumanHelperOption)=>void;
+  onMyRequests?:()=>void;
 }) {
   const [intent,setIntent]=useState<HumanHelpIntent>(initialIntent);
   const [state,setState]=useState<'idle'|'loading'|'ready'|'error'>('idle');
@@ -109,6 +112,10 @@ export function MiniHumanDiscovery({initialIntent,context,enabled,signedIn,gatew
         <span>{displayRate(person.currency,person.rateMinor,person.billingBasis)}</span>
         <p>Provider-declared availability; no appointment is confirmed.
           Statutory professional licensing has not been verified here.</p>
+        {onSelectHelper&&<button type="button" className="spm-secondary"
+          onClick={()=>onSelectHelper(person)}>
+          Prepare a private request <ArrowRight size={15}/>
+        </button>}
       </div>)}
       <p className="spm-human-case-caution">{result.limitation}</p>
       {result.helpers.length>0&&<button type="button" className="spm-secondary"
@@ -121,6 +128,8 @@ export function MiniHumanDiscovery({initialIntent,context,enabled,signedIn,gatew
         No request has been sent from this screen.
       </p>}
     </section>}
+    {enabled&&signedIn&&onMyRequests&&<button type="button" className="spm-secondary"
+      onClick={onMyRequests}><Users size={16}/>My human requests</button>}
     <button type="button" className="spm-secondary" onClick={onAskKs001}>
       <MessageCircle size={16}/>Ask KS001 instead
     </button>
