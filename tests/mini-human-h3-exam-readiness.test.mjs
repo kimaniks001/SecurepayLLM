@@ -87,5 +87,7 @@ test('H3 sample shows missing and all-consented cases without storing real permi
   assert.match(example,/3 of 3/);
   assert.match(example,/Illustration only — no server check or permission saved/);
   assert.match(example,/All fictional permissions are present/);
-  assert.doesNotMatch(example,/fetch\\(|localStorage|gateway\\.grant|executeModel/);
+  for(const forbidden of ['fetch(', 'localStorage', 'gateway.grant', 'executeModel']) {
+    assert.equal(example.includes(forbidden),false,'Sample must not run '+forbidden);
+  }
 });
