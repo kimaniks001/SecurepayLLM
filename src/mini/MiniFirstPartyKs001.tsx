@@ -39,6 +39,7 @@ import { MiniMyAgreements } from './MiniMyAgreements';
 import { MiniHumanDiscovery } from './MiniHumanDiscovery';
 import { MiniHumanEngagements } from './MiniHumanEngagements';
 import { createHumanEngagementGateway, type H4dSelectedHelper } from '../api/securepay/human-engagement';
+import { createHumanCanonicalHandoffGateway } from '../api/securepay/human-agreement-handoff';
 import { createHumanDiscoveryGateway, type HumanHelpIntent } from '../api/securepay/human-discovery';
 import { MiniOwnerMoneyTest } from './MiniOwnerMoneyTest';
 import { miniDemoMoneyFixtureState } from './miniInteractiveDemo';
@@ -115,6 +116,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
   const humanExam=useMemo(()=>createHumanExamReadinessGateway(http),[http]);
   const humanDiscovery=useMemo(()=>createHumanDiscoveryGateway(http),[http]);
   const humanEngagement=useMemo(()=>createHumanEngagementGateway(http),[http]);
+  const humanAgreementHandoff=useMemo(()=>createHumanCanonicalHandoffGateway(http),[http]);
   const stores=useMemo(()=>createStoreGateway(http),[http]);
   const quotations=useMemo(()=>createStoreQuotationGateway(http),[http]);
   const measured=useMemo(()=>createMeasuredServicesGateway(http),[http]);
@@ -620,6 +622,8 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
     const enabled=typeof window!=='undefined' &&
       isMiniExperiencePreviewHost(window.location.hostname) &&
       import.meta.env.VITE_SECUREPAY_MINI_H4D_ENGAGEMENT==='enabled';
+    const enabledAgreement=enabled &&
+      import.meta.env.VITE_SECUREPAY_MINI_H4E_CANONICAL_HANDOFF==='enabled';
     return <section className="spm-guest spm-content" data-mini-h4d-first-party>
       {identityOpen
         ?<MiniIdentityStep auth={auth} session={session}
@@ -629,8 +633,14 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
             context={humanDiscoveryContext}
             enabled={enabled} signedIn={signedIn}
             gateway={humanEngagement}
+            enabledAgreement={enabledAgreement}
+            agreementGateway={humanAgreementHandoff}
             prepare={()=>ensureFreshSession(session,auth)}
             onSignIn={()=>setIdentityOpen(true)}
+            onOpenAgreement={()=>{
+              setHumanEngagementOpen(false);setHumanDiscoveryOpen(false);
+              setSelectedHumanHelper(null);openAgreements();
+            }}
             onBack={()=>{
               setHumanEngagementOpen(false);setSelectedHumanHelper(null);
               if(!humanDiscoveryOpen && !startInHumanDiscovery)setIdentityOpen(false);

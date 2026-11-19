@@ -44,6 +44,7 @@ const suites = [
   'tests/mini-human-h3-exam-readiness.test.mjs',
   'tests/mini-human-h4c-discovery.test.mjs',
   'tests/mini-human-h4d-engagement.test.mjs',
+  'tests/mini-human-h4e-canonical-handoff.test.mjs',
 ];
 for (const filename of suites) {
   console.log('\n== SecurePay Mini focused suite: ' + filename + ' ==');
