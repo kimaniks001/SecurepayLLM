@@ -1,6 +1,7 @@
 import { createPreviewWorkspaceGateways } from './features/living-workspace/previewWorkspaceGateways';
 import { createPreviewAgentGateway } from './features/living-workspace/previewAgentGateway';
 import { Phase1LivingWorkspacePreview } from './features/living-workspace/Phase1LivingWorkspacePreview';
+import { MiniH2Review } from './features/human-layer/MiniH2Review';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { storeAgreementEntry, storeEntryView, storeKs001EntryMessage, hasWorkspaceMoneyReturn, clearWorkspaceMoneyReturn } from './features/experience/entryIntent';
 import { AgentExperience } from './features/agent/AgentExperience';
@@ -330,7 +331,23 @@ function useMoneySessionRoute(): string | null {
 export function isCandidateWorkspaceEntry(_hash:string,_hostname:string):boolean {
   return false;
 }
+function useMiniH2ReviewRoute(): boolean {
+  const match = () => typeof window !== 'undefined'
+    && (window.location.hostname.endsWith('.vercel.app')
+      || window.location.hostname === 'localhost'
+      || window.location.hostname === '127.0.0.1')
+    && (window.location.hash === '#/preview/mini/h2'
+      || window.location.hash === '#/preview/mini/h2/');
+  const [active, setActive] = useState(match);
+  useEffect(() => {
+    const sync = () => setActive(match());
+    window.addEventListener('hashchange', sync);
+    return () => window.removeEventListener('hashchange', sync);
+  }, []);
+  return active;
+}
 export default function RuntimeApp() {
+  const miniH2Review = useMiniH2ReviewRoute();
   const [phase1Preview, setPhase1Preview] = useState(() => typeof window !== 'undefined' &&
     (/^#\/?preview\/living-workspace(?:\/(?:work|vision|circle|community))?\/?$/.test(window.location.hash) ||
       isCandidateWorkspaceEntry(window.location.hash,window.location.hostname)));
@@ -363,6 +380,7 @@ export default function RuntimeApp() {
     const host=new URL(api.baseUrl).hostname.toLowerCase();
     return host.endsWith('.securepay.ke') && /(?:^|[.-])(?:staging|sandbox|qa|test)(?:[.-]|$)/.test(host);
   })();
+  if (miniH2Review) return <MiniH2Review />;
   if (phase1Preview) return <Phase1LivingWorkspacePreview
     gateway={previewAgentGateway} workspaceGateways={previewWorkspaceGateways}
     identityStagingReady={identityStagingReady} session={session} />;
