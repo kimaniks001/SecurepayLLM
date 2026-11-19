@@ -118,10 +118,11 @@ export function MiniExperience() {
   const t = words[lang];
   const [screen, setScreen] = useState<View>(() => {
     if (typeof window === 'undefined' || !isMiniExperiencePreviewHost(window.location.hostname)) return 'home';
-    // Only the actual Mini entry and approved preview host can open Human Layer previews.
-    if (['#/preview/mini/h3','#/preview/mini/h3/',
-         '#/preview/mini/h4c','#/preview/mini/h4c/'].includes(window.location.hash))
-      return 'human-help';
+    // Preserve the established H3 Mini route; H4C is an additional native preview.
+    if (window.location.hash === '#/preview/mini/h3' ||
+        window.location.hash === '#/preview/mini/h3/' ||
+        window.location.hash === '#/preview/mini/h4c' ||
+        window.location.hash === '#/preview/mini/h4c/') return 'human-help';
     const qs = new URLSearchParams(window.location.search);
     if (!(qs.get('miniTradeDemo')==='1')) return 'home';
     if (qs.get('communitySaverPreview')==='1') return 'community-saver-preview';
