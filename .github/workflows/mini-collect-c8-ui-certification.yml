@@ -1,19 +1,13 @@
 name: Mini Collect C8 — UI and independent acceptance gate
 
 on:
-  pull_request:
-    paths:
-      - 'src/features/mini-collect/**'
-      - 'tests/mini-collect-*'
-      - 'testing/mini-collect-c8/**'
-      - '.github/workflows/mini-collect-c8-ui-certification.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: mini-collect-c8-ui-${{ github.event.pull_request.number || github.ref }}
+  group: mini-collect-c8-ui-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
