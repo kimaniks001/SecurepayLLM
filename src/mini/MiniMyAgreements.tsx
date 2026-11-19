@@ -15,6 +15,7 @@ import { MiniHumanReviewCases } from './MiniHumanReviewCases';
 import type { AgreementReviewGateway } from '../api/securepay/agreement-review';
 import type { HumanPartySubmissionGateway, HumanFairBriefGateway } from '../api/securepay/human-party-submissions';
 import type { HumanConsentGateway } from '../api/securepay/human-consent';
+import type { HumanExamReadinessGateway } from '../api/securepay/human-exam-readiness';
 import type {CommunitySaverPreparationGateway} from '../api/securepay/community-saver-preparation';
 import type {CommunitySaverOwnItemGateway} from '../api/securepay/community-saver-own-item';
 import {miniAgreementHomePage,miniAgreementDetailView} from './miniAgreementHome.mjs';
@@ -33,7 +34,7 @@ const dateLabel = (iso:string|null) => {
  * "who must act" inference. The server's nextActions and attentionRequired
  * remain the only authority on this user's next work.
  */
-export function MiniMyAgreements({gateway,quotationGateway,notificationGateway,measuredGateway,moneyGateway,paymentsGateway,liveQuotes,liveMoneyStatus,liveFeeQuotes,livePaymentCommands,communitySaverItems,communitySaverGateway,communitySaverPreparation,communitySaverPreparationGateway,reviewGateway,humanPartyGateway,humanFairBriefGateway,humanConsentGateway,humanPreviewEnabled,prepare,onBack,onReauthenticate}:{
+export function MiniMyAgreements({gateway,quotationGateway,notificationGateway,measuredGateway,moneyGateway,paymentsGateway,liveQuotes,liveMoneyStatus,liveFeeQuotes,livePaymentCommands,communitySaverItems,communitySaverGateway,communitySaverPreparation,communitySaverPreparationGateway,reviewGateway,humanPartyGateway,humanFairBriefGateway,humanConsentGateway,humanExamGateway,humanPreviewEnabled,prepare,onBack,onReauthenticate}:{
   gateway:Pick<AgreementGateway,'currentUserAgreements'|'detail'|'propose'|'confirmVersion'|'version'>;
   quotationGateway:StoreQuotationGateway;
   measuredGateway:MeasuredServicesGateway;
@@ -53,6 +54,7 @@ export function MiniMyAgreements({gateway,quotationGateway,notificationGateway,m
   humanPartyGateway?: Pick<HumanPartySubmissionGateway,'read'>;
   humanFairBriefGateway?: Pick<HumanFairBriefGateway,'read'>;
   humanConsentGateway?: Pick<HumanConsentGateway,'status'|'grant'|'withdraw'>;
+  humanExamGateway?: Pick<HumanExamReadinessGateway,'prepare'>;
   humanPreviewEnabled?: boolean;
   prepare:()=>Promise<unknown>;
   onBack:()=>void;
@@ -208,11 +210,12 @@ export function MiniMyAgreements({gateway,quotationGateway,notificationGateway,m
             </div>)}
           </div>
         </details>}
-        {humanPreviewEnabled && reviewGateway && humanPartyGateway && humanFairBriefGateway && humanConsentGateway && details.currentVersion &&
+        {humanPreviewEnabled && reviewGateway && humanPartyGateway && humanFairBriefGateway && humanConsentGateway && humanExamGateway && details.currentVersion &&
           <MiniHumanReviewCases key={chosen.id+':H3:'+details.currentVersion.id}
             agreementId={chosen.id} acceptedVersionId={details.currentVersion.id}
             reviewGateway={reviewGateway} partyGateway={humanPartyGateway}
-            fairBriefGateway={humanFairBriefGateway} consentGateway={humanConsentGateway} prepare={prepare}/>}
+            fairBriefGateway={humanFairBriefGateway} consentGateway={humanConsentGateway}
+            examGateway={humanExamGateway} prepare={prepare}/>}
         {liveQuotes&&details.currentVersion&&
           <MiniMeasuredServicePreview key={chosen.id+details.currentVersion.id}
             agreementId={chosen.id} versionId={details.currentVersion.id}
