@@ -168,6 +168,8 @@ export function MiniExperience() {
   // signed-in source record integrations pass certification. Preview only.
   const humanPreviewEnabled = typeof window !== 'undefined' &&
     isMiniExperiencePreviewHost(window.location.hostname);
+  const humanH4cPreview = humanPreviewEnabled &&
+    ['#/preview/mini/h4c','#/preview/mini/h4c/'].includes(window.location.hash);
   const playground = urlParams?.get('miniTradeDemo') === '1' &&
     typeof window !== 'undefined' && isMiniExperiencePreviewHost(window.location.hostname);
   const businessDemo = playground || urlParams?.get('miniBusinessPreview') === '1';
@@ -605,7 +607,7 @@ export function MiniExperience() {
         </section>}
 
         {humanPreviewEnabled && screen === 'human-help' && <MiniHumanHelp key={helpReturnScreen} language={lang}
-          fromJourney={helpOrigin}
+          fromJourney={helpOrigin} directHumanHelp={humanH4cPreview}
           onBack={() => setScreen(helpReturnScreen)}
           onAskKs001={() => { setHumanDiscovery(null);setDiscussDraft(null); setScreen('help'); }}
           onFindHuman={!playground && !!getMiniFirstPartyOrigin()
