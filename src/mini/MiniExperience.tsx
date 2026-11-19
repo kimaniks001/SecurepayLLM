@@ -24,6 +24,7 @@ import { MiniServerCheckout } from './MiniServerCheckout';
 import { MiniRealStoreOffer } from './MiniRealStoreOffer';
 import { MiniBuyStore, type MiniStorePlanLine, type MiniBasketFulfilment } from './MiniBuyStore';
 import { MiniCollectConversation } from './MiniCollectConversation';
+import { C1CollectExperience } from '../features/mini-collect/C1CollectExperience';
 import { MiniSellSomething } from './MiniSellSomething';
 import { MiniPaySomeone } from './MiniPaySomeone';
 import { MiniHumanHelp, type MiniHelpJourney } from './MiniHumanHelp';
@@ -32,7 +33,7 @@ import { MiniCommunitySaverPreview } from './MiniCommunitySaverPreview';
 import { miniMergeUserDescription, miniCaptureText, type MiniCaptureSource, type MiniCaptureKind } from './miniCapture';
 import './mini.css';
 
-type View = MiniScreen | 'pay-home' | 'choose' | 'buy' | 'sell-preview' | 'community-saver-preview' | 'collect-interview' | 'business-settings' | 'sample-agreements' | 'human-help';
+type View = MiniScreen | 'pay-home' | 'choose' | 'buy' | 'sell-preview' | 'community-saver-preview' | 'collect-interview' | 'collect-full' | 'business-settings' | 'sample-agreements' | 'human-help';
 const STORE_KEY = 'securepay-mini-phase1-local-draft-v1';
 const words = {
   en: {
@@ -128,7 +129,7 @@ export function MiniExperience() {
         window.location.hash === '#/preview/mini/h4e' ||
         window.location.hash === '#/preview/mini/h4e/') return 'human-help';
     const qs = new URLSearchParams(window.location.search);
-    if (!(qs.get('miniTradeDemo')==='1')) return 'home';
+    if (!(qs.get('miniTradeDemo')==='1' || qs.get('miniIntegrationPreview')==='1')) return 'home';
     if (qs.get('communitySaverPreview')==='1') return 'community-saver-preview';
     if (qs.get('sellPreview') === '1') return 'sell-preview';
     if (qs.get('fairTradePreview')==='1' || qs.get('agreementActionsPreview')==='1') return 'buy';
@@ -178,7 +179,12 @@ export function MiniExperience() {
     ['#/preview/mini/h4d','#/preview/mini/h4d/'].includes(window.location.hash);
   const humanH4ePreview = humanPreviewEnabled &&
     ['#/preview/mini/h4e','#/preview/mini/h4e/'].includes(window.location.hash);
-  const playground = urlParams?.get('miniTradeDemo') === '1' &&
+  // Owner-only: turn on the ALREADY-BUILT Buy/Sell/Pay journeys for integration review.
+  // This switch only works on isolated Vercel preview hosts; no customer origin,
+  // real KSNumber, acceptance, official SecureLink or Money is enabled.
+  const integrationPreview = urlParams?.get('miniIntegrationPreview') === '1' &&
+    typeof window !== 'undefined' && isMiniExperiencePreviewHost(window.location.hostname);
+  const playground = (urlParams?.get('miniTradeDemo') === '1' || integrationPreview) &&
     typeof window !== 'undefined' && isMiniExperiencePreviewHost(window.location.hostname);
   const businessDemo = playground || urlParams?.get('miniBusinessPreview') === '1';
   const fairTradeShowcase=playground&&urlParams?.get('fairTradePreview')==='1';
@@ -209,7 +215,7 @@ export function MiniExperience() {
     if (screen === 'buy') from = 'buy';
     else if (screen === 'sell-preview') from = 'sell';
     else if (screen === 'pay-home') from = 'pay';
-    else if (screen === 'collect-interview') from = 'collect';
+    else if (screen === 'collect-interview' || screen === 'collect-full') from = 'collect';
     else if (screen === 'describe' || screen === 'review') {
       from = draft.intent === 'sell' ? 'sell' :
         draft.intent === 'pay' ? 'pay' : 'collect';
@@ -228,6 +234,9 @@ export function MiniExperience() {
     setScreen('collect-interview');
   };
   const beginCollection = () => {
+    // Integration preview must show the full C1–C8 Collect Money journey,
+    // not the legacy single draft form. Never enable this on customer domains.
+    if (integrationPreview) { setScreen('collect-full'); return; }
     // Ordinary goods/service payments retain the existing lightweight Mini
     // collection form. Beneficiary support requests invite specific questions.
     if (/\b(?:for (?:(?:my|our|his|her|their)\s+(?:mother|mum|mom|mama|father|dad|parent|sister|brother|daughter|son|wife|husband|friend|family|relative|neighbou?r)|someone else|another person|a family member)|on behalf of|fundrais(?:e|ing)|contributions? for|support (?:my mother|someone|a person))\b/i.test(opening))
@@ -387,7 +396,7 @@ export function MiniExperience() {
             <Sparkles size={17}/> Explore Community Saver (fictional example) <ArrowRight size={15}/>
           </button>}
           {playground && <div className="spm-mini-buy-result" role="note" data-mini-playground-banner="fictional">
-            <strong>Sample trading playground</strong>
+            <strong>{integrationPreview ? 'Full Mini integration review · not live' : 'Sample trading playground'}</strong>
             <p>Try Buy something or Sell something with example shops, goods and services. All data is fictional. No real SecureLinks, orders or payments.</p>
           </div>}
           {businessDemo && <MiniBusinessCapacity part="identity" language={lang}
@@ -510,6 +519,10 @@ export function MiniExperience() {
           key={sampleFocus||'list'} purchases={samplePurchases} focusId={sampleFocus}
           onBack={()=>setScreen('home')}
           onShop={()=>{setBuyPrefill('');setBuyResetKey(n=>n+1);setScreen('buy');}}/>}
+        {integrationPreview && screen === 'collect-full' && <div className="spm-full-collect" data-mini-integration-collect-c8>
+          <button type="button" className="spm-back" onClick={() => setScreen('home')}><ArrowLeft size={18}/>{t.back}</button>
+          <C1CollectExperience/>
+        </div>}
         <div hidden={screen !== 'collect-interview'} aria-hidden={screen !== 'collect-interview'}>
           <MiniCollectConversation key={collectResetKey} language={lang} seed={collectPrefill}
             onBack={()=>setScreen('home')}
