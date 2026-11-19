@@ -35,3 +35,32 @@ test('Mini review keeps C8 independent of payment authorization and preserves co
   const sell=readFileSync(new URL('../src/mini/MiniSellSomething.tsx',import.meta.url),'utf8');
   assert.doesNotMatch(sell,/Connect to Money/);
 });
+
+test('C1–C7 stages form one progressive Collect Money path, not orphaned developer previews',()=>{
+  const c1=readFileSync(new URL('../src/features/mini-collect/C1CollectExperience.tsx',import.meta.url),'utf8');
+  const c2=readFileSync(new URL('../src/features/mini-collect/C2GovernanceExperience.tsx',import.meta.url),'utf8');
+  const c3=readFileSync(new URL('../src/features/mini-collect/C3ProviderPossibilities.tsx',import.meta.url),'utf8');
+  const c3c=readFileSync(new URL('../src/features/mini-collect/C3ProviderComparison.tsx',import.meta.url),'utf8');
+  const c3d=readFileSync(new URL('../src/features/mini-collect/C3DClosingPreview.tsx',import.meta.url),'utf8');
+  const c4=readFileSync(new URL('../src/features/mini-collect/C4MyContributionStatus.tsx',import.meta.url),'utf8');
+  for (const [file,components] of [
+    [c1,['C5CollectionTypes','C2GovernanceExperience']],
+    [c2,['C5BCollectionPeriods','C6CollectionExamination','C3ProviderPossibilities']],
+    [c3,['C3ProviderComparison']],
+    [c3c,['C3DClosingPreview']],
+    [c3d,['C4MyContributionStatus']],
+    [c4,['C7MyMoneyLifecycle']]
+  ])for(const component of components)assert.ok(file.includes(component),'Collect flow missing '+component);
+  assert.match(c1,/nothing is saved|nothing is saved|No collection is created/i);
+});
+
+test('the standalone Mini compiles Collect utilities instead of rendering raw default buttons',()=>{
+  const css=readFileSync(new URL('../src/mini/mini.css',import.meta.url),'utf8');
+  assert.match(css,/@tailwind base;/);
+  assert.match(css,/@tailwind components;/);
+  assert.match(css,/@tailwind utilities;/);
+  assert.match(css,/\[data-mini-collect-c1\]/);
+  assert.match(css,/\[data-mini-collect-c7\]/);
+  assert.match(css,/> header \{ display:none; \}/);
+  assert.ok(css.indexOf('@tailwind utilities;') < css.indexOf('.spm-root'));
+});
