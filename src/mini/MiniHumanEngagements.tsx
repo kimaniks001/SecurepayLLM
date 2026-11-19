@@ -3,6 +3,8 @@ import { ArrowLeft, ArrowRight, Check, ClipboardList, MessageCircle, ShieldCheck
 import type {
   HumanEngagement, HumanEngagementAction, HumanEngagementGateway, H4dSelectedHelper
 } from '../api/securepay/human-engagement';
+import type { HumanCanonicalHandoff, HumanCanonicalHandoffGateway }
+  from '../api/securepay/human-agreement-handoff';
 
 function money(currency:string,minor:string) {
   const amt=BigInt(minor);
@@ -22,15 +24,19 @@ const scopeHints=[
 /** H4D native Mini: truthfully distinct invitation, independent decisions,
  * followed by a separately governed official Agreement and SecureLink. */
 export function MiniHumanEngagements({
-  selected=null,context=null,enabled,signedIn,gateway,prepare,onSignIn,onBack
+  selected=null,context=null,enabled,signedIn,gateway,agreementGateway,
+  enabledAgreement=false,prepare,onSignIn,onOpenAgreement,onBack
 }:{
   selected?:H4dSelectedHelper|null;
   context?:string|null;
   enabled:boolean;
   signedIn:boolean;
   gateway:Pick<HumanEngagementGateway,'create'|'mine'|'decide'>;
+  agreementGateway?:Pick<HumanCanonicalHandoffGateway,'propose'|'mine'>;
+  enabledAgreement?:boolean;
   prepare:()=>Promise<unknown>;
   onSignIn:()=>void;
+  onOpenAgreement?:()=>void;
   onBack:()=>void;
 }) {
   const [scope,setScope]=useState(context?.length&&context.length>12?context:'');
@@ -41,6 +47,7 @@ export function MiniHumanEngagements({
   const [status,setStatus]=useState<'idle'|'ready'|'error'>('idle');
   const [inbox,setInbox]=useState<HumanEngagement[]>([]);
   const [response,setResponse]=useState<HumanEngagement|null>(null);
+  const [handoffs,setHandoffs]=useState<Record<string,HumanCanonicalHandoff>>({});
   const [error,setError]=useState('');
   const [showInbox,setShowInbox]=useState(!selected);
   const requestKey=useRef<string|null>(null);
@@ -51,7 +58,7 @@ export function MiniHumanEngagements({
   };
   useEffect(()=>{
     loading.current++;
-    setInbox([]);setResponse(null);setStatus('idle');setError('');
+    setInbox([]);setResponse(null);setHandoffs({});setStatus('idle');setError('');
     return ()=>{loading.current++;};
   },[signedIn,enabled]);
 
@@ -108,6 +115,25 @@ export function MiniHumanEngagements({
       setError('That request may have changed or the helper is no longer eligible. Refresh before deciding.');
     }finally{if(rev===loading.current)setBusy(false);}
   };
+  const agreementAction=async(entry:HumanEngagement,readOnly=false)=>{
+    if(!enabled||!enabledAgreement||!agreementGateway||!signedIn||busy
+       ||entry.viewerRole!=='REQUESTER'||entry.status!=='READY_FOR_AGREEMENT')return;
+    const revision=++loading.current;
+    setBusy(true);setError('');
+    try {
+      await prepare();
+      const proof=readOnly
+        ?await agreementGateway.mine(entry.engagementId)
+        :await agreementGateway.propose(entry.engagementId);
+      if(revision!==loading.current)return;
+      setHandoffs(old=>({...old,[entry.engagementId]:proof}));
+    }catch{
+      if(revision!==loading.current)return;
+      setError(readOnly
+        ?'No linked canonical Agreement could be verified. The task may need fresh approval.'
+        :'We could not confirm the Agreement proposal. Check its status before another attempt.');
+    }finally{if(revision===loading.current)setBusy(false);}
+  };
   const price=selected?money(selected.currency,selected.rateMinor):null;
   const choiceList=(entry:HumanEngagement):HumanEngagementAction[]=>{
     if(entry.status==='REQUESTED')
@@ -133,8 +159,30 @@ export function MiniHumanEngagements({
     <p>Expires: {new Date(entry.expiresAt).toLocaleString('en-KE')}</p>
     {entry.status==='READY_FOR_AGREEMENT'&&<div className="spm-human-result">
       <strong>Both parties are ready to prepare a separate Agreement.</strong>
-      <p>This is not a funded or activated SecureLink. Continue through the canonical
-      Agreement process; no Money or work is authorised here.</p>
+      <p>The helper and requester agreed to this exact invitation. The official
+        Agreement still needs its own participant acceptance and Fair Trade checks.</p>
+      {handoffs[entry.engagementId]
+        ? <div data-mini-h4e-canonical-proof>
+            <strong>Canonical Agreement: {handoffs[entry.engagementId].publicReference}</strong>
+            <p>{handoffs[entry.engagementId].nextHumanStep}</p>
+            {!handoffs[entry.engagementId].exactInitialVersionStillCurrent&&
+              <p role="alert">This Agreement has changed. Review its new version.</p>}
+            {onOpenAgreement&&<button type="button" className="spm-secondary"
+              onClick={onOpenAgreement}>Open My Agreements <ArrowRight size={15}/></button>}
+          </div>
+        : entry.viewerRole==='REQUESTER' && enabled && enabledAgreement && agreementGateway
+          ? <div className="spm-actions">
+              <button type="button" className="spm-primary" disabled={busy}
+                onClick={()=>void agreementAction(entry)}>
+                Prepare official Agreement <ArrowRight size={15}/>
+              </button>
+              <button type="button" className="spm-secondary" disabled={busy}
+                onClick={()=>void agreementAction(entry,true)}>
+                Check for existing Agreement
+              </button>
+            </div>
+          : <p>The canonical Agreement handoff is not connected in this preview.
+              No SecureLink is issued here.</p>}
     </div>}
     {choiceList(entry).map(action=><button key={action} type="button"
       className={action==='HELPER_ACCEPT'||action==='REQUESTER_CONFIRM'?'spm-primary':'spm-secondary'}
@@ -228,9 +276,9 @@ export function MiniHumanEngagements({
         :<div className="spm-actions">{inbox.map(card)}</div>}
     </section>}
     <div className="spm-human-truth" role="note"><ShieldCheck size={16}/>
-      <p>H4D is a private bilateral request, not a live SecureLink or payment.
-        The original Agreement and its evidence remain private. Any actual service
-        Agreement, public SecureLink and Money must pass their independent gates.</p>
+      <p>H4E prepares an official proposed Agreement only after two H4D decisions.
+        The helper must still join and confirm that version. SecureLink activation,
+        any original source evidence, paid work and Money retain separate gates.</p>
     </div>
   </section>;
 }
