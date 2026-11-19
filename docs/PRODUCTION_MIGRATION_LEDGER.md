@@ -2025,3 +2025,16 @@ Companion report docs/MINI_COLLECT_C5B_20261119.md. All preview/financial gates 
 | Issuer, collector, beneficiary and bank certification | HUMAN_DOCTRINE_BLOCKER | Only genuine audited evidence can resolve source/collector/recipient rights; only certified provider mandates and accepted financial Agreement can authorize Money. No source assertion or KS001 summary can substitute. |
 
 Companion docs/MINI_COLLECT_C6_FAIR_TRADE_EXAMINATION_20261119.md. Neither production Money nor an authenticated Mini C6 API client is enabled.
+
+
+
+## Mini Collect C7 — personal Money lifecycle and source-bound refund preparation (19 November 2026)
+
+| Surface | Migration state | Exact boundary |
+| --- | --- | --- |
+| Mini C7 "See how my Money is protected" | FRONTEND_COMPOSITION_ONLY | User reads educational stages; when no authenticated C7 page is supplied there are no invented funds, bank balances or refunded amounts. |
+| C7 personal source and funding status | BACKEND_PR_PENDING | SecurePayAPI read-only authenticated SELF endpoint combines independently sourced C5B, C6 and C4 facts without inventing a matching payment. |
+| C7 original-source immutable refund draft | BACKEND_PR_PENDING | Proposed C4 source-linked return only, unique per item/payment, authorized self; NO bank instruction, actual refund, provider ACK, or ledger settlement. |
+| Real provider reconciliation, original-source refunds, in-app notice delivery | HUMAN_DOCTRINE_BLOCKER | All financial custody, payment execution, signed bank callbacks and notification-delivery evidence require separately certified provider and acceptance gates. |
+
+Companion docs/MINI_COLLECT_C7_20261119.md. Do not merge, call production ready or connect Money while external issuer/provider evidence and C8 certification remain incomplete.
