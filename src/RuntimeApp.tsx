@@ -2,6 +2,7 @@ import { createPreviewWorkspaceGateways } from './features/living-workspace/prev
 import { createPreviewAgentGateway } from './features/living-workspace/previewAgentGateway';
 import { Phase1LivingWorkspacePreview } from './features/living-workspace/Phase1LivingWorkspacePreview';
 import { MiniH2Review } from './features/human-layer/MiniH2Review';
+import { MiniH3Review } from './features/human-layer/MiniH3Review';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { storeAgreementEntry, storeEntryView, storeKs001EntryMessage, hasWorkspaceMoneyReturn, clearWorkspaceMoneyReturn } from './features/experience/entryIntent';
 import { AgentExperience } from './features/agent/AgentExperience';
@@ -45,6 +46,7 @@ if (api && typeof window !== 'undefined' && window.location.hostname.endsWith('.
 const agentGateway = api ? withSessionRefresh(api.agent, ['adoptHandoff', 'reviewHandoff', 'continueHandoff', 'useCurrentSource', 'agreementWorkspaceView', 'createAccessGrant', 'switchAccessGrant'], session, api.auth) : undefined;
 const agreementGateway = api ? withSessionRefresh(api.agreements, AUTHENTICATED_AGREEMENT_METHODS, session, api.auth) : undefined;
 const agreementMessagesGateway = api ? withSessionRefresh(api.agreementMessages, ['thread', 'send'], session, api.auth) : undefined;
+const humanHelpGateway = api ? withSessionRefresh(api.humanHelp, ['triage'], session, api.auth) : undefined;
 const moneyGateway = api ? withSessionRefresh(api.money, MONEY_AUTHENTICATED_METHODS.money, session, api.auth) : undefined;
 const moneySnapshotGateway = api ? withSessionRefresh(api.moneySnapshot, MONEY_AUTHENTICATED_METHODS.moneySnapshot, session, api.auth) : undefined;
 const storeGateway = api ? withSessionRefresh(api.store, ['myProfile', 'updateMyProfile', 'myOffers', 'createOffer', 'updateOffer', 'confirmAvailability'], session, api.auth) : undefined;
@@ -346,7 +348,23 @@ function useMiniH2ReviewRoute(): boolean {
   }, []);
   return active;
 }
+function useMiniH3ReviewRoute(): boolean {
+  const match = () => typeof window !== 'undefined'
+    && (window.location.hostname.endsWith('.vercel.app')
+      || window.location.hostname === 'localhost'
+      || window.location.hostname === '127.0.0.1')
+    && (window.location.hash === '#/preview/mini/h3'
+      || window.location.hash === '#/preview/mini/h3/');
+  const [visible, setVisible] = useState(match);
+  useEffect(() => {
+    const update = () => setVisible(match());
+    window.addEventListener('hashchange', update);
+    return () => window.removeEventListener('hashchange', update);
+  }, []);
+  return visible;
+}
 export default function RuntimeApp() {
+  const miniH3Review = useMiniH3ReviewRoute();
   const miniH2Review = useMiniH2ReviewRoute();
   const [phase1Preview, setPhase1Preview] = useState(() => typeof window !== 'undefined' &&
     (/^#\/?preview\/living-workspace(?:\/(?:work|vision|circle|community))?\/?$/.test(window.location.hash) ||
@@ -380,6 +398,7 @@ export default function RuntimeApp() {
     const host=new URL(api.baseUrl).hostname.toLowerCase();
     return host.endsWith('.securepay.ke') && /(?:^|[.-])(?:staging|sandbox|qa|test)(?:[.-]|$)/.test(host);
   })();
+  if (miniH3Review) return <MiniH3Review />;
   if (miniH2Review) return <MiniH2Review />;
   if (phase1Preview) return <Phase1LivingWorkspacePreview
     gateway={previewAgentGateway} workspaceGateways={previewWorkspaceGateways}
@@ -500,7 +519,7 @@ export default function RuntimeApp() {
   if (miniAgreementsRoute) storeEntryView('agreements');
   else if (directSurfaceRoute) storeEntryView(directSurfaceRoute);
   return api && agentGateway && agreementGateway && moneyGateway && agreementReviewGateway && storeGateway && fulfilmentNeedsGateway && circleGateway && communityGateway && discoveryGateway && masterGateway && marketNetworkGateway && referralGateway && projectGateway && visionBoardGateway && visionDreamGateway && settingsGateway && businessGateway && authorizationGateway && developerGateway && notificationsGateway && subscriptionGateway
-    ? <AgentExperience key={miniAgreementsRoute ? 'mini-h2-agreements' : directSurfaceRoute ?? 'app'} gateway={agentGateway} agreementGateway={agreementGateway} agreementMessagesGateway={agreementMessagesGateway} moneyGateway={moneyGateway} paymentReleaseGateway={paymentReleaseGateway} agreementReviewGateway={agreementReviewGateway} storeGateway={storeGateway} fulfilmentNeedsGateway={fulfilmentNeedsGateway} circleGateway={circleGateway} communityGateway={communityGateway} discoveryGateway={discoveryGateway} masterGateway={masterGateway} marketNetworkGateway={marketNetworkGateway} referralGateway={referralGateway} projectGateway={projectGateway} visionBoardGateway={visionBoardGateway} visionDreamGateway={visionDreamGateway} settingsGateway={settingsGateway} businessGateway={businessGateway} organizationGateway={organizationGateway} authorizationGateway={authorizationGateway} developerGateway={developerGateway} notificationsGateway={notificationsGateway} subscriptionGateway={subscriptionGateway} auth={api.auth} session={session} initialStoreOfferRoute={storeOfferRoute} trustedMediaOrigin={trustedMediaOrigin} />
+    ? <AgentExperience key={miniAgreementsRoute ? 'mini-h2-agreements' : directSurfaceRoute ?? 'app'} gateway={agentGateway} agreementGateway={agreementGateway} agreementMessagesGateway={agreementMessagesGateway} humanHelpGateway={humanHelpGateway} moneyGateway={moneyGateway} paymentReleaseGateway={paymentReleaseGateway} agreementReviewGateway={agreementReviewGateway} storeGateway={storeGateway} fulfilmentNeedsGateway={fulfilmentNeedsGateway} circleGateway={circleGateway} communityGateway={communityGateway} discoveryGateway={discoveryGateway} masterGateway={masterGateway} marketNetworkGateway={marketNetworkGateway} referralGateway={referralGateway} projectGateway={projectGateway} visionBoardGateway={visionBoardGateway} visionDreamGateway={visionDreamGateway} settingsGateway={settingsGateway} businessGateway={businessGateway} organizationGateway={organizationGateway} authorizationGateway={authorizationGateway} developerGateway={developerGateway} notificationsGateway={notificationsGateway} subscriptionGateway={subscriptionGateway} auth={api.auth} session={session} initialStoreOfferRoute={storeOfferRoute} trustedMediaOrigin={trustedMediaOrigin} />
     : <Unavailable />;
 }
 function Unavailable() {

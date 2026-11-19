@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
+import { MiniHumanHelpPanel } from '../human-layer/MiniHumanHelpPanel';
+import type { HumanHelpGateway } from '../../api/securepay/human-help';
 import { NavBar } from '../../components/NavBar';
 import type { AgreementGateway } from '../../api/securepay/agreements';
 import type { AgreementReviewGateway } from '../../api/securepay/agreement-review';
@@ -51,9 +53,9 @@ export interface HelpNav {
  * Help & Support: a routing and TRUTH surface, not a ticket console. Every action goes to the authority that already owns the matter; each states its exact
  * consequence. There is no support-case lifecycle, ticket, assignee or "escalated" state anywhere here -- none exists as a customer contract.
  */
-export function SupportView({ signedIn, ctx, label, reviews, reviewCase, money, nav, onBack, navBar }: {
+export function SupportView({ signedIn, ctx, label, reviews, reviewCase, money, nav, onBack, navBar, humanHelpSlot }: {
   signedIn: boolean; ctx: SupportContext | null; label: HelpLabel | null;
-  reviews: Read<{ active: number }> | null; reviewCase?: Read<{ state: string; agreementVersionId: string }> | null; money: Read<{ headline: string }> | null; nav: HelpNav; onBack?: () => void; navBar?: React.ReactNode;
+  reviews: Read<{ active: number }> | null; reviewCase?: Read<{ state: string; agreementVersionId: string }> | null; money: Read<{ headline: string }> | null; nav: HelpNav; onBack?: () => void; navBar?: React.ReactNode; humanHelpSlot?: React.ReactNode;
 }) {
   return (
     <div className={`min-h-dvh bg-cream-100 ${signedIn ? 'pb-16 md:pb-8' : 'pb-8'}`}>
@@ -65,6 +67,7 @@ export function SupportView({ signedIn, ctx, label, reviews, reviewCase, money, 
           <p className="mt-2 text-sm text-sand-600">{HELP_IS_NOT}</p>
         </div>
         {label?.notice && <p role="status" className="text-sm text-forest-800">{label.notice}</p>}
+        {humanHelpSlot}
 
         {ctx?.kind === 'money-exception' && (
           <section className={card} data-testid="help-exception">
@@ -176,8 +179,9 @@ function Action({ title, consequence, onClick }: { title: string; consequence: s
 }
 
 /** Container: reads only what the signed-in person can already read AS THEMSELVES. The staff Support Context API is never called. */
-export function SupportExperience({ ctx, signedIn, agreementGateway, reviewGateway, moneyGateway, nav, navigate, onBack }: {
+export function SupportExperience({ ctx, signedIn, humanHelpGateway, agreementGateway, reviewGateway, moneyGateway, nav, navigate, onBack }: {
   ctx: SupportContext | null; signedIn: boolean;
+  humanHelpGateway?: Pick<HumanHelpGateway, 'triage'>;
   agreementGateway: Pick<AgreementGateway, 'detail'>; reviewGateway: Pick<AgreementReviewGateway, 'list' | 'detail'>; moneyGateway: Pick<MoneyGateway, 'status'>;
   nav: HelpNav; navigate: (view: AppView) => void; onBack?: () => void;
 }) {
@@ -192,5 +196,5 @@ export function SupportExperience({ ctx, signedIn, agreementGateway, reviewGatew
   const nb = useCallback(() => <NavBar view="signed-in" onNavigate={navigate} />, [navigate]);
   // Public Experience Convergence Phase 2 -- always render NavBar: inside the public shell (signed out) it becomes
   // PublicNav; signed in it is the unchanged app navigation. Help never picks a navigation itself.
-  return <SupportView signedIn={signedIn} ctx={ctx} label={label} reviews={reviews} reviewCase={reviewCase} money={money} nav={nav} onBack={onBack} navBar={nb()} />;
+  return <SupportView signedIn={signedIn} ctx={ctx} label={label} reviews={reviews} reviewCase={reviewCase} money={money} nav={nav} onBack={onBack} navBar={nb()} humanHelpSlot={signedIn && humanHelpGateway ? <MiniHumanHelpPanel gateway={humanHelpGateway} agreement={ctx && label?.currentVersionId ? { agreementId: ctx.agreementId, acceptedVersionId: label.currentVersionId } : null} /> : undefined} />;
 }
