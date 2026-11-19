@@ -1782,3 +1782,11 @@ textarea.spm-field { resize:vertical; }
 .spm-saver-footer{display:flex;align-items:flex-start;gap:8px;font-size:11px;line-height:1.55;color:#758073;margin:0 2px;}
 .spm-saver-footer svg{flex:none;margin-top:2px;}
 @media(max-width:390px){.spm-saver-card{padding:13px}.spm-saver-row{font-size:11px}.spm-saver-number strong{font-size:25px}}
+
+
+/* Full Mini integration review: the imported Collect C1–C8 owns its stages,
+   while the parent Mini shell owns the product identity and return path. */
+.spm-full-collect > .spm-back { margin:12px 14px 0; }
+.spm-full-collect [data-mini-collect-c1] { min-height:0; background:transparent; }
+.spm-full-collect [data-mini-collect-c1] > header { display:none; }
+.spm-full-collect [data-mini-collect-c1] > main { padding:12px 14px 28px; }
