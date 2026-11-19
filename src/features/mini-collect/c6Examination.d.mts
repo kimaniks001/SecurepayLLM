@@ -37,3 +37,14 @@ export function assessCollectionExamination(
   answers?: Readonly<Record<string,string>>, dateProposal?: string | null
 ): LocalExamination;
 export function canExaminationAuthorizeMoney(): false;
+
+export interface CanonicalClarification {
+  readonly questionCode: string;
+  readonly answerCode: string;
+  readonly proposedDate: string | null;
+  readonly evidenceVerified: false;
+  readonly moneyAuthorized: false;
+}
+export function toCanonicalClarification(
+  question: HumanQuestion, answerId: string, proposedDate?: string | null
+): CanonicalClarification | null;
