@@ -63,6 +63,20 @@ test('C5B: months, end dates, invalid calendars and expired periods fail closed'
     monthly,today).reviewComplete,false);
 });
 
+test('C5B: scheduled C2 opening date controls period selection', () => {
+  let draft=typed('paid','school-fees','one-time','2026-12-31');
+  draft=withGovernanceAnswer(draft,'startRule','scheduled');
+  draft=withGovernanceAnswer(draft,'startDate','2026-12-10');
+  assert.equal(assessCyclePeriod(draft,{
+    startsOn:'2026-12-01',endsOn:'2026-12-15',
+    timeZoneId:'Africa/Nairobi',sourceCategory:'existing-bill',
+  },today).reviewComplete,false);
+  assert.equal(assessCyclePeriod(draft,{
+    startsOn:'2026-12-10',endsOn:'2026-12-15',
+    timeZoneId:'Africa/Nairobi',sourceCategory:'existing-bill',
+  },today).reviewComplete,true);
+});
+
 test('C5B: charity's purpose is not a legal debt and non-giving cannot use purpose-only source', () => {
   const charity=typed('give','welfare','one-time');
   const period={startsOn:'2026-11-20',endsOn:'2026-12-01',
