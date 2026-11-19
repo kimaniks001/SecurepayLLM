@@ -193,10 +193,8 @@ export function MiniExperience() {
     else if (screen === 'pay-home') from = 'pay';
     else if (screen === 'collect-interview') from = 'collect';
     else if (screen === 'describe' || screen === 'review') {
-      from = draft.intent === 'buy' ? 'buy' :
-        draft.intent === 'sell' ? 'sell' :
-        draft.intent === 'pay' ? 'pay' :
-        draft.intent === 'collect' ? 'collect' : 'general';
+      from = draft.intent === 'sell' ? 'sell' :
+        draft.intent === 'pay' ? 'pay' : 'collect';
     }
     setHelpOrigin(from);
     setScreen('human-help');
