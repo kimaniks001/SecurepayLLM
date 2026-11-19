@@ -2052,3 +2052,17 @@ Companion docs/MINI_COLLECT_C7_20261119.md. Do not merge, call production ready 
 | Personal status notice through existing SecurePay inbox | BACKEND_PR_PENDING | Producer accepts only independently verified C4 funding or C7D provider/ledger refund. In-app creation is not device delivery; automatic funding-worker hook and real sandbox still outstanding. |
 
 See docs/MINI_COLLECT_C7C_PROVIDER_AND_NOTICES_20261119.md and backend ops report. Release remains NO_GO: Java21/Flyway, real provider, actual payments/refunds, security/recovery and C8 customer acceptance missing.
+
+
+
+## Mini Collect C8 — independent release and twenty-person acceptance (19 Nov 2026)
+
+| Gate | Current evidence | Status |
+| --- | --- | --- |
+| C8 acceptance cases for headmaster, parents, merchants, residents, chama, donors, refunds, accessible users and compliance | 20 documented scenarios; every participant currently NOT_TESTED | NO_GO |
+| C8 source-level UAT protection | Five focused assertion bodies passed in isolated JavaScript evaluation; NO_GO evaluator never activates Money | LOCAL_SOURCE_CHECK_ONLY |
+| Real Node 20, Mini regressions, TypeScript, lint, Vite, browser | Manual-only reproducible C8 workflow defined but not run | NO_GO |
+| API Java21, PostgreSQL/Flyway, concurrency, security, signed provider callbacks and original-source refunds | C8 API evidence register 16 mandatory NOT_RUN gates | NO_GO |
+| Independent provider licensing, custody mandate, actual sandbox integration and owner sign-off | Not supplied | NO_GO |
+
+See docs/MINI_COLLECT_C8_20_PERSON_ACCEPTANCE_20261119.md and testing/mini-collect-c8/acceptance-20-persons.json. GitHub remains the code record; optional workflows are manual-only, and existence of test files is not certification.
