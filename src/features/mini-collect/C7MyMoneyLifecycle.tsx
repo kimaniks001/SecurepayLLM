@@ -1,6 +1,9 @@
 import { ArrowLeft, CircleHelp, Clock3, FileCheck2, LockKeyhole, ReceiptText, ShieldCheck } from 'lucide-react';
 import securepayMark from '../../assets/brand/securepay/securepay-mark-green.png';
 import {
+  C7_PROTECTIONS, describeC7Readiness, type ProviderReadiness,
+} from './c7ProviderReadiness.mjs';
+import {
   C7_MONEY_STAGES, summarizeC7Money,
   type MoneyPage,
 } from './c7MoneyLifecycle.mjs';
@@ -17,10 +20,12 @@ function ksh(minor: number): string {
  * A future caller may supply only a response from the OWN collection-money
  * server endpoint, not a manual/synthetic fee total.
  */
-export function C7MyMoneyLifecycle({onBack,page}:{
+export function C7MyMoneyLifecycle({onBack,page,providerReadiness}:{
   onBack:()=>void; page?:MoneyPage | null;
+  providerReadiness?: ProviderReadiness | null;
 }) {
   const snapshot=summarizeC7Money(page);
+  const readiness=describeC7Readiness(providerReadiness);
   return <div data-mini-collect-c7 className="min-h-screen bg-[#faf7f0] text-[#244936]">
     <header className="border-b border-[#e4e9df] bg-[#fffefa] px-4 py-3">
       <div className="mx-auto flex max-w-xl items-center gap-3">
@@ -81,6 +86,21 @@ export function C7MyMoneyLifecycle({onBack,page}:{
         </section>}
       </>}
 
+      <section className="mt-5 rounded-3xl border border-[#dce7d8] bg-white p-5">
+        <div className="flex items-center gap-2">
+          <LockKeyhole size={19} aria-hidden="true"/>
+          <h2 className="text-sm font-semibold">{readiness.heading}</h2>
+        </div>
+        <p className="mt-2 text-sm leading-6 text-[#617365]">{readiness.message}</p>
+        <ul className="mt-3 space-y-2">
+          {C7_PROTECTIONS.map(item=><li key={item.id}
+            className="rounded-xl bg-[#f6f8f2] p-3">
+            <p className="text-sm font-semibold">{item.title}</p>
+            <p className="mt-1 text-xs leading-5 text-[#68786b]">{item.reason}</p>
+          </li>)}
+        </ul>
+        <p className="mt-3 text-xs leading-5 text-[#778477]">Current provider and notice status is not proof of an authorized payment. Real verified updates belong in your private SecurePay inbox, not in a fabricated payment receipt.</p>
+      </section>
       <section className="mt-5 rounded-2xl border border-[#dce8d8] bg-[#f0f6ee] p-4">
         <div className="flex items-center gap-2"><ShieldCheck size={19} aria-hidden="true"/><h2 className="text-sm font-semibold">Your money follows the Agreement</h2></div>
         <p className="mt-2 text-sm leading-6 text-[#5e7260]">Unused money can only follow the contributor-specific rights and certified refund route. A calculated amount is not money already returned. The provider must confirm the actual refund and it must reconcile with the ledger.</p>
