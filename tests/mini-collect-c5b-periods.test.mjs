@@ -77,7 +77,7 @@ test('C5B: scheduled C2 opening date controls period selection', () => {
   },today).reviewComplete,true);
 });
 
-test('C5B: charity's purpose is not a legal debt and non-giving cannot use purpose-only source', () => {
+test("C5B: charity’s purpose is not a legal debt and non-giving cannot use purpose-only source", () => {
   const charity=typed('give','welfare','one-time');
   const period={startsOn:'2026-11-20',endsOn:'2026-12-01',
     timeZoneId:'Africa/Nairobi',sourceCategory:'purpose-only'};
