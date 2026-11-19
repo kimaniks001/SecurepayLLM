@@ -1,6 +1,7 @@
 import { createPreviewWorkspaceGateways } from './features/living-workspace/previewWorkspaceGateways';
 import { createPreviewAgentGateway } from './features/living-workspace/previewAgentGateway';
 import { Phase1LivingWorkspacePreview } from './features/living-workspace/Phase1LivingWorkspacePreview';
+import { MiniH2Review } from './features/human-layer/MiniH2Review';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { storeAgreementEntry, storeEntryView, storeKs001EntryMessage, hasWorkspaceMoneyReturn, clearWorkspaceMoneyReturn } from './features/experience/entryIntent';
 import { AgentExperience } from './features/agent/AgentExperience';
@@ -320,16 +321,33 @@ function useMoneySessionRoute(): string | null {
 }
 
 /**
- * This *draft preview deployment* must open the approved Living Workspace as its
- * home, not the retired AgentExperience homepage. Production remains routed by
- * existing rules until real API/identity integration is independently certified.
- * Explicit invitation, activation, recovery, and regulated-money routes are never
- * captured by this rule. No token-bearing route is inspected or rewritten.
+ * H2 MINI PREVIEW CORRECTION. A Vercel preview root must not silently become
+ * Living Workspace. That advanced experience is available only by its explicit
+ * `#/preview/living-workspace/*` opt-in route.
+ *
+ * Mini owns the root entry and its authenticated Agreement navigation.
+ * No token-bearing invitation/payment route is ever rewritten or inspected.
  */
-export function isCandidateWorkspaceEntry(hash:string,hostname:string):boolean {
-  return hostname.endsWith('.vercel.app') && (hash==='' || hash==='#' || hash==='#/' || /^#\/?sign-(?:in|up)\/?$/.test(hash));
+export function isCandidateWorkspaceEntry(_hash:string,_hostname:string):boolean {
+  return false;
+}
+function useMiniH2ReviewRoute(): boolean {
+  const match = () => typeof window !== 'undefined'
+    && (window.location.hostname.endsWith('.vercel.app')
+      || window.location.hostname === 'localhost'
+      || window.location.hostname === '127.0.0.1')
+    && (window.location.hash === '#/preview/mini/h2'
+      || window.location.hash === '#/preview/mini/h2/');
+  const [active, setActive] = useState(match);
+  useEffect(() => {
+    const sync = () => setActive(match());
+    window.addEventListener('hashchange', sync);
+    return () => window.removeEventListener('hashchange', sync);
+  }, []);
+  return active;
 }
 export default function RuntimeApp() {
+  const miniH2Review = useMiniH2ReviewRoute();
   const [phase1Preview, setPhase1Preview] = useState(() => typeof window !== 'undefined' &&
     (/^#\/?preview\/living-workspace(?:\/(?:work|vision|circle|community))?\/?$/.test(window.location.hash) ||
       isCandidateWorkspaceEntry(window.location.hash,window.location.hostname)));
@@ -362,6 +380,7 @@ export default function RuntimeApp() {
     const host=new URL(api.baseUrl).hostname.toLowerCase();
     return host.endsWith('.securepay.ke') && /(?:^|[.-])(?:staging|sandbox|qa|test)(?:[.-]|$)/.test(host);
   })();
+  if (miniH2Review) return <MiniH2Review />;
   if (phase1Preview) return <Phase1LivingWorkspacePreview
     gateway={previewAgentGateway} workspaceGateways={previewWorkspaceGateways}
     identityStagingReady={identityStagingReady} session={session} />;
@@ -474,9 +493,14 @@ export default function RuntimeApp() {
       />
     );
   }
-  if (directSurfaceRoute) storeEntryView(directSurfaceRoute);
+  // H2 review goes into the signed-in Mini Agreement shelf, not the
+  // opt-in Living Workspace prototype or a fixture chat.
+  const miniAgreementsRoute = typeof window !== 'undefined'
+    && (window.location.hash === '#/mini/agreements' || window.location.hash === '#/mini/agreements/');
+  if (miniAgreementsRoute) storeEntryView('agreements');
+  else if (directSurfaceRoute) storeEntryView(directSurfaceRoute);
   return api && agentGateway && agreementGateway && moneyGateway && agreementReviewGateway && storeGateway && fulfilmentNeedsGateway && circleGateway && communityGateway && discoveryGateway && masterGateway && marketNetworkGateway && referralGateway && projectGateway && visionBoardGateway && visionDreamGateway && settingsGateway && businessGateway && authorizationGateway && developerGateway && notificationsGateway && subscriptionGateway
-    ? <AgentExperience key={directSurfaceRoute ?? 'app'} gateway={agentGateway} agreementGateway={agreementGateway} agreementMessagesGateway={agreementMessagesGateway} moneyGateway={moneyGateway} paymentReleaseGateway={paymentReleaseGateway} agreementReviewGateway={agreementReviewGateway} storeGateway={storeGateway} fulfilmentNeedsGateway={fulfilmentNeedsGateway} circleGateway={circleGateway} communityGateway={communityGateway} discoveryGateway={discoveryGateway} masterGateway={masterGateway} marketNetworkGateway={marketNetworkGateway} referralGateway={referralGateway} projectGateway={projectGateway} visionBoardGateway={visionBoardGateway} visionDreamGateway={visionDreamGateway} settingsGateway={settingsGateway} businessGateway={businessGateway} organizationGateway={organizationGateway} authorizationGateway={authorizationGateway} developerGateway={developerGateway} notificationsGateway={notificationsGateway} subscriptionGateway={subscriptionGateway} auth={api.auth} session={session} initialStoreOfferRoute={storeOfferRoute} trustedMediaOrigin={trustedMediaOrigin} />
+    ? <AgentExperience key={miniAgreementsRoute ? 'mini-h2-agreements' : directSurfaceRoute ?? 'app'} gateway={agentGateway} agreementGateway={agreementGateway} agreementMessagesGateway={agreementMessagesGateway} moneyGateway={moneyGateway} paymentReleaseGateway={paymentReleaseGateway} agreementReviewGateway={agreementReviewGateway} storeGateway={storeGateway} fulfilmentNeedsGateway={fulfilmentNeedsGateway} circleGateway={circleGateway} communityGateway={communityGateway} discoveryGateway={discoveryGateway} masterGateway={masterGateway} marketNetworkGateway={marketNetworkGateway} referralGateway={referralGateway} projectGateway={projectGateway} visionBoardGateway={visionBoardGateway} visionDreamGateway={visionDreamGateway} settingsGateway={settingsGateway} businessGateway={businessGateway} organizationGateway={organizationGateway} authorizationGateway={authorizationGateway} developerGateway={developerGateway} notificationsGateway={notificationsGateway} subscriptionGateway={subscriptionGateway} auth={api.auth} session={session} initialStoreOfferRoute={storeOfferRoute} trustedMediaOrigin={trustedMediaOrigin} />
     : <Unavailable />;
 }
 function Unavailable() {
