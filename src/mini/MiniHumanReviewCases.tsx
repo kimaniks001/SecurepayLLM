@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { FileCheck2, RefreshCcw, ShieldCheck } from 'lucide-react';
-import type { HumanPartySubmissionGateway, HumanReviewScope } from '../api/securepay/human-party-submissions';
+import type { HumanPartySubmissionGateway, HumanFairBriefGateway, HumanReviewScope } from '../api/securepay/human-party-submissions';
 import type { ReviewCaseSummaryResponse } from '../api/securepay/agreement-review/dto';
 import type { AgreementReviewGateway } from '../api/securepay/agreement-review';
 import { MiniHumanCaseRead } from './MiniHumanCaseEvidence';
@@ -15,12 +15,13 @@ import { MiniHumanCaseRead } from './MiniHumanCaseEvidence';
  * A v2 case is NOT silently treated as a legacy case.
  */
 export function MiniHumanReviewCases({
-  agreementId, acceptedVersionId, reviewGateway, partyGateway, prepare
+  agreementId, acceptedVersionId, reviewGateway, partyGateway, fairBriefGateway, prepare
 }: {
   agreementId: string;
   acceptedVersionId: string;
   reviewGateway: Pick<AgreementReviewGateway, 'list'>;
   partyGateway: Pick<HumanPartySubmissionGateway, 'read'>;
+  fairBriefGateway: Pick<HumanFairBriefGateway, 'read'>;
   prepare: () => Promise<unknown>;
 }) {
   const [cases, setCases] = useState<ReviewCaseSummaryResponse[]>([]);
@@ -97,7 +98,7 @@ export function MiniHumanReviewCases({
     {choice && <div className="spm-mini-agreement-fact">
       <div className="spm-persona"><ShieldCheck size={15}/>Authorized participant review</div>
       <MiniHumanCaseRead key={choice.reviewCaseId + acceptedVersionId}
-        scope={choice} gateway={{
+        scope={choice} fairBriefGateway={{read: async (scope) => { await prepare(); return fairBriefGateway.read(scope); }}} gateway={{
           read: async (scope) => {
             await prepare();
             return partyGateway.read(scope);
