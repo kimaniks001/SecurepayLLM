@@ -1,4 +1,7 @@
-import { ArrowLeft, CheckCircle2, CircleHelp, Clock3, ReceiptText, ShieldCheck } from 'lucide-react';
+import { useState } from 'react';
+import { ArrowLeft, ArrowRight, CheckCircle2, CircleHelp, Clock3, ReceiptText, ShieldCheck } from 'lucide-react';
+import { C7MyMoneyLifecycle } from './C7MyMoneyLifecycle';
+import type { MoneyPage } from './c7MoneyLifecycle.mjs';
 import securepayMark from '../../assets/brand/securepay/securepay-mark-green.png';
 
 export type MyContribution = {
@@ -53,12 +56,16 @@ const descriptions: Record<MyContribution['state'], string> = {
  * GET .../mine/return-status from the same server-derived logged-in identity.
  * The standalone preview has NO fabricated contributions or refunds.
  */
-export function C4MyContributionStatus({ onBack, records, returnStatus, planningContext }: {
+export function C4MyContributionStatus({ onBack, records, returnStatus, planningContext, moneyPage }: {
   onBack: () => void;
   records?: MyContributionRecords;
   returnStatus?: MyReturnStatus;
   planningContext?: { typeTitle: string; cadenceTitle: string };
+  moneyPage?: MoneyPage | null;
 }) {
+  const [viewingLifecycle,setViewingLifecycle] = useState(false);
+  if (viewingLifecycle) return <C7MyMoneyLifecycle
+    onBack={() => setViewingLifecycle(false)} page={moneyPage}/>;
   return <div className="min-h-screen bg-[#faf7f0] text-[#244936]" data-mini-collect-c4>
     <header className="border-b border-[#e4e9de] bg-[#fffefa] px-4 py-3">
       <div className="mx-auto flex max-w-xl items-center gap-3">
@@ -108,6 +115,10 @@ export function C4MyContributionStatus({ onBack, records, returnStatus, planning
         <ShieldCheck size={20} className="mt-0.5 shrink-0" aria-hidden="true"/>
         <p className="text-sm leading-6 text-[#526b59]">An entitlement calculation, refund instruction, provider acknowledgement and confirmed refund are different stages. We only mark money returned when the provider and ledger independently prove it.</p>
       </div>
+      <button type="button" onClick={() => setViewingLifecycle(true)}
+        className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#285d41] px-4 text-sm font-semibold text-white">
+        See how my Money is protected <ArrowRight size={18} aria-hidden="true"/>
+      </button>
       <p className="mt-4 text-xs leading-5 text-[#768273]">No bank, Money provider, transaction or refund is simulated as real in this preview.</p>
     </main>
   </div>;
