@@ -174,8 +174,8 @@ export function toCanonicalClarification(question,answerId,proposedDate=null) {
   const answerCode=SPECIAL_ANSWER[answerId] ||
     answerId.replace(/-/g,'_').toUpperCase();
   const needsDate=questionCode==='SERVICE_START' && answerCode==='PROPOSE_DATE';
-  if (needsDate && (typeof proposedDate!=='string' ||
-      !/^\d{4}-\d{2}-\d{2}$/.test(proposedDate))) return null;
+  if (needsDate && !isCalendarDate(proposedDate)) return null;
+  if (!needsDate && proposedDate != null) return null;
   return Object.freeze({
     questionCode,answerCode,
     proposedDate:needsDate?proposedDate:null,
