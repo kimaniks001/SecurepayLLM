@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { C4MyContributionStatus } from './C4MyContributionStatus';
 import { ArrowLeft, CalendarClock, Check, Clock3, RotateCcw, ShieldAlert, Users } from 'lucide-react';
 import type { GovernanceDraft } from './governanceDraft.mjs';
 import { failureOptions, PAYOUT_RULES } from './governanceDraft.mjs';
@@ -34,6 +35,7 @@ export function C3DClosingPreview({ draft, onBack }: {
   const [instruction, setInstruction] = useState(10);
   const [resolution, setResolution] = useState(21);
   const [reviewing, setReviewing] = useState(false);
+  const [lookingAtMyMoney, setLookingAtMyMoney] = useState(false);
   const fallback = failureOptions(draft.kind).find(f => f.id === draft.failureRule);
   const approval = PAYOUT_RULES.find(p => p.id === draft.payoutRule);
   const latestClose = draft.deadline || 'the agreed closing date';
@@ -51,6 +53,8 @@ export function C3DClosingPreview({ draft, onBack }: {
         {option.label}
       </button>)}
     </div>;
+  if (lookingAtMyMoney) return <C4MyContributionStatus onBack={() => setLookingAtMyMoney(false)} />;
+
   return <div className="min-h-screen bg-[#faf7f0] text-[#244936]" data-mini-collect-c3d>
     <header className="border-b border-[#e3e8dc] bg-[#fffefa]/95 px-4 py-3">
       <div className="mx-auto flex max-w-xl items-center gap-3">
@@ -139,6 +143,10 @@ export function C3DClosingPreview({ draft, onBack }: {
         <Users size={16} className="mt-0.5 shrink-0" aria-hidden="true"/>
         <p>{isReturnKind ? 'A contributor’s entitlement to a return must be established from the accepted Agreement and verified funds.' : 'Giving arrangements may have different return rights; the accepted purpose and lawful conditions govern.'} A deadline by itself cannot refund anyone.</p>
       </div>
+      <button type="button" onClick={() => setLookingAtMyMoney(true)}
+        className="mt-5 inline-flex min-h-12 w-full items-center justify-center rounded-xl border border-[#c7d9ca] bg-white px-4 text-sm font-semibold text-[#285d41] hover:bg-[#edf5ea]">
+        See how contributors check their own money
+      </button>
       <p className="mt-4 text-xs leading-5 text-[#728073]">Illustrative C3D planning only. No provider selected, proposal submitted, Agreement changed, collection activated or funds moved.</p>
     </main>
   </div>;
