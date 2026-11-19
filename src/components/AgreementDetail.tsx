@@ -76,6 +76,9 @@ interface AgreementDetailProps {
   peopleExtra?: React.ReactNode;
   /** Real mode: replaces the fixture Changes content with versions + proposed changes. */
   changesPanel?: React.ReactNode;
+  /** H2: server-backed private Agreement conversation for the signed-in participant.
+   * Absent for fixtures or where the authenticated gateway is not configured. */
+  conversationPanel?: React.ReactNode;
   /** Real mode: replaces the fixture Progress content (which infers a root milestone and status locally) with SecurePay's own execution reads. */
   progressPanel?: React.ReactNode;
   /** Real mode: something the caller should see before the tabs (e.g. a version that needs their review). */
@@ -86,11 +89,12 @@ interface AgreementDetailProps {
   printRecord?: AgreementDetailResponse | null;
 }
 
-type Tab = 'overview' | 'terms' | 'people' | 'documents' | 'activity' | 'changes' | 'money' | 'support' | 'progress' | 'calendar';
+type Tab = 'conversation' | 'overview' | 'terms' | 'people' | 'documents' | 'activity' | 'changes' | 'money' | 'support' | 'progress' | 'calendar';
 
 const primaryTabs: { value: Tab; label: string }[] = [
   { value: 'overview', label: 'Overview' },
   { value: 'people', label: 'People' },
+  { value: 'conversation', label: 'Conversation' },
   { value: 'money', label: 'Money' },
   { value: 'activity', label: 'Activity' },
 ];
@@ -104,7 +108,7 @@ const fullRecordTabs: { value: Tab; label: string }[] = [
   { value: 'support', label: 'Support' },
 ];
 
-type MobileSection = 'overview' | 'people-terms' | 'documents' | 'activity-changes' | 'money' | 'progress' | 'calendar' | 'support';
+type MobileSection = 'conversation' | 'overview' | 'people-terms' | 'documents' | 'activity-changes' | 'money' | 'progress' | 'calendar' | 'support';
 
 const primaryMobileSections: { value: MobileSection; label: string }[] = [
   { value: 'overview', label: 'Overview' },
@@ -153,13 +157,26 @@ function AgreementMoneySummary({ money, onOpen }: { money: MoneyDetail; onOpen?:
   );
 }
 
-export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentResponses, understoodWorkspace = null, isStale, viewedVersion, onViewCurrent, onRaiseIssue, reviewPanel, initialTab, onOpenHelp, onOpenMoney, onOpenReferral, onOpenHumanHelp, money, progress, next = null, events = [], conflicts = [], tags = [], onAddTag, onRemoveTag, peopleExtra, changesPanel, progressPanel, topExtra, overviewPanel, printRecord = null }: AgreementDetailProps) {
+export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentResponses, understoodWorkspace = null, isStale, viewedVersion, onViewCurrent, onRaiseIssue, reviewPanel, initialTab, onOpenHelp, onOpenMoney, onOpenReferral, onOpenHumanHelp, money, progress, next = null, events = [], conflicts = [], tags = [], onAddTag, onRemoveTag, peopleExtra, changesPanel, progressPanel, topExtra, overviewPanel, printRecord = null, conversationPanel }: AgreementDetailProps) {
   const [tab, setTab] = useState<Tab>(initialTab ?? 'overview');
   const [mobileSection, setMobileSection] = useState<MobileSection>(
     initialTab === 'changes' ? 'activity-changes' : initialTab ?? 'overview',
   );
   const [showAgent, setShowAgent] = useState(false);
 
+  // Show the fourth main door as Conversation only when a genuine signed-in
+  // server-backed thread is available. Demo/fixture screens retain original tabs.
+  const primaryOnPhone = conversationPanel
+    ? [
+        { value: 'overview' as MobileSection, label: 'Overview' },
+        { value: 'people-terms' as MobileSection, label: 'People' },
+        { value: 'conversation' as MobileSection, label: 'Chat' },
+        { value: 'money' as MobileSection, label: 'Money' },
+      ]
+    : primaryMobileSections;
+  const moreOnPhone = conversationPanel
+    ? [{ value: 'progress' as MobileSection, label: 'Milestones' }, ...moreMobileSections]
+    : moreMobileSections;
   const showVersion = detail.status !== 'taking_shape';
   const showReuse = detail.status === 'completed';
   const structure = progress;
@@ -218,7 +235,7 @@ export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentR
       {topExtra && <div className="px-4 md:px-6 py-3 border-b border-cream-200/60 bg-cream-50/60 max-h-[70vh] overflow-y-auto">{topExtra}</div>}
       <div className="hidden md:flex flex-1 flex-col overflow-hidden">
         <div className="px-4 md:px-6 py-2 border-b border-cream-200/60 bg-cream-50/50 flex items-center gap-1">
-          {primaryTabs.map((t) => (
+          {primaryTabs.filter(t => t.value !== 'conversation' || !!conversationPanel).map((t) => (
             <button
               key={t.value}
               onClick={() => setTab(t.value)}
@@ -263,6 +280,7 @@ export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentR
             {tab === 'people' && <AgreementPeople people={detail.people}>{peopleExtra}</AgreementPeople>}
             {tab === 'documents' && <AgreementDocuments documents={detail.documents} />}
             {tab === 'activity' && <AgreementActivity activity={detail.activity} />}
+            {tab === 'conversation' && conversationPanel}
             {tab === 'changes' && (changesPanel ?? <AgreementChanges changes={detail.changes} versions={detail.versions} />)}
             {tab === 'money' && moneyForAgreement && (
               <AgreementMoneySummary money={moneyForAgreement} onOpen={onOpenMoney ? () => onOpenMoney(detail.id) : undefined} />
@@ -305,7 +323,7 @@ export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentR
         <div className="max-w-2xl mx-auto space-y-4">
           {/* Four obvious doors first; the full record stays available without crowding the first decision. */}
           <div className="grid grid-cols-4 gap-1.5 rounded-2xl border border-cream-200 bg-white/70 p-1.5 shadow-soft">
-            {primaryMobileSections.map((s) => (
+            {primaryOnPhone.map((s) => (
               <button
                 key={s.value}
                 onClick={() => setMobileSection(s.value)}
@@ -325,7 +343,7 @@ export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentR
               <span className="text-sand-400">Documents · changes · calendar · support</span>
             </summary>
             <div className="grid grid-cols-2 gap-2 border-t border-cream-200 p-2.5">
-              {moreMobileSections.map((s) => (
+              {moreOnPhone.map((s) => (
                 <button
                   key={s.value}
                   onClick={() => setMobileSection(s.value)}
@@ -371,6 +389,7 @@ export function AgreementDetail({ detail, onBack, onAskAgent, isThinking, agentR
             </>
           )}
 
+          {mobileSection === 'conversation' && conversationPanel}
           {mobileSection === 'documents' && <AgreementDocuments documents={detail.documents} />}
 
           {mobileSection === 'activity-changes' && (
