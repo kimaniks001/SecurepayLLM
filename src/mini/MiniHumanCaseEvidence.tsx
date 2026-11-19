@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { ChevronDown, FileCheck2, MessageCircle, ShieldCheck } from 'lucide-react';
 import type { HumanReviewCaseSnapshot, HumanReviewScope, HumanPartySubmissionGateway, HumanFairBrief, HumanFairBriefGateway } from '../api/securepay/human-party-submissions';
+import type { HumanConsentGateway } from '../api/securepay/human-consent';
+import { MiniHumanAiConsent } from './MiniHumanAiConsent';
 
 /**
  * Same native Mini typography and spm-* actions as Buy/Sell/Pay/Collect.
@@ -63,10 +65,12 @@ export function MiniHumanCaseEvidence({ snapshot, sample = false }: {
  * first-party Mini host passes a current canonical case scope and a
  * session-authenticated gateway. It never accepts a case id from URL.
  */
-export function MiniHumanCaseRead({ scope, gateway, fairBriefGateway }: {
+export function MiniHumanCaseRead({ scope, gateway, fairBriefGateway, consentGateway, prepare }: {
   scope: HumanReviewScope;
   gateway: Pick<HumanPartySubmissionGateway, 'read'>;
   fairBriefGateway: Pick<HumanFairBriefGateway, 'read'>;
+  consentGateway: Pick<HumanConsentGateway,'status'|'grant'|'withdraw'>;
+  prepare: () => Promise<unknown>;
 }) {
   const [snapshot, setSnapshot] = useState<HumanReviewCaseSnapshot | null>(null);
   const [brief, setBrief] = useState<HumanFairBrief | null>(null);
@@ -115,6 +119,8 @@ export function MiniHumanCaseRead({ scope, gateway, fairBriefGateway }: {
         <MessageCircle size={16}/>{briefLoading ? 'Preparing fair questions…' : 'What should we check together?'}
       </button>
     </>}
+    {snapshot && <MiniHumanAiConsent key={scope.acceptedVersionId + scope.reviewCaseId}
+      scope={scope} gateway={consentGateway} prepare={prepare}/>}
     {briefError && <p role="alert" className="spm-error">{briefError}</p>}
     {brief && <section className="spm-human-case-body" aria-label="Source-grounded fair questions">
       <div className="spm-human-case-label">Questions to explore · No KS001 finding yet</div>

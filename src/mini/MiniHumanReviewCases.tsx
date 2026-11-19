@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { FileCheck2, RefreshCcw, ShieldCheck } from 'lucide-react';
 import type { HumanPartySubmissionGateway, HumanFairBriefGateway, HumanReviewScope } from '../api/securepay/human-party-submissions';
+import type { HumanConsentGateway } from '../api/securepay/human-consent';
 import type { ReviewCaseSummaryResponse } from '../api/securepay/agreement-review/dto';
 import type { AgreementReviewGateway } from '../api/securepay/agreement-review';
 import { MiniHumanCaseRead } from './MiniHumanCaseEvidence';
@@ -15,13 +16,14 @@ import { MiniHumanCaseRead } from './MiniHumanCaseEvidence';
  * A v2 case is NOT silently treated as a legacy case.
  */
 export function MiniHumanReviewCases({
-  agreementId, acceptedVersionId, reviewGateway, partyGateway, fairBriefGateway, prepare
+  agreementId, acceptedVersionId, reviewGateway, partyGateway, fairBriefGateway, consentGateway, prepare
 }: {
   agreementId: string;
   acceptedVersionId: string;
   reviewGateway: Pick<AgreementReviewGateway, 'list'>;
   partyGateway: Pick<HumanPartySubmissionGateway, 'read'>;
   fairBriefGateway: Pick<HumanFairBriefGateway, 'read'>;
+  consentGateway: Pick<HumanConsentGateway,'status'|'grant'|'withdraw'>;
   prepare: () => Promise<unknown>;
 }) {
   const [cases, setCases] = useState<ReviewCaseSummaryResponse[]>([]);
@@ -98,7 +100,11 @@ export function MiniHumanReviewCases({
     {choice && <div className="spm-mini-agreement-fact">
       <div className="spm-persona"><ShieldCheck size={15}/>Authorized participant review</div>
       <MiniHumanCaseRead key={choice.reviewCaseId + acceptedVersionId}
-        scope={choice} fairBriefGateway={{read: async (scope) => { await prepare(); return fairBriefGateway.read(scope); }}} gateway={{
+        scope={choice} prepare={prepare}
+        consentGateway={{status:async (s)=>{await prepare();return consentGateway.status(s);},
+          grant:async (s,expiresAt,commandId)=>{await prepare();return consentGateway.grant(s,expiresAt,commandId);},
+          withdraw:async (s,commandId)=>{await prepare();return consentGateway.withdraw(s,commandId);}}}
+        fairBriefGateway={{read: async (scope) => { await prepare(); return fairBriefGateway.read(scope); }}} gateway={{
           read: async (scope) => {
             await prepare();
             return partyGateway.read(scope);
