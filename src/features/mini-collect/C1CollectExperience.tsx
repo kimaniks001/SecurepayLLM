@@ -215,7 +215,7 @@ export function C1CollectExperience() {
             <div className="mt-6 space-y-3" role="group" aria-label={selected.question}>
               {selected.options.map(option => {
                 const picked = answer === option.label;
-                return <button key={option.label} type="button" aria-pressed={picked} onClick={() => setAnswer(option.label)}
+                return <button key={option.label} type="button" aria-pressed={picked} onClick={() => { setAnswer(option.label); setCollectionType(null); }}
                   className={`flex min-h-[74px] w-full items-center gap-3 rounded-2xl border p-4 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#275c40] ${picked ? 'border-[#39784f] bg-[#eff7eb]' : 'border-[#e2e4dc] bg-white hover:border-[#a0bfa6]'}`}>
                   <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border ${picked ? 'border-[#39784f] bg-[#39784f] text-white' : 'border-[#a8b7aa] text-[#a8b7aa]'}`}>{picked && <Check size={16} aria-hidden="true" />}</span>
                   <span><span className="block text-sm font-semibold">{option.label}</span><span className="mt-1 block text-xs leading-5 text-[#5d7263]">{option.detail}</span></span>
