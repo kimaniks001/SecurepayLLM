@@ -1,3 +1,4 @@
+import type { CollectionTypeSelection, CollectionCadence } from './collectionTypes.mjs';
 export type CollectionKind = 'buy' | 'paid' | 'regular' | 'group' | 'give' | 'goal';
 export type Capacity = 'self' | 'organization' | 'representative';
 export type TargetMode = 'fixed' | 'open';
@@ -7,6 +8,8 @@ export type ChangeRule = 'affected-consent' | 'existing-quorum';
 export type PayoutRule = 'verified-beneficiary' | 'two-approvers' | 'existing-mandate';
 export interface GovernanceDraft {
   readonly kind: CollectionKind;
+  readonly collectionTypeId: string | null;
+  readonly collectionCadence: CollectionCadence | null;
   readonly capacity: Capacity | null;
   readonly contributorScope: 'one' | 'invited' | 'open' | null;
   readonly beneficiaryRule: string | null;
@@ -40,8 +43,8 @@ export const CHANGE_RULES: readonly AnswerOption[];
 export const PAYOUT_RULES: readonly AnswerOption[];
 export const SERVER_GATES: readonly string[];
 export function failureOptions(kind: CollectionKind): readonly AnswerOption[];
-export function newGovernanceDraft(kind: CollectionKind): GovernanceDraft;
-export function withGovernanceAnswer<K extends keyof Omit<GovernanceDraft, 'kind'>>(draft: GovernanceDraft, key: K, value: GovernanceDraft[K]): GovernanceDraft;
+export function newGovernanceDraft(kind: CollectionKind, collectionTypeSelection?: CollectionTypeSelection | null): GovernanceDraft;
+export function withGovernanceAnswer<K extends keyof Omit<GovernanceDraft, 'kind' | 'collectionTypeId' | 'collectionCadence'>>(draft: GovernanceDraft, key: K, value: GovernanceDraft[K]): GovernanceDraft;
 export function isCalendarDate(value: unknown): boolean;
 export function assessGovernanceDraft(draft: GovernanceDraft, todayIso: string): GovernanceAssessment;
 export function canExecuteCollection(): false;
