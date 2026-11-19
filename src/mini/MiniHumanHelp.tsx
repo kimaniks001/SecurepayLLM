@@ -4,6 +4,7 @@ import type { MiniLanguage } from './miniModel';
 import type { HumanHelpIntent } from '../api/securepay/human-discovery';
 import { MiniHumanCaseEvidence, sampleHumanReview } from './MiniHumanCaseEvidence';
 import { MiniHumanConsentExample } from './MiniHumanConsentExample';
+import { MiniHumanDiscovery } from './MiniHumanDiscovery';
 import './miniHumanHelp.css';
 
 /**
@@ -71,6 +72,15 @@ export function MiniHumanHelp({ language, fromJourney = 'general', directHumanHe
   const prompt = needs.find(n => n.value === need)?.title ?? 'What would help?';
   const helpIntent:HumanHelpIntent = need==='local'?'LOCAL_KNOWLEDGE'
     :need==='check'?'FIELD_CHECK':need==='specialist'?'SPECIALIST':'CONVERSATION';
+
+  // The H4C route can display the REAL native discovery component with NO
+  // backend activation, helpers or contact; it never invents sample providers.
+  if(directHumanHelp && stage==='next' && choice==='human' && !onFindHuman)
+    return <MiniHumanDiscovery initialIntent={helpIntent} context={answer}
+      enabled={false} signedIn={false}
+      gateway={{discover:async()=>{throw new Error('Design preview has no provider lookup');}}}
+      prepare={async()=>undefined} onSignIn={()=>undefined}
+      onAskKs001={onAskKs001} onBack={()=>setChoice(null)}/>;
 
   return <section className="spm-content spm-human" data-mini-h3-native aria-label="SecurePay Mini Human Layer">
     <button className="spm-back" type="button" onClick={back}>
