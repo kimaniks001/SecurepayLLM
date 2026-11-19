@@ -106,7 +106,7 @@ test('H4D stays in native Mini and retains H3/H4C, without fake Money',async()=>
   assert.match(owner,/My human requests/);
   assert.match(discovery,/onSelectHelper\(person\)/);
   assert.match(ui,/H4D_TASK_BRIEF_V1/);
-  assert.match(ui,/helperAccepted/);
+  assert.match(ui,/viewerRole/);
   assert.match(ui,/requestKey\.current/);
   assert.match(ui,/No Money/);
   assert.doesNotMatch(ui,/processPayment\(|issueSecureLink\(|activateProduct\(/);
