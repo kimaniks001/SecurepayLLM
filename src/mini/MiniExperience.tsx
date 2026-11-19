@@ -124,7 +124,9 @@ export function MiniExperience() {
         window.location.hash === '#/preview/mini/h4c' ||
         window.location.hash === '#/preview/mini/h4c/' ||
         window.location.hash === '#/preview/mini/h4d' ||
-        window.location.hash === '#/preview/mini/h4d/') return 'human-help';
+        window.location.hash === '#/preview/mini/h4d/' ||
+        window.location.hash === '#/preview/mini/h4e' ||
+        window.location.hash === '#/preview/mini/h4e/') return 'human-help';
     const qs = new URLSearchParams(window.location.search);
     if (!(qs.get('miniTradeDemo')==='1')) return 'home';
     if (qs.get('communitySaverPreview')==='1') return 'community-saver-preview';
@@ -174,6 +176,8 @@ export function MiniExperience() {
     ['#/preview/mini/h4c','#/preview/mini/h4c/'].includes(window.location.hash);
   const humanH4dPreview = humanPreviewEnabled &&
     ['#/preview/mini/h4d','#/preview/mini/h4d/'].includes(window.location.hash);
+  const humanH4ePreview = humanPreviewEnabled &&
+    ['#/preview/mini/h4e','#/preview/mini/h4e/'].includes(window.location.hash);
   const playground = urlParams?.get('miniTradeDemo') === '1' &&
     typeof window !== 'undefined' && isMiniExperiencePreviewHost(window.location.hostname);
   const businessDemo = playground || urlParams?.get('miniBusinessPreview') === '1';
@@ -613,6 +617,7 @@ export function MiniExperience() {
         {humanPreviewEnabled && screen === 'human-help' && <MiniHumanHelp key={helpReturnScreen} language={lang}
           fromJourney={helpOrigin} directHumanHelp={humanH4cPreview}
           directH4dPreview={humanH4dPreview}
+          directH4ePreview={humanH4ePreview}
           onBack={() => setScreen(helpReturnScreen)}
           onAskKs001={() => { setHumanDiscovery(null);setDiscussDraft(null); setScreen('help'); }}
           onFindHuman={!playground && !!getMiniFirstPartyOrigin()
