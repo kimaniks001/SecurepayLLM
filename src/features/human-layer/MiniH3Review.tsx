@@ -113,6 +113,24 @@ export function MiniH3Review() {
           <p className="mt-1 text-xs leading-5 text-[#607568]">{samples[journey].fact}</p>
           <p className="mt-2 text-[11px] text-[#667669]">Example only. KS001 has not examined a real Agreement or heard the other party.</p>
         </section>
+        <section className={card+' mb-3'} aria-label="Fair examination example">
+          <h2 className="text-sm font-semibold text-[#315e42]">First, separate facts from claims</h2>
+          <div className="mt-3 space-y-3 text-xs leading-5 text-[#596f60]">
+            <div><span className="font-semibold text-[#386c49]">Verified source — sample</span>
+              <p>Agreement version and agreed delivery terms would be checked against SecurePay's canonical record.</p>
+            </div>
+            <div><span className="font-semibold text-[#805f35]">Your position — not yet verified</span>
+              <p>KS001 should ask for your account and distinguish it from evidence.</p>
+            </div>
+            <div><span className="font-semibold text-[#805f35]">Other party's position — not yet heard</span>
+              <p>They need their own opportunity to explain or challenge what is being said.</p>
+            </div>
+            <div><span className="font-semibold text-[#805f35]">Evidence — not examined</span>
+              <p>Dates, messages, images and actual-work findings must retain their source and permissions.</p>
+            </div>
+          </div>
+          <p className="mt-3 rounded-xl bg-[#f1f4ea] p-3 text-xs leading-5 text-[#4e6c56]">Any possible resolution remains a suggestion until the affected parties separately accept valid terms.</p>
+        </section>
         <div className="grid gap-2">
           <button type="button" onClick={()=>setChoice('ks001')} className={card+' flex items-center gap-3 text-left hover:border-[#94b299]'}>
             <Sparkles className="h-5 w-5 shrink-0 text-[#31764a]"/><span className="flex-1"><strong className="block text-sm">Ask KS001</strong><small className="block text-xs text-[#617466]">Understand obligations and possible next steps</small></span><ArrowRight className="h-4 w-4"/>

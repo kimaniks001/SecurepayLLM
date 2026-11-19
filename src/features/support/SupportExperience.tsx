@@ -181,7 +181,7 @@ function Action({ title, consequence, onClick }: { title: string; consequence: s
 /** Container: reads only what the signed-in person can already read AS THEMSELVES. The staff Support Context API is never called. */
 export function SupportExperience({ ctx, signedIn, humanHelpGateway, agreementGateway, reviewGateway, moneyGateway, nav, navigate, onBack }: {
   ctx: SupportContext | null; signedIn: boolean;
-  humanHelpGateway?: Pick<HumanHelpGateway, 'triage'>;
+  humanHelpGateway?: Pick<HumanHelpGateway, 'triage' | 'examine'>;
   agreementGateway: Pick<AgreementGateway, 'detail'>; reviewGateway: Pick<AgreementReviewGateway, 'list' | 'detail'>; moneyGateway: Pick<MoneyGateway, 'status'>;
   nav: HelpNav; navigate: (view: AppView) => void; onBack?: () => void;
 }) {

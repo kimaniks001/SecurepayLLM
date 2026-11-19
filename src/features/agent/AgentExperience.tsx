@@ -195,7 +195,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   notificationsGateway: NotificationsGateway;
   /** H2 server-side participant-scoped messages, never KS001's own conversation. */
   agreementMessagesGateway?: Pick<AgreementMessagesGateway, 'thread' | 'send'>;
-  humanHelpGateway?: Pick<HumanHelpGateway, 'triage'>;
+  humanHelpGateway?: Pick<HumanHelpGateway, 'triage' | 'examine'>;
   subscriptionGateway: Pick<SubscriptionGateway, 'myStatus'>;
   auth: AuthGateway; session: SessionStore;
   initialStoreOfferRoute?: { canonicalKsNumber: string; offerId: string } | null;

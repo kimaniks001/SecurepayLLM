@@ -46,7 +46,7 @@ if (api && typeof window !== 'undefined' && window.location.hostname.endsWith('.
 const agentGateway = api ? withSessionRefresh(api.agent, ['adoptHandoff', 'reviewHandoff', 'continueHandoff', 'useCurrentSource', 'agreementWorkspaceView', 'createAccessGrant', 'switchAccessGrant'], session, api.auth) : undefined;
 const agreementGateway = api ? withSessionRefresh(api.agreements, AUTHENTICATED_AGREEMENT_METHODS, session, api.auth) : undefined;
 const agreementMessagesGateway = api ? withSessionRefresh(api.agreementMessages, ['thread', 'send'], session, api.auth) : undefined;
-const humanHelpGateway = api ? withSessionRefresh(api.humanHelp, ['triage'], session, api.auth) : undefined;
+const humanHelpGateway = api ? withSessionRefresh(api.humanHelp, ['triage', 'examine'], session, api.auth) : undefined;
 const moneyGateway = api ? withSessionRefresh(api.money, MONEY_AUTHENTICATED_METHODS.money, session, api.auth) : undefined;
 const moneySnapshotGateway = api ? withSessionRefresh(api.moneySnapshot, MONEY_AUTHENTICATED_METHODS.moneySnapshot, session, api.auth) : undefined;
 const storeGateway = api ? withSessionRefresh(api.store, ['myProfile', 'updateMyProfile', 'myOffers', 'createOffer', 'updateOffer', 'confirmAvailability'], session, api.auth) : undefined;

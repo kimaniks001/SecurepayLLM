@@ -29,6 +29,28 @@ export interface HumanHelpResponse {
   agreementChanged: false;
   moneyAuthorized: false;
 }
+/** Facts are strictly source-attributed; neither party's position is verified by reading a case status. */
+export interface HumanExamination {
+  agreementId: string;
+  acceptedVersionId: string;
+  agreementTitle: string;
+  agreementReference: string;
+  verifiedFacts: Array<{ field: string; value: string; provenance: string }>;
+  participantVisibleReviews: Array<{
+    reviewCaseId: string; subject: string; status: string;
+    releaseRestricted: boolean; provenance: string
+  }>;
+  yourPositionStatus: 'NOT_VERIFIED';
+  otherPartiesPositionStatus: 'NOT_VERIFIED';
+  evidenceStatus: 'NOT_EXAMINED';
+  questionsForBothSides: string[];
+  voluntaryOptions: Array<{ label: string; nature: string; needsSeparateApproval: boolean }>;
+  bothSidesHeard: false;
+  bindingDecisionMade: false;
+  agreementAmended: false;
+  moneyInstructionAuthorized: false;
+}
+
 export function createHumanHelpGateway(http: Pick<HttpClient, 'request'>) {
   return {
     triage(request: HumanHelpRequest): Promise<HumanHelpResponse> {
@@ -39,6 +61,14 @@ export function createHumanHelpGateway(http: Pick<HttpClient, 'request'>) {
         body: { need: request.need, journey: request.journey,
           agreementId: request.agreementId ?? null,
           acceptedVersionId: request.acceptedVersionId ?? null }
+      });
+    },
+    examine(agreementId: string, acceptedVersionId: string): Promise<HumanExamination> {
+      if (!agreementId?.trim() || !acceptedVersionId?.trim())
+        throw new Error('The exact current Agreement version is required');
+      return http.request<HumanExamination>('/api/v1/human-layer/help/examine', {
+        method: 'POST', auth: 'required',
+        body: { agreementId: agreementId.trim(), acceptedVersionId: acceptedVersionId.trim() }
       });
     }
   };
