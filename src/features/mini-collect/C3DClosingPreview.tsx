@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { C4MyContributionStatus } from './C4MyContributionStatus';
+import { COLLECTION_TYPE_PROFILES, CADENCE_OPTIONS } from './collectionTypes.mjs';
 import { ArrowLeft, CalendarClock, Check, Clock3, RotateCcw, ShieldAlert, Users } from 'lucide-react';
 import type { GovernanceDraft } from './governanceDraft.mjs';
 import { failureOptions, PAYOUT_RULES } from './governanceDraft.mjs';
@@ -53,7 +54,11 @@ export function C3DClosingPreview({ draft, onBack }: {
         {option.label}
       </button>)}
     </div>;
-  if (lookingAtMyMoney) return <C4MyContributionStatus onBack={() => setLookingAtMyMoney(false)} />;
+  if (lookingAtMyMoney) return <C4MyContributionStatus onBack={() => setLookingAtMyMoney(false)}
+    planningContext={draft.collectionTypeId && draft.collectionCadence ? {
+      typeTitle: COLLECTION_TYPE_PROFILES.find(x => x.id === draft.collectionTypeId)?.title ?? 'Collection',
+      cadenceTitle: CADENCE_OPTIONS.find(x => x.id === draft.collectionCadence)?.title ?? 'Unverified schedule',
+    } : undefined}/>;
 
   return <div className="min-h-screen bg-[#faf7f0] text-[#244936]" data-mini-collect-c3d>
     <header className="border-b border-[#e3e8dc] bg-[#fffefa]/95 px-4 py-3">
