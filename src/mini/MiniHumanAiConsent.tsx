@@ -50,6 +50,14 @@ export function MiniHumanAiConsent({scope,gateway,prepare}: {
         ?await gateway.grant(fullScope,new Date(Date.now()+duration*24*60*60*1000).toISOString(),requestId)
         :await gateway.withdraw(fullScope,requestId);
       if(run!==serial.current)return;
+      // A replayed idempotency command may return a NEWER effective state.
+      // Never tell a person a withdrawal/grant succeeded without matching
+      // current server evidence.
+      const expected=action==='grant'?'GRANTED':'WITHDRAWN';
+      if(response.myPermission!==expected) {
+        setStatus(response);
+        throw new Error('Server did not confirm the requested permission change');
+      }
       setStatus(response);
       setConfirmed(false);
       setMessage(action==='grant'
