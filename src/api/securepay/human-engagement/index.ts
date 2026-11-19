@@ -39,6 +39,9 @@ export interface H4dRequest {
   scopeStatement:string;
   completionCondition:string;
   units:number;
+  expectedUnitRateMinor:string;
+  expectedCurrency:string;
+  expectedBillingBasis:'FIXED'|'HOURLY'|'PER_SESSION';
   consentVersion:'H4D_TASK_BRIEF_V1';
 }
 const UUID=/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
@@ -85,6 +88,9 @@ export function createHumanEngagementGateway(http:Pick<HttpClient,'request'>) {
          ||input.scopeStatement.trim().length<12||input.scopeStatement.length>1000
          ||input.completionCondition.trim().length<8||input.completionCondition.length>600
          ||!Number.isInteger(input.units)||input.units<1||input.units>100
+         ||!/^\d{1,19}$/.test(input.expectedUnitRateMinor)
+         ||!/^[A-Z]{3}$/.test(input.expectedCurrency)
+         ||!['FIXED','HOURLY','PER_SESSION'].includes(input.expectedBillingBasis)
          ||input.consentVersion!=='H4D_TASK_BRIEF_V1')
         throw new Error('A reviewed helper, scope and permission are required');
       const row=await http.request<unknown>('/api/v1/human-layer/engagements',{
@@ -96,7 +102,10 @@ export function createHumanEngagementGateway(http:Pick<HttpClient,'request'>) {
           ||value.serviceKey!==input.serviceKey
           ||value.scopeStatement!==input.scopeStatement.trim()
           ||value.completionCondition!==input.completionCondition.trim()
-          ||value.units!==input.units)
+          ||value.units!==input.units
+          ||value.unitRateMinor!==input.expectedUnitRateMinor
+          ||value.currency!==input.expectedCurrency
+          ||value.billingBasis!==input.expectedBillingBasis)
         throw new Error('Returned H4D request differs from the reviewed service');
       return value;
     },
