@@ -40,16 +40,19 @@ function windowForMonth(month: string): { startsOn: string | null; endsOn: strin
  * Agreement/period persistence. No fabricated payer records, fees, bank or
  * SecureLinks; backend must establish identity and version/consent authority.
  */
-export function C5BCollectionPeriods({ draft, onBack, onContinue }: {
+export function C5BCollectionPeriods({ draft, onBack, onContinue: onChosen, initialSelection }: {
   draft: GovernanceDraft;
   onBack: () => void;
-  onContinue: () => void;
+  onContinue: (period: CyclePeriodSelection) => void;
+  initialSelection?: CyclePeriodSelection | null;
 }) {
-  const [stage,setStage] = useState<Stage>('period');
-  const [month,setMonth] = useState('');
-  const [selection,setSelection] = useState<CyclePeriodSelection>({
-    startsOn:null,endsOn:null,timeZoneId:'Africa/Nairobi',sourceCategory:null,
-  });
+  const validInitial = initialSelection != null
+    && assessCyclePeriod(draft,initialSelection,localDate()).reviewComplete;
+  const [stage,setStage] = useState<Stage>(validInitial ? 'review' : 'period');
+  const [month,setMonth] = useState(validInitial && initialSelection?.startsOn ? initialSelection.startsOn.slice(0,7) : '');
+  const [selection,setSelection] = useState<CyclePeriodSelection>(validInitial && initialSelection
+    ? initialSelection : {startsOn:null,endsOn:null,timeZoneId:'Africa/Nairobi',sourceCategory:null});
+  const onContinue = () => onChosen(selection);
   const today = localDate();
   const type = COLLECTION_TYPE_PROFILES.find(x => x.id === draft.collectionTypeId);
   const cadence = CADENCE_OPTIONS.find(x => x.id === draft.collectionCadence);
