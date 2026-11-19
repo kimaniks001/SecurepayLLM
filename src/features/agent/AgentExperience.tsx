@@ -112,6 +112,7 @@ import { NotificationsExperience } from '../notifications/NotificationsExperienc
 import { createNotificationsController } from '../notifications/controller';
 import type { NotificationsGateway } from '../../api/securepay/notifications';
 import type { AgreementMessagesGateway } from '../../api/securepay/agreement-messages';
+import type { HumanHelpGateway } from '../../api/securepay/human-help';
 import { RecoveryExperience } from '../recovery/RecoveryExperience';
 import { createRecoveryController } from '../recovery/controller';
 import { BusinessExperience } from '../business/BusinessExperience';
@@ -180,7 +181,7 @@ export function AgentExperience(props: Omit<Parameters<typeof AgentExperienceRou
   );
 }
 
-function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGateway, paymentReleaseGateway, agreementReviewGateway, storeGateway, fulfilmentNeedsGateway, circleGateway, communityGateway, discoveryGateway, masterGateway, marketNetworkGateway, referralGateway, projectGateway, visionBoardGateway, visionDreamGateway, settingsGateway, businessGateway, organizationGateway, developerGateway, notificationsGateway, agreementMessagesGateway, subscriptionGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
+function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGateway, paymentReleaseGateway, agreementReviewGateway, storeGateway, fulfilmentNeedsGateway, circleGateway, communityGateway, discoveryGateway, masterGateway, marketNetworkGateway, referralGateway, projectGateway, visionBoardGateway, visionDreamGateway, settingsGateway, businessGateway, organizationGateway, developerGateway, notificationsGateway, agreementMessagesGateway, humanHelpGateway, subscriptionGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
   gateway: AgentGateway; agreementGateway: AgreementGateway; moneyGateway: MoneyGateway; paymentReleaseGateway?: Pick<PaymentReleaseGateway, 'releaseAuthority'>; agreementReviewGateway: AgreementReviewGateway; storeGateway: StoreGateway; fulfilmentNeedsGateway?: FulfilmentNeedsGateway; circleGateway: CircleGateway;
   communityGateway: CommunityGateway;
   /** Phase 6 Slice 5 (Discovery & Identity) -- Community/Circle/Store/People search. */
@@ -194,6 +195,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   notificationsGateway: NotificationsGateway;
   /** H2 server-side participant-scoped messages, never KS001's own conversation. */
   agreementMessagesGateway?: Pick<AgreementMessagesGateway, 'thread' | 'send'>;
+  humanHelpGateway?: Pick<HumanHelpGateway, 'triage'>;
   subscriptionGateway: Pick<SubscriptionGateway, 'myStatus'>;
   auth: AuthGateway; session: SessionStore;
   initialStoreOfferRoute?: { canonicalKsNumber: string; offerId: string } | null;
@@ -1229,7 +1231,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
       store: () => { setHelpContext(null); navigateTo('store'); },
       community: () => { setHelpContext(null); navigateTo('community'); },
     };
-    return <SupportExperience ctx={helpContext} signedIn={signedIn} agreementGateway={agreementGateway} reviewGateway={agreementReviewGateway} moneyGateway={moneyGateway} nav={helpNav} navigate={navigateTo} onBack={helpContext ? () => openAgreement(helpContext.agreementId) : signedIn ? () => { leaveSupport(); navigateTo('signed-in'); } : leaveSupport} />;
+    return <SupportExperience ctx={helpContext} signedIn={signedIn} humanHelpGateway={humanHelpGateway} agreementGateway={agreementGateway} reviewGateway={agreementReviewGateway} moneyGateway={moneyGateway} nav={helpNav} navigate={navigateTo} onBack={helpContext ? () => openAgreement(helpContext.agreementId) : signedIn ? () => { leaveSupport(); navigateTo('signed-in'); } : leaveSupport} />;
   }
 
   if (workspace && sessionState.status === 'signed-in') {
