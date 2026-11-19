@@ -351,7 +351,9 @@ export function MiniExperience() {
         <div className="spm-head-actions">
           <button className="spm-lang" type="button" onClick={() => setLang(lang === 'en' ? 'sw' : 'en')}
             aria-label={lang === 'en' ? 'Badili kwa Kiswahili' : 'Switch to English'}>{lang === 'en' ? 'Kiswahili' : 'English'}</button>
-          {!storeOfferSession && !checkoutSession && screen !== 'human-help' && <button type="button" className="spm-icon-btn"
+          {!storeOfferSession && !checkoutSession &&
+            !['human-help', 'help', 'business-settings', 'community-saver-preview'].includes(screen) &&
+            <button type="button" className="spm-icon-btn"
             title="Need a hand?" aria-label="Need a hand? — open Mini help" onClick={openHumanHelp}><CircleHelp size={20}/></button>}
           {!storeOfferSession && !checkoutSession && screen !== 'home' && <button type="button" className="spm-icon-btn" aria-label={screen === 'business-settings' ? 'Close Business Settings' : t.clear}
             onClick={screen === 'human-help' ? () => setScreen(helpReturnScreen) : screen === 'business-settings' ? () => setScreen('home') : reset}><X size={19}/></button>}
