@@ -9,6 +9,7 @@ export interface HumanEngagement {
   engagementId:string;
   requesterIdentityId:string;
   helperIdentityId:string;
+  viewerRole:'REQUESTER'|'HELPER';
   helperRole:HelperRole;
   serviceKey:string;
   serviceLabel:string;
@@ -52,6 +53,7 @@ function validate(row:unknown):HumanEngagement {
       ||!UUID.test(String(row.engagementId))
       ||!UUID.test(String(row.requesterIdentityId))
       ||!UUID.test(String(row.helperIdentityId))
+      ||!['REQUESTER','HELPER'].includes(String(row.viewerRole))
       ||!['PLUG','MASTER'].includes(String(row.helperRole))
       ||!KEY.test(String(row.serviceKey))
       ||typeof row.serviceLabel!=='string'||row.serviceLabel.length>220
