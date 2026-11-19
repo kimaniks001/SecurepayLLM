@@ -9,6 +9,7 @@ import { createAuthGateway } from '../api/securepay/auth';
 import { createAgreementGateway } from '../api/securepay/agreements';
 import { createAgreementReviewGateway } from '../api/securepay/agreement-review';
 import { createHumanPartySubmissionGateway, createHumanFairBriefGateway } from '../api/securepay/human-party-submissions';
+import { createHumanConsentGateway } from '../api/securepay/human-consent';
 import { createBusinessGateway } from '../api/securepay/business';
 import { createAuthorizationGateway } from '../api/securepay/authorization';
 import { createSubscriptionGateway } from '../api/securepay/subscription';
@@ -102,6 +103,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
   const participantReviews=useMemo(()=>createAgreementReviewGateway(http),[http]);
   const humanPartySubmissions=useMemo(()=>createHumanPartySubmissionGateway(http),[http]);
   const humanFairBrief=useMemo(()=>createHumanFairBriefGateway(http),[http]);
+  const humanConsent=useMemo(()=>createHumanConsentGateway(http),[http]);
   const stores=useMemo(()=>createStoreGateway(http),[http]);
   const quotations=useMemo(()=>createStoreQuotationGateway(http),[http]);
   const measured=useMemo(()=>createMeasuredServicesGateway(http),[http]);
@@ -655,6 +657,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
         reviewGateway={!demo && isMiniExperiencePreviewHost(window.location.hostname) ? participantReviews : undefined}
         humanPartyGateway={!demo && isMiniExperiencePreviewHost(window.location.hostname) ? humanPartySubmissions : undefined}
         humanFairBriefGateway={!demo && isMiniExperiencePreviewHost(window.location.hostname) ? humanFairBrief : undefined}
+        humanConsentGateway={!demo && isMiniExperiencePreviewHost(window.location.hostname) ? humanConsent : undefined}
         humanPreviewEnabled={!demo && isMiniExperiencePreviewHost(window.location.hostname)}
         quotationGateway={quotations} notificationGateway={notifications}
         measuredGateway={measured} liveQuotes={liveQuotes}
