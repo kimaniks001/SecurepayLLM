@@ -30,7 +30,7 @@ test('H3 examination uses signed-in canonical server; no staff, model or browser
   assert.deepEqual(calls[0].options.body,{agreementId:'agr-1',acceptedVersionId:'ver-4'});
   assert.equal(result.bothSidesHeard,false);
   assert.equal(result.bindingDecisionMade,false);
-  await assert.rejects(service.examine('agr-1',''));
+  assert.throws(() => service.examine('agr-1',''));
   assert.equal(calls.length,1);
 });
 
