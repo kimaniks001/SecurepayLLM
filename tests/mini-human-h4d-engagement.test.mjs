@@ -17,7 +17,9 @@ const command={
   helperIdentityId:helper,helperRole:'PLUG',serviceKey:'delivery.count',
   scopeStatement:'Count delivered chairs and record the observed condition',
   completionCondition:'Written count and observed condition record',
-  units:1,consentVersion:'H4D_TASK_BRIEF_V1'
+  units:1,expectedUnitRateMinor:'15000',
+  expectedCurrency:'KES',expectedBillingBasis:'PER_SESSION',
+  consentVersion:'H4D_TASK_BRIEF_V1'
 };
 const invitation={
   engagementId:id,requesterIdentityId:requester,helperIdentityId:helper,
