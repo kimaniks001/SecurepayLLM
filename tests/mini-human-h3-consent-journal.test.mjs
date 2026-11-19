@@ -86,7 +86,7 @@ test('H3 permission controls live inside the first-party native Mini owner exper
     'src/mini/MiniHumanAiConsent.tsx',
     'src/mini/MiniExperience.tsx'
   ].map(path=>readFile(path,'utf8')));
-  assert.match(owned,/humanPreviewEnabled && reviewGateway && humanPartyGateway && humanFairBriefGateway && humanConsentGateway/);
+  assert.match(owned,/humanPreviewEnabled && reviewGateway && humanPartyGateway && humanFairBriefGateway && humanConsentGateway && humanExamGateway/);
   assert.match(ks001,/createHumanConsentGateway\(http\)/);
   assert.match(ks001,/humanConsentGateway=\{!demo && isMiniExperiencePreviewHost/);
   assert.match(review,/consentGateway=\{\{status:async/);
