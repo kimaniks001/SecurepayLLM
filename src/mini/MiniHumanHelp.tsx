@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ArrowLeft, ArrowRight, Check, ClipboardCheck, HeartHandshake, MapPin, MessageCircle, ShieldCheck, Sparkles, Users } from 'lucide-react';
 import type { MiniLanguage } from './miniModel';
+import type { HumanHelpIntent } from '../api/securepay/human-discovery';
 import { MiniHumanCaseEvidence, sampleHumanReview } from './MiniHumanCaseEvidence';
 import { MiniHumanConsentExample } from './MiniHumanConsentExample';
 import './miniHumanHelp.css';
@@ -40,11 +41,13 @@ const answers: Record<Need, readonly string[]> = {
   specialist: ['Construction', 'Hospitality', 'Legal or regulated expertise', 'Something else'],
 };
 
-export function MiniHumanHelp({ language, fromJourney = 'general', onBack, onAskKs001 }: {
+export function MiniHumanHelp({ language, fromJourney = 'general', onBack, onAskKs001, onFindHuman }: {
   language: MiniLanguage;
   fromJourney?: MiniHelpJourney;
   onBack: () => void;
   onAskKs001: () => void;
+  /** Actual H4C needs first-party sign-in and an isolated Core backend. */
+  onFindHuman?: (intent:HumanHelpIntent,localChoice:string)=>void;
 }) {
   const [stage, setStage] = useState<Stage>(fromJourney === 'general' ? 'journey' : 'need');
   const [journey, setJourney] = useState<ConcreteJourney>(fromJourney === 'general' ? 'buy' : fromJourney);
@@ -64,6 +67,8 @@ export function MiniHumanHelp({ language, fromJourney = 'general', onBack, onAsk
   };
   const name = journeys.find(j => j.value === journey)?.title ?? 'Your trade';
   const prompt = needs.find(n => n.value === need)?.title ?? 'What would help?';
+  const helpIntent:HumanHelpIntent = need==='local'?'LOCAL_KNOWLEDGE'
+    :need==='check'?'FIELD_CHECK':need==='specialist'?'SPECIALIST':'CONVERSATION';
 
   return <section className="spm-content spm-human" data-mini-h3-native aria-label="SecurePay Mini Human Layer">
     <button className="spm-back" type="button" onClick={back}>
@@ -141,8 +146,13 @@ export function MiniHumanHelp({ language, fromJourney = 'general', onBack, onAsk
         <p>{choice === 'ks001'
           ? 'In the real Mini service, KS001 needs your permission and the verified Agreement to examine the facts.'
           : choice === 'human'
-          ? 'A future step will verify the person, their skill, availability and any quoted price. Nobody has been contacted.'
+          ? 'H4C can check genuinely reviewed, opted-in helper services in isolated staging. A recent availability declaration is not a booking. Nobody has been contacted.'
           : 'Both parties can explain their positions. A message alone cannot change agreed terms or authorize payment.'}</p>
+        {choice === 'human' && onFindHuman && <button type="button"
+          className="spm-secondary" data-mini-h4c-first-party-entry
+          onClick={()=>onFindHuman(helpIntent,answer)}>
+          See verified helper options <ArrowRight size={15}/>
+        </button>}
         {choice === 'ks001' && <button type="button" className="spm-secondary" onClick={onAskKs001}>
           Open Ask KS001 <ArrowRight size={15}/>
         </button>}
