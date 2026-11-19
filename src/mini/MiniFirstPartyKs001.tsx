@@ -10,6 +10,7 @@ import { createAgreementGateway } from '../api/securepay/agreements';
 import { createAgreementReviewGateway } from '../api/securepay/agreement-review';
 import { createHumanPartySubmissionGateway, createHumanFairBriefGateway } from '../api/securepay/human-party-submissions';
 import { createHumanConsentGateway } from '../api/securepay/human-consent';
+import { createHumanExamReadinessGateway } from '../api/securepay/human-exam-readiness';
 import { createBusinessGateway } from '../api/securepay/business';
 import { createAuthorizationGateway } from '../api/securepay/authorization';
 import { createSubscriptionGateway } from '../api/securepay/subscription';
@@ -104,6 +105,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
   const humanPartySubmissions=useMemo(()=>createHumanPartySubmissionGateway(http),[http]);
   const humanFairBrief=useMemo(()=>createHumanFairBriefGateway(http),[http]);
   const humanConsent=useMemo(()=>createHumanConsentGateway(http),[http]);
+  const humanExam=useMemo(()=>createHumanExamReadinessGateway(http),[http]);
   const stores=useMemo(()=>createStoreGateway(http),[http]);
   const quotations=useMemo(()=>createStoreQuotationGateway(http),[http]);
   const measured=useMemo(()=>createMeasuredServicesGateway(http),[http]);
@@ -658,6 +660,7 @@ export function MiniFirstPartyKs001({ apiOrigin, draft, language, onBack, demo =
         humanPartyGateway={!demo && isMiniExperiencePreviewHost(window.location.hostname) ? humanPartySubmissions : undefined}
         humanFairBriefGateway={!demo && isMiniExperiencePreviewHost(window.location.hostname) ? humanFairBrief : undefined}
         humanConsentGateway={!demo && isMiniExperiencePreviewHost(window.location.hostname) ? humanConsent : undefined}
+        humanExamGateway={!demo && isMiniExperiencePreviewHost(window.location.hostname) ? humanExam : undefined}
         humanPreviewEnabled={!demo && isMiniExperiencePreviewHost(window.location.hostname)}
         quotationGateway={quotations} notificationGateway={notifications}
         measuredGateway={measured} liveQuotes={liveQuotes}

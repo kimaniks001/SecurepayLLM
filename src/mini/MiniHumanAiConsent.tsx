@@ -2,11 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 import { Check, FileLock2, RefreshCcw, ShieldCheck, ShieldX } from 'lucide-react';
 import type { HumanConsentGateway, HumanConsentScope, HumanConsentStatus } from '../api/securepay/human-consent';
 import type { HumanReviewScope } from '../api/securepay/human-party-submissions';
+import type { HumanExamReadinessGateway } from '../api/securepay/human-exam-readiness';
+import { MiniHumanExamReadiness } from './MiniHumanExamReadiness';
 
 /** Genuine authenticated Mini consent controls. NOT a fictional approval UI. */
-export function MiniHumanAiConsent({scope,gateway,prepare}: {
+export function MiniHumanAiConsent({scope,gateway,examGateway,prepare}: {
   scope: HumanReviewScope;
   gateway: Pick<HumanConsentGateway,'status'|'grant'|'withdraw'>;
+  examGateway: Pick<HumanExamReadinessGateway,'prepare'>;
   prepare: () => Promise<unknown>;
 }) {
   const [dataScope,setDataScope]=useState<HumanConsentScope['dataScope']>('SUBMITTED_STATEMENT_TEXT');
@@ -135,6 +138,8 @@ export function MiniHumanAiConsent({scope,gateway,prepare}: {
             Record my permission <ShieldCheck size={16}/>
           </button>
         </>}
+      <MiniHumanExamReadiness key={scope.acceptedVersionId+scope.reviewCaseId+dataScope+status.myRevision}
+        scope={fullScope} gateway={examGateway} prepare={prepare}/>
       <p className="spm-human-case-caution">
         Even if everyone agrees, no private review is sent to AI yet.
         KS001 needs a separately certified, auditable examination process.

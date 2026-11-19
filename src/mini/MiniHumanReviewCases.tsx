@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { FileCheck2, RefreshCcw, ShieldCheck } from 'lucide-react';
 import type { HumanPartySubmissionGateway, HumanFairBriefGateway, HumanReviewScope } from '../api/securepay/human-party-submissions';
 import type { HumanConsentGateway } from '../api/securepay/human-consent';
+import type { HumanExamReadinessGateway } from '../api/securepay/human-exam-readiness';
 import type { ReviewCaseSummaryResponse } from '../api/securepay/agreement-review/dto';
 import type { AgreementReviewGateway } from '../api/securepay/agreement-review';
 import { MiniHumanCaseRead } from './MiniHumanCaseEvidence';
@@ -16,7 +17,7 @@ import { MiniHumanCaseRead } from './MiniHumanCaseEvidence';
  * A v2 case is NOT silently treated as a legacy case.
  */
 export function MiniHumanReviewCases({
-  agreementId, acceptedVersionId, reviewGateway, partyGateway, fairBriefGateway, consentGateway, prepare
+  agreementId, acceptedVersionId, reviewGateway, partyGateway, fairBriefGateway, consentGateway, examGateway, prepare
 }: {
   agreementId: string;
   acceptedVersionId: string;
@@ -24,6 +25,7 @@ export function MiniHumanReviewCases({
   partyGateway: Pick<HumanPartySubmissionGateway, 'read'>;
   fairBriefGateway: Pick<HumanFairBriefGateway, 'read'>;
   consentGateway: Pick<HumanConsentGateway,'status'|'grant'|'withdraw'>;
+  examGateway: Pick<HumanExamReadinessGateway,'prepare'>;
   prepare: () => Promise<unknown>;
 }) {
   const [cases, setCases] = useState<ReviewCaseSummaryResponse[]>([]);
@@ -101,6 +103,7 @@ export function MiniHumanReviewCases({
       <div className="spm-persona"><ShieldCheck size={15}/>Authorized participant review</div>
       <MiniHumanCaseRead key={choice.reviewCaseId + acceptedVersionId}
         scope={choice} prepare={prepare}
+        examGateway={{prepare:async(s,key)=>{await prepare();return examGateway.prepare(s,key);}}}
         consentGateway={{status:async (s)=>{await prepare();return consentGateway.status(s);},
           grant:async (s,expiresAt,commandId)=>{await prepare();return consentGateway.grant(s,expiresAt,commandId);},
           withdraw:async (s,commandId)=>{await prepare();return consentGateway.withdraw(s,commandId);}}}
