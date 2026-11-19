@@ -78,3 +78,14 @@ test('H3 stays in signed-in native Mini and is a readiness check, NOT an AI exam
   assert.match(shell,/isMiniExperiencePreviewHost/);
   assert.doesNotMatch(readiness,/openai|processPayment|issueSettlement|grantConsent|executeModel/);
 });
+
+
+test('H3 sample shows missing and all-consented cases without storing real permissions',async()=>{
+  const example=await readFile('src/mini/MiniHumanConsentExample.tsx','utf8');
+  assert.match(example,/Preview examination readiness/);
+  assert.match(example,/2 of 3/);
+  assert.match(example,/3 of 3/);
+  assert.match(example,/Illustration only — no server check or permission saved/);
+  assert.match(example,/All fictional permissions are present/);
+  assert.doesNotMatch(example,/fetch\\(|localStorage|gateway\\.grant|executeModel/);
+});
