@@ -2,6 +2,7 @@ import { createPreviewWorkspaceGateways } from './features/living-workspace/prev
 import { createPreviewAgentGateway } from './features/living-workspace/previewAgentGateway';
 import { Phase1LivingWorkspacePreview } from './features/living-workspace/Phase1LivingWorkspacePreview';
 import { MiniH2Review } from './features/human-layer/MiniH2Review';
+import { MiniH3Review } from './features/human-layer/MiniH3Review';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { storeAgreementEntry, storeEntryView, storeKs001EntryMessage, hasWorkspaceMoneyReturn, clearWorkspaceMoneyReturn } from './features/experience/entryIntent';
 import { AgentExperience } from './features/agent/AgentExperience';
@@ -347,7 +348,23 @@ function useMiniH2ReviewRoute(): boolean {
   }, []);
   return active;
 }
+function useMiniH3ReviewRoute(): boolean {
+  const match = () => typeof window !== 'undefined'
+    && (window.location.hostname.endsWith('.vercel.app')
+      || window.location.hostname === 'localhost'
+      || window.location.hostname === '127.0.0.1')
+    && (window.location.hash === '#/preview/mini/h3'
+      || window.location.hash === '#/preview/mini/h3/');
+  const [visible, setVisible] = useState(match);
+  useEffect(() => {
+    const update = () => setVisible(match());
+    window.addEventListener('hashchange', update);
+    return () => window.removeEventListener('hashchange', update);
+  }, []);
+  return visible;
+}
 export default function RuntimeApp() {
+  const miniH3Review = useMiniH3ReviewRoute();
   const miniH2Review = useMiniH2ReviewRoute();
   const [phase1Preview, setPhase1Preview] = useState(() => typeof window !== 'undefined' &&
     (/^#\/?preview\/living-workspace(?:\/(?:work|vision|circle|community))?\/?$/.test(window.location.hash) ||
@@ -381,6 +398,7 @@ export default function RuntimeApp() {
     const host=new URL(api.baseUrl).hostname.toLowerCase();
     return host.endsWith('.securepay.ke') && /(?:^|[.-])(?:staging|sandbox|qa|test)(?:[.-]|$)/.test(host);
   })();
+  if (miniH3Review) return <MiniH3Review />;
   if (miniH2Review) return <MiniH2Review />;
   if (phase1Preview) return <Phase1LivingWorkspacePreview
     gateway={previewAgentGateway} workspaceGateways={previewWorkspaceGateways}
