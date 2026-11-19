@@ -1,0 +1,55 @@
+name: Mini Collect C8 — UI and independent acceptance gate
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mini-collect-c8-ui-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mini-collect-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    name: Node 20, real Mini test suite, typecheck, Vite and lint
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Exact Node module dependencies
+        run: npm ci
+      - name: C1–C8 Mini Collect tests with genuine Node test runner
+        run: npm run test:mini-collect
+      - name: TypeScript and final frontend regression
+        run: |
+          npm run typecheck
+          npm run test:final-convergence
+          npm run build
+          npm run lint -- --quiet
+      - name: C8 twenty-real-person UAT remains NO_GO until independently performed
+        run: |
+          node testing/mini-collect-c8/evaluate.mjs \
+            testing/mini-collect-c8/acceptance-20-persons.json --expect-no-go
+
+  no-automatic-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    name: Assert no simulated UAT can grant Money or release authority
+    needs: mini-collect-source
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: No fake user or customer-money authority
+        run: |
+          node --test tests/mini-collect-c8-acceptance.test.mjs
+          node testing/mini-collect-c8/evaluate.mjs \
+            testing/mini-collect-c8/acceptance-20-persons.json --expect-no-go
