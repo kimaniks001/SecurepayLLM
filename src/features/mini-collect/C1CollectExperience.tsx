@@ -143,7 +143,7 @@ export function C1CollectExperience() {
       onBack={() => { setGovernanceOpen(false); setTypeOpen(true); }} />;
   }
   if (typeOpen && selected && selectedAnswer) {
-    return <C5CollectionTypes kind={selected.id} onBack={() => setTypeOpen(false)}
+    return <C5CollectionTypes kind={selected.id} initialSelection={collectionType} onBack={() => setTypeOpen(false)}
       onContinue={selection => {
         setCollectionType(selection);
         setTypeOpen(false);
