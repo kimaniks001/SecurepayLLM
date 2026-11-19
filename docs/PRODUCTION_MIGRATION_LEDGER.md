@@ -2001,3 +2001,15 @@ Details and regression log: `docs/PHASE3_SIMPLICITY_INTELLIGENT_TOOLS_LEDGER_202
 | Recurring collection, notices and actual Money | HUMAN_DOCTRINE_BLOCKER | Requires authorized original obligation, exact period, recipient consent and privacy, independently certified provider mandate, per-period regulated payment and original-source reconciliation. Never infer live transactions from the C5A preview. |
 
 Follow-up: docs/MINI_COLLECT_C5A_20261119.md. UI C5A draft PR #346 depends on C1 #344 and C2–C4 #345. **No production feature activation.**
+
+
+## Mini Collect C5B — period/source and authenticated payer boundary (19 November 2026)
+
+| Surface | Migration state | Why |
+| --- | --- | --- |
+| Mini C5B phone-first period and source review | FRONTEND_COMPOSITION_ONLY | C5BCollectionPeriods and c5bPreparation derive local date/source choices, never a real period, bill, provider, payer or Money status. |
+| First-version type/cadence JSON mapping | BACKEND_PR_PENDING | Frontend maps typeId/kind/cadence to exact backend terminology; C5B backend now supports optional collectionTypeTerms in initial COLLECTION Agreement creation but Mini must not POST without an authenticated canonical C2 review. |
+| Authoritative cycle list and payer self-proposals | BACKEND_PR_PENDING | New C5B API draft permits organizer-only cycles and self-only payer reads; no production link. Wire only after API version, identity, source authority and privacy tests pass. |
+| Period/individual item acceptance and live recurring Money | HUMAN_DOCTRINE_BLOCKER | Client-side selection neither establishes a due debt nor grants automatic debit. Real source, verified payer identity, accepted canonical Agreement and provider-specific mandate remain required. |
+
+Companion report docs/MINI_COLLECT_C5B_20261119.md. All preview/financial gates remain fail closed.

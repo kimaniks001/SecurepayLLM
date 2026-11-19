@@ -8,6 +8,7 @@ import {
 } from './governanceDraft.mjs';
 import securepayMark from '../../assets/brand/securepay/securepay-mark-green.png';
 import { C3ProviderPossibilities } from './C3ProviderPossibilities';
+import { C5BCollectionPeriods } from './C5BCollectionPeriods';
 import { COLLECTION_TYPE_PROFILES, CADENCE_OPTIONS, type CollectionTypeSelection } from './collectionTypes.mjs';
 
 type Stage = 'capacity' | 'people' | 'target' | 'end' | 'failure' | 'control' | 'review';
@@ -53,6 +54,7 @@ export function C2GovernanceExperience({ kind, onBack, collectionTypeSelection }
   const [draft, setDraft] = useState<GovernanceDraft>(() => newGovernanceDraft(kind, collectionTypeSelection));
   const [stage, setStage] = useState<Stage>('capacity');
   const [providerExplorationOpen, setProviderExplorationOpen] = useState(false);
+  const [periodReviewOpen, setPeriodReviewOpen] = useState(false);
   const todayIso = localTodayISO();
   const assessment = assessGovernanceDraft(draft, todayIso);
   const stepIndex = STAGES.indexOf(stage);
@@ -76,6 +78,9 @@ export function C2GovernanceExperience({ kind, onBack, collectionTypeSelection }
   const back = () => { if (stepIndex === 0) onBack(); else setStage(STAGES[stepIndex - 1]); };
 
   if (providerExplorationOpen) return <C3ProviderPossibilities draft={draft} onBack={() => setProviderExplorationOpen(false)} />;
+  if (periodReviewOpen) return <C5BCollectionPeriods draft={draft}
+    onBack={() => setPeriodReviewOpen(false)}
+    onContinue={() => { setPeriodReviewOpen(false); setProviderExplorationOpen(true); }} />;
 
   return (
     <div className="min-h-screen bg-[#faf7f0] text-[#244936]" data-mini-collect-c2>
@@ -214,9 +219,11 @@ export function C2GovernanceExperience({ kind, onBack, collectionTypeSelection }
           </div>
           {draft.collectionCadence && draft.collectionCadence !== 'one-time' && <p className="mt-4 text-xs leading-5 text-[#66776a]">Each collection cycle will require separately identified dates, contributor records and validated financial authorization. Choosing a frequency does not authorize automatic debits.</p>}
           <p className="mt-4 text-xs leading-5 text-[#66776a]">C2 preview only. No bank selected, no binding Agreement or SecureLink created, no collection started and no money moved.</p>
-          <button type="button" disabled={!assessment.draftComplete} onClick={() => setProviderExplorationOpen(true)}
+          <button type="button" disabled={!assessment.draftComplete}
+            onClick={() => draft.collectionTypeId ? setPeriodReviewOpen(true) : setProviderExplorationOpen(true)}
             className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#285d41] px-5 text-sm font-semibold text-white hover:bg-[#1e4b35] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#285d41] disabled:cursor-not-allowed disabled:bg-[#abb8ac]">
-            See what my bank must support <ArrowRight size={18} aria-hidden="true"/>
+            {draft.collectionTypeId ? 'Review the period and original source' : 'See what my bank must support'}
+            <ArrowRight size={18} aria-hidden="true"/>
           </button>
           <button type="button" onClick={() => setStage('capacity')} className="mt-2 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#285d41] px-5 text-sm font-semibold text-white hover:bg-[#1e4b35] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#285d41]">
             Review or change my rules <ArrowLeft size={17} aria-hidden="true"/>
