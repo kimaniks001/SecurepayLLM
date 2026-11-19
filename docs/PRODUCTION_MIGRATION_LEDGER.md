@@ -2013,3 +2013,15 @@ Follow-up: docs/MINI_COLLECT_C5A_20261119.md. UI C5A draft PR #346 depends on C1
 | Period/individual item acceptance and live recurring Money | HUMAN_DOCTRINE_BLOCKER | Client-side selection neither establishes a due debt nor grants automatic debit. Real source, verified payer identity, accepted canonical Agreement and provider-specific mandate remain required. |
 
 Companion report docs/MINI_COLLECT_C5B_20261119.md. All preview/financial gates remain fail closed.
+
+
+## Mini Collect C6 — Fair Trade examination (19 November 2026)
+
+| Surface | Migration state | Contract |
+| --- | --- | --- |
+| C6 Mini one-question-at-a-time source/provenance review | FRONTEND_COMPOSITION_ONLY | Two or three type-specific questions, answer pills and optional course start date are local human clarifications, NEVER source verification or Money authority. |
+| C5B period → C6 examination → C3 provider path | FRONTEND_COMPOSITION_ONLY | Preserves type, period, source category and back-navigation; stops on changed original terms. No API calls or fabricated payer records. |
+| C6 payer-self original item examination and immutable reports | BACKEND_PR_PENDING | API C6 branch has identity-scoped, canonical version-bound source hashes, default-denying independent verifier and bounded private report/answer endpoints. Do NOT wire until authenticated API/issuer privacy review. |
+| Issuer, collector, beneficiary and bank certification | HUMAN_DOCTRINE_BLOCKER | Only genuine audited evidence can resolve source/collector/recipient rights; only certified provider mandates and accepted financial Agreement can authorize Money. No source assertion or KS001 summary can substitute. |
+
+Companion docs/MINI_COLLECT_C6_FAIR_TRADE_EXAMINATION_20261119.md. Neither production Money nor an authenticated Mini C6 API client is enabled.
