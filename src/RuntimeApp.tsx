@@ -478,7 +478,22 @@ export default function RuntimeApp() {
   // H2 review goes into the signed-in Mini Agreement shelf, not the
   // opt-in Living Workspace prototype or a fixture chat.
   const miniAgreementsRoute = typeof window !== 'undefined'
-    && /^#\\/mini\\/agreements\\/?$/.test(window.location.hash);
+    && new RegExp('^#/mini/agreements/?
+  if (miniAgreementsRoute) storeEntryView('agreements');
+  else if (directSurfaceRoute) storeEntryView(directSurfaceRoute);
+  return api && agentGateway && agreementGateway && moneyGateway && agreementReviewGateway && storeGateway && fulfilmentNeedsGateway && circleGateway && communityGateway && discoveryGateway && masterGateway && marketNetworkGateway && referralGateway && projectGateway && visionBoardGateway && visionDreamGateway && settingsGateway && businessGateway && authorizationGateway && developerGateway && notificationsGateway && subscriptionGateway
+    ? <AgentExperience key={miniAgreementsRoute ? 'mini-h2-agreements' : directSurfaceRoute ?? 'app'} gateway={agentGateway} agreementGateway={agreementGateway} agreementMessagesGateway={agreementMessagesGateway} moneyGateway={moneyGateway} paymentReleaseGateway={paymentReleaseGateway} agreementReviewGateway={agreementReviewGateway} storeGateway={storeGateway} fulfilmentNeedsGateway={fulfilmentNeedsGateway} circleGateway={circleGateway} communityGateway={communityGateway} discoveryGateway={discoveryGateway} masterGateway={masterGateway} marketNetworkGateway={marketNetworkGateway} referralGateway={referralGateway} projectGateway={projectGateway} visionBoardGateway={visionBoardGateway} visionDreamGateway={visionDreamGateway} settingsGateway={settingsGateway} businessGateway={businessGateway} organizationGateway={organizationGateway} authorizationGateway={authorizationGateway} developerGateway={developerGateway} notificationsGateway={notificationsGateway} subscriptionGateway={subscriptionGateway} auth={api.auth} session={session} initialStoreOfferRoute={storeOfferRoute} trustedMediaOrigin={trustedMediaOrigin} />
+    : <Unavailable />;
+}
+function Unavailable() {
+  return <main className="min-h-screen bg-cream-50 text-forest-800 flex items-center justify-center p-6">
+    <div role="status" className="max-w-md text-center">
+      <h1 className="font-display text-2xl">SecurePay is unavailable</h1>
+      <p className="mt-3 text-sand-600">Please try again later.</p>
+    </div>
+  </main>;
+}
+).test(window.location.hash);
   if (miniAgreementsRoute) storeEntryView('agreements');
   else if (directSurfaceRoute) storeEntryView(directSurfaceRoute);
   return api && agentGateway && agreementGateway && moneyGateway && agreementReviewGateway && storeGateway && fulfilmentNeedsGateway && circleGateway && communityGateway && discoveryGateway && masterGateway && marketNetworkGateway && referralGateway && projectGateway && visionBoardGateway && visionDreamGateway && settingsGateway && businessGateway && authorizationGateway && developerGateway && notificationsGateway && subscriptionGateway
