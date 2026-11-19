@@ -127,6 +127,16 @@ export function questionsForCollection(draft,period) {
     options:Object.freeze(item.options.map(p => Object.freeze({...p}))),
   })));
 }
+// Explicit material changes: never infer that an old invoice, route, school
+// term, item or recurring period remains authorized after these answers.
+// Keep this allowlist synchronized with the human question profiles.
+const MATERIAL_CHANGE_ANSWERS = new Set([
+  'offer-changed', 'term-different', 'condition-unclear', 'item-changed',
+  'work-disputed', 'levy-changed', 'route-changed',
+  'membership-different', 'rent-changed', 'rotation-disputed',
+  'project-changed', 'cause-unclear', 'purpose-different',
+  'need-changed', 'event-changed', 'new-period',
+]);
 export function assessCollectionExamination(draft,period,answers={},dateProposal=null) {
   const questions=questionsForCollection(draft,period);
   const unanswered=questions.filter(q=>!q.options.some(x=>x.id===answers[q.id])).map(q=>q.id);
@@ -136,8 +146,7 @@ export function assessCollectionExamination(draft,period,answers={},dateProposal
     questions,
     unanswered:Object.freeze(unanswered),
     localClarificationsCaptured:questions.length>0 && unanswered.length===0 && proposedDateValid,
-    disputed:questions.some(q=>
-      q.options.some(x=>x.id===answers[q.id] && /changed|disputed|difference|unclear/.test(x.id))),
+    disputed:questions.some(q=>MATERIAL_CHANGE_ANSWERS.has(answers[q.id])),
     pendingIndependentEvidence:BASE_PENDING,
     sourceVerified:false,collectorAuthorityVerified:false,
     recipientAuthorityVerified:false,providerCertified:false,
