@@ -64,6 +64,30 @@ test('C6: contradictory source/period answers halt progress but do not alter an 
   assert.equal(result.disputed,true);
   assert.equal(result.paymentAuthorized,false);
 });
+test('C6: a different school term or recurring period blocks onward collection review',()=>{
+  for(const [typeId,questionId,changeAnswer] of [
+    ['school-fees','term','term-different'],
+    ['estate-dues','period','new-period'],
+    ['school-transport','route','route-changed'],
+    ['membership','membership','membership-different'],
+    ['chama-cycle','rotation','rotation-disputed'],
+    ['welfare','cause','cause-unclear'],
+    ['church-giving','giving','purpose-different'],
+    ['education-fund','education','need-changed'],
+    ['course-enrolment','start','ask-trainer'],
+  ]){
+    const type=COLLECTION_TYPE_PROFILES.find(x=>x.id===typeId);
+    const d=draft(type);
+    const questions=questionsForCollection(d,period);
+    const answers=Object.fromEntries(questions.map(q=>[q.id,q.options[0].id]));
+    answers[questionId]=changeAnswer;
+    const result=assessCollectionExamination(d,period,answers);
+    assert.equal(result.disputed,changeAnswer!=='ask-trainer',
+      typeId+' '+changeAnswer);
+    assert.equal(result.financialExecutionAllowed,false);
+  }
+});
+
 test('C6: calendar offered only for a real start-date clarification',()=>{
   const course=COLLECTION_TYPE_PROFILES.find(p=>p.id==='course-enrolment');
   const d=draft(course);
