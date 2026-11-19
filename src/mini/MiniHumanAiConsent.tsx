@@ -100,11 +100,15 @@ export function MiniHumanAiConsent({scope,gateway,prepare}: {
           ?'Your permission is withdrawn':status.myPermission==='EXPIRED'
           ?'Your previous permission has expired':'You have not given permission'}
       </p>
-      <p className="spm-human-case-caution">
-        {status.participation.explicitlyConsentingPartyCount} of {status.participation.requiredOriginalPartyCount}
-        {' '}active parties have permitted this information type.
-        {status.participation.stillAwaitingPartyCount>0&&' Others have not yet agreed.'}
-      </p>
+      {status.participation.requiredOriginalPartyCount>0
+        ?<p className="spm-human-case-caution">
+          {status.participation.explicitlyConsentingPartyCount} of {status.participation.requiredOriginalPartyCount}
+          {' '}active parties have permitted this information type.
+          {status.participation.stillAwaitingPartyCount>0&&' Others have not yet agreed.'}
+        </p>
+        :<p className="spm-human-case-caution">
+          Your own permission status is available. Other parties' current status is not available for this older review.
+        </p>}
       {hasGrant
         ?<button type="button" className="spm-secondary spm-human-case-trigger"
            disabled={working} onClick={()=>void decide('withdraw')}>
