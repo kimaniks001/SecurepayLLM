@@ -160,6 +160,10 @@ export function MiniExperience() {
   // Explicitly opt-in visual review only. Ordinary /mini.html remains unchanged.
   // This only activates on a known isolated owner preview host AND explicit opt-in.
   // No sample catalogue or fake payment path is enabled on securepay.ke.
+  // H3 stays hidden on customer domains until the shared Core H3 and
+  // signed-in source record integrations pass certification. Preview only.
+  const humanPreviewEnabled = typeof window !== 'undefined' &&
+    isMiniExperiencePreviewHost(window.location.hostname);
   const playground = urlParams?.get('miniTradeDemo') === '1' &&
     typeof window !== 'undefined' && isMiniExperiencePreviewHost(window.location.hostname);
   const businessDemo = playground || urlParams?.get('miniBusinessPreview') === '1';
@@ -351,7 +355,7 @@ export function MiniExperience() {
         <div className="spm-head-actions">
           <button className="spm-lang" type="button" onClick={() => setLang(lang === 'en' ? 'sw' : 'en')}
             aria-label={lang === 'en' ? 'Badili kwa Kiswahili' : 'Switch to English'}>{lang === 'en' ? 'Kiswahili' : 'English'}</button>
-          {!storeOfferSession && !checkoutSession &&
+          {humanPreviewEnabled && !storeOfferSession && !checkoutSession &&
             !['human-help', 'help', 'business-settings', 'community-saver-preview'].includes(screen) &&
             <button type="button" className="spm-icon-btn"
             title="Need a hand?" aria-label="Need a hand? — open Mini help" onClick={openHumanHelp}><CircleHelp size={20}/></button>}
@@ -409,7 +413,7 @@ export function MiniExperience() {
           }}><ClipboardList size={18}/><span><strong>My Agreements</strong><small>{samplePurchases.length} sample Living Agreements to explore</small></span><ArrowRight size={17}/></button>}
           <div className="spm-foot-row">
             <button type="button" className="spm-text-btn" onClick={() => { setDiscussDraft(null); setScreen('help'); }}><MessageCircle size={17}/>{t.ask}</button>
-            <button type="button" className="spm-text-btn" onClick={openHumanHelp}><CircleHelp size={17}/>Need a hand?</button>
+            {humanPreviewEnabled && <button type="button" className="spm-text-btn" onClick={openHumanHelp}><CircleHelp size={17}/>Need a hand?</button>}
             {hasSaved && <button type="button" className="spm-text-btn" onClick={resume}><RotateCcw size={17}/>{t.resume}</button>}
           </div>
           {businessDemo && <MiniBusinessCapacity part="activity" language={lang}
@@ -596,7 +600,7 @@ export function MiniExperience() {
           <p className="spm-disclaimer">{t.fullDisclaimer}</p>
         </section>}
 
-        {screen === 'human-help' && <MiniHumanHelp key={helpReturnScreen} language={lang}
+        {humanPreviewEnabled && screen === 'human-help' && <MiniHumanHelp key={helpReturnScreen} language={lang}
           fromJourney={helpOrigin}
           onBack={() => setScreen(helpReturnScreen)}
           onAskKs001={() => { setDiscussDraft(null); setScreen('help'); }}/>}
