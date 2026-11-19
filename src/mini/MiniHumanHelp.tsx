@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ArrowLeft, ArrowRight, Check, ClipboardCheck, HeartHandshake, MapPin, MessageCircle, ShieldCheck, Sparkles, Users } from 'lucide-react';
 import type { MiniLanguage } from './miniModel';
 import { MiniHumanCaseEvidence, sampleHumanReview } from './MiniHumanCaseEvidence';
+import { MiniHumanConsentExample } from './MiniHumanConsentExample';
 import './miniHumanHelp.css';
 
 /**
@@ -131,8 +132,10 @@ export function MiniHumanHelp({ language, fromJourney = 'general', onBack, onAsk
           <span className="spm-option-text"><strong>Talk to the right person</strong><small>Choose local practical help or qualified expertise</small></span><ArrowRight size={18}/>
         </button>
       </div>
-      {(need === 'problem' || need === 'explain') &&
-        <MiniHumanCaseEvidence snapshot={sampleHumanReview} sample />}
+      {(need === 'problem' || need === 'explain') && <>
+        <MiniHumanCaseEvidence snapshot={sampleHumanReview} sample />
+        <MiniHumanConsentExample />
+      </>}
       {choice && <div className="spm-human-result" role="status">
         <strong>{choice === 'ks001' ? 'KS001 can guide you' : choice === 'human' ? 'Human help is your choice' : 'A conversation, not a verdict'}</strong>
         <p>{choice === 'ks001'
