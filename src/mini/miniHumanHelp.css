@@ -1,0 +1,19 @@
+/* H3 native Mini extension: layouts reuse mini.css's canonical spm-* tokens.
+   Only new answer-pill/provenance arrangements live here; no new shell,
+   fonts, branding, elevations, colour theme, or detached responsive grid. */
+.spm-human{padding-bottom:18px}
+.spm-human-step{font-size:11px;color:#718274;font-weight:650;letter-spacing:.04em;display:block;margin-bottom:6px}
+.spm-human-pills{display:flex;flex-direction:column;gap:7px;margin:12px 0 17px}
+.spm-human-pill{display:flex;width:100%;min-height:47px;gap:8px;align-items:center;justify-content:space-between;text-align:left;border:1px solid #e0e6dc;background:#fff;color:#254836;border-radius:13px;padding:10px 12px;font-weight:600;font-size:13px;line-height:1.45;transition:border-color .15s}
+.spm-human-pill[aria-pressed=true]{border-color:#548568;background:#eff5ed;color:#1b492f}
+.spm-human-pill:hover{border-color:#8db59c}
+.spm-human-pill svg{color:#357052;flex:none}
+.spm-human-continue{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:15px}
+.spm-human-result{background:#f0f5ed;border:1px solid #d8e5d7;border-radius:13px;padding:12px;margin-top:15px;display:grid;gap:8px}
+.spm-human-result strong{font-size:13px;color:#285a40}
+.spm-human-result p{font-size:12px;line-height:1.55;color:#526e5b;margin:0}
+.spm-human-result .spm-secondary{justify-self:start}
+.spm-human-truth{display:flex;align-items:flex-start;gap:9px;border-top:1px solid #eee9dc;margin-top:22px;padding-top:14px;color:#758577}
+.spm-human-truth svg{flex:none;color:#51775a}
+.spm-human-truth p{font-size:11px;line-height:1.5;margin:0}
+@media (prefers-reduced-motion:reduce){.spm-human-pill{transition:none}}
