@@ -146,3 +146,38 @@ export function assessCollectionExamination(draft,period,answers={},dateProposal
   });
 }
 export function canExaminationAuthorizeMoney() {return false;}
+
+
+/**
+ * Exact draft-only mapping to the server's finite C6 clarification vocabulary.
+ * No payment or evidence request is sent by this function. The server must
+ * still authenticate self, re-check original C5B hashes and validate relevance.
+ */
+const CODE_FOR_HUMAN_QUESTION=Object.freeze({
+  source:'ORIGINAL_SOURCE',period:'NO_AUTO_DEBIT',
+  supplier:'SHARED_PURPOSE',term:'PRIVATE_SCHOOL_BILL',
+  start:'SERVICE_START',condition:'ITEM_CONDITION',bill:'ACTUAL_OBLIGATION',
+  levy:'RECURRING_PERIOD',route:'ROUTE_AND_SERVICE',
+  membership:'RECURRING_PERIOD',rent:'RECURRING_PERIOD',
+  rotation:'GROUP_ROTATION',project:'SHARED_PURPOSE',
+  cause:'VOLUNTARY_NOT_DEBT',giving:'VOLUNTARY_NOT_DEBT',
+  education:'EDUCATION_BENEFICIARY',event:'EVENT_DELIVERY',
+});
+const SPECIAL_ANSWER=Object.freeze({
+  'need-help':'NEED_ASSISTANCE',
+});
+export function toCanonicalClarification(question,answerId,proposedDate=null) {
+  if (!question || !question.options.some(o=>o.id===answerId)) return null;
+  const questionCode=CODE_FOR_HUMAN_QUESTION[question.id];
+  if (!questionCode) return null;
+  const answerCode=SPECIAL_ANSWER[answerId] ||
+    answerId.replace(/-/g,'_').toUpperCase();
+  const needsDate=questionCode==='SERVICE_START' && answerCode==='PROPOSE_DATE';
+  if (needsDate && (typeof proposedDate!=='string' ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(proposedDate))) return null;
+  return Object.freeze({
+    questionCode,answerCode,
+    proposedDate:needsDate?proposedDate:null,
+    evidenceVerified:false,moneyAuthorized:false,
+  });
+}
