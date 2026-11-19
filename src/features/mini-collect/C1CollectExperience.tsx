@@ -6,6 +6,8 @@ import {
 } from 'lucide-react';
 import securepayMark from '../../assets/brand/securepay/securepay-mark-green.png';
 import { C2GovernanceExperience } from './C2GovernanceExperience';
+import { C5CollectionTypes } from './C5CollectionTypes';
+import type { CollectionTypeSelection } from './collectionTypes.mjs';
 
 /**
  * C1 is an intentionally non-transactional, phone-first discovery experience.
@@ -117,12 +119,16 @@ export function C1CollectExperience() {
   const [kind, setKind] = useState<CollectionKind | null>(null);
   const [answer, setAnswer] = useState<string | null>(null);
   const [governanceOpen, setGovernanceOpen] = useState(false);
+  const [typeOpen, setTypeOpen] = useState(false);
+  const [collectionType, setCollectionType] = useState<CollectionTypeSelection | null>(null);
   const selected = C1_COLLECTION_PATHS.find(path => path.id === kind);
   const selectedAnswer = selected?.options.find(option => option.label === answer);
 
   const choose = (next: CollectionKind) => {
     setKind(next);
     setAnswer(null);
+    setCollectionType(null);
+    setTypeOpen(false);
     setStage('detail');
   };
   const goBack = () => {
@@ -130,9 +136,20 @@ export function C1CollectExperience() {
     else if (stage === 'detail') { setStage('purpose'); setAnswer(null); }
     else { setKind(null); setAnswer(null); setStage('purpose'); }
   };
-  const reset = () => { setKind(null); setAnswer(null); setGovernanceOpen(false); setStage('purpose'); };
+  const reset = () => { setKind(null); setAnswer(null); setGovernanceOpen(false); setTypeOpen(false); setCollectionType(null); setStage('purpose'); };
 
-  if (governanceOpen && selected && selectedAnswer) return <C2GovernanceExperience kind={selected.id} onBack={() => setGovernanceOpen(false)} />;
+  if (governanceOpen && selected && selectedAnswer && collectionType) {
+    return <C2GovernanceExperience kind={selected.id} collectionTypeSelection={collectionType}
+      onBack={() => { setGovernanceOpen(false); setTypeOpen(true); }} />;
+  }
+  if (typeOpen && selected && selectedAnswer) {
+    return <C5CollectionTypes kind={selected.id} onBack={() => setTypeOpen(false)}
+      onContinue={selection => {
+        setCollectionType(selection);
+        setTypeOpen(false);
+        setGovernanceOpen(true);
+      }}/>;
+  }
 
   return (
     <div data-mini-collect-c1 className="min-h-screen bg-[#faf7f0] text-[#244936]">
@@ -241,8 +258,8 @@ export function C1CollectExperience() {
               </div>
             </div>
             <p className="mt-4 text-xs leading-5 text-[#667568]">C1 experience preview only. Nothing is saved, agreed, sent, invested or paid. SecureLinks, live totals and regulated Money actions come in later phases.</p>
-            <button type="button" onClick={() => setGovernanceOpen(true)} className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#285d41] px-5 text-sm font-semibold text-white hover:bg-[#1e4b35] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#285d41]">
-              Agree on the collection rules <ArrowRight size={18} aria-hidden="true"/>
+            <button type="button" onClick={() => setTypeOpen(true)} className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#285d41] px-5 text-sm font-semibold text-white hover:bg-[#1e4b35] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#285d41]">
+              Choose the type and rules <ArrowRight size={18} aria-hidden="true"/>
             </button>
             <button type="button" onClick={reset} className="mt-2 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#285d41] px-5 text-sm font-semibold text-white hover:bg-[#1e4b35] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#285d41]">
               <RotateCcw size={17} aria-hidden="true" /> Explore another collection
