@@ -39,6 +39,7 @@ const suites = [
   'tests/mini-human-h3-native-dna.test.mjs',
   'tests/mini-human-h3-bilateral.test.mjs',
   'tests/mini-human-h3-authorized-brief.test.mjs',
+  'tests/mini-human-h3-multiparty-consent.test.mjs',
 ];
 for (const filename of suites) {
   console.log('\n== SecurePay Mini focused suite: ' + filename + ' ==');
