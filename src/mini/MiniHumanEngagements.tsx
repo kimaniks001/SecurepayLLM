@@ -81,6 +81,9 @@ export function MiniHumanEngagements({
         helperIdentityId:selected.helperIdentityId,helperRole:selected.helperRole,
         serviceKey:selected.serviceKey,scopeStatement:scope.trim(),
         completionCondition:completion.trim(),units,
+        expectedUnitRateMinor:selected.rateMinor,
+        expectedCurrency:selected.currency,
+        expectedBillingBasis:selected.billingBasis,
         consentVersion:'H4D_TASK_BRIEF_V1'
       });
       if(rev!==loading.current)return;
