@@ -111,6 +111,7 @@ import type { SubscriptionGateway } from '../../api/securepay/subscription';
 import { NotificationsExperience } from '../notifications/NotificationsExperience';
 import { createNotificationsController } from '../notifications/controller';
 import type { NotificationsGateway } from '../../api/securepay/notifications';
+import type { AgreementMessagesGateway } from '../../api/securepay/agreement-messages';
 import { RecoveryExperience } from '../recovery/RecoveryExperience';
 import { createRecoveryController } from '../recovery/controller';
 import { BusinessExperience } from '../business/BusinessExperience';
@@ -179,7 +180,7 @@ export function AgentExperience(props: Omit<Parameters<typeof AgentExperienceRou
   );
 }
 
-function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGateway, paymentReleaseGateway, agreementReviewGateway, storeGateway, fulfilmentNeedsGateway, circleGateway, communityGateway, discoveryGateway, masterGateway, marketNetworkGateway, referralGateway, projectGateway, visionBoardGateway, visionDreamGateway, settingsGateway, businessGateway, organizationGateway, developerGateway, notificationsGateway, subscriptionGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
+function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGateway, paymentReleaseGateway, agreementReviewGateway, storeGateway, fulfilmentNeedsGateway, circleGateway, communityGateway, discoveryGateway, masterGateway, marketNetworkGateway, referralGateway, projectGateway, visionBoardGateway, visionDreamGateway, settingsGateway, businessGateway, organizationGateway, developerGateway, notificationsGateway, agreementMessagesGateway, subscriptionGateway, auth, session, initialStoreOfferRoute, trustedMediaOrigin }: {
   gateway: AgentGateway; agreementGateway: AgreementGateway; moneyGateway: MoneyGateway; paymentReleaseGateway?: Pick<PaymentReleaseGateway, 'releaseAuthority'>; agreementReviewGateway: AgreementReviewGateway; storeGateway: StoreGateway; fulfilmentNeedsGateway?: FulfilmentNeedsGateway; circleGateway: CircleGateway;
   communityGateway: CommunityGateway;
   /** Phase 6 Slice 5 (Discovery & Identity) -- Community/Circle/Store/People search. */
@@ -191,6 +192,8 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
   /** Phase 4D (API ADR-0024) -- Organization KS onboarding and representation; absent means no Organization capacity. */
   organizationGateway?: OrganizationGateway;
   notificationsGateway: NotificationsGateway;
+  /** H2 server-side participant-scoped messages, never KS001's own conversation. */
+  agreementMessagesGateway?: Pick<AgreementMessagesGateway, 'thread' | 'send'>;
   subscriptionGateway: Pick<SubscriptionGateway, 'myStatus'>;
   auth: AuthGateway; session: SessionStore;
   initialStoreOfferRoute?: { canonicalKsNumber: string; offerId: string } | null;
@@ -1234,6 +1237,7 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
     return <WorkspaceExperience
       onOpenSupport={context => { setHelpContext(context); setWorkspace(false); setWorkspaceAgreementId(null); setSupportView(true); }}
       gateway={workspaceGateway}
+      messagesGateway={agreementMessagesGateway}
       fulfilmentNeedsGateway={fulfilmentNeedsGateway}
       paymentReleaseGateway={paymentReleaseGateway}
       agentGateway={gateway}
