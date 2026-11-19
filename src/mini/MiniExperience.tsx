@@ -26,11 +26,12 @@ import { MiniBuyStore, type MiniStorePlanLine, type MiniBasketFulfilment } from 
 import { MiniCollectConversation } from './MiniCollectConversation';
 import { MiniSellSomething } from './MiniSellSomething';
 import { MiniPaySomeone } from './MiniPaySomeone';
+import { MiniHumanHelp, type MiniHelpJourney } from './MiniHumanHelp';
 import { MiniCommunitySaverPreview } from './MiniCommunitySaverPreview';
 import { miniMergeUserDescription, miniCaptureText, type MiniCaptureSource, type MiniCaptureKind } from './miniCapture';
 import './mini.css';
 
-type View = MiniScreen | 'pay-home' | 'choose' | 'buy' | 'sell-preview' | 'community-saver-preview' | 'collect-interview' | 'business-settings' | 'sample-agreements';
+type View = MiniScreen | 'pay-home' | 'choose' | 'buy' | 'sell-preview' | 'community-saver-preview' | 'collect-interview' | 'business-settings' | 'sample-agreements' | 'human-help';
 const STORE_KEY = 'securepay-mini-phase1-local-draft-v1';
 const words = {
   en: {
@@ -116,6 +117,9 @@ export function MiniExperience() {
   const t = words[lang];
   const [screen, setScreen] = useState<View>(() => {
     if (typeof window === 'undefined' || !isMiniExperiencePreviewHost(window.location.hostname)) return 'home';
+    // Only the ACTUAL mini.html entry can open the H3 native preview.
+    if (window.location.hash === '#/preview/mini/h3' ||
+        window.location.hash === '#/preview/mini/h3/') return 'human-help';
     const qs = new URLSearchParams(window.location.search);
     if (!(qs.get('miniTradeDemo')==='1')) return 'home';
     if (qs.get('communitySaverPreview')==='1') return 'community-saver-preview';
@@ -123,6 +127,9 @@ export function MiniExperience() {
     if (qs.get('fairTradePreview')==='1' || qs.get('agreementActionsPreview')==='1') return 'buy';
     return 'home';
   });
+  const [helpReturnScreen, setHelpReturnScreen] = useState<View>('home');
+  const [payVisited, setPayVisited] = useState(false);
+  const [helpOrigin, setHelpOrigin] = useState<MiniHelpJourney>('general');
   const [buyPrefill, setBuyPrefill] = useState('');
   const [buyResetKey, setBuyResetKey] = useState(0);
   const [buyingPlanForHelp,setBuyingPlanForHelp] = useState<{
@@ -153,6 +160,10 @@ export function MiniExperience() {
   // Explicitly opt-in visual review only. Ordinary /mini.html remains unchanged.
   // This only activates on a known isolated owner preview host AND explicit opt-in.
   // No sample catalogue or fake payment path is enabled on securepay.ke.
+  // H3 stays hidden on customer domains until the shared Core H3 and
+  // signed-in source record integrations pass certification. Preview only.
+  const humanPreviewEnabled = typeof window !== 'undefined' &&
+    isMiniExperiencePreviewHost(window.location.hostname);
   const playground = urlParams?.get('miniTradeDemo') === '1' &&
     typeof window !== 'undefined' && isMiniExperiencePreviewHost(window.location.hostname);
   const businessDemo = playground || urlParams?.get('miniBusinessPreview') === '1';
@@ -165,6 +176,7 @@ export function MiniExperience() {
   const storeOfferSession = urlParams?.get('storeOfferSession') ?? null;
   const checkoutSession = urlParams?.get('checkoutSession') ?? null;
 
+  useEffect(() => { if (screen === 'pay-home') setPayVisited(true); }, [screen]);
   useEffect(() => {
     if (screen === 'describe') firstField.current?.focus({ preventScroll: true });
   }, [screen]);
@@ -176,6 +188,21 @@ export function MiniExperience() {
     document.querySelector<HTMLElement>('.spm-frame')?.scrollTo(0, 0);
   }, [screen]);
 
+  const openHumanHelp = () => {
+    if (screen === 'human-help') return;
+    setHelpReturnScreen(screen);
+    let from: MiniHelpJourney = 'general';
+    if (screen === 'buy') from = 'buy';
+    else if (screen === 'sell-preview') from = 'sell';
+    else if (screen === 'pay-home') from = 'pay';
+    else if (screen === 'collect-interview') from = 'collect';
+    else if (screen === 'describe' || screen === 'review') {
+      from = draft.intent === 'sell' ? 'sell' :
+        draft.intent === 'pay' ? 'pay' : 'collect';
+    }
+    setHelpOrigin(from);
+    setScreen('human-help');
+  };
   const startSupportedCollection = (source='') => {
     // One optional deeper journey, called by the person's words or explicit
     // choice. Never automatically publish, verify authority or solicit money.
@@ -328,7 +355,12 @@ export function MiniExperience() {
         <div className="spm-head-actions">
           <button className="spm-lang" type="button" onClick={() => setLang(lang === 'en' ? 'sw' : 'en')}
             aria-label={lang === 'en' ? 'Badili kwa Kiswahili' : 'Switch to English'}>{lang === 'en' ? 'Kiswahili' : 'English'}</button>
-          {!storeOfferSession && !checkoutSession && screen !== 'home' && <button type="button" className="spm-icon-btn" aria-label={screen === 'business-settings' ? 'Close Business Settings' : t.clear} onClick={screen === 'business-settings' ? () => setScreen('home') : reset}><X size={19}/></button>}
+          {humanPreviewEnabled && !storeOfferSession && !checkoutSession &&
+            !['human-help', 'help', 'business-settings', 'community-saver-preview'].includes(screen) &&
+            <button type="button" className="spm-icon-btn"
+            title="Need a hand?" aria-label="Need a hand? — open Mini help" onClick={openHumanHelp}><CircleHelp size={20}/></button>}
+          {!storeOfferSession && !checkoutSession && screen !== 'home' && <button type="button" className="spm-icon-btn" aria-label={screen === 'business-settings' ? 'Close Business Settings' : t.clear}
+            onClick={screen === 'human-help' ? () => setScreen(helpReturnScreen) : screen === 'business-settings' ? () => setScreen('home') : reset}><X size={19}/></button>}
         </div>
       </header>
 
@@ -381,6 +413,7 @@ export function MiniExperience() {
           }}><ClipboardList size={18}/><span><strong>My Agreements</strong><small>{samplePurchases.length} sample Living Agreements to explore</small></span><ArrowRight size={17}/></button>}
           <div className="spm-foot-row">
             <button type="button" className="spm-text-btn" onClick={() => { setDiscussDraft(null); setScreen('help'); }}><MessageCircle size={17}/>{t.ask}</button>
+            {humanPreviewEnabled && <button type="button" className="spm-text-btn" onClick={openHumanHelp}><CircleHelp size={17}/>Need a hand?</button>}
             {hasSaved && <button type="button" className="spm-text-btn" onClick={resume}><RotateCcw size={17}/>{t.resume}</button>}
           </div>
           {businessDemo && <MiniBusinessCapacity part="activity" language={lang}
@@ -392,7 +425,9 @@ export function MiniExperience() {
             onOpenSettings={() => {setSettingsEntry(null);setScreen('business-settings');}} />}
         </section>}
 
-        {screen==='pay-home' && <MiniPaySomeone language={lang} preview={playground}
+        {/* Keep a once-opened Pay journey mounted while Help is shown so unfinished choices survive. */}
+        <div hidden={screen !== 'pay-home'} aria-hidden={screen !== 'pay-home'}>
+        {(payVisited || screen === 'pay-home') && <MiniPaySomeone language={lang} preview={playground}
           seed={opening.trim()} canOpenExisting={!!getMiniFirstPartyOrigin()} onBack={()=>setScreen('home')}
           onExisting={()=>{setPayExistingRequested(true);setDiscussDraft(null);setScreen('help');}}
           onPrepareNew={prepared=>{
@@ -403,6 +438,7 @@ export function MiniExperience() {
               setDraft(prepared);setError('');setScreen('review');
             }
           }}/>} 
+        </div>
 
         {businessDemo && screen === 'business-settings' && (previewCapacity === 'business' || sellerSettingsReturn) &&
           <MiniBusinessSettings language={lang} onBack={() => setScreen(sellerSettingsReturn?'sell-preview':'home')}
@@ -564,6 +600,10 @@ export function MiniExperience() {
           <p className="spm-disclaimer">{t.fullDisclaimer}</p>
         </section>}
 
+        {humanPreviewEnabled && screen === 'human-help' && <MiniHumanHelp key={helpReturnScreen} language={lang}
+          fromJourney={helpOrigin}
+          onBack={() => setScreen(helpReturnScreen)}
+          onAskKs001={() => { setDiscussDraft(null); setScreen('help'); }}/>}
         {screen === 'help' && (playground
           ? <MiniTradeSampleHelp language={lang} basket={buyingPlanForHelp}
               onBack={() => {setScreen(buyingPlanForHelp?'buy':discussDraft?'review':'home');setBuyingPlanForHelp(null);}}/>

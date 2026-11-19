@@ -8,7 +8,11 @@ const firstParty=read('src/mini/MiniFirstPartyKs001.tsx');
 
 test('Mini opens a dedicated Pay Someone or Something screen and keeps Buy and Sell intact',()=>{
   assert.ok(experience.includes("import { MiniPaySomeone }"));
-  assert.ok(experience.includes("screen==='pay-home' && <MiniPaySomeone"));
+  // H3 convergence: Pay remains mounted after first visit so temporary help
+  // does not wipe an unfinished payment review on returning.
+  assert.ok(experience.includes("(payVisited || screen === 'pay-home') && <MiniPaySomeone"));
+  assert.ok(experience.includes("hidden={screen !== 'pay-home'}"));
+  assert.ok(experience.includes("if (screen === 'pay-home') setPayVisited(true)"));
   assert.ok(experience.includes("setScreen('pay-home')"));
   assert.ok(experience.includes('canOpenExisting={!!getMiniFirstPartyOrigin()}'));
   assert.ok(experience.includes("<MiniBuyStore"));
