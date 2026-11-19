@@ -32,6 +32,7 @@
     "test:ui-phase1": "node --test tests/ui-phase1.test.mjs",
     "test:vision-money-gap": "node --test tests/vision-money-gap.test.mjs",
     "test:trust-project-redo": "node --test tests/trust-project-community-redo.test.mjs tests/trust-project-programmes.test.mjs",
+    "test:mini-collect": "node --test tests/mini-collect-*.test.mjs",
     "test:final-convergence": "node --test tests/*.test.mjs"
   },
   "dependencies": {
