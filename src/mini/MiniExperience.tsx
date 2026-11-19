@@ -128,6 +128,7 @@ export function MiniExperience() {
     return 'home';
   });
   const [helpReturnScreen, setHelpReturnScreen] = useState<View>('home');
+  const [payVisited, setPayVisited] = useState(false);
   const [helpOrigin, setHelpOrigin] = useState<MiniHelpJourney>('general');
   const [buyPrefill, setBuyPrefill] = useState('');
   const [buyResetKey, setBuyResetKey] = useState(0);
@@ -171,6 +172,7 @@ export function MiniExperience() {
   const storeOfferSession = urlParams?.get('storeOfferSession') ?? null;
   const checkoutSession = urlParams?.get('checkoutSession') ?? null;
 
+  useEffect(() => { if (screen === 'pay-home') setPayVisited(true); }, [screen]);
   useEffect(() => {
     if (screen === 'describe') firstField.current?.focus({ preventScroll: true });
   }, [screen]);
@@ -419,7 +421,9 @@ export function MiniExperience() {
             onOpenSettings={() => {setSettingsEntry(null);setScreen('business-settings');}} />}
         </section>}
 
-        {screen==='pay-home' && <MiniPaySomeone language={lang} preview={playground}
+        {/* Keep a once-opened Pay journey mounted while Help is shown so unfinished choices survive. */}
+        <div hidden={screen !== 'pay-home'} aria-hidden={screen !== 'pay-home'}>
+        {(payVisited || screen === 'pay-home') && <MiniPaySomeone language={lang} preview={playground}
           seed={opening.trim()} canOpenExisting={!!getMiniFirstPartyOrigin()} onBack={()=>setScreen('home')}
           onExisting={()=>{setPayExistingRequested(true);setDiscussDraft(null);setScreen('help');}}
           onPrepareNew={prepared=>{
@@ -430,6 +434,7 @@ export function MiniExperience() {
               setDraft(prepared);setError('');setScreen('review');
             }
           }}/>} 
+        </div>
 
         {businessDemo && screen === 'business-settings' && (previewCapacity === 'business' || sellerSettingsReturn) &&
           <MiniBusinessSettings language={lang} onBack={() => setScreen(sellerSettingsReturn?'sell-preview':'home')}
