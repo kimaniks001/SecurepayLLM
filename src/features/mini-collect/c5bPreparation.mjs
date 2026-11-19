@@ -53,6 +53,10 @@ export function assessCyclePeriod(draft, selection, todayIso) {
     if (isCalendarDate(todayIso) && selection.endsOn < todayIso) {
       missing.push('This period has already ended');
     }
+    if (draft?.startRule === 'scheduled' && isCalendarDate(draft?.startDate)
+        && selection.startsOn < draft.startDate) {
+      missing.push('The period cannot start before the agreed collection opening date');
+    }
     if (isCalendarDate(draft?.deadline) && selection.endsOn > draft.deadline) {
       missing.push('The period cannot continue beyond your collection closing date');
     }
