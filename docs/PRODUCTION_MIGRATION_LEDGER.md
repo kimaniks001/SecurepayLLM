@@ -1989,3 +1989,16 @@ The 16 October 2026 frontend simplification work is **draft/stacked**, not a cla
 | Phase 3 authenticated browser six-journey certification | HUMAN_DOCTRINE_BLOCKER | Preview proxy forwards to production SecurePay API; isolated staging and human-operated/authorized accounts needed before actual E2E evidence or screenshots can justify production readiness. |
 
 Details and regression log: `docs/PHASE3_SIMPLICITY_INTELLIGENT_TOOLS_LEDGER_20261016.md`.
+
+
+## 2026-11-12 — KS001 live conversation continuity: focused correction
+
+**Status: FIX BRANCH ONLY; HUMAN / ISOLATED STAGING ACCEPTANCE PENDING. No deployment authority.**
+
+- `REAL_API_WIRED` (existing live My Work conversation): `LiveKs001Session` receives a canonical `AgentController` and displays `agentResponseView`'s actual backend message. The frontend now refuses to insert a separately refreshed Formation question into the spoken KS001 reply, or derive reply pills from that external question. Formation questions stay in the Agreement result panel.
+- `REAL_API_WIRED` (conversation identity): `AgentController.readContext` now checks the returned conversation ID against its requested ID and ignores late cross-conversation responses. Resuming canonical history temporarily blocks new sends until it finishes, so asynchronous history cannot erase a freshly submitted turn.
+- `FRONTEND_COMPOSITION_ONLY` (12-turn synthetic acceptance): `tests/ks001-live-continuity.test.mjs` tests twelve API replies, one conversation, context match, no duplicate sends and a resume race using an injected fake gateway. This is **not** real-model or real-staging evidence.
+- `BACKEND_PR_PENDING / GATE PENDING` (12-turn staging acceptance): `testing/ks001-12turn-staging.mjs` exercises an isolated SecurePay API with one disposable conversation and twelve turns when a reviewer explicitly enables it. It cannot run against `securepay.ke`. A passing run verifies the conversation protocol and retained canonical chair intention, **not** the semantic quality of every answer.
+- `DEMO_ONLY_REMOVE_BEFORE_PRODUCTION`: the historical `src/mockAgent.ts` continues to exist for the explicit local Bolt fixture and must never be presented as the live backend. Signed-out Vercel Living Workspace remains an explicitly labelled local design preview; this change does not turn it into an authenticated or production conversation.
+
+**Unresolved:** Validate the currently deployed backend provider configuration and real API response versus its UI presentation after turns 5–12. Compare the authorised UI, Mini and Ask KS001 surfaces separately; their product candidates remain distinct pending reconciliation. Do not merge other Day 11 Store/Mini PRs or change identity, Agreement, Money or escrow authority as part of this fix.

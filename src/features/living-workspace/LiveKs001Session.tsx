@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { AgentController } from '../agent/controller';
-import { humanNextQuestion } from './livingLanguage';
 import { MiniContextInput, type MiniKind } from './MiniContextInput';
 import { WorkspaceWelcome } from './WorkspaceWelcome';
 import { answerActions } from './answerActions';
@@ -20,14 +19,14 @@ export function lastQuestion(text: string): { before: string; question: string }
   const question=clean.slice(start).trim();
   return question.endsWith('?')?{before:clean.slice(0,start),question}:null;
 }
-function Ks001Reply({ text, nextQuestion }: { text: string; nextQuestion?: string | null }) {
+/** Render only what the SecurePay Agent actually said. The separate Formation
+ * question belongs to the right-hand Agreement panel, not a second voice inside
+ * KS001's chat bubble. It may lag behind the turn that just finished. */
+function Ks001Reply({ text }: { text: string }) {
   const result=lastQuestion(text);
-  if(result)return <><span>{result.before}</span><strong className="font-semibold text-forest-900">{result.question}</strong></>;
-  const action=nextQuestion?.trim()?humanNextQuestion(nextQuestion ?? ''):'';
-  if(!action)return <>{text}</>;
-  const pos=text.lastIndexOf(action);
-  if(pos>=0)return <><span>{text.slice(0,pos)}</span><strong className="font-semibold text-forest-900">{action}</strong><span>{text.slice(pos+action.length)}</span></>;
-  return <><span>{text.trimEnd()}</span><strong className="mt-2 block font-semibold text-forest-900">{action}</strong></>;
+  return result
+    ? <><span>{result.before}</span><strong className="font-semibold text-forest-900">{result.question}</strong></>
+    : <>{text}</>;
 }
 
 /**
@@ -39,7 +38,7 @@ function Ks001Reply({ text, nextQuestion }: { text: string; nextQuestion?: strin
  * first-class, permission-checked workspace intent, only My Work is enabled.
  * This intentionally does not replace the full AgentExperience source/review UI.
  */
-export function LiveKs001Session({ controller, nextQuestion, opening, onOpenTool, draftRevision=0 }: { controller: AgentController; nextQuestion?: string | null; opening?: string; onOpenTool?:(name:'Photos'|'Places'|'People & Invitations')=>void; draftRevision?:number }) {
+export function LiveKs001Session({ controller, opening, onOpenTool, draftRevision=0 }: { controller: AgentController; nextQuestion?: string | null; opening?: string; onOpenTool?:(name:'Photos'|'Places'|'People & Invitations')=>void; draftRevision?:number }) {
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   const [draft, setDraft] = useState('');
   // Review handoffs only populate the existing conversation's unsent composer.
@@ -66,7 +65,7 @@ export function LiveKs001Session({ controller, nextQuestion, opening, onOpenTool
       {state.turns.length>0 && opening && <span className="sr-only">{opening}</span>}
       {state.turns.map(turn=><div key={turn.id} className={`max-w-[95%] rounded-xl p-3 text-sm whitespace-pre-wrap ${turn.sender==='user'?'ml-auto bg-cream-100':'border border-cream-200 bg-white'}`}>
         <p className="mb-1 text-xs font-semibold text-sand-600">{turn.sender==='user'?'You':'KS001'}</p>
-        {turn.sender==='user'?turn.text:<Ks001Reply text={turn.response.message.text} nextQuestion={turn.id===lastTurn&&!state.busy&&!state.pending?nextQuestion:null}/>}
+        {turn.sender==='user'?turn.text:<Ks001Reply text={turn.response.message.text}/>}
       </div>)}
       {state.busy && <p role="status" className="text-sm text-sand-700">KS001 is working on your message…</p>}
       {state.error && <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-3"><p className="text-sm">{state.error}</p><p className="mt-1 text-xs">A previous turn may already have reached SecurePay. Retry uses the same turn ID.</p></div>}
@@ -77,7 +76,9 @@ export function LiveKs001Session({ controller, nextQuestion, opening, onOpenTool
       const last=[...state.turns].reverse().find(turn=>turn.sender!=='user');
       if(!last)return null;
       const question=lastQuestion(last.response.message.text);
-      const currentQuestion=question?.question ?? nextQuestion ?? '';
+      // Suggested reply pills may answer only the question spoken by the live API.
+       // Do not silently substitute a separately-refreshed Formation question.
+       const currentQuestion=question?.question ?? '';
       const actions=answerActions(currentQuestion);
       if(!actions.length)return null;
       return <div className="flex flex-wrap gap-2 px-4 pb-3" aria-label="Suggested replies">
