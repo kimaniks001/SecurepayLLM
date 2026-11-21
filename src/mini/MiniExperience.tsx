@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft, ArrowRight, Camera, CheckCircle2, CircleHelp, ClipboardList, FileText, HandCoins,
-  MessageCircle, Pencil, RotateCcw, ShieldCheck, ShoppingBag, Sparkles, X
+  MessageCircle, Pencil, RotateCcw, ShieldCheck, ShoppingBag, Tag, CreditCard, Sparkles, X
 } from 'lucide-react';
 import {
   emptyMiniDraft, formatMiniAmount, miniDraftIssue, miniRestoreDraft, miniReviewSummary,
@@ -11,6 +11,7 @@ import { MiniCaptureTools } from './MiniCaptureTools';
 import { MiniGuestChat } from './MiniGuestChat';
 import { MiniFirstPartyKs001 } from './MiniFirstPartyKs001';
 import { MiniProudlyKeMark } from './MiniProudlyKeMark';
+import { MiniExploreWithYourAi } from './MiniExploreWithYourAi';
 import { MiniBusinessCapacity, type MiniPreviewCapacity } from './MiniBusinessCapacity';
 import { MiniBusinessSettings } from './MiniBusinessSettings';
 import {copyDemo} from './MiniBusinessDemoModel';
@@ -31,6 +32,7 @@ import type { HumanHelpIntent } from '../api/securepay/human-discovery';
 import { MiniCommunitySaverPreview } from './MiniCommunitySaverPreview';
 import { miniMergeUserDescription, miniCaptureText, type MiniCaptureSource, type MiniCaptureKind } from './miniCapture';
 import './mini.css';
+import './miniCompanionIdentity.css';
 
 type View = MiniScreen | 'pay-home' | 'choose' | 'buy' | 'sell-preview' | 'community-saver-preview' | 'collect-interview' | 'business-settings' | 'sample-agreements' | 'human-help';
 const STORE_KEY = 'securepay-mini-phase1-local-draft-v1';
@@ -356,7 +358,7 @@ export function MiniExperience() {
   };
   const summary = miniReviewSummary(draft);
 
-  return <main className={'spm-root spm-clean' + (compact ? ' spm-embedded' : '')}>
+  return <main className={'spm-root spm-clean spm-companion' + (compact ? ' spm-embedded' : '')}>
     <div className="spm-frame">
       <header className="spm-head">
         <a className="spm-brand spm-brand-link" href="https://securepay.ke/"
@@ -397,7 +399,7 @@ export function MiniExperience() {
             demo={demoBusiness}
             onOpenStore={() => {setSellerSettingsReturn(false);setSettingsEntry('store');setScreen('business-settings');}}
             onOpenSettings={() => {setSellerSettingsReturn(false);setSettingsEntry(null);setScreen('business-settings');}} />}
-          <div className="spm-persona"><Sparkles size={16}/><span>KS001</span><span className="spm-dot"/><span>Agreement Commerce</span></div>
+          <div className="spm-persona"><img className="spm-ks001-mark" src="/brand/securepay-mark-green.png" alt="" aria-hidden="true" width={16} height={16}/><span>KS001</span><span className="spm-dot"/><span>Agreement Commerce</span></div>
           <h1 className="spm-hero">{t.hello}</h1>
           <p className="spm-lead">{t.intro}</p>
           <label className="spm-label" htmlFor="spm-words">{t.start}</label>
@@ -413,10 +415,10 @@ export function MiniExperience() {
               <span className="spm-option-icon"><ShoppingBag size={20}/></span>
               <span className="spm-option-text"><strong>{t.buy}</strong><small>{t.buyHint}</small></span><ArrowRight size={18}/></button>
             <button type="button" className="spm-option" onClick={beginSell}>
-              <span className="spm-option-icon"><ShoppingBag size={20}/></span>
+              <span className="spm-option-icon"><Tag size={20}/></span>
               <span className="spm-option-text"><strong>{t.sell}</strong><small>{t.sellHint}</small></span><ArrowRight size={18}/></button>
             <button type="button" className="spm-option" onClick={() => {setPayExistingRequested(false);setScreen('pay-home');}}>
-              <span className="spm-option-icon"><FileText size={20}/></span>
+              <span className="spm-option-icon"><CreditCard size={20}/></span>
               <span className="spm-option-text"><strong>{t.pay}</strong><small>{t.payHint}</small></span><ArrowRight size={18}/></button>
             <button type="button" className="spm-option" onClick={beginCollection}>
               <span className="spm-option-icon"><HandCoins size={20}/></span>
@@ -428,6 +430,7 @@ export function MiniExperience() {
           <div className="spm-foot-row">
             <button type="button" className="spm-text-btn" onClick={() => { setDiscussDraft(null); setScreen('help'); }}><MessageCircle size={17}/>{t.ask}</button>
             {humanPreviewEnabled && <button type="button" className="spm-text-btn" onClick={openHumanHelp}><CircleHelp size={17}/>Need a hand?</button>}
+            <MiniExploreWithYourAi language={lang}/>
             {hasSaved && <button type="button" className="spm-text-btn" onClick={resume}><RotateCcw size={17}/>{t.resume}</button>}
           </div>
           {businessDemo && <MiniBusinessCapacity part="activity" language={lang}
@@ -473,7 +476,7 @@ export function MiniExperience() {
             <button className="spm-option" type="button" onClick={() => {setBuyPrefill(opening.trim());setScreen('buy');}}>
               <span className="spm-option-icon"><ShoppingBag size={20}/></span>
               <strong className="spm-option-text">{t.buy}</strong><ArrowRight size={18}/></button>
-            {([['sell', ShoppingBag, t.sell], ['pay', FileText, t.pay]] as const).map(([id, Icon, label]) =>
+            {([['sell', Tag, t.sell], ['pay', CreditCard, t.pay]] as const).map(([id, Icon, label]) =>
               <button className="spm-option" key={id} type="button" onClick={() => id==='sell' ? beginSell() : (setPayExistingRequested(false),setScreen('pay-home'))}>
                 <span className="spm-option-icon"><Icon size={20}/></span><strong className="spm-option-text">{label}</strong><ArrowRight size={18}/></button>)}
             <button type="button" className="spm-option" onClick={beginCollection}>
@@ -660,11 +663,11 @@ export function MiniExperience() {
           <span>Checkout by <strong>SecurePay</strong></span>
           <span className="spm-imprint-visit" aria-hidden="true">↗</span>
         </a>
+        <div className="spm-proudly-footer" aria-label="Proudly Kenyan">
+          <MiniProudlyKeMark />
+          <span>proudly.ke</span>
+        </div>
       </footer>
-      <div className="spm-proudly-footer" aria-label="Proudly Kenyan">
-        <MiniProudlyKeMark />
-        <span>proudly.ke</span>
-      </div>
     </div>
   </main>;
 }
