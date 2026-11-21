@@ -6,7 +6,7 @@ import type { MiniLanguage } from './miniModel';
  * Public educational copy: product possibilities, not asserted service availability.
  * No account access, network calls, telemetry, browser redirection or personal data.
  */
-export const SECUREPAY_PERSONAL_AI_GUIDE = \`SECUREPAY — GUIDE FOR MY AI
+export const SECUREPAY_PERSONAL_AI_GUIDE = `SECUREPAY — GUIDE FOR MY AI
 Public product-learning guide | 21 November 2026
 
 I would like your help understanding whether SecurePay could benefit me. Act as an independent adviser, not a salesperson. This describes an intended product experience, not a guarantee that every feature is operational. Explain benefits, trade-offs and what I should verify before using anything.
@@ -36,7 +36,7 @@ Use only the genuine context you already have from our conversations about my wo
 
 Then give me 2–3 specific, realistic ways SecurePay might or might not help. Walk me through what I and the other person would need to agree to, costs and possible inconvenience, risks, what remains unverified, and how this compares with my usual way of doing things. Tell me when SecurePay would not add value. Speak in my preferred language and ask only one useful follow-up question at a time.
 
-Do not ask me to share passwords, one-time codes, identification numbers, bank details, payment credentials or confidential agreements. Begin with one relevant example or one useful question.\`;
+Do not ask me to share passwords, one-time codes, identification numbers, bank details, payment credentials or confidential agreements. Begin with one relevant example or one useful question.`;
 
 const copy = {
   en: {
