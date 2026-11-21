@@ -1,43 +1,13 @@
 import type { ReactElement } from 'react';
 
 /**
- * A small, decorative Kenyan beaded-bangle tribute in the original
- * black / red / white / green shield arrangement.
- *
- * Deliberately only a footer signature: no navigation, auth, Money,
- * branding replacement or new interaction.
+ * Compact, photographic signature taken from the approved bracelet study.
+ * The 84x22 raster is embedded intentionally: no external request,
+ * no generated placeholder, no interaction or new product brand.
  */
+const tinyBracelet = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAA8LDA0MCg8NDA0REA8SFyYZFxUVFy8iJBwmODE7OjcxNjU9RVhLPUFUQjU2TWlOVFteY2RjPEpsdGxgc1hhY1//2wBDARARERcUFy0ZGS1fPzY/X19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX1//wAARCAAWAFQDASIAAhEBAxEB/8QAGwAAAgMBAQEAAAAAAAAAAAAAAAMCBAUGAQf/xAAvEAABAgQEBQMEAgMAAAAAAAABAgMABBEhBRIxQQYTUWFxIiOBFDIzkRY0UqHB/8QAGAEAAwEBAAAAAAAAAAAAAAAAAQIDAAT/xAAkEQACAQIFBAMAAAAAAAAAAAAAAQIREgMEE1GhITFBUzNx8P/aAAwDAQACEQMRAD8Av8VzmMsT8sjCxMBvl0UW0GhUokC/Xp3jnFYxxIPc58yE3WfSaAH0E6aVt50je4oQ0rEWlOTDjRypFEtk1FTU1rcjpHOqS2lJJmngco9OQ65tP1evW3eJPEo6HRGOA0rp0f0TOKcTIUBzpuqSQQU6Fu5r4Gv/AGHy+L8TIfZzImXkNrSMhSRnJqoV8j/UViGFLVlm3z+ShyG9Pt333/x7xPlsBX954DMLlpWmW5pXranzA1RnDL+zgfPYji7K2FMYnMJYmkZkJdUOYgVrcb30O48RJrEcdexMyScVIDhJJSsKpcH0U+49ANdIzZiRdlZiXdU8XEvNhQqaKT2IO3Q7w56TcxLG+Ul8oqskuFYWdtMtMyvGvxBu6jLDw9Fy/eC1OY5j7yx9E3NtMZCEkglSwo0CietbCniFJxbicElS5mgou6ftCDlPxWxG5haW2gkAzjtQBUZFGhzUIr4vXc2jxTbBqBNPKJCqe2RU1tvaov20gaolmX9nA8TvFKCUB2azJqihoTVHqNf3rvpEl4hxStKhzZtJKqAJSK5ljMB2tcdNIrH6JBWBMPGmbKeVSopbe1TY9BeJIZl1r/szCRmAJLRsMt9+tqbi8bVDZl6fJwfR5F1x2Rl3HvyrbSV1SU3pex0ghMgSJFgdG0jSm0EWOZ9+hm47hCJ51D1QlYTlNdxGOeHrk8xFTXaCCJyhFutBHCLdWg/joFgtFK107QyVwPkOpc9pZSLBQsDsfjWCCFUImsjsLewF2YdW69MBbiq1Ua3iKeHVIOZL4ChWhFbGCCDYg2qlCxN4S5NKQpxbfMAOZYF1nqfi0VxgBF+amvjt4gggOEX4A4Rb7EDw8be8LafrxE28BJWkF1NCRt28QQRrI7A047HZS7QbYQgAUSABBBBFhz//2Q==';
+
 export function MiniProudlyKeMark(): ReactElement {
-  const rows = [
-    { y: 3.5, color: '#272725' },
-    { y: 7.7, color: '#272725' },
-    { y: 11.9, color: '#f5f2e8' },
-    { y: 16.1, color: '#c62837' },
-    { y: 20.3, color: '#c62837' },
-    { y: 24.5, color: '#f5f2e8' },
-    { y: 28.7, color: '#198345' },
-    { y: 32.9, color: '#198345' },
-  ];
-  return (
-    <svg className="spm-proudly-beads" width="49" height="14"
-      viewBox="0 0 148 37" focusable="false" aria-hidden="true">
-      <g opacity="0.98">
-        {rows.map(({ y, color }, row) =>
-          Array.from({ length: 34 }, (_, i) => (
-            <circle key={`${row}-${i}`} cx={3.5 + i * 4.25} cy={y}
-              r={2.15} fill={color} />
-          )))}
-        <ellipse cx="74" cy="18" rx="12.9" ry="17.3"
-          fill="#272725" stroke="#f6f3e8" strokeWidth="2"/>
-        <ellipse cx="74" cy="18" rx="5.1" ry="16" fill="#c62837"/>
-        {[5, 10, 15, 20, 25, 30].map(y => (
-          <g key={y}>
-            <circle cx="66.9" cy={y} r="2.2" fill="#f6f3e8"/>
-            <circle cx="81.1" cy={y} r="2.2" fill="#f6f3e8"/>
-            <circle cx="74" cy={y} r="2.15" fill="#e73941"/>
-          </g>
-        ))}
-      </g>
-    </svg>
-  );
+  return <img className="spm-proudly-beads" src={tinyBracelet}
+    alt="" aria-hidden="true" width={27} height={9} />;
 }

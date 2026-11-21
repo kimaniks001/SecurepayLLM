@@ -1,0 +1,141 @@
+@import url('https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&display=swap');
+
+/* Approved Phase 5 Mini Companion. Applied only inside the existing native Mini shell.
+ * All canonical Agreement, Store and Money work continues through existing components. */
+.spm-root.spm-companion {
+  font-family:'Cabin','Segoe UI',system-ui,sans-serif;
+  --spm-forest:#214835;
+  --spm-orange:#c7823e;
+}
+.spm-companion .spm-frame {
+  background:#fffdf8;
+  border-color:#dce5da;
+  box-shadow:0 24px 64px -35px rgba(26,55,37,.27);
+}
+.spm-companion .spm-hero,
+.spm-companion .spm-question {
+  font-family:'Cabin','Segoe UI',system-ui,sans-serif;
+  font-weight:600;
+  letter-spacing:-.028em;
+  line-height:1.17;
+  color:#183c2a;
+}
+.spm-companion .spm-hero { font-size:clamp(26px,5vw,30px); }
+.spm-companion .spm-question { font-size:clamp(23px,5vw,28px); }
+.spm-companion .spm-name span { font-family:'Cabin','Segoe UI',system-ui,sans-serif; font-size:16px; font-style:italic; }
+.spm-companion .spm-ks001-mark { width:16px;height:16px;object-fit:contain;flex:none; }
+.spm-companion .spm-persona svg { fill:none; }
+.spm-companion .spm-option {
+  min-height:65px;gap:11px;border-radius:13px;padding:10px 11px;
+  transition:background .17s,border-color .17s,box-shadow .17s,transform .17s;
+}
+.spm-companion .spm-option .spm-option-icon {
+  width:39px;height:39px; flex:none; border-radius:11px;
+  background:#eff5ee;color:#2c6045;
+}
+.spm-companion .spm-option:hover {
+  border-color:#c8cfbe;box-shadow:0 7px 18px -15px rgba(33,70,46,.28);
+}
+.spm-companion .spm-option:active:not(:disabled),
+.spm-companion .spm-primary:active:not(:disabled) { transform:scale(.99); }
+.spm-companion button:focus-visible,
+.spm-companion input:focus-visible,
+.spm-companion textarea:focus-visible { outline:2px solid #d09151;outline-offset:3px; }
+.spm-companion .spm-sell-answer-pill.selected,
+.spm-companion [aria-pressed="true"].spm-sell-answer-pill {
+  background:#fbf3e7;border-color:#d0a573;color:#745126;
+}
+.spm-companion .spm-primary { background:#285c42;border-radius:13px;min-height:48px; }
+.spm-companion .spm-primary:hover { background:#214e37; }
+.spm-companion .spm-foot-row { gap:7px 11px; align-items:center; }
+.spm-companion .spm-text-btn { font-weight:650; white-space:nowrap; }
+.spm-companion .spm-companion-ai-invite { color:#a46a35; }
+.spm-companion .spm-companion-ai-invite:hover { color:#824a1e; }
+.spm-companion .spm-footer { flex-wrap:wrap; gap:5px 8px; padding:8px 10px; }
+.spm-companion .spm-footer .spm-proudly-footer {
+  display:inline-flex;flex:none;align-items:center;gap:3px;
+  padding:0;margin:0 0 0 3px;min-height:0;
+  background:transparent;color:#647667;font:600 9px/1 'Cabin',system-ui,sans-serif;
+  opacity:.66;letter-spacing:0;
+}
+.spm-companion .spm-footer .spm-proudly-beads {
+  width:27px;height:9px;object-fit:contain;overflow:hidden;
+}
+.spm-companion-guide-layer {
+  position:fixed; inset:0;z-index:1010;display:flex;justify-content:center;
+  align-items:flex-end;
+}
+.spm-companion-guide-backdrop { position:absolute;inset:0;border:0;background:rgba(18,36,25,.52); }
+.spm-companion-guide-dialog {
+  position:relative;width:min(100%,420px);max-height:min(92dvh,820px);
+  background:#fffdf8;border-radius:19px 19px 0 0;padding:20px 18px 18px;
+  display:flex;flex-direction:column;box-shadow:0 -10px 40px rgba(16,42,28,.22);
+}
+.spm-companion-guide-head { display:flex;justify-content:space-between;align-items:start;gap:10px; }
+.spm-companion-guide-head h2 {
+  font:600 21px/1.19 'Cabin',system-ui,sans-serif;letter-spacing:-.02em;color:#214936;margin:4px 0;
+}
+.spm-companion-guide-close {
+  width:44px;height:44px;border:1px solid #e3e8de;border-radius:10px;
+  background:#fff;color:#496a52;display:grid;place-items:center;flex:none;
+}
+.spm-companion-guide-dialog p { font-size:12px;line-height:1.55;color:#657b6b; }
+.spm-companion-guide-dialog label { font-size:11px;font-weight:700;color:#42624b;margin-bottom:8px; }
+.spm-companion-guide-dialog textarea {
+  display:block;width:100%;flex:1;min-height:175px;resize:none;
+  border:1px solid #dee8dd;border-radius:12px;padding:12px;
+  font:12px/1.55 'Cabin',system-ui,sans-serif;background:#f8faf5;color:#344a3b;
+}
+.spm-companion-guide-actions { display:flex;gap:10px;align-items:center;margin-top:12px; }
+.spm-companion-guide-copy {
+  display:inline-flex;gap:8px;align-items:center;justify-content:center;
+  min-height:44px;flex:1;padding:10px 13px;border:0;border-radius:12px;
+  background:#285c42;color:white;font-size:13px;font-weight:700;
+}
+.spm-companion-guide-select {
+  border:0;background:transparent;min-height:44px;padding:9px;color:#4d7359;
+  font-weight:650;font-size:12px;
+}
+.spm-companion-guide-feedback { min-height:20px;margin-top:7px;font-size:11px;color:#547759; }
+.spm-companion-guide-privacy {display:flex;gap:7px;align-items:flex-start;margin:4px 0 0!important;font-size:10px!important;}
+.spm-companion-guide-privacy svg { flex:none;margin-top:2px; }
+@media(max-width:420px) {
+  .spm-companion .spm-foot-row { gap:5px 8px; }
+  .spm-companion .spm-text-btn { font-size:11px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .spm-companion .spm-option {transition:none;}
+}
+
+
+/* Extend the approved restrained heading system into native Buy/Sell,
+ * Agreement review, Money and sample journeys without changing their logic. */
+.spm-companion .spm-draft-amount,
+.spm-companion .spm-demo-amount,
+.spm-companion .spm-shop-discover-heading h1,
+.spm-companion .spm-shop-discovery-copy strong,
+.spm-companion .spm-shop-hero h1,
+.spm-companion .spm-shop-detail-copy h1,
+.spm-companion .spm-shop-basket-intro h1,
+.spm-companion .spm-shop-next h2,
+.spm-companion .spm-shop-agreement-heading strong,
+.spm-companion .spm-shop-living-demo h2,
+.spm-companion .spm-shop-related h2,
+.spm-companion .spm-sample-money-intro h2,
+.spm-companion .spm-sample-payment-pending h3,
+.spm-companion .spm-sample-money-success > strong,
+.spm-companion .spm-sample-money .spm-shop-living-demo h3,
+.spm-companion .spm-sample-agreement-detail h1,
+.spm-companion .spm-sample-agreement-detail h2,
+.spm-companion .spm-fair-inspection-heading h2,
+.spm-companion .spm-fair-inspection-panel > h3,
+.spm-companion .spm-fair-compact-deep > h3,
+.spm-companion .spm-sell-review-price {
+  font-family:'Cabin','Segoe UI',system-ui,sans-serif;
+  font-weight:600;
+  letter-spacing:-.02em;
+}
+.spm-companion .spm-sell-answer-pill { min-height:44px; }
+.spm-companion .spm-draft-amount,
+.spm-companion .spm-demo-amount,
+.spm-companion .spm-sell-review-price { font-variant-numeric:tabular-nums; }
