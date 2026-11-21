@@ -358,7 +358,7 @@ export function MiniExperience() {
   };
   const summary = miniReviewSummary(draft);
 
-  return <main className={'spm-root spm-clean spm-companion' + (compact ? ' spm-embedded' : '')}>
+  return <main className={'spm-root spm-clean' + ' spm-companion' + (compact ? ' spm-embedded' : '')}>
     <div className="spm-frame">
       <header className="spm-head">
         <a className="spm-brand spm-brand-link" href="https://securepay.ke/"
