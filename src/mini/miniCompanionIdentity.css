@@ -106,3 +106,36 @@
 @media(prefers-reduced-motion:reduce) {
   .spm-companion .spm-option {transition:none;}
 }
+
+
+/* Extend the approved restrained heading system into native Buy/Sell,
+ * Agreement review, Money and sample journeys without changing their logic. */
+.spm-companion .spm-draft-amount,
+.spm-companion .spm-demo-amount,
+.spm-companion .spm-shop-discover-heading h1,
+.spm-companion .spm-shop-discovery-copy strong,
+.spm-companion .spm-shop-hero h1,
+.spm-companion .spm-shop-detail-copy h1,
+.spm-companion .spm-shop-basket-intro h1,
+.spm-companion .spm-shop-next h2,
+.spm-companion .spm-shop-agreement-heading strong,
+.spm-companion .spm-shop-living-demo h2,
+.spm-companion .spm-shop-related h2,
+.spm-companion .spm-sample-money-intro h2,
+.spm-companion .spm-sample-payment-pending h3,
+.spm-companion .spm-sample-money-success > strong,
+.spm-companion .spm-sample-money .spm-shop-living-demo h3,
+.spm-companion .spm-sample-agreement-detail h1,
+.spm-companion .spm-sample-agreement-detail h2,
+.spm-companion .spm-fair-inspection-heading h2,
+.spm-companion .spm-fair-inspection-panel > h3,
+.spm-companion .spm-fair-compact-deep > h3,
+.spm-companion .spm-sell-review-price {
+  font-family:'Cabin','Segoe UI',system-ui,sans-serif;
+  font-weight:600;
+  letter-spacing:-.02em;
+}
+.spm-companion .spm-sell-answer-pill { min-height:44px; }
+.spm-companion .spm-draft-amount,
+.spm-companion .spm-demo-amount,
+.spm-companion .spm-sell-review-price { font-variant-numeric:tabular-nums; }
