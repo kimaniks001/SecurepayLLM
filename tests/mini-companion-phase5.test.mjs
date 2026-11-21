@@ -9,7 +9,8 @@ const css=read('src/mini/miniCompanionIdentity.css');
 const bracelet=read('src/mini/MiniProudlyKeMark.tsx');
 
 test('approved companion styling is scoped to the native Mini',()=>{
-  assert.match(mini,/spm-root spm-clean spm-companion/);
+  assert.match(mini,/className=\{'spm-root spm-clean'/);
+  assert.match(mini,/spm-companion/);
   assert.match(mini,/miniCompanionIdentity\.css/);
   assert.match(css,/\.spm-root\.spm-companion/);
 });
