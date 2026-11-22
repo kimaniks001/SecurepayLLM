@@ -61,7 +61,7 @@ test('Phase 7: live Work bridge uses canonical conversation authority without fa
  assert.ok(!live.includes('Dream Companion'));
  assert.match(shell,/liveStarted && gateway/);
  assert.match(shell,/setLiveStarted\(true\)/);
- assert.match(app,/gateway=\{previewAgentGateway\}/);
+ assert.match(app,/gateway=\{previewAgentGateway \?\? \(typeof window !== 'undefined' && window\.location\.hostname === 'staging\.securepay\.ke' \? agentGateway : undefined\)\}/);
 });
 
 test('Phase 7: preview relay never becomes a generic cross-origin API gateway', async()=>{
@@ -93,7 +93,7 @@ test('Phase 7: preview browser uses same-origin relay rather than production COR
  const gateway=source('src/features/living-workspace/previewAgentGateway.ts');
  assert.match(gateway,/api\/preview-agent\?path=/);
  assert.match(gateway,/credentials: 'same-origin'/);
- assert.match(app,/gateway=\{previewAgentGateway\}/);
+ assert.match(app,/gateway=\{previewAgentGateway \?\? \(typeof window !== 'undefined' && window\.location\.hostname === 'staging\.securepay\.ke' \? agentGateway : undefined\)\}/);
 });
 
 test('Phase 7: My Work and KS001 share one canonical conversation and formation',()=>{
@@ -196,8 +196,12 @@ test('Structural workspace: real private records use the existing SecurePay sess
 });
 test('Structural workspace: routes preserve chosen mode and have one sign-in session',()=>{
  const runtime=source('src/RuntimeApp.tsx');
- assert.match(runtime,/living-workspace\(\?:\\\/\(\?:work\|vision\|circle\|community\)\)/);
- assert.match(shell,/location\.hash=\x27#\/preview\/living-workspace\/\x27\+next/);
+ const routes=source('src/features/living-workspace/routes.ts');
+ assert.match(routes,/preview\\\/living-workspace/);
+ assert.match(routes,/hostname === 'staging\.securepay\.ke'/);
+ assert.match(routes,/return mode === 'work' \? '' : `#\//);
+ assert.match(shell,/livingWorkspaceHash\(next,window\.location\.hostname\)/);
+ assert.match(runtime,/isCandidateWorkspaceEntry\(window\.location\.hash,window\.location\.hostname\)/);
  assert.match(shell,/<WorkspaceIdentityOverlay/);
  assert.match(identityOverlay,/<SignInExperience/);
  assert.match(identityOverlay,/<SignupForm/);

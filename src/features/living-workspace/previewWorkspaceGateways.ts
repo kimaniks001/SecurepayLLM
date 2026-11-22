@@ -7,7 +7,7 @@ import { createAgreementGateway, type AgreementGateway } from '../../api/securep
 import { createStoreGateway } from '../../api/securepay/store';
 import { createFinancialPartnerGateway } from '../../api/securepay/financial-partners';
 import { createMoneySnapshotGateway } from '../../api/securepay/money-snapshot';
-import { requireApprovedPreviewApiOrigin } from './previewApiOrigin';
+import { createSameOriginStagingFetch, requireApprovedPreviewApiOrigin } from './previewApiOrigin';
 
 /**
  * Media bytes cannot use the JSON-only preview relay. Restrict direct connections
@@ -31,6 +31,7 @@ export function createStagingEvidenceGateway(
     '/obligations/' + uuid + '/(?:evidence-media|verified-media-evidence)$');
   const permittedQuery = new RegExp('^\\?expectedAgreementVersionId=' + uuid +
     '&expectedObligationVersion=[0-9]{1,16}$');
+  const sameOriginStagingFetch = createSameOriginStagingFetch(baseUrl);
   const stagingFetch: typeof fetch = (input, init) => {
     const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url);
     const method = (init?.method ?? 'GET').toUpperCase();
@@ -39,6 +40,7 @@ export function createStagingEvidenceGateway(
       (method === 'POST' && permittedPost.test(url.pathname) &&
         (url.search === '' || (url.pathname.endsWith('/evidence-media') && permittedQuery.test(url.search)))));
     if (!allowed) return Promise.reject(new Error('Private media request is outside isolated staging'));
+    if (sameOriginStagingFetch) return sameOriginStagingFetch(input, init);
     return fetch(url.href, { ...init, credentials: 'omit', cache: 'no-store', redirect: 'error' });
   };
   const candidate = createAgreementGateway(createHttpClient(origin, getAccessToken, stagingFetch));
@@ -59,7 +61,8 @@ export function createStagingEvidenceGateway(
 export function createPreviewWorkspaceGateways(baseUrl: string, getAccessToken: AccessTokenProvider) {
   const approvedOrigin = requireApprovedPreviewApiOrigin(baseUrl);
   const media = createStagingEvidenceGateway(baseUrl, getAccessToken);
-  const previewFetch: typeof fetch = (input, init) => {
+  const sameOriginStagingFetch = createSameOriginStagingFetch(baseUrl);
+  const previewFetch: typeof fetch = sameOriginStagingFetch ?? ((input, init) => {
     const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url);
     if (url.origin !== approvedOrigin || !url.pathname.startsWith('/api/')) {
       return Promise.reject(new Error('Workspace access is limited to SecurePay'));
@@ -67,7 +70,7 @@ export function createPreviewWorkspaceGateways(baseUrl: string, getAccessToken: 
     return fetch('/api/preview-workspace?path=' + encodeURIComponent(url.pathname + url.search), {
       ...init, credentials:'same-origin',
     });
-  };
+  });
   const http = createHttpClient(baseUrl,getAccessToken,previewFetch);
   return {
     auth: createAuthGateway(http),

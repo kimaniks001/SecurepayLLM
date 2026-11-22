@@ -39,11 +39,12 @@ import { storeAgreementEntry, storeCircleEntry, storeCommunityObjectEntry, store
 import { KS001_WORKSPACE_PERSONAS } from './personas';
 import { WorkspaceWelcome } from './WorkspaceWelcome';
 import { WorkspacePurposeGuide } from './WorkspacePurposeGuide';
+import { livingWorkspaceHash, parseLivingWorkspaceMode, type LivingWorkspaceMode } from './routes';
 import { useCallback, useEffect, useState, useSyncExternalStore, useRef } from 'react';
 import securepayWordmark from '../../assets/brand/securepay/securepay-wordmark-horizontal.png';
 import { ArrowLeft, CalendarDays, Camera, FileText, Lightbulb, MapPin, MessageCircle, Plus, Store, UserRoundPlus, Wallet, X, BedDouble, PanelLeftClose, PanelLeftOpen, Pin, PinOff } from 'lucide-react';
 
-type Mode = 'work' | 'vision' | 'circle' | 'community';
+type Mode = LivingWorkspaceMode;
 type Screen = 'chat' | 'result' | 'tools';
 // The launch tray contains functioning entries only. Vision/Circle/Community are
 // workspace areas, while milestones live within Agreements.
@@ -76,13 +77,19 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
 }) {
   const initialMode=():Mode=>{
     if(typeof window==='undefined')return 'work';
-    const match=/^#\/?preview\/living-workspace\/(work|vision|circle|community)\/?$/.exec(window.location.hash);
-    return (match?.[1] as Mode | undefined)??'work';
+    return parseLivingWorkspaceMode(window.location.hash,window.location.hostname)??'work';
   };
   const [mode, setMode] = useState<Mode>(initialMode);
   const [signInOpen,setSignInOpen]=useState(()=>typeof window!=='undefined' && /^#\/?sign-(?:in|up)\/?$/.test(window.location.hash));
   const [identityIntent,setIdentityIntent]=useState<'signin'|'signup'>(()=>typeof window!=='undefined' && /^#\/?sign-up\/?$/.test(window.location.hash)?'signup':'signin');
   const openIdentity=(intent:'signin'|'signup'='signin')=>{setIdentityIntent(intent);setSignInOpen(true);};
+  useEffect(()=>{
+    if(typeof window==='undefined' || window.location.hostname!=='staging.securepay.ke')return;
+    const mode=parseLivingWorkspaceMode(window.location.hash,window.location.hostname);
+    if(!mode || !/^#\/?preview\/living-workspace(?:\/|$)/.test(window.location.hash))return;
+    const cleanHash=livingWorkspaceHash(mode,window.location.hostname);
+    window.history.replaceState(window.history.state,'',window.location.pathname+window.location.search+cleanHash);
+  },[]);
   // Pure client-side illustration, intentionally separate from the real SessionStore.
   // Retired mock sign-in is deliberately inaccessible in this production candidate.
   // The historical screenshot preview remains preserved at its original commit.
@@ -151,7 +158,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     const sync=()=>{
       const next=initialMode();
       if(next!==mode && !mayLeaveDream()){
-        window.location.hash='#/preview/living-workspace/'+mode;
+        window.location.hash=livingWorkspaceHash(mode,window.location.hostname);
         return;
       }
       if(next!==mode){
@@ -167,7 +174,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     if(next!=='work')setOpenedAgreementId(null);
     if(next!==mode){setEditingDreamId(null);setWorkingCircleId(null);setDreamUnsaved(false);}
     setMode(next);setScreen('chat');setToolSelected(false);setToolsOpen(shelfPinned);
-    window.location.hash='#/preview/living-workspace/'+next;
+    window.location.hash=livingWorkspaceHash(next,window.location.hostname);
   };
   // Start in the real KS001 Work conversation when a verified gateway is available.
   // No mock conversation is presented as a successful human turn.
@@ -462,7 +469,7 @@ export function Phase1LivingWorkspacePreview({ gateway, workspaceGateways, sessi
     setSignInOpen(false);
     // A direct identity deep-link returns to the same masterpiece, not the retired homepage.
     if(typeof window!=='undefined' && /^#\/?sign-(?:in|up)\/?$/.test(window.location.hash))
-      window.location.hash='#/preview/living-workspace/work';
+      window.location.hash=livingWorkspaceHash('work',window.location.hostname);
   };
   return <main className="sp-type-signature sp-brand-shell min-h-screen bg-gradient-to-br from-[#fbfaf5] via-[#f7f7f1] to-[#eef2eb] text-forest-800" data-sp-area={mode} data-typography-study="Afacad-Flux-and-Bricolage" data-workspace-frozen-layout>
     <header className="sp-brand-header border-b border-cream-200/80 bg-white/95 px-4 py-3 sm:px-7">
