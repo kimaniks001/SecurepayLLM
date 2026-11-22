@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "cohortId": "securepay-mini-kenyan-traders-v1",
+  "policy": "Append-only pseudonymous or synthetic observation summaries only; store no names, KS Numbers, phones, IDs, account identifiers, payment references or private conversation content. Real pilot research requires consent and a secure off-repository participant-to-pseudonym mapping. Do not directly upload actual production event logs into GitHub.",
+  "status": "EMPTY_NO_TESTS_EXECUTED",
+  "runEntries": [],
+  "allowedOutcomes": [
+    "PASS",
+    "FAIL",
+    "BLOCKED",
+    "NOT_TESTED",
+    "DESIGN_GAP"
+  ],
+  "checkpoints": [
+    "first_use",
+    "repeat_use",
+    "business_evolution"
+  ],
+  "source": "docs/SECUREPAY_MINI_KENYAN_MARKET_TEST_PACK_V1_20261109.md"
+}
