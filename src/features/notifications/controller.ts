@@ -183,7 +183,9 @@ export function createNotificationsController(gateway: Pick<NotificationsGateway
           whatsappEnabled: draft.whatsappEnabled, smsEnabled: draft.smsEnabled, emailEnabled: draft.emailEnabled,
           agreementsCategoryEnabled: draft.agreementsCategoryEnabled, moneyCategoryEnabled: draft.moneyCategoryEnabled,
           reviewsCategoryEnabled: draft.reviewsCategoryEnabled, securityCategoryEnabled: draft.securityCategoryEnabled,
-          communityCategoryEnabled: draft.communityCategoryEnabled, supportCategoryEnabled: draft.supportCategoryEnabled,
+          communityCategoryEnabled: draft.communityCategoryEnabled,
+          storesCategoryEnabled: draft.storesCategoryEnabled ?? true,
+          supportCategoryEnabled: draft.supportCategoryEnabled,
         });
         update({ preferencesSaving: false, preferences: { status: 'ready', data: result, error: null }, preferencesDraft: result, preferencesJustSaved: true });
       } catch (error) {

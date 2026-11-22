@@ -13,6 +13,13 @@ test('notification UI carries human purpose and importance semantics',()=>{
   assert.match(experience,/COMMUNITY/);
 });
 
+test('Store enquiries have an independent category and preference, separate from muted Community',()=>{
+  assert.match(gateway, /'STORES'/);
+  assert.match(gateway, /storesCategoryEnabled/);
+  assert.match(experience, /STORES: 'Stores'/);
+  assert.match(experience, /label="Stores"/);
+});
+
 test('security cannot be shown as an ordinary mute toggle',()=>{
   assert.match(experience,/Security/);
   assert.match(experience,/Always on/);
