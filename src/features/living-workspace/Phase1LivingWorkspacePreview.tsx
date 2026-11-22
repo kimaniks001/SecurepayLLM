@@ -53,7 +53,7 @@ const tools = [
   { name: 'Documents', icon: FileText, description: 'Add a document', group: 'add' },
   { name: 'Places', icon: MapPin, description: 'Use a place', group: 'add' },
   { name: 'Date & Time', icon: CalendarDays, description: 'Set a day, range, repeat or condition', group: 'add' },
-  { name: 'Quick Assist', icon: BedDouble, description: 'Short Stays & My Ride', group: 'do' },
+  { name: 'Quick Assist', icon: BedDouble, description: 'ShortStays · My Ride · Storage', group: 'do' },
   { name: 'Stores', icon: Store, description: 'Find goods & services', group: 'do' },
   { name: 'Money', icon: Wallet, description: 'Fund Agreements in My Work; plan possibilities in Vision', group: 'do' },
 ] as const;

@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 
 const source = path => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 const assist = source('src/features/living-workspace/QuickSupportPanel.tsx');
+const unified = source('src/features/ks001-assist/assistContract.mjs');
 const workspace = source('src/features/living-workspace/Phase1LivingWorkspacePreview.tsx');
 const stores = source('src/features/living-workspace/StoresTool.tsx');
 const personas = source('src/features/living-workspace/personas.ts');
@@ -27,8 +28,8 @@ test('A stay or ride requires explicit preparation, with no booking authority', 
   assert.match(assist, /Continue with KS001/);
   assert.match(assist, /Prepare this request/);
   assert.match(assist, /No booking or payment is made/);
-  assert.match(assist, /Do not share my device location, read unrelated Agreements/);
-  assert.match(assist, /Do not invent availability, verified providers, prices or bookings/);
+  assert.match(unified, /Do not access my location, unrelated Agreements/);
+  assert.match(unified, /If authorised, source-verified listings or quotes are unavailable/);
 });
 
 test('Quick Assist uses the Store service discovery gateway, not another marketplace', () => {
@@ -60,7 +61,15 @@ test('KS001 suggestions identify service intent before generic Places/Documents'
 
 test('Preview isolation remains; Store baseline does not acquire any payment or booking action', () => {
   assert.match(workspace, /Agreements, invitations and Money require your review and authorisation/);
-  assert.match(assist, /cannot search live provider availability, dispatch transport, reserve accommodation or make payment/);
+  assert.match(assist, /cannot yet verify live ShortStays, My Ride or physical Storage availability/);
   assert.ok(!assist.includes('fetch('));
   assert.ok(!assist.includes('localStorage'));
+});
+
+test('Storage is a separate physical space service door, not a Digital Store search alias', () => {
+  assert.match(assist, /id: 'storage'/);
+  assert.match(assist, /Find space for belongings or vehicles/);
+  assert.match(assist, /selected === 'storage'/);
+  assert.match(assist, /selected === 'stays' \|\| selected === 'ride'/);
+  assert.match(unified, /Digital Stores are a different product from physical Storage/);
 });

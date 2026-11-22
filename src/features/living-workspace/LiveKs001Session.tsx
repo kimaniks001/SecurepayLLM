@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { AgentController } from '../agent/controller';
 import { humanNextQuestion } from './livingLanguage';
 import { MiniContextInput, type MiniKind } from './MiniContextInput';
+import { miniatureAnswer } from '../ks001-assist/assistContract.mjs';
 import { WorkspaceWelcome } from './WorkspaceWelcome';
 import { answerActions } from './answerActions';
 import { readDraft, writeDraft } from '../conversation/drafts';
@@ -107,7 +108,7 @@ export function LiveKs001Session({ controller, nextQuestion, opening, onOpenTool
         onCancel={()=>setMini(null)}
         onSubmit={async value=>{
           if(state.busy||state.pending)throw new Error('Previous turn not finished');
-          const answer = mini.kind==='date' ? 'The date is '+value+'.' : mini.kind==='time' ? 'The local time is '+value+'.' : mini.kind==='money' ? value+'.' : mini.kind==='person' ? 'The person is '+value+'.' : 'The place is '+value+'.';
+          const answer = miniatureAnswer(mini.kind, value);
           await controller.send(answer);
           const latest=controller.getSnapshot();
           if(latest.error||latest.pending)throw new Error('Awaiting confirmation');
