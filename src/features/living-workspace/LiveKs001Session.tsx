@@ -39,28 +39,32 @@ function Ks001Reply({ text, nextQuestion }: { text: string; nextQuestion?: strin
  * first-class, permission-checked workspace intent, only My Work is enabled.
  * This intentionally does not replace the full AgentExperience source/review UI.
  */
-export function LiveKs001Session({ controller, nextQuestion, opening, onOpenTool, draftRevision=0 }: { controller: AgentController; nextQuestion?: string | null; opening?: string; onOpenTool?:(name:'Photos'|'Places'|'People & Invitations')=>void; draftRevision?:number }) {
+export function LiveKs001Session({ controller, nextQuestion, opening, onOpenTool, draftRevision=0, navigationLocked=false, onUnsentDraftChange }: { controller: AgentController; nextQuestion?: string | null; opening?: string; onOpenTool?:(name:'Photos'|'Places'|'People & Invitations')=>void; draftRevision?:number; navigationLocked?:boolean; onUnsentDraftChange?:(text:string)=>void }) {
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   const [draft, setDraft] = useState('');
   // Review handoffs only populate the existing conversation's unsent composer.
   // Rehydrate whenever the authorised conversation or the explicit handoff
   // revision changes; do NOT submit a message on behalf of the human.
   useEffect(()=>{
-    setDraft(readDraft(state.conversationId??undefined));
+    const restored=readDraft(state.conversationId??undefined);
+    setDraft(restored);
+    onUnsentDraftChange?.(restored);
   },[state.conversationId,draftRevision]);
   const [mini,setMini] = useState<{kind:MiniKind;question:string}|null>(null);
   const historyEnd=useRef<HTMLDivElement|null>(null);
   const lastTurn=state.turns[state.turns.length-1]?.id;
   useEffect(()=>{historyEnd.current?.scrollIntoView({block:'end',behavior:'smooth'});},[lastTurn]);
-  const canSend = !state.busy && !state.pending && !!draft.trim();
-  return <section aria-label="Live KS001 backend conversation" className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+  const canSend = !navigationLocked && !state.busy && !state.pending && !!draft.trim();
+  return <section aria-busy={navigationLocked} aria-label="Live KS001 backend conversation" className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
     <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain bg-gradient-to-b from-white via-white to-[#fcfcf8] p-4" aria-live="polite">
-      {state.turns.length===0 && !state.conversationId && !draft.trim() && <WorkspaceWelcome area="work" onExample={value=>{
-        if(value.prompt)setDraft(existing=>{
-          const next=existing.trim()?existing:value.prompt;
+      {state.turns.length===0 && !state.conversationId && !draft.trim() && !navigationLocked && <WorkspaceWelcome area="work" onExample={value=>{
+        if(navigationLocked)return;
+        if(value.prompt){
+          const next=draft.trim()?draft:value.prompt;
+          setDraft(next);
           writeDraft(state.conversationId??undefined,next);
-          return next;
-        });
+          onUnsentDraftChange?.(next);
+        }
         document.getElementById('live-work-ks001-input')?.focus();
       }}/>}
       {state.turns.length>0 && opening && <span className="sr-only">{opening}</span>}
@@ -71,9 +75,9 @@ export function LiveKs001Session({ controller, nextQuestion, opening, onOpenTool
       {state.busy && <p role="status" className="text-sm text-sand-700">KS001 is working on your message…</p>}
       {state.error && <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-3"><p className="text-sm">{state.error}</p><p className="mt-1 text-xs">A previous turn may already have reached SecurePay. Retry uses the same turn ID.</p></div>}
       <div ref={historyEnd} aria-hidden="true"/>
-      {state.pending && !state.busy && <button type="button" onClick={()=>void controller.retry()} className="min-h-11 rounded-xl bg-cream-100 px-4 text-sm">Retry this turn safely</button>}
+      {state.pending && !state.busy && <button type="button" disabled={navigationLocked} onClick={()=>{if(!navigationLocked)void controller.retry();}} className="min-h-11 rounded-xl bg-cream-100 px-4 text-sm disabled:opacity-50">Retry this turn safely</button>}
     </div>
-    {state.turns.length>0&&!state.busy&&!state.pending&&(()=>{
+    {state.turns.length>0&&!state.busy&&!state.pending&&!navigationLocked&&(()=>{
       const last=[...state.turns].reverse().find(turn=>turn.sender!=='user');
       if(!last)return null;
       const question=lastQuestion(last.response.message.text);
@@ -83,6 +87,7 @@ export function LiveKs001Session({ controller, nextQuestion, opening, onOpenTool
       return <div className="flex flex-wrap gap-2 px-4 pb-3" aria-label="Suggested replies">
         {actions.map(action=><button key={action.label} type="button"
           onClick={()=>{
+            if(navigationLocked)return;
             if(action.type==='mini'){setMini({kind:action.kind,question:currentQuestion});return;}
             if(action.type==='tool'){
               if(onOpenTool)onOpenTool(action.tool);
@@ -102,11 +107,11 @@ export function LiveKs001Session({ controller, nextQuestion, opening, onOpenTool
           className="min-h-11 rounded-full border border-cream-200 bg-white px-3 text-xs font-medium hover:bg-cream-100">{action.label}</button>)}
       </div>;
     })()}
-    {mini && <div className="shrink-0 border-t border-cream-200 bg-[#f9faf7] px-4 py-3" data-ks001-mini-answer>
+    {mini && !navigationLocked && <div className="shrink-0 border-t border-cream-200 bg-[#f9faf7] px-4 py-3" data-ks001-mini-answer>
       <MiniContextInput kind={mini.kind} label={mini.kind==='date'?'When?':mini.kind==='time'?'What time?':mini.kind==='money'?'Amount':mini.kind==='person'?'Who?':'Where?'}
         onCancel={()=>setMini(null)}
         onSubmit={async value=>{
-          if(state.busy||state.pending)throw new Error('Previous turn not finished');
+          if(navigationLocked||state.busy||state.pending)throw new Error('Finish changing work first');
           const answer = mini.kind==='date' ? 'The date is '+value+'.' : mini.kind==='time' ? 'The local time is '+value+'.' : mini.kind==='money' ? value+'.' : mini.kind==='person' ? 'The person is '+value+'.' : 'The place is '+value+'.';
           await controller.send(answer);
           const latest=controller.getSnapshot();
@@ -115,16 +120,16 @@ export function LiveKs001Session({ controller, nextQuestion, opening, onOpenTool
         }}/>
     </div>}
     <form className="shrink-0 flex gap-2 border-t border-cream-200 bg-white p-3" onSubmit={e=>{
-      e.preventDefault();const next=draft.trim();if(!next||state.busy||state.pending)return;
+      e.preventDefault();const next=draft.trim();if(navigationLocked||!next||state.busy||state.pending)return;
       void (async()=>{await controller.send(next);const current=controller.getSnapshot();
         if(!current.error&&!current.pending){
           setDraft(text=>text.trim()===next?'':text);
-          if(draft.trim()===next)writeDraft(state.conversationId??undefined,'');
+          if(draft.trim()===next){writeDraft(state.conversationId??undefined,'');onUnsentDraftChange?.('');}
         }
       })();
     }}>
       <label htmlFor="live-work-ks001-input" className="sr-only">Message live KS001</label>
-      <input id="live-work-ks001-input" value={draft} onChange={e=>{setDraft(e.target.value);writeDraft(state.conversationId??undefined,e.target.value);}} disabled={state.busy||!!state.pending} className="min-w-0 flex-1 rounded-xl border border-cream-200 p-3 text-sm" placeholder="Tell KS001 what you would like to make clear…"/>
+      <input id="live-work-ks001-input" value={draft} onChange={e=>{if(navigationLocked)return;setDraft(e.target.value);writeDraft(state.conversationId??undefined,e.target.value);onUnsentDraftChange?.(e.target.value);}} disabled={navigationLocked||state.busy||!!state.pending} className="min-w-0 flex-1 rounded-xl border border-cream-200 p-3 text-sm" placeholder="Tell KS001 what you would like to make clear…"/>
       <button type="submit" disabled={!canSend} className="min-h-11 rounded-xl bg-forest-800 px-4 text-sm text-white disabled:opacity-50">Send</button>
     </form>
   </section>;
