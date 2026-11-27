@@ -19,3 +19,7 @@ export type Capability={id:string;invitationId:string;recipientKsNumber:string;s
 export type FinalReview={planId:string;snapshotId:string;capabilities:Capability[];collectiveReading:null|{planId:string;contextId:string;declarationIds:string[];principleSetVersion:string;lenses:Capability['fairTrade']['lenses'];fullyExamined:boolean;hasMaterialConcern:boolean};blockers:string[]};
 export function isWindowChoice(v:unknown):v is WindowChoice;
 export function isFinalReview(v:unknown):v is FinalReview;
+
+export type ReadinessReceipt={id:string;kind:string;draftId:string;snapshotId:string;planId:string|null;invitationId:string|null;sequence:number;decision:string|null};
+export function isReadinessReceipt(v:unknown,id:string,draftId:string):v is ReadinessReceipt;
+export function matchesReadinessReceipt(v:ReadinessReceipt,pending:{path:string;fingerprint:string;id:string}|null):boolean;
