@@ -9,7 +9,7 @@ export function studioRoute(method,path,body){
  if(typeof path!=='string')return false;
  const m=/^\/api\/v1\/g4\/(me|business\/(KS[0-9]{3,12}))\/studio\/(.*)$/.exec(path);if(!m)return false;
  const tail=m[3],p=tail.split('/'),record=p.length===3&&uid(p[1]);
- if(method==='GET')return body===undefined&&(tail==='drafts'||tail==='inbox'||record&&p[0]==='drafts'&&['invitations','revisions'].includes(p[2]));
+ if(method==='GET')return body===undefined&&(tail==='drafts'||tail==='inbox'||p.length===2&&p[0]==='commands'&&uid(p[1])||record&&p[0]==='drafts'&&['invitations','revisions'].includes(p[2]));
  if(method!=='POST')return false;
  if(tail==='drafts')return !!exact(body,['id','organizerKsNumber','title','purpose'])&&uid(body.id)&&ks(body.organizerKsNumber)&&(!m[2]||body.organizerKsNumber===m[2])&&txt(body.title,160)&&txt(body.purpose,800);
  if(record&&p[0]==='drafts'&&p[2]==='revision')return !!exact(body,['id','expectedRevision','title','purpose'])&&uid(body.id)&&integer(body.expectedRevision,1,49)&&txt(body.title,160)&&txt(body.purpose,800);
@@ -24,3 +24,17 @@ export function isInvitation(v){return !!safe(v)&&uid(v.id)&&uid(v.draftId)&&txt
 const contributions=(rows,id)=>Array.isArray(rows)&&rows.length<=50&&new Set(rows.map(x=>x?.id)).size===rows.length&&rows.every((v,i)=>safe(v)&&uid(v.id)&&v.inviteId===id&&v.revision===i+1&&txt(v.terms,1600)&&typeof v.submittedAt==='string'&&Number.isFinite(Date.parse(v.submittedAt)));
 export function isReceived(v){return !!v&&isDraft(v.draft)&&isInvitation(v.invitation)&&v.invitation.draftId===v.draft.id&&v.invitation.draftRevision===v.draft.revision&&contributions(v.contributions,v.invitation.id);}
 export function isNomination(v){return !!v&&isInvitation(v.invitation)&&ks(v.recipientKsNumber)&&contributions(v.contributions,v.invitation.id);}
+
+export function matchesCommandReceipt(v,pending){
+ if(!safe(v)||!pending||v.id!==pending.id||!uid(v.id)||!uid(v.draftId)||!integer(v.revision,1,50))return false;
+ let f;try{f=JSON.parse(pending.fingerprint)}catch{return false;}
+ if(!Array.isArray(f))return false;
+ switch(f[0]){
+  case 'create':return v.kind==='CREATE'&&v.draftId===v.id&&v.invitationId===null&&v.revision===1&&v.decision===null;
+  case 'revision':return v.kind==='REVISION'&&v.draftId===f[1]&&v.invitationId===null&&v.revision===f[2]+1&&v.decision===null;
+  case 'invite':return v.kind==='INVITE'&&v.draftId===f[1]&&v.invitationId===v.id&&v.revision===f[2]&&v.decision===null;
+  case 'contribute':return v.kind==='CONTRIBUTE'&&v.invitationId===f[1]&&v.revision===f[2]+1&&v.decision===null;
+  case 'decision':return v.kind==='DECISION'&&v.invitationId===f[1]&&v.revision===f[2]+1&&v.decision===f[3];
+  default:return false;
+ }
+}
