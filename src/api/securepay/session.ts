@@ -1,4 +1,5 @@
 import type { AuthGateway, SessionTokensDto } from './auth';
+import { miniEnsureFreshSession } from './sessionRefresh.mjs';
 
 export type SessionTokens = SessionTokensDto;
 export type SessionState = { status: 'signed-out' } | { status: 'signed-in'; tokens: SessionTokens };
@@ -9,30 +10,36 @@ export type SessionState = { status: 'signed-out' } | { status: 'signed-in'; tok
  */
 export function createSessionStore() {
   let state: SessionState = { status: 'signed-out' };
+  // Explicit sign-in / account replacement differs from rotating a token
+  // within the SAME login. Never let late refresh A overwrite new account B.
+  let accountGeneration = 0;
   const listeners = new Set<() => void>();
   const notify = () => listeners.forEach(listener => listener());
   return {
     getSnapshot: (): SessionState => state,
     subscribe: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
     getAccessToken: (): string | null => (state.status === 'signed-in' ? state.tokens.accessToken : null),
-    setTokens: (tokens: SessionTokens) => { state = { status: 'signed-in', tokens }; notify(); },
-    clear: () => { state = { status: 'signed-out' }; notify(); },
+    getAccountGeneration: (): number => accountGeneration,
+    // Only sign-in / verified signup calls setTokens. Refresh is separate.
+    setTokens: (tokens: SessionTokens) => { accountGeneration++; state = { status: 'signed-in', tokens }; notify(); },
+    setRefreshedTokens: (tokens: SessionTokens) => {
+      if (state.status !== 'signed-in') return;
+      state = { status: 'signed-in', tokens }; notify();
+    },
+    clear: () => { accountGeneration++; state = { status: 'signed-out' }; notify(); },
     isAccessTokenExpired: (skewMs = 15000): boolean =>
       state.status === 'signed-in' && Date.parse(state.tokens.accessTokenExpiresAt) - skewMs <= Date.now(),
   };
 }
 export type SessionStore = ReturnType<typeof createSessionStore>;
 
-/** Refreshes only when the current access token is actually expired, per the real refresh contract. */
-export async function ensureFreshSession(session: SessionStore, auth: Pick<AuthGateway, 'refresh'>): Promise<void> {
-  const state = session.getSnapshot();
-  if (state.status !== 'signed-in' || !session.isAccessTokenExpired()) return;
-  try {
-    session.setTokens(await auth.refresh(state.tokens.refreshToken));
-  } catch (error) {
-    session.clear();
-    throw error;
-  }
+/**
+ * Actual refresh implementation is in a small independently runnable module
+ * so token-rotation and cross-account races are covered by executable Node
+ * tests, not only source text assertions.
+ */
+export function ensureFreshSession(session: SessionStore, auth: Pick<AuthGateway, 'refresh'>): Promise<void> {
+  return miniEnsureFreshSession(session, auth);
 }
 
 /**
@@ -44,7 +51,12 @@ export function withSessionRefresh<T extends object>(gateway: T, methods: readon
   for (const method of methods) {
     const original = gateway[method] as unknown as (...args: unknown[]) => Promise<unknown>;
     (wrapped[method] as unknown as (...args: unknown[]) => Promise<unknown>) = async (...args: unknown[]) => {
+      const ownerGeneration = session.getAccountGeneration();
       await ensureFreshSession(session, auth);
+      // A stale action must not run under whichever other account signed in
+      // while the preceding async refresh was still awaiting its response.
+      if (session.getAccountGeneration() !== ownerGeneration)
+        throw new Error('SecurePay account changed during authentication');
       return original(...args);
     };
   }
