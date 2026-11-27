@@ -79,6 +79,8 @@ import { DeclaredSourcePanel, type DeclaredSourceKind } from '../sources/ui/Decl
 import { BringPlanPanel } from '../sources/ui/BringPlanPanel';
 import { SourcesList } from '../sources/ui/SourceCard';
 import { WorkspaceExperience } from '../workspace/WorkspaceExperience';
+import {SharedStudio} from '../collaborative-offers/SharedStudio';
+import {studioOrigin} from '../collaborative-offers/studioSession.mjs';
 import type { WorkspaceEntry } from '../workspace/controller';
 import { attentionItemsFromHub, invitationsForYouView, problemsView, waitingItemsFromHub, upcomingHomeEventsView } from '../workspace/view';
 import { chooseHumanNext, resolveConversationHumanNext, resolveWorkspaceHumanNext, type HumanNext } from '../shell/humanNext';
@@ -1231,7 +1233,9 @@ function AgentExperienceRouter({ publicShell, gateway, agreementGateway, moneyGa
 
   if (workspace && sessionState.status === 'signed-in') {
     const workspaceGateway = { ...agreementGateway, money: moneyGateway, review: agreementReviewGateway };
+    const g4Origin=studioOrigin('living',import.meta.env.VITE_LIVING_G4_STUDIO_ORIGIN,window.location.origin,import.meta.env.VITE_LIVING_G4_STUDIO_ENABLED);
     return <WorkspaceExperience
+      renderStudio={g4Origin?onBack=><SharedStudio origin={g4Origin} session={session} onBack={onBack}/>:undefined}
       onOpenSupport={context => { setHelpContext(context); setWorkspace(false); setWorkspaceAgreementId(null); setSupportView(true); }}
       gateway={workspaceGateway}
       fulfilmentNeedsGateway={fulfilmentNeedsGateway}

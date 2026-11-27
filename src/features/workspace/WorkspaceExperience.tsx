@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { NavBar } from '../../components/NavBar';
 import { SignedInHome } from '../../components/SignedInHome';
 import { TrustProjectSection } from '../../components/TrustProjectSection';
@@ -82,7 +82,8 @@ function LoadingNotice({ text }: { text: string }) {
  * as Agreement truth: it first loads the authoritative Hub and only opens the id when that Hub contains
  * it. Once consumed, normal Home/Hub/Detail navigation is no longer influenced by the hint.
  */
-export function WorkspaceExperience({ onOpenSupport, gateway, fulfilmentNeedsGateway, paymentReleaseGateway, agentGateway, agentController, initialAgreementId, initialView = 'hub', onOpenStore, onOpenStoreOffer, onOpenReferral, onOpenHumanHelp, onOpenProjects, onOpenVisionBoard, onOpenCommunity, onOpenAccount, onOpenNotifications, onJoinTrustProject, trustProjectMembership = null, onAskKs001, onLeave }: {
+export function WorkspaceExperience({ onOpenSupport, gateway, fulfilmentNeedsGateway, paymentReleaseGateway, agentGateway, agentController, initialAgreementId, initialView = 'hub', onOpenStore, onOpenStoreOffer, onOpenReferral, onOpenHumanHelp, onOpenProjects, onOpenVisionBoard, onOpenCommunity, onOpenAccount, onOpenNotifications, onJoinTrustProject, trustProjectMembership = null, onAskKs001, onLeave, renderStudio }: {
+  renderStudio?: (onBack:()=>void)=>ReactNode;
   /** Help & Support, scoped by the minimum this screen already showed. Optional, mirroring onOpenStore. */
   onOpenSupport?: (context: SupportContext) => void;
   gateway: Gateway;
@@ -119,6 +120,7 @@ export function WorkspaceExperience({ onOpenSupport, gateway, fulfilmentNeedsGat
   onAskKs001?: (message: string) => void;
   onLeave: (startText?: string) => void;
 }) {
+  const [studioOpen,setStudioOpen]=useState(false);
   const [controller] = useState(() => createWorkspaceController(gateway, initialView));
   // One-shot navigation hint from Help ("Reviews & issues"): captured at mount, cleared right after. Never Agreement truth.
   const [tabHint, setTabHint] = useState(() => peekDetailTabHint());
@@ -478,7 +480,8 @@ export function WorkspaceExperience({ onOpenSupport, gateway, fulfilmentNeedsGat
         </div>
       )}
       {notice && <div role="status" className="px-4 py-2 text-sm text-sand-600 bg-cream-50">{notice} <button onClick={() => setNotice(null)} className="underline">Dismiss</button></div>}
-      <div className="flex-1 flex flex-col overflow-hidden">{body}</div>
+      {renderStudio&&(state.view==='home'||state.view==='hub')&&!studioOpen&&<div className="px-4 py-2"><button className="text-forest-700 underline" onClick={()=>setStudioOpen(true)}>Collaborative Offers</button></div>}
+      <div className="flex-1 flex flex-col overflow-hidden">{studioOpen&&renderStudio?renderStudio(()=>setStudioOpen(false)):body}</div>
     </div>
   );
 }
