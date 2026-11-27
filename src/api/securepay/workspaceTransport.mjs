@@ -7,7 +7,7 @@ const shape=(v,keys)=>v&&typeof v==='object'&&!Array.isArray(v)&&Object.keys(v).
 const id=v=>typeof v==='string'&&/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(v);
 const ks=v=>typeof v==='string'&&/^KS[0-9]{3,12}$/.test(v);
 export function createWorkspaceTransport({enabled,localOrigin,approvedOrigins,fetcher=fetch,now=Date.now}){
- if(enabled!==true||!originShape(localOrigin)||!Array.isArray(approvedOrigins)||!approvedOrigins.includes(localOrigin)||approvedOrigins.length<2||!approvedOrigins.every(originShape)||new Set(approvedOrigins).size!==approvedOrigins.length)throw Error('Workspace transport unavailable');
+ if(enabled!==true||(typeof window!=='undefined'&&window.location.origin!==localOrigin)||!originShape(localOrigin)||!Array.isArray(approvedOrigins)||!approvedOrigins.includes(localOrigin)||approvedOrigins.length<2||!approvedOrigins.every(originShape)||new Set(approvedOrigins).size!==approvedOrigins.length)throw Error('Workspace transport unavailable');
  const approved=new Set(approvedOrigins);
  const future=v=>typeof v==='string'&&Number.isFinite(Date.parse(v))&&Date.parse(v)>now();
  async function request(path,body,accessToken){
@@ -39,6 +39,7 @@ export function createWorkspaceTransport({enabled,localOrigin,approvedOrigins,fe
    return r;
   },
   async readIdentityWithToken(accessToken){
+   if(!secret(accessToken))throw Error('Human identity not confirmed');
    const r=await request('/api/v1/participants/me/acting-context',undefined,accessToken);
    if(!r||!id(r.authenticatedIdentityId)||!ks(r.authenticatedKsNumber)||!Array.isArray(r.profiles)||r.profiles.length>1000||r.profiles.filter(p=>p&&p.authorityKind==='PERSONAL'&&p.actingIdentityId===r.authenticatedIdentityId&&p.actingKsNumber===r.authenticatedKsNumber).length!==1)throw Error('Human identity not confirmed');
    return {identityId:r.authenticatedIdentityId,ksNumber:r.authenticatedKsNumber};
