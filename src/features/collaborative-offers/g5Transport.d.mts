@@ -7,7 +7,7 @@ export type Review={draft:Draft;previousSnapshotId:string|null;members:Member[]}
 export type Snapshot={id:string;draft:Draft;sequence:number;predecessorId:string|null;current:boolean;allOwnProposalsCommitted:boolean;requiredContributors:number;members:Member[]};
 export type Plan={id:string;snapshotId:string;sequence:number;predecessorId:string|null;current:boolean;allPlanAccepted:boolean;allDeclaredWindowsCurrent:boolean;dependencies:Dependency[];contingencies:Contingency[];members:{invitationId:string;recipientKsNumber:string;status:string;declaredWindowsCurrent:boolean;ownResources:Resource[]}[]};
 type Decision={id:string;decision:string;recordedAt:string}|null;
-export type Examination={planId:string;snapshotId:string;assessedAt:string;result:{blockers:string[];coordinationEvidenceComplete:boolean};dependencyReports:{id:string;ordinal:number;sequence:number;evidenceText:string;review:Decision}[];resourceRequirements:{id:string;invitationId:string;sequence:number;requirementText:string;minimumResources:number;startsAt:string;endsAt:string;review:Decision;sufficient:boolean}[]};
+export type Examination={planId:string;snapshotId:string;assessedAt:string;result:{blockers:string[];coordinationEvidenceComplete:boolean};dependencyReports:{id:string;ordinal:number;sequence:number;evidenceText:string;evidenceKind?:'PROSPECTIVE'|'FULFILLED';review:Decision}[];resourceRequirements:{id:string;invitationId:string;sequence:number;requirementText:string;minimumResources:number;startsAt:string;endsAt:string;review:Decision;sufficient:boolean}[]};
 export function g5Route(method:string,path:string,body?:unknown):boolean;
 export function isReadinessReview(v:unknown):v is Review;
 export function isSnapshot(v:unknown):v is Snapshot;
@@ -15,7 +15,7 @@ export function isPlan(v:unknown):v is Plan;
 export function isExamination(v:unknown):v is Examination;
 
 export type WindowChoice=Resource&{resourceReference:string};
-export type Capability={id:string;invitationId:string;recipientKsNumber:string;sequence:number;kind:'RESOURCE'|'SERVICE';deliverable:string;place:string;purpose:string;method:string;basis:string;startsAt:string;endsAt:string;review:Decision;reviewedSuitability:boolean;declaredCoverageCurrent:boolean;fairTrade:{declarationId:string;proposalId:string;version:number;principleSetVersion:string;lenses:{number:number;title:string;state:string;explanation:string}[];questions:{name:string;evidence:string;state:string}[];fullyExamined:boolean;hasMaterialConcern:boolean}};
+export type Capability={id:string;invitationId:string;recipientKsNumber:string;sequence:number;kind:'RESOURCE'|'SERVICE';deliverable:string;place:string;purpose:string;method:string;basis:string;startsAt:string;endsAt:string;review:Decision;reviewedSuitability:boolean;declaredCoverageCurrent:boolean;pricing?:Pricing|null;fairTrade:{declarationId:string;proposalId:string;version:number;principleSetVersion:string;lenses:{number:number;title:string;state:string;explanation:string}[];questions:{name:string;evidence:string;state:string}[];fullyExamined:boolean;hasMaterialConcern:boolean}};
 export type FinalReview={planId:string;snapshotId:string;capabilities:Capability[];collectiveReading:null|{planId:string;contextId:string;declarationIds:string[];principleSetVersion:string;lenses:Capability['fairTrade']['lenses'];fullyExamined:boolean;hasMaterialConcern:boolean};blockers:string[]};
 export function isWindowChoice(v:unknown):v is WindowChoice;
 export function isFinalReview(v:unknown):v is FinalReview;
@@ -23,3 +23,5 @@ export function isFinalReview(v:unknown):v is FinalReview;
 export type ReadinessReceipt={id:string;kind:string;draftId:string;snapshotId:string;planId:string|null;invitationId:string|null;sequence:number;decision:string|null};
 export function isReadinessReceipt(v:unknown,id:string,draftId:string):v is ReadinessReceipt;
 export function matchesReadinessReceipt(v:ReadinessReceipt,pending:{path:string;fingerprint:string;id:string}|null):boolean;
+
+export type Pricing={mode:'FIXED'|'UNIT'|'QUOTED'|'QUOTE_REQUEST';unit:string;quantity:number;unitMinor:number|null;currency:'KES'};
