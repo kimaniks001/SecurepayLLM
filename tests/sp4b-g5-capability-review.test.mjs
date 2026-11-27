@@ -10,8 +10,13 @@ const decision={kind:'REVIEW_CAPABILITY',id,invitationId:invite,declarationId:pr
 const choice={offerId:id,resourceId:invite,windowId:proposal,resourceReference:'VAN-01',startsAt:from,endsAt:to};
 const reading={declarationId:id,proposalId:proposal,version:1,principleSetVersion:'v1',lenses:Array.from({length:12},(_,i)=>({number:i+1,title:'Canonical lens '+(i+1),state:'NOT_ASSESSED',explanation:''})),questions:['Who','What','Where','When','Why','How','Commercial basis'].map(name=>({name,evidence:'Declared evidence',state:'DECLARED'})),fullyExamined:false,hasMaterialConcern:false};
 const capability={id,invitationId:invite,recipientKsNumber:'KS002',sequence:1,kind:'SERVICE',deliverable:declaration.deliverable,place:declaration.place,purpose:declaration.purpose,method:declaration.method,basis:declaration.basis,startsAt:from,endsAt:to,review:null,reviewedSuitability:false,declaredCoverageCurrent:true,fairTrade:reading};
-const view={planId:plan,snapshotId:snap,capabilities:[capability],blockers:['SUBSTANTIVE_FAIR_TRADE_EXAMINATION_REQUIRED'],collectiveReady:false,publicationAuthorized:false,agreementAuthorized:false,paymentAuthorized:false};
+const view={planId:plan,snapshotId:snap,capabilities:[capability],collectiveReading:null,blockers:['SUBSTANTIVE_FAIR_TRADE_EXAMINATION_REQUIRED'],collectiveReady:false,publicationAuthorized:false,agreementAuthorized:false,paymentAuthorized:false};
+const collective={planId:plan,contextId:snap,declarationIds:[id],principleSetVersion:'v1',lenses:reading.lenses,fullyExamined:false,hasMaterialConcern:false};
 const cases=[
+ ['collective exact manifest',()=>isFinalReview({...view,collectiveReading:collective})],
+ ['wrong manifest source',()=>!isFinalReview({...view,collectiveReading:{...collective,declarationIds:[proposal]}})],
+ ['wrong collective plan',()=>!isFinalReview({...view,collectiveReading:{...collective,planId:snap}})],
+ ['false collective completeness',()=>!isFinalReview({...view,collectiveReading:{...collective,fullyExamined:true}})],
  ['default off',()=>!studioRoute('GET',path)],
  ['explicit opt-in',()=>studioRoute('GET',path,undefined,true)],
  ['represented lookup',()=>g5Route('GET',biz+'coordination/'+plan+'/final-review')],
