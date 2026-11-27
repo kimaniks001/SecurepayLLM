@@ -45,3 +45,12 @@ export function studioClient({origin,token,current,fetcher}){
   }
  };
 }
+
+// Reuse Mini/SP4B's isolated same-origin Basic Auth proxy convention. Never forward a token to a different origin.
+export function studioProxyFetch(origin,fetcher=fetch){return async(input,init={})=>{
+ const url=new URL(String(input));if(url.origin!==origin||!url.pathname.startsWith('/api/v1/')||url.username||url.password||url.hash)throw Error('Unapproved Studio request');
+ const headers=new Headers(init.headers),direct=headers.get('Authorization'),proxied=headers.get('X-SecurePay-Access-Token');
+ if(direct&&proxied&&direct!==proxied)throw Error('Conflicting authentication');
+ if(direct){headers.delete('Authorization');headers.set('X-SecurePay-Access-Token',direct);}
+ return fetcher(url.href,{...init,headers,credentials:'same-origin',cache:'no-store',redirect:'error',referrerPolicy:'no-referrer'});
+};}
