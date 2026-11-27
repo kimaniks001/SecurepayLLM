@@ -16,6 +16,6 @@ export function isExamination(v:unknown):v is Examination;
 
 export type WindowChoice=Resource&{resourceReference:string};
 export type Capability={id:string;invitationId:string;recipientKsNumber:string;sequence:number;kind:'RESOURCE'|'SERVICE';deliverable:string;place:string;purpose:string;method:string;basis:string;startsAt:string;endsAt:string;review:Decision;reviewedSuitability:boolean;declaredCoverageCurrent:boolean;fairTrade:{declarationId:string;proposalId:string;version:number;principleSetVersion:string;lenses:{number:number;title:string;state:string;explanation:string}[];questions:{name:string;evidence:string;state:string}[];fullyExamined:boolean;hasMaterialConcern:boolean}};
-export type FinalReview={planId:string;snapshotId:string;capabilities:Capability[];blockers:string[]};
+export type FinalReview={planId:string;snapshotId:string;capabilities:Capability[];collectiveReading:null|{planId:string;contextId:string;declarationIds:string[];principleSetVersion:string;lenses:Capability['fairTrade']['lenses'];fullyExamined:boolean;hasMaterialConcern:boolean};blockers:string[]};
 export function isWindowChoice(v:unknown):v is WindowChoice;
 export function isFinalReview(v:unknown):v is FinalReview;
