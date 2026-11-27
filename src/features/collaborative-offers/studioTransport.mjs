@@ -1,3 +1,4 @@
+import {g5Route} from './g5Transport.mjs';
 const uid=v=>typeof v==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(v);
 const ks=v=>typeof v==='string'&&/^KS[0-9]{3,12}$/.test(v);
 const txt=(v,n)=>typeof v==='string'&&v.trim().length>0&&v.length<=n;
@@ -5,7 +6,8 @@ const exact=(b,keys)=>b&&typeof b==='object'&&!Array.isArray(b)&&Object.keys(b).
 const integer=(v,min,max)=>Number.isInteger(v)&&v>=min&&v<=max;
 const states=['INVITED','PREPARATION_ACCEPTED','DECLINED','WITHDRAWN','REVOKED','SUPERSEDED','EXPIRED'];
 export const terminal=s=>states.includes(s)&&!['INVITED','PREPARATION_ACCEPTED'].includes(s);
-export function studioRoute(method,path,body){
+export function studioRoute(method,path,body,enableG5=false){
+ if(enableG5&&g5Route(method,path,body))return true;
  if(typeof path!=='string')return false;
  const m=/^\/api\/v1\/g4\/(me|business\/(KS[0-9]{3,12}))\/studio\/(.*)$/.exec(path);if(!m)return false;
  const tail=m[3],p=tail.split('/'),record=p.length===3&&uid(p[1]);

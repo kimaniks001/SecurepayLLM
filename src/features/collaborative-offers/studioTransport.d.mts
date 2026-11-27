@@ -3,7 +3,7 @@ export type Invitation={id:string;draftId:string;scope:string;expiresAt:string;d
 export type Contribution={id:string;inviteId:string;revision:number;terms:string;submittedAt:string;agreementAuthorized:false;paymentAuthorized:false};
 export type Received={draft:SavedDraft;invitation:Invitation;contributions:Contribution[]};
 export type Nomination={invitation:Invitation;recipientKsNumber:string;contributions:Contribution[]};
-export function studioRoute(method:string,path:string,body?:unknown):boolean;
+export function studioRoute(method:string,path:string,body?:unknown,enableG5?:boolean):boolean;
 export function isDraft(v:unknown):v is SavedDraft;
 export function isInvitation(v:unknown):v is Invitation;
 export function isReceived(v:unknown):v is Received;
