@@ -1,0 +1,4 @@
+export function destinationProof(cryptoProvider:Crypto):Promise<{verifier:string;nonce:string;challenge:string}>;
+type HandoffConfig={enabled:boolean;localOrigin:string;peerOrigin:string;approvedOrigins:string[];peer:Window;session:{getAccountGeneration():number;getSnapshot():any;clear():void;setTokens(tokens:any):void};post:(peer:Window,message:unknown,origin:string)=>void;now?:()=>number};
+export function sourceHandoff(config:HandoffConfig&{prepare:()=>Promise<void>;readIdentity:()=>Promise<unknown>;issue:(args:{accessToken:string;refreshToken:string;targetOrigin:string;proofChallenge:string})=>Promise<unknown>}):{state():string;receive(event:MessageEvent):Promise<boolean>};
+export function destinationHandoff(config:HandoffConfig&{redeem:(args:{ticket:string;verifier:string})=>Promise<unknown>;readIdentityWithToken:(accessToken:string)=>Promise<unknown>}):{state():string;begin(cryptoProvider:Crypto):Promise<void>;receive(event:MessageEvent):Promise<boolean>};
