@@ -74,7 +74,22 @@ export interface PublicStoreProfileView {
   updatedAt: string;
 }
 
+export interface PublicCommercialTerms {
+  version:number;
+  pricingMode:'LISTED_PRICE'|'QUOTE_REQUIRED';
+  unit:string|null;
+  minimumOrderQuantity:number|null;
+  leadTimeHours:number|null;
+  serviceAreas:string[];
+  deliveryAvailable:boolean|null;
+  capacityQuantity:number|null;
+  capacityUnit:string|null;
+  scheduleNote:string|null;
+  fulfilmentConditions:string|null;
+}
 export interface PublicOfferView {
+  commercialTermsState?:'NONE'|'REVIEW_REQUIRED'|'PUBLISHED'|null;
+  commercialTerms?:PublicCommercialTerms|null;
   id: string;
   kind: string;
   title: string;
