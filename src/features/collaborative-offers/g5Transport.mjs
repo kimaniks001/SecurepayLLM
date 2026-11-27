@@ -12,7 +12,7 @@ export function g5Route(method,path,b){
  const m=typeof path==='string'&&/^\/api\/v1\/g4\/(?:me|business\/KS[0-9]{3,12})\/studio\/(.*)$/.exec(path);if(!m)return false;
  const p=m[1].split('/');if(p.length<2||!uid(p[1]))return false;
  const [kind,,op]=p;if(p.length>3)return false;
- if(method==='GET')return b===undefined&&(p.length===2&&kind==='readiness'||p.length===3&&((kind==='drafts'&&['readiness','readiness-review'].includes(op))||(kind==='inbox'&&op==='readiness')||(kind==='readiness'&&['coordination','resource-choices'].includes(op))||(kind==='coordination'&&['examination','final-review'].includes(op))));
+ if(method==='GET')return b===undefined&&(p.length===2&&['readiness','readiness-commands'].includes(kind)||p.length===3&&((kind==='drafts'&&['readiness','readiness-review'].includes(op))||(kind==='inbox'&&op==='readiness')||(kind==='readiness'&&['coordination','resource-choices'].includes(op))||(kind==='coordination'&&['examination','final-review'].includes(op))));
  if(method!=='POST'||!b||!uid(b.id)||p.length!==3)return false;
  if(kind==='drafts'&&op==='readiness')return exact(b,['id','expectedDraftRevision','previousSnapshotId','reviewedContributionIds'])&&n(b.expectedDraftRevision,1,50)&&(b.previousSnapshotId===null||uid(b.previousSnapshotId))&&list(b.reviewedContributionIds,12,uid,1)&&new Set(b.reviewedContributionIds).size===b.reviewedContributionIds.length;
  if(kind==='readiness'&&op==='commitment')return exact(b,['id','contributionId','expectedSequence','decision','explicitlyConfirmed'])&&uid(b.contributionId)&&b.explicitlyConfirmed===true&&((b.decision==='COMMIT_OWN_PROPOSAL'&&b.expectedSequence===0)||(b.decision==='WITHDRAW'&&b.expectedSequence===1));
@@ -51,3 +51,27 @@ const reading=(v,c)=>!!v&&v.declarationId===c.id&&uid(v.proposalId)&&v.version==
 const capability=v=>!!v&&uid(v.id)&&uid(v.invitationId)&&ks(v.recipientKsNumber)&&n(v.sequence,1,50)&&['RESOURCE','SERVICE'].includes(v.kind)&&txt(v.deliverable,800)&&txt(v.place,400)&&txt(v.purpose,400)&&txt(v.method,800)&&txt(v.basis,800)&&ts(v.startsAt)&&ts(v.endsAt)&&Date.parse(v.startsAt)<Date.parse(v.endsAt)&&reviewValue(v.review)&&typeof v.reviewedSuitability==='boolean'&&typeof v.declaredCoverageCurrent==='boolean'&&reading(v.fairTrade,v);
 const collectiveReading=(r,v)=>r===null||!!r&&r.planId===v.planId&&uid(r.contextId)&&list(r.declarationIds,12,uid,1)&&r.declarationIds.length===v.capabilities.length&&new Set(r.declarationIds).size===r.declarationIds.length&&v.capabilities.every(c=>r.declarationIds.includes(c.id))&&txt(r.principleSetVersion,100)&&list(r.lenses,12,lens,12)&&new Set(r.lenses.map(l=>l.number)).size===12&&typeof r.fullyExamined==='boolean'&&r.fullyExamined===r.lenses.every(l=>l.state!=='NOT_ASSESSED')&&typeof r.hasMaterialConcern==='boolean'&&r.hasMaterialConcern===r.lenses.some(l=>l.state==='MATERIAL_CONCERN');
 export function isFinalReview(v){return !!safe(v)&&v.collectiveReady===false&&uid(v.planId)&&uid(v.snapshotId)&&list(v.capabilities,12,capability)&&new Set(v.capabilities.map(c=>c.invitationId)).size===v.capabilities.length&&list(v.blockers,30,b=>typeof b==='string'&&/^[A-Z_]{1,100}$/.test(b),1)&&v.blockers.includes('SUBSTANTIVE_FAIR_TRADE_EXAMINATION_REQUIRED')&&collectiveReading(v.collectiveReading,v);}
+
+export function isReadinessReceipt(v,id,draftId){
+ if(!safe(v)||v.id!==id||!uid(id)||v.draftId!==draftId||!uid(draftId)||!uid(v.snapshotId)||!n(v.sequence,1,50))return false;
+ if(v.kind==='SNAPSHOT')return v.snapshotId===id&&v.planId===null&&v.invitationId===null&&v.decision===null;
+ if(v.kind==='PLAN')return v.planId===id&&v.invitationId===null&&v.decision===null;
+ if(!uid(v.invitationId))return false;
+ if(v.kind==='COMMITMENT')return v.planId===null&&((v.sequence===1&&v.decision==='COMMIT_OWN_PROPOSAL')||(v.sequence===2&&v.decision==='WITHDRAW'));
+ if(!uid(v.planId))return false;
+ if(v.kind==='PLAN_DECISION')return (v.sequence===1&&v.decision==='ACCEPT_PLAN')||(v.sequence===2&&v.decision==='WITHDRAW');
+ if(['REPORT_DEPENDENCY','SPECIFY_RESOURCE','DECLARE_CAPABILITY'].includes(v.kind))return v.decision===null;
+ return ['REVIEW_DEPENDENCY','REVIEW_RESOURCE','REVIEW_CAPABILITY'].includes(v.kind)&&review(v.decision);
+}
+export function matchesReadinessReceipt(v,pending){
+ if(!pending||v.id!==pending.id)return false;
+ let b;try{b=JSON.parse(pending.fingerprint)}catch{return false;}
+ const [area,target,op]=pending.path.split('/');
+ if(area==='drafts'&&op==='readiness')return v.kind==='SNAPSHOT'&&v.draftId===target&&v.snapshotId===pending.id;
+ if(area==='readiness'&&op==='coordination')return v.kind==='PLAN'&&v.snapshotId===target&&v.planId===pending.id;
+ if(area==='readiness'&&op==='commitment')return v.kind==='COMMITMENT'&&v.snapshotId===target&&v.sequence===b.expectedSequence+1&&v.decision===b.decision;
+ if(area!=='coordination'||v.planId!==target)return false;
+ if(op==='decision')return v.kind==='PLAN_DECISION'&&v.sequence===b.expectedSequence+1&&v.decision===b.decision;
+ if(!['examination','final-review'].includes(op)||v.kind!==b.kind)return false;
+ return (!b.invitationId||b.invitationId===v.invitationId)&&(b.expectedSequence===undefined||b.expectedSequence+1===v.sequence)&&(b.decision===undefined||b.decision===v.decision);
+}
