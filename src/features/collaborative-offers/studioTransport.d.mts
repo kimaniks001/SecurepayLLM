@@ -10,3 +10,5 @@ export function isReceived(v:unknown):v is Received;
 export function isNomination(v:unknown):v is Nomination;
 
 export function terminal(s:string):boolean;
+
+export function matchesCommandReceipt(value:unknown,pending:{fingerprint:string;id:string}|null):boolean;
