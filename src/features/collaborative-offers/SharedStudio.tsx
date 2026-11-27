@@ -2,7 +2,7 @@ import {useEffect,useRef,useState,useSyncExternalStore} from 'react';
 import {ensureFreshSession,type SessionStore} from '../../api/securepay/session';
 import {createAuthGateway} from '../../api/securepay/auth';
 import {createHttpClient} from '../../api/securepay/http';
-import {studioClient,type Capacity,type Personal} from './studioSession.mjs';
+import {studioClient,studioProxyFetch,type Capacity,type Personal} from './studioSession.mjs';
 import {StudioRecords} from './StudioRecords';
 import './studio.css';
 
@@ -13,7 +13,7 @@ export function SharedStudio({origin,session,onBack,allowBusiness=true}:{origin:
  const current=()=>active.current&&session.getAccountGeneration()===generation.current&&session.getSnapshot().status==='signed-in'&&window.location.origin===origin;
  const [person,setPerson]=useState<Personal|null>(null),[businesses,setBusinesses]=useState<{ksNumber:string;label:string}[]>([]),[choice,setChoice]=useState(''),[title,setTitle]=useState(''),[purpose,setPurpose]=useState(''),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
  const lock=useRef(false);
- const client=async(scopeEpoch=epoch.current)=>{const valid=()=>current()&&scopeEpoch===epoch.current;if(!valid())throw Error('Sign in again');await ensureFreshSession(session,createAuthGateway(createHttpClient(origin,session.getAccessToken)));const token=session.getAccessToken();if(!valid()||!token||session.isAccessTokenExpired())throw Error('Session unavailable');return studioClient({origin,token,current:()=>valid()&&session.getAccessToken()===token&&!session.isAccessTokenExpired(),fetcher:fetch});};
+ const client=async(scopeEpoch=epoch.current)=>{const valid=()=>current()&&scopeEpoch===epoch.current;if(!valid())throw Error('Sign in again');await ensureFreshSession(session,createAuthGateway(createHttpClient(origin,session.getAccessToken,studioProxyFetch(origin))));const token=session.getAccessToken();if(!valid()||!token||session.isAccessTokenExpired())throw Error('Session unavailable');return studioClient({origin,token,current:()=>valid()&&session.getAccessToken()===token&&!session.isAccessTokenExpired(),fetcher:studioProxyFetch(origin)});};
  async function connect(){if(lock.current)return;lock.current=true;setBusy(true);setMessage('');setPerson(null);setChoice('');setBusinesses([]);try{const c=await client(),p=await c.personal();const b=allowBusiness?await c.businesses():[];if(!current())throw Error('Account changed');setPerson(p);setBusinesses(b);setChoice('personal');}catch{setMessage('SecurePay could not verify your current identity. Reopen after signing in.');}finally{lock.current=false;setBusy(false);}}
  const capacity:Capacity|null=person&&choice?{kind:choice==='personal'?'personal':'business',ksNumber:choice==='personal'?person.ksNumber:choice,identityId:person.identityId,personalKsNumber:person.ksNumber}:null;
  const renderedEpoch=epoch.current;
