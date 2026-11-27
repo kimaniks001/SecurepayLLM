@@ -13,3 +13,9 @@ export function isReadinessReview(v:unknown):v is Review;
 export function isSnapshot(v:unknown):v is Snapshot;
 export function isPlan(v:unknown):v is Plan;
 export function isExamination(v:unknown):v is Examination;
+
+export type WindowChoice=Resource&{resourceReference:string};
+export type Capability={id:string;invitationId:string;recipientKsNumber:string;sequence:number;kind:'RESOURCE'|'SERVICE';deliverable:string;place:string;purpose:string;method:string;basis:string;startsAt:string;endsAt:string;review:Decision;reviewedSuitability:boolean;declaredCoverageCurrent:boolean;fairTrade:{declarationId:string;proposalId:string;version:number;principleSetVersion:string;lenses:{number:number;title:string;state:string;explanation:string}[];questions:{name:string;evidence:string;state:string}[];fullyExamined:boolean;hasMaterialConcern:boolean}};
+export type FinalReview={planId:string;snapshotId:string;capabilities:Capability[];blockers:string[]};
+export function isWindowChoice(v:unknown):v is WindowChoice;
+export function isFinalReview(v:unknown):v is FinalReview;
