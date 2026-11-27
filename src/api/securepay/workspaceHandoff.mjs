@@ -40,6 +40,9 @@ function validateConfig({localOrigin,peerOrigin,approvedOrigins,peer,enabled}){
 export function sourceHandoff(config){
  validateConfig(config);
  const {peer,peerOrigin,session,prepare,readIdentity,issue,post,now=Date.now}=config;
+ const openedGeneration=session.getAccountGeneration(),openedAt=now();
+ if(session.getSnapshot().status!=='signed-in')throw Error('Source sign-in required');
+ const openingCurrent=()=>session.getAccountGeneration()===openedGeneration&&session.getSnapshot().status==='signed-in'&&now()>=openedAt&&now()-openedAt<120000;
  let phase='waiting';
  return {
   state:()=>phase,
@@ -47,15 +50,15 @@ export function sourceHandoff(config){
    if(phase!=='waiting'||!exactPeer(event,peer,peerOrigin))return false;
    const m=event.data;
    if(!shape(m,'type,nonce,challenge')||m.type!=='SP_G1_READY'||!proof(m.nonce)||!proof(m.challenge))return false;
-   const generation=session.getAccountGeneration();
-   if(session.getSnapshot().status!=='signed-in')return false;
+   if(!openingCurrent()){phase='failed';return false;}
+   const generation=openedGeneration;
    phase='preparing';
    try{
     await prepare();
     const current=session.getSnapshot();
-    if(current.status!=='signed-in'||session.getAccountGeneration()!==generation)throw Error('Account changed');
+    if(!openingCurrent()||current.status!=='signed-in'||session.getAccountGeneration()!==generation)throw Error('Account changed');
     const expected=await readIdentity();
-    if(!person(expected)||session.getSnapshot()!==current||session.getAccountGeneration()!==generation||!validTokens(current.tokens,now()))throw Error('Identity or session changed');
+    if(!openingCurrent()||!person(expected)||session.getSnapshot()!==current||session.getAccountGeneration()!==generation||!validTokens(current.tokens,now()))throw Error('Identity or session changed');
     // Detach in one synchronous turn. The original session is never restored.
     session.clear();
     const detachedGeneration=session.getAccountGeneration();
